@@ -1,0 +1,647 @@
+package main
+
+import (
+	"database/sql"
+	"encoding/base64"
+	"encoding/json"
+	"log"
+	"net/http"
+	"sort"
+	"strings"
+)
+
+// handleGetAllTags returns all unique tags in alphabetical order (case insensitive)
+func handleGetAllTags(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("[Go] GET /api/tags")
+		userSess, ok := r.Context().Value(UserContextKey).(*UserSession)
+		if !ok || !userSess.IsAdminOrUp() {
+			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
+			return
+		}
+
+		tagMap := make(map[string]bool)
+
+		// Get tags from books
+		rows, err := db.Query("SELECT tags FROM books WHERE tags IS NOT NULL")
+		if err == nil {
+			defer rows.Close()
+			for rows.Next() {
+				var tagsStr sql.NullString
+				if err := rows.Scan(&tagsStr); err == nil && tagsStr.Valid && tagsStr.String != "" {
+					var arr []string
+					if json.Unmarshal([]byte(tagsStr.String), &arr) == nil {
+						for _, t := range arr {
+							if t != "" {
+								tagMap[t] = true
+							}
+						}
+					}
+				}
+			}
+		}
+
+		// Get tags from podcasts
+		rows2, err := db.Query("SELECT tags FROM podcasts WHERE tags IS NOT NULL")
+		if err == nil {
+			defer rows2.Close()
+			for rows2.Next() {
+				var tagsStr sql.NullString
+				if err := rows2.Scan(&tagsStr); err == nil && tagsStr.Valid && tagsStr.String != "" {
+					var arr []string
+					if json.Unmarshal([]byte(tagsStr.String), &arr) == nil {
+						for _, t := range arr {
+							if t != "" {
+								tagMap[t] = true
+							}
+						}
+					}
+				}
+			}
+		}
+
+		tagsList := []string{}
+		for t := range tagMap {
+			tagsList = append(tagsList, t)
+		}
+
+		// Sort case-insensitively
+		sort.Slice(tagsList, func(i, j int) bool {
+			return strings.ToLower(tagsList[i]) < strings.ToLower(tagsList[j])
+		})
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"tags": tagsList,
+		})
+	}
+}
+
+// handleRenameTag renames a tag across books, podcasts, and user permissions
+func handleRenameTag(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("[Go] POST /api/tags/rename")
+		userSess, ok := r.Context().Value(UserContextKey).(*UserSession)
+		if !ok || !userSess.IsAdminOrUp() {
+			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
+			return
+		}
+
+		var body struct {
+			Tag    string `json:"tag"`
+			NewTag string `json:"newTag"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			http.Error(w, `{"error": "Invalid request body"}`, http.StatusBadRequest)
+			return
+		}
+		if body.Tag == "" || body.NewTag == "" {
+			http.Error(w, `{"error": "tag and newTag are required"}`, http.StatusBadRequest)
+			return
+		}
+
+		tx, err := db.Begin()
+		if err != nil {
+			http.Error(w, "Transaction start error", http.StatusInternalServerError)
+			return
+		}
+		defer tx.Rollback()
+
+		// 1. Update books
+		rows, err := tx.Query("SELECT id, tags FROM books WHERE tags IS NOT NULL")
+		if err == nil {
+			defer rows.Close()
+			for rows.Next() {
+				var id string
+				var tagsStr sql.NullString
+				if err := rows.Scan(&id, &tagsStr); err == nil {
+					if updated, changed := replaceInJSONArray(tagsStr, body.Tag, body.NewTag); changed {
+						tx.Exec("UPDATE books SET tags = ? WHERE id = ?", updated, id)
+					}
+				}
+			}
+		}
+
+		// 2. Update podcasts
+		rows2, err := tx.Query("SELECT id, tags FROM podcasts WHERE tags IS NOT NULL")
+		if err == nil {
+			defer rows2.Close()
+			for rows2.Next() {
+				var id string
+				var tagsStr sql.NullString
+				if err := rows2.Scan(&id, &tagsStr); err == nil {
+					if updated, changed := replaceInJSONArray(tagsStr, body.Tag, body.NewTag); changed {
+						tx.Exec("UPDATE podcasts SET tags = ? WHERE id = ?", updated, id)
+					}
+				}
+			}
+		}
+
+		// 3. Update users permissions (itemTagsSelected)
+		rows3, err := tx.Query("SELECT id, permissions FROM users WHERE permissions IS NOT NULL")
+		if err == nil {
+			defer rows3.Close()
+			for rows3.Next() {
+				var id string
+				var permsStr sql.NullString
+				if err := rows3.Scan(&id, &permsStr); err == nil && permsStr.Valid && permsStr.String != "" {
+					var perms map[string]interface{}
+					if json.Unmarshal([]byte(permsStr.String), &perms) == nil {
+						if tagsSel, ok := perms["itemTagsSelected"].([]interface{}); ok {
+							changed := false
+							newTagsSel := []interface{}{}
+							for _, t := range tagsSel {
+								if tStr, ok := t.(string); ok && tStr == body.Tag {
+									// Rename
+									alreadyHasNew := false
+									for _, existT := range tagsSel {
+										if existTStr, ok := existT.(string); ok && existTStr == body.NewTag {
+											alreadyHasNew = true
+											break
+										}
+									}
+									if !alreadyHasNew {
+										newTagsSel = append(newTagsSel, body.NewTag)
+									}
+									changed = true
+								} else {
+									newTagsSel = append(newTagsSel, t)
+								}
+							}
+							if changed {
+								perms["itemTagsSelected"] = newTagsSel
+								newPermsBytes, _ := json.Marshal(perms)
+								tx.Exec("UPDATE users SET permissions = ? WHERE id = ?", string(newPermsBytes), id)
+							}
+						}
+					}
+				}
+			}
+		}
+
+		if err := tx.Commit(); err != nil {
+			log.Printf("[Rename Tag] Commit error: %v", err)
+			http.Error(w, "Database commit error", http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"tagMerged": false,
+		})
+	}
+}
+
+// handleDeleteTag removes a tag base64 parameter from books, podcasts, and users permissions
+func handleDeleteTag(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("[Go] DELETE %s", r.URL.Path)
+		userSess, ok := r.Context().Value(UserContextKey).(*UserSession)
+		if !ok || !userSess.IsAdminOrUp() {
+			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
+			return
+		}
+
+		tagParam := strings.TrimPrefix(r.URL.Path, "/api/tags/")
+		if tagParam == "" || strings.Contains(tagParam, "/") {
+			http.Error(w, `{"error": "Bad Request"}`, http.StatusBadRequest)
+			return
+		}
+
+		tagBytes, err := base64.StdEncoding.DecodeString(tagParam)
+		if err != nil {
+			// Try URL-safe base64
+			tagBytes, err = base64.URLEncoding.DecodeString(tagParam)
+			if err != nil {
+				log.Printf("[Delete Tag] Failed to decode base64: %v", err)
+				http.Error(w, `{"error": "Invalid base64 encoding"}`, http.StatusBadRequest)
+				return
+			}
+		}
+		targetTag := string(tagBytes)
+
+		tx, err := db.Begin()
+		if err != nil {
+			http.Error(w, "Transaction start error", http.StatusInternalServerError)
+			return
+		}
+		defer tx.Rollback()
+
+		// 1. Update books
+		rows, err := tx.Query("SELECT id, tags FROM books WHERE tags IS NOT NULL")
+		if err == nil {
+			defer rows.Close()
+			for rows.Next() {
+				var id string
+				var tagsStr sql.NullString
+				if err := rows.Scan(&id, &tagsStr); err == nil {
+					if updated, changed := removeFromJSONArray(tagsStr, targetTag); changed {
+						tx.Exec("UPDATE books SET tags = ? WHERE id = ?", updated, id)
+					}
+				}
+			}
+		}
+
+		// 2. Update podcasts
+		rows2, err := tx.Query("SELECT id, tags FROM podcasts WHERE tags IS NOT NULL")
+		if err == nil {
+			defer rows2.Close()
+			for rows2.Next() {
+				var id string
+				var tagsStr sql.NullString
+				if err := rows2.Scan(&id, &tagsStr); err == nil {
+					if updated, changed := removeFromJSONArray(tagsStr, targetTag); changed {
+						tx.Exec("UPDATE podcasts SET tags = ? WHERE id = ?", updated, id)
+					}
+				}
+			}
+		}
+
+		// 3. Update users permissions
+		rows3, err := tx.Query("SELECT id, permissions FROM users WHERE permissions IS NOT NULL")
+		if err == nil {
+			defer rows3.Close()
+			for rows3.Next() {
+				var id string
+				var permsStr sql.NullString
+				if err := rows3.Scan(&id, &permsStr); err == nil && permsStr.Valid && permsStr.String != "" {
+					var perms map[string]interface{}
+					if json.Unmarshal([]byte(permsStr.String), &perms) == nil {
+						if tagsSel, ok := perms["itemTagsSelected"].([]interface{}); ok {
+							changed := false
+							newTagsSel := []interface{}{}
+							for _, t := range tagsSel {
+								if tStr, ok := t.(string); ok && tStr == targetTag {
+									changed = true
+								} else {
+									newTagsSel = append(newTagsSel, t)
+								}
+							}
+							if changed {
+								perms["itemTagsSelected"] = newTagsSel
+								newPermsBytes, _ := json.Marshal(perms)
+								tx.Exec("UPDATE users SET permissions = ? WHERE id = ?", string(newPermsBytes), id)
+							}
+						}
+					}
+				}
+			}
+		}
+
+		if err := tx.Commit(); err != nil {
+			log.Printf("[Delete Tag] Commit error: %v", err)
+			http.Error(w, "Database commit error", http.StatusInternalServerError)
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+	}
+}
+
+// handleGetAllGenres returns all unique genres in alphabetical order
+func handleGetAllGenres(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("[Go] GET /api/genres")
+		userSess, ok := r.Context().Value(UserContextKey).(*UserSession)
+		if !ok || !userSess.IsAdminOrUp() {
+			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
+			return
+		}
+
+		genreMap := make(map[string]bool)
+
+		// Get genres from books
+		rows, err := db.Query("SELECT genres FROM books WHERE genres IS NOT NULL")
+		if err == nil {
+			defer rows.Close()
+			for rows.Next() {
+				var gStr sql.NullString
+				if err := rows.Scan(&gStr); err == nil && gStr.Valid && gStr.String != "" {
+					var arr []string
+					if json.Unmarshal([]byte(gStr.String), &arr) == nil {
+						for _, g := range arr {
+							if g != "" {
+								genreMap[g] = true
+							}
+						}
+					}
+				}
+			}
+		}
+
+		// Get genres from podcasts
+		rows2, err := db.Query("SELECT genres FROM podcasts WHERE genres IS NOT NULL")
+		if err == nil {
+			defer rows2.Close()
+			for rows2.Next() {
+				var gStr sql.NullString
+				if err := rows2.Scan(&gStr); err == nil && gStr.Valid && gStr.String != "" {
+					var arr []string
+					if json.Unmarshal([]byte(gStr.String), &arr) == nil {
+						for _, g := range arr {
+							if g != "" {
+								genreMap[g] = true
+							}
+						}
+					}
+				}
+			}
+		}
+
+		genresList := []string{}
+		for g := range genreMap {
+			genresList = append(genresList, g)
+		}
+
+		// Sort case-insensitively
+		sort.Slice(genresList, func(i, j int) bool {
+			return strings.ToLower(genresList[i]) < strings.ToLower(genresList[j])
+		})
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"genres": genresList,
+		})
+	}
+}
+
+// handleRenameGenre renames a genre across books and podcasts
+func handleRenameGenre(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("[Go] POST /api/genres/rename")
+		userSess, ok := r.Context().Value(UserContextKey).(*UserSession)
+		if !ok || !userSess.IsAdminOrUp() {
+			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
+			return
+		}
+
+		var body struct {
+			Genre    string `json:"genre"`
+			NewGenre string `json:"newGenre"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			http.Error(w, `{"error": "Invalid request body"}`, http.StatusBadRequest)
+			return
+		}
+		if body.Genre == "" || body.NewGenre == "" {
+			http.Error(w, `{"error": "genre and newGenre are required"}`, http.StatusBadRequest)
+			return
+		}
+
+		tx, err := db.Begin()
+		if err != nil {
+			http.Error(w, "Transaction start error", http.StatusInternalServerError)
+			return
+		}
+		defer tx.Rollback()
+
+		// 1. Update books
+		rows, err := tx.Query("SELECT id, genres FROM books WHERE genres IS NOT NULL")
+		if err == nil {
+			defer rows.Close()
+			for rows.Next() {
+				var id string
+				var gStr sql.NullString
+				if err := rows.Scan(&id, &gStr); err == nil {
+					if updated, changed := replaceInJSONArray(gStr, body.Genre, body.NewGenre); changed {
+						tx.Exec("UPDATE books SET genres = ? WHERE id = ?", updated, id)
+					}
+				}
+			}
+		}
+
+		// 2. Update podcasts
+		rows2, err := tx.Query("SELECT id, genres FROM podcasts WHERE genres IS NOT NULL")
+		if err == nil {
+			defer rows2.Close()
+			for rows2.Next() {
+				var id string
+				var gStr sql.NullString
+				if err := rows2.Scan(&id, &gStr); err == nil {
+					if updated, changed := replaceInJSONArray(gStr, body.Genre, body.NewGenre); changed {
+						tx.Exec("UPDATE podcasts SET genres = ? WHERE id = ?", updated, id)
+					}
+				}
+			}
+		}
+
+		if err := tx.Commit(); err != nil {
+			log.Printf("[Rename Genre] Commit error: %v", err)
+			http.Error(w, "Database commit error", http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"genreMerged": false,
+		})
+	}
+}
+
+// handleDeleteGenre deletes a genre base64 parameter from books and podcasts
+func handleDeleteGenre(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("[Go] DELETE %s", r.URL.Path)
+		userSess, ok := r.Context().Value(UserContextKey).(*UserSession)
+		if !ok || !userSess.IsAdminOrUp() {
+			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
+			return
+		}
+
+		genreParam := strings.TrimPrefix(r.URL.Path, "/api/genres/")
+		if genreParam == "" || strings.Contains(genreParam, "/") {
+			http.Error(w, `{"error": "Bad Request"}`, http.StatusBadRequest)
+			return
+		}
+
+		genreBytes, err := base64.StdEncoding.DecodeString(genreParam)
+		if err != nil {
+			// Try URL-safe base64
+			genreBytes, err = base64.URLEncoding.DecodeString(genreParam)
+			if err != nil {
+				log.Printf("[Delete Genre] Failed to decode base64: %v", err)
+				http.Error(w, `{"error": "Invalid base64 encoding"}`, http.StatusBadRequest)
+				return
+			}
+		}
+		targetGenre := string(genreBytes)
+
+		tx, err := db.Begin()
+		if err != nil {
+			http.Error(w, "Transaction start error", http.StatusInternalServerError)
+			return
+		}
+		defer tx.Rollback()
+
+		// 1. Update books
+		rows, err := tx.Query("SELECT id, genres FROM books WHERE genres IS NOT NULL")
+		if err == nil {
+			defer rows.Close()
+			for rows.Next() {
+				var id string
+				var gStr sql.NullString
+				if err := rows.Scan(&id, &gStr); err == nil {
+					if updated, changed := removeFromJSONArray(gStr, targetGenre); changed {
+						tx.Exec("UPDATE books SET genres = ? WHERE id = ?", updated, id)
+					}
+				}
+			}
+		}
+
+		// 2. Update podcasts
+		rows2, err := tx.Query("SELECT id, genres FROM podcasts WHERE genres IS NOT NULL")
+		if err == nil {
+			defer rows2.Close()
+			for rows2.Next() {
+				var id string
+				var gStr sql.NullString
+				if err := rows2.Scan(&id, &gStr); err == nil {
+					if updated, changed := removeFromJSONArray(gStr, targetGenre); changed {
+						tx.Exec("UPDATE podcasts SET genres = ? WHERE id = ?", updated, id)
+					}
+				}
+			}
+		}
+
+		if err := tx.Commit(); err != nil {
+			log.Printf("[Delete Genre] Commit error: %v", err)
+			http.Error(w, "Database commit error", http.StatusInternalServerError)
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+	}
+}
+
+// handleGetAdminStatsForYear stub returning mock admin/user listening stats
+func handleGetAdminStatsForYear(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("[Go] GET %s", r.URL.Path)
+		userSess, ok := r.Context().Value(UserContextKey).(*UserSession)
+		if !ok || !userSess.IsAdminOrUp() {
+			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
+			return
+		}
+
+		res := map[string]interface{}{
+			"totalListeningSessions":   0,
+			"totalListeningTime":       0,
+			"totalBookListeningTime":   0,
+			"totalPodcastListeningTime": 0,
+			"topAuthors":               []interface{}{},
+			"topGenres":                []interface{}{},
+			"mostListenedNarrator":     nil,
+			"mostListenedMonth":        nil,
+			"numBooksFinished":         0,
+			"numBooksListened":         0,
+			"longestAudiobookFinished": nil,
+			"booksWithCovers":          []interface{}{},
+			"finishedBooksWithCovers":  []interface{}{},
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(res)
+	}
+}
+
+// handleGetLoggerData stub returning empty logs structure
+func handleGetLoggerData(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("[Go] GET /api/logger-data")
+		userSess, ok := r.Context().Value(UserContextKey).(*UserSession)
+		if !ok || !userSess.IsAdminOrUp() {
+			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"currentDailyLogs": []interface{}{},
+		})
+	}
+}
+
+// handleValidateCron validates simple cron expression fields
+func handleValidateCron(w http.ResponseWriter, r *http.Request) {
+	log.Printf("[Go] POST /api/validate-cron")
+	var body struct {
+		Expression string `json:"expression"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, `{"error": "Invalid request"}`, http.StatusBadRequest)
+		return
+	}
+
+	parts := strings.Fields(body.Expression)
+	if len(parts) < 5 || len(parts) > 6 {
+		http.Error(w, "Invalid cron expression", http.StatusBadRequest)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+// handleWatcherUpdate stub for file watcher updates
+func handleWatcherUpdate(w http.ResponseWriter, r *http.Request) {
+	log.Printf("[Go] POST /api/watcher/update")
+	w.WriteHeader(http.StatusOK)
+}
+
+// Helper functions for tags/genres array replacement
+func replaceInJSONArray(jsonStr sql.NullString, oldVal, newVal string) (string, bool) {
+	if !jsonStr.Valid || jsonStr.String == "" || jsonStr.String == "null" {
+		return "[]", false
+	}
+	var arr []string
+	if err := json.Unmarshal([]byte(jsonStr.String), &arr); err != nil {
+		return jsonStr.String, false
+	}
+	found := false
+	newArr := []string{}
+	for _, val := range arr {
+		if val == oldVal {
+			found = true
+			alreadyHasNew := false
+			for _, v := range arr {
+				if v == newVal {
+					alreadyHasNew = true
+					break
+				}
+			}
+			if !alreadyHasNew {
+				newArr = append(newArr, newVal)
+			}
+		} else {
+			newArr = append(newArr, val)
+		}
+	}
+	if !found {
+		return jsonStr.String, false
+	}
+	res, _ := json.Marshal(newArr)
+	return string(res), true
+}
+
+func removeFromJSONArray(jsonStr sql.NullString, valToRemove string) (string, bool) {
+	if !jsonStr.Valid || jsonStr.String == "" || jsonStr.String == "null" {
+		return "[]", false
+	}
+	var arr []string
+	if err := json.Unmarshal([]byte(jsonStr.String), &arr); err != nil {
+		return jsonStr.String, false
+	}
+	found := false
+	newArr := []string{}
+	for _, val := range arr {
+		if val == valToRemove {
+			found = true
+		} else {
+			newArr = append(newArr, val)
+		}
+	}
+	if !found {
+		return jsonStr.String, false
+	}
+	res, _ := json.Marshal(newArr)
+	return string(res), true
+}
