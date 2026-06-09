@@ -2,6 +2,7 @@ package main
 
 import (
 	"archive/zip"
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -28,7 +29,7 @@ type BackupInfo struct {
 	ServerVersion string `json:"serverVersion"`
 }
 
-func getBackupDirPath(db *sql.DB, metadataPath string) string {
+func getBackupDirPath(ctx context.Context, db *sql.DB, metadataPath string) string {
 	settings, err := GetServerSettings(db)
 	if err == nil && settings != nil && settings.BackupPath != "" {
 		return settings.BackupPath
@@ -157,7 +158,7 @@ func handleGetBackups(db *sql.DB, metadataPath string) http.HandlerFunc {
 			return
 		}
 
-		backupDir := getBackupDirPath(db, metadataPath)
+		backupDir := getBackupDirPath(r.Context(), db, metadataPath)
 		backups, err := loadBackupsList(backupDir)
 		if err != nil {
 			log.Printf("[Backups] Failed to load list: %v", err)
@@ -184,7 +185,7 @@ func handleCreateBackup(db *sql.DB, configPath string, metadataPath string) http
 			return
 		}
 
-		backupDir := getBackupDirPath(db, metadataPath)
+		backupDir := getBackupDirPath(r.Context(), db, metadataPath)
 		if err := os.MkdirAll(backupDir, 0755); err != nil {
 			http.Error(w, `{"error": "Failed to create backups directory"}`, http.StatusInternalServerError)
 			return
@@ -201,7 +202,7 @@ func handleCreateBackup(db *sql.DB, configPath string, metadataPath string) http
 
 		// Try to run sqlite VACUUM INTO to create consistent snapshot
 		// Wait, if database is connected, we can run "VACUUM INTO 'tempDBPath'"
-		_, err := db.Exec(fmt.Sprintf("VACUUM INTO '%s'", tempDBPath))
+		_, err := db.ExecContext(r.Context(), fmt.Sprintf("VACUUM INTO '%s'", tempDBPath))
 		if err != nil {
 			log.Printf("[Backups] VACUUM INTO failed: %v. Falling back to simple file copy", err)
 			// fallback to copying file directly
@@ -340,7 +341,7 @@ func handleDeleteBackup(db *sql.DB, metadataPath string) http.HandlerFunc {
 			return
 		}
 
-		backupDir := getBackupDirPath(db, metadataPath)
+		backupDir := getBackupDirPath(r.Context(), db, metadataPath)
 		filename := id + ".audiobookshelf"
 		fullPath := filepath.Join(backupDir, filename)
 
@@ -371,7 +372,7 @@ func handleDownloadBackup(db *sql.DB, metadataPath string) http.HandlerFunc {
 			return
 		}
 
-		backupDir := getBackupDirPath(db, metadataPath)
+		backupDir := getBackupDirPath(r.Context(), db, metadataPath)
 		filename := id + ".audiobookshelf"
 		fullPath := filepath.Join(backupDir, filename)
 
@@ -407,7 +408,7 @@ func handleUpdateBackupPath(db *sql.DB, metadataPath string) http.HandlerFunc {
 
 		// Update server-settings
 		var valStr string
-		err := db.QueryRow("SELECT value FROM settings WHERE key = 'server-settings'").Scan(&valStr)
+		err := db.QueryRowContext(r.Context(), "SELECT value FROM settings WHERE key = 'server-settings'").Scan(&valStr)
 		currentSettings := make(map[string]interface{})
 		if err == nil && valStr != "" {
 			json.Unmarshal([]byte(valStr), &currentSettings)
@@ -416,7 +417,7 @@ func handleUpdateBackupPath(db *sql.DB, metadataPath string) http.HandlerFunc {
 		currentSettings["backupPath"] = newPath
 		newValBytes, _ := json.Marshal(currentSettings)
 		nowStr := timeToDBStr(time.Now())
-		_, err = db.Exec("INSERT INTO settings (key, value, createdAt, updatedAt) VALUES ('server-settings', ?, ?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value, updatedAt=excluded.updatedAt",
+		_, err = db.ExecContext(r.Context(), "INSERT INTO settings (key, value, createdAt, updatedAt) VALUES ('server-settings', ?, ?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value, updatedAt=excluded.updatedAt",
 			string(newValBytes), nowStr, nowStr)
 		if err != nil {
 			http.Error(w, `{"error": "Failed to update backup settings"}`, http.StatusInternalServerError)
@@ -455,7 +456,7 @@ func handleUploadBackup(db *sql.DB, metadataPath string) http.HandlerFunc {
 			return
 		}
 
-		backupDir := getBackupDirPath(db, metadataPath)
+		backupDir := getBackupDirPath(r.Context(), db, metadataPath)
 		if err := os.MkdirAll(backupDir, 0755); err != nil {
 			http.Error(w, `{"error": "Failed to create backups directory"}`, http.StatusInternalServerError)
 			return
@@ -496,7 +497,7 @@ func handleApplyBackup(db *sql.DB, configPath string, metadataPath string, trigg
 			return
 		}
 
-		backupDir := getBackupDirPath(db, metadataPath)
+		backupDir := getBackupDirPath(r.Context(), db, metadataPath)
 		filename := id + ".audiobookshelf"
 		fullPath := filepath.Join(backupDir, filename)
 

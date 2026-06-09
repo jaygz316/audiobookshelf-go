@@ -1486,9 +1486,9 @@ func CreateLibrary(db *sql.DB, payload *CreateLibraryPayload) (*LibraryJSON, err
 	for _, folder := range payload.Folders {
 		folderID := uuid.New().String()
 		_, err = tx.Exec(`
-			INSERT INTO libraryFolders (id, path, libraryId, createdAt)
-			VALUES (?, ?, ?, ?)`,
-			folderID, folder.Path, libraryID, nowStr)
+			INSERT INTO libraryFolders (id, path, libraryId, createdAt, updatedAt)
+			VALUES (?, ?, ?, ?, ?)`,
+			folderID, folder.Path, libraryID, nowStr, nowStr)
 		if err != nil {
 			return nil, err
 		}
@@ -1600,9 +1600,9 @@ func UpdateLibrary(db *sql.DB, libraryID string, payload *UpdateLibraryPayload) 
 			} else {
 				folderID := uuid.New().String()
 				_, err = tx.Exec(`
-					INSERT INTO libraryFolders (id, path, libraryId, createdAt)
-					VALUES (?, ?, ?, ?)`,
-					folderID, folder.Path, libraryID, nowStr)
+					INSERT INTO libraryFolders (id, path, libraryId, createdAt, updatedAt)
+					VALUES (?, ?, ?, ?, ?)`,
+					folderID, folder.Path, libraryID, nowStr, nowStr)
 				if err != nil {
 					return nil, err
 				}

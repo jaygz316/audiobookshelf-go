@@ -89,3 +89,48 @@ func TestFSWatcherSetupAndReload(t *testing.T) {
 		t.Errorf("findLibraryForPath returned %q; want 'lib-1'", libID)
 	}
 }
+
+func TestFSWatcherClose(t *testing.T) {
+	db := setupScannerTestDB(t)
+	defer db.Close()
+
+	w, err := fsnotify.NewWatcher()
+	if err != nil {
+		t.Fatalf("failed to create watcher: %v", err)
+	}
+
+	fw := &FSWatcher{
+		watcher: w,
+		paths:   make(map[string]string),
+		timers:  make(map[string]*time.Timer),
+		db:      db,
+		done:    make(chan struct{}),
+	}
+
+	fw.wg.Add(1)
+	go fw.start()
+
+	// Add a dummy timer to ensure it is stopped on Close()
+	fw.mu.Lock()
+	timerFired := false
+	fw.timers["test-lib"] = time.AfterFunc(10*time.Second, func() {
+		timerFired = true
+	})
+	fw.mu.Unlock()
+
+	// Close the watcher
+	if err := fw.Close(); err != nil {
+		t.Errorf("Close returned error: %v", err)
+	}
+
+	// Verify timer is stopped (should be stopped immediately and timers map cleared)
+	fw.mu.Lock()
+	if len(fw.timers) != 0 {
+		t.Errorf("expected timers map to be cleared, got size %d", len(fw.timers))
+	}
+	fw.mu.Unlock()
+
+	if timerFired {
+		t.Errorf("expected timer to be cancelled and not fire")
+	}
+}

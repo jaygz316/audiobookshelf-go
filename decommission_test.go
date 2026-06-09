@@ -90,22 +90,41 @@ func TestInitEndpoint(t *testing.T) {
 		t.Fatalf("Root user should not exist in clean test DB")
 	}
 
-	// Request body for init
-	reqBody := `{"newRoot": {"username": "admin-root", "password": "rootpassword"}}`
-	req := httptest.NewRequest("POST", "/init", bytes.NewBufferString(reqBody))
-	rr := httptest.NewRecorder()
-
-	handler := handleInit(db)
-	handler.ServeHTTP(rr, req)
-
-	if rr.Code != http.StatusOK {
-		t.Errorf("Expected status 200, got %d. Body: %s", rr.Code, rr.Body.String())
+	tests := []struct {
+		name           string
+		payload        string
+		expectedStatus int
+		checkDB        func(t *testing.T, db *sql.DB)
+	}{
+		{
+			name:           "ValidRootInit",
+			payload:        `{"newRoot": {"username": "admin-root", "password": "rootpassword"}}`,
+			expectedStatus: http.StatusOK,
+			checkDB: func(t *testing.T, db *sql.DB) {
+				hasRoot, err = HasRootUser(db)
+				if err != nil || !hasRoot {
+					t.Errorf("Expected root user to be created, hasRoot = %t, err = %v", hasRoot, err)
+				}
+			},
+		},
 	}
 
-	// Verify root user is now created in DB
-	hasRoot, err = HasRootUser(db)
-	if err != nil || !hasRoot {
-		t.Errorf("Expected root user to be created, hasRoot = %t, err = %v", hasRoot, err)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest("POST", "/init", bytes.NewBufferString(tt.payload))
+			rr := httptest.NewRecorder()
+
+			handler := handleInit(db)
+			handler.ServeHTTP(rr, req)
+
+			if rr.Code != tt.expectedStatus {
+				t.Errorf("Expected status %d, got %d. Body: %s", tt.expectedStatus, rr.Code, rr.Body.String())
+			}
+
+			if tt.checkDB != nil {
+				tt.checkDB(t, db)
+			}
+		})
 	}
 }
 
@@ -119,50 +138,53 @@ func TestLoginAndLogout(t *testing.T) {
 	rr := httptest.NewRecorder()
 	handleInit(db).ServeHTTP(rr, req)
 
-	// Attempt login with correct credentials
-	loginBody := `{"username": "testroot", "password": "testpassword"}`
-	req = httptest.NewRequest("POST", "/login", bytes.NewBufferString(loginBody))
-	rr = httptest.NewRecorder()
-	handleLogin(db).ServeHTTP(rr, req)
-
-	if rr.Code != http.StatusOK {
-		t.Fatalf("Expected login success (200), got %d. Body: %s", rr.Code, rr.Body.String())
-	}
-
-	var resp map[string]interface{}
-	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("Failed to parse login response: %v", err)
-	}
-
-	userObj, ok := resp["user"].(map[string]interface{})
-	if !ok || userObj["username"] != "testroot" {
-		t.Errorf("Unexpected user object in login response: %v", resp)
-	}
-
-	// Verify cookie was set
-	cookies := rr.Result().Cookies()
 	var refreshCookie *http.Cookie
-	for _, c := range cookies {
-		if c.Name == "refresh_token" {
-			refreshCookie = c
-			break
+
+	t.Run("Login", func(t *testing.T) {
+		loginBody := `{"username": "testroot", "password": "testpassword"}`
+		req := httptest.NewRequest("POST", "/login", bytes.NewBufferString(loginBody))
+		rr := httptest.NewRecorder()
+		handleLogin(db).ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusOK {
+			t.Fatalf("Expected login success (200), got %d. Body: %s", rr.Code, rr.Body.String())
 		}
-	}
-	if refreshCookie == nil || refreshCookie.Value == "" {
-		t.Errorf("Expected refresh_token cookie to be set")
-	}
 
-	// Test Logout
-	logoutReq := httptest.NewRequest("POST", "/logout", nil)
-	if refreshCookie != nil {
-		logoutReq.AddCookie(refreshCookie)
-	}
-	rr = httptest.NewRecorder()
-	handleLogout(db).ServeHTTP(rr, logoutReq)
+		var resp map[string]interface{}
+		if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
+			t.Fatalf("Failed to parse login response: %v", err)
+		}
 
-	if rr.Code != http.StatusOK {
-		t.Errorf("Expected logout success (200), got %d", rr.Code)
-	}
+		userObj, ok := resp["user"].(map[string]interface{})
+		if !ok || userObj["username"] != "testroot" {
+			t.Errorf("Unexpected user object in login response: %v", resp)
+		}
+
+		// Verify cookie was set
+		cookies := rr.Result().Cookies()
+		for _, c := range cookies {
+			if c.Name == "refresh_token" {
+				refreshCookie = c
+				break
+			}
+		}
+		if refreshCookie == nil || refreshCookie.Value == "" {
+			t.Errorf("Expected refresh_token cookie to be set")
+		}
+	})
+
+	t.Run("Logout", func(t *testing.T) {
+		logoutReq := httptest.NewRequest("POST", "/logout", nil)
+		if refreshCookie != nil {
+			logoutReq.AddCookie(refreshCookie)
+		}
+		rr := httptest.NewRecorder()
+		handleLogout(db).ServeHTTP(rr, logoutReq)
+
+		if rr.Code != http.StatusOK {
+			t.Errorf("Expected logout success (200), got %d", rr.Code)
+		}
+	})
 }
 
 func TestUsersCRUD(t *testing.T) {
@@ -178,68 +200,80 @@ func TestUsersCRUD(t *testing.T) {
 		AccessAllLibraries: true,
 	}
 
-	// Test GET /api/users
-	req := httptest.NewRequest("GET", "/api/users", nil)
-	req = req.WithContext(context.WithValue(req.Context(), UserContextKey, adminSession))
-	rr := httptest.NewRecorder()
-	handleGetUsers(db).ServeHTTP(rr, req)
+	var createdUserID string
 
-	if rr.Code != http.StatusOK {
-		t.Fatalf("Expected status 200, got %d. Body: %s", rr.Code, rr.Body.String())
-	}
+	t.Run("GetUsers", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/api/users", nil)
+		req = req.WithContext(context.WithValue(req.Context(), UserContextKey, adminSession))
+		rr := httptest.NewRecorder()
+		handleGetUsers(db).ServeHTTP(rr, req)
 
-	// Test Create User
-	createUserBody := `{"username": "newuser", "password": "newpassword", "type": "user", "isActive": true}`
-	req = httptest.NewRequest("POST", "/api/users", bytes.NewBufferString(createUserBody))
-	req = req.WithContext(context.WithValue(req.Context(), UserContextKey, adminSession))
-	rr = httptest.NewRecorder()
-	handleUserCRUD(db).ServeHTTP(rr, req)
+		if rr.Code != http.StatusOK {
+			t.Fatalf("Expected status 200, got %d. Body: %s", rr.Code, rr.Body.String())
+		}
+	})
 
-	if rr.Code != http.StatusOK {
-		t.Fatalf("Expected status 200, got %d. Body: %s", rr.Code, rr.Body.String())
-	}
+	t.Run("CreateUser", func(t *testing.T) {
+		createUserBody := `{"username": "newuser", "password": "newpassword", "type": "user", "isActive": true}`
+		req := httptest.NewRequest("POST", "/api/users", bytes.NewBufferString(createUserBody))
+		req = req.WithContext(context.WithValue(req.Context(), UserContextKey, adminSession))
+		rr := httptest.NewRecorder()
+		handleUserCRUD(db).ServeHTTP(rr, req)
 
-	var createResp map[string]interface{}
-	json.Unmarshal(rr.Body.Bytes(), &createResp)
-	createdUser := createResp["user"].(map[string]interface{})
-	createdUserID := createdUser["id"].(string)
+		if rr.Code != http.StatusOK {
+			t.Fatalf("Expected status 200, got %d. Body: %s", rr.Code, rr.Body.String())
+		}
 
-	if createdUser["username"] != "newuser" {
-		t.Errorf("Expected username newuser, got %s", createdUser["username"])
-	}
+		var createResp map[string]interface{}
+		json.Unmarshal(rr.Body.Bytes(), &createResp)
+		createdUser := createResp["user"].(map[string]interface{})
+		createdUserID = createdUser["id"].(string)
 
-	// Test Update User (PATCH)
-	updateUserBody := `{"email": "newuser@example.com"}`
-	req = httptest.NewRequest("PATCH", "/api/users/"+createdUserID, bytes.NewBufferString(updateUserBody))
-	req = req.WithContext(context.WithValue(req.Context(), UserContextKey, adminSession))
-	rr = httptest.NewRecorder()
-	handleUserCRUD(db).ServeHTTP(rr, req)
+		if createdUser["username"] != "newuser" {
+			t.Errorf("Expected username newuser, got %s", createdUser["username"])
+		}
+	})
 
-	if rr.Code != http.StatusOK {
-		t.Fatalf("Expected status 200, got %d. Body: %s", rr.Code, rr.Body.String())
-	}
+	t.Run("UpdateUser", func(t *testing.T) {
+		if createdUserID == "" {
+			t.Skip("skipping update test, user not created")
+		}
+		updateUserBody := `{"email": "newuser@example.com"}`
+		req := httptest.NewRequest("PATCH", "/api/users/"+createdUserID, bytes.NewBufferString(updateUserBody))
+		req = req.WithContext(context.WithValue(req.Context(), UserContextKey, adminSession))
+		rr := httptest.NewRecorder()
+		handleUserCRUD(db).ServeHTTP(rr, req)
 
-	// Verify change in DB
-	user, err := getUserByID(db, createdUserID)
-	if err != nil || user == nil || user.Email == nil || *user.Email != "newuser@example.com" {
-		t.Errorf("Expected user email to be updated, got: %v", user)
-	}
+		if rr.Code != http.StatusOK {
+			t.Fatalf("Expected status 200, got %d. Body: %s", rr.Code, rr.Body.String())
+		}
 
-	// Test Delete User
-	req = httptest.NewRequest("DELETE", "/api/users/"+createdUserID, nil)
-	req = req.WithContext(context.WithValue(req.Context(), UserContextKey, adminSession))
-	rr = httptest.NewRecorder()
-	handleUserCRUD(db).ServeHTTP(rr, req)
+		// Verify change in DB
+		user, err := getUserByID(context.Background(), db, createdUserID)
+		if err != nil || user == nil || user.Email == nil || *user.Email != "newuser@example.com" {
+			t.Errorf("Expected user email to be updated, got: %v", user)
+		}
+	})
 
-	if rr.Code != http.StatusOK {
-		t.Errorf("Expected status 200 for delete user, got %d", rr.Code)
-	}
+	t.Run("DeleteUser", func(t *testing.T) {
+		if createdUserID == "" {
+			t.Skip("skipping delete test, user not created")
+		}
+		req := httptest.NewRequest("DELETE", "/api/users/"+createdUserID, nil)
+		req = req.WithContext(context.WithValue(req.Context(), UserContextKey, adminSession))
+		rr := httptest.NewRecorder()
+		handleUserCRUD(db).ServeHTTP(rr, req)
 
-	// Verify deleted from DB
-	deletedUser, _ := getUserByID(db, createdUserID)
-	if deletedUser != nil {
-		t.Errorf("Expected user to be deleted from DB")
-	}
+		if rr.Code != http.StatusOK {
+			t.Errorf("Expected status 200 for delete user, got %d", rr.Code)
+		}
+
+		// Verify deleted from DB
+		deletedUser, _ := getUserByID(context.Background(), db, createdUserID)
+		if deletedUser != nil {
+			t.Errorf("Expected user to be deleted from DB")
+		}
+	})
 }
 
 func TestServerSettingsCRUD(t *testing.T) {
@@ -253,62 +287,98 @@ func TestServerSettingsCRUD(t *testing.T) {
 		IsActive: true,
 	}
 
-	// Test GET /api/settings
-	req := httptest.NewRequest("GET", "/api/settings", nil)
-	req = req.WithContext(context.WithValue(req.Context(), UserContextKey, adminSession))
-	rr := httptest.NewRecorder()
-	handleGetServerSettings(db).ServeHTTP(rr, req)
+	t.Run("GetSettings", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/api/settings", nil)
+		req = req.WithContext(context.WithValue(req.Context(), UserContextKey, adminSession))
+		rr := httptest.NewRecorder()
+		handleGetServerSettings(db).ServeHTTP(rr, req)
 
-	if rr.Code != http.StatusOK {
-		t.Fatalf("Expected status 200, got %d", rr.Code)
-	}
+		if rr.Code != http.StatusOK {
+			t.Fatalf("Expected status 200, got %d", rr.Code)
+		}
+	})
 
-	// Test UPDATE /api/settings
-	updateSettingsBody := `{"language": "fr"}`
-	req = httptest.NewRequest("POST", "/api/settings", bytes.NewBufferString(updateSettingsBody))
-	req = req.WithContext(context.WithValue(req.Context(), UserContextKey, adminSession))
-	rr = httptest.NewRecorder()
-	handleUpdateServerSettings(db).ServeHTTP(rr, req)
+	t.Run("UpdateSettings", func(t *testing.T) {
+		updateSettingsBody := `{"language": "fr"}`
+		req := httptest.NewRequest("POST", "/api/settings", bytes.NewBufferString(updateSettingsBody))
+		req = req.WithContext(context.WithValue(req.Context(), UserContextKey, adminSession))
+		rr := httptest.NewRecorder()
+		handleUpdateServerSettings(db).ServeHTTP(rr, req)
 
-	if rr.Code != http.StatusOK {
-		t.Fatalf("Expected status 200, got %d. Body: %s", rr.Code, rr.Body.String())
-	}
+		if rr.Code != http.StatusOK {
+			t.Fatalf("Expected status 200, got %d. Body: %s", rr.Code, rr.Body.String())
+		}
 
-	// Verify changed
-	settings, err := GetServerSettings(db)
-	if err != nil || settings.Language != "fr" {
-		t.Errorf("Expected language to be updated to fr, got: %s", settings.Language)
-	}
+		// Verify changed
+		settings, err := GetServerSettings(db)
+		if err != nil || settings.Language != "fr" {
+			t.Errorf("Expected language to be updated to fr, got: %s", settings.Language)
+		}
+	})
 }
 
-func TestProxyFallbackGraceful(t *testing.T) {
+func TestAuthorize(t *testing.T) {
 	db := prepareTestDB(t)
 	defer db.Close()
 
-	cfg := &Config{
-		LegacyURL:      "", // disabled
-		RouterBasePath: "",
-	}
-
-	handler := setupHandler(db, cfg, true, "", "2.35.1")
-
-	// Issue request to a non-existent api endpoint which should route to proxy fallback
-	req := httptest.NewRequest("GET", "/api/items/some-id/some-unimplemented-action", nil)
+	// Initialize the root user
+	reqBody := `{"newRoot": {"username": "testroot", "password": "testpassword"}}`
+	req := httptest.NewRequest("POST", "/init", bytes.NewBufferString(reqBody))
 	rr := httptest.NewRecorder()
+	handleInit(db).ServeHTTP(rr, req)
 
-	handler.ServeHTTP(rr, req)
-
-	if rr.Code != http.StatusBadGateway {
-		t.Errorf("Expected status 502 Bad Gateway, got %d", rr.Code)
+	user, err := getUserByUsername(context.Background(), db, "testroot")
+	if err != nil || user == nil {
+		t.Fatalf("Failed to fetch root user: %v", err)
 	}
 
-	var resp map[string]string
-	if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
-		t.Fatalf("Failed to decode response: %v", err)
+	userSession := &UserSession{
+		ID:                 user.ID,
+		Username:           user.Username,
+		Type:               user.Type,
+		IsActive:           user.IsActive,
+		AccessAllLibraries: true,
 	}
 
-	expectedError := "Legacy server not configured and endpoint is not implemented natively"
-	if resp["error"] != expectedError {
-		t.Errorf("Expected error message %q, got %q", expectedError, resp["error"])
+	tests := []struct {
+		name           string
+		session        *UserSession
+		expectedStatus int
+		checkResponse  func(t *testing.T, body string)
+	}{
+		{
+			name:           "AuthorizedRoot",
+			session:        userSession,
+			expectedStatus: http.StatusOK,
+			checkResponse: func(t *testing.T, body string) {
+				var resp map[string]interface{}
+				if err := json.Unmarshal([]byte(body), &resp); err != nil {
+					t.Fatalf("Failed to parse authorize response: %v", err)
+				}
+				userObj, ok := resp["user"].(map[string]interface{})
+				if !ok || userObj["username"] != "testroot" {
+					t.Errorf("Unexpected user object in authorize response: %v", resp)
+				}
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest("POST", "/api/authorize", nil)
+			if tt.session != nil {
+				req = req.WithContext(context.WithValue(req.Context(), UserContextKey, tt.session))
+			}
+			rr := httptest.NewRecorder()
+			handleAuthorize(db).ServeHTTP(rr, req)
+
+			if rr.Code != tt.expectedStatus {
+				t.Errorf("Expected status %d, got %d. Body: %s", tt.expectedStatus, rr.Code, rr.Body.String())
+			}
+
+			if tt.checkResponse != nil {
+				tt.checkResponse(t, rr.Body.String())
+			}
+		})
 	}
 }

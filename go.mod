@@ -3,20 +3,25 @@ module audiobookshelf
 go 1.26.4
 
 require (
+	github.com/coreos/go-oidc/v3 v3.18.0
 	github.com/dhowden/tag v0.0.0-20240417053706-3d75831295e8
+	github.com/doyensec/safeurl v0.2.4
 	github.com/fsnotify/fsnotify v1.10.1
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/websocket v1.5.3
+	github.com/nwaples/rardecode v1.1.0
 	github.com/zishang520/engine.io/v2 v2.5.0
 	github.com/zishang520/socket.io/v2 v2.5.0
 	golang.org/x/crypto v0.48.0
+	golang.org/x/oauth2 v0.36.0
 	modernc.org/sqlite v1.52.0
 )
 
 require (
 	github.com/andybalholm/brotli v1.2.0 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
+	github.com/go-jose/go-jose/v4 v4.1.4 // indirect
 	github.com/gookit/color v1.5.4 // indirect
 	github.com/klauspost/compress v1.18.0 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect

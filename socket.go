@@ -46,11 +46,11 @@ type SocketClient struct {
 
 // SocketAuthority manages WebSocket connections and dynamic permission filtering
 type SocketAuthority struct {
-	mu             sync.RWMutex
-	clients        map[string]*SocketClient
-	db             *sql.DB
-	io             *socket.Server
-	activeSearches map[string]context.CancelFunc
+	mu               sync.RWMutex
+	clients          map[string]*SocketClient
+	db               *sql.DB
+	io               *socket.Server
+	activeSearches   map[string]context.CancelFunc
 	activeSearchLock sync.Mutex
 }
 
@@ -433,6 +433,21 @@ func (sa *SocketAuthority) ClientEmitter(userID string, evt string, data interfa
 	}
 }
 
+// BroadcastToAll broadcasts an event to all connected authenticated users
+func (sa *SocketAuthority) BroadcastToAll(evt string, data interface{}) {
+	sa.Emitter(evt, data, nil)
+}
+
+// BroadcastToUser broadcasts an event to all connected sockets of a user
+func (sa *SocketAuthority) BroadcastToUser(userID string, evt string, data interface{}) {
+	sa.ClientEmitter(userID, evt, data)
+}
+
+// BroadcastToAdmins broadcasts an event to all connected admin sockets
+func (sa *SocketAuthority) BroadcastToAdmins(evt string, data interface{}) {
+	sa.AdminEmitter(evt, data)
+}
+
 // AdminEmitter emits an event to all connected admin clients
 func (sa *SocketAuthority) AdminEmitter(evt string, data interface{}) {
 	sa.mu.RLock()
@@ -443,21 +458,6 @@ func (sa *SocketAuthority) AdminEmitter(evt string, data interface{}) {
 			client.Socket.Emit(evt, data)
 		}
 	}
-}
-
-// BroadcastToAll broadcasts to all connected clients
-func (sa *SocketAuthority) BroadcastToAll(evt string, data interface{}) {
-	sa.Emitter(evt, data, nil)
-}
-
-// BroadcastToUser broadcasts to all clients of a specific user
-func (sa *SocketAuthority) BroadcastToUser(userID string, evt string, data interface{}) {
-	sa.ClientEmitter(userID, evt, data)
-}
-
-// BroadcastToAdmins broadcasts to all connected admin clients
-func (sa *SocketAuthority) BroadcastToAdmins(evt string, data interface{}) {
-	sa.AdminEmitter(evt, data)
 }
 
 // LibraryItemEmitter emits an event with a single library item, filtered by user library item permissions
@@ -524,7 +524,7 @@ func InitSocketAuthority(db *sql.DB) http.Handler {
 
 		// Auth
 		client.On("auth", func(args ...any) {
-			if len(args) == 0 {
+			if len(args) == 0 || args[0] == nil {
 				return
 			}
 			token, ok := args[0].(string)
