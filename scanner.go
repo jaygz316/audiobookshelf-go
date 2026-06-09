@@ -1231,6 +1231,7 @@ func ScanLibrary(db *sql.DB, libraryID string) error {
 func scanNewLibraryItem(db *sql.DB, libraryID, folderID, itemPath string, groupFiles []FileItem, mediaType string, isFile bool, mtime, ctime, totalSize int64, ino string, audiobooksOnly bool) error {
 	itemID := uuidStr()
 	mediaID := uuidStr()
+	nowStr := time.Now().Format("2006-01-02 15:04:05.000")
 
 	tx, err := db.Begin()
 	if err != nil {
@@ -1311,6 +1312,8 @@ func scanNewLibraryItem(db *sql.DB, libraryID, folderID, itemPath string, groupF
 		addCol("chapters", chaptersJSON)
 		addCol("tags", tagsJSON)
 		addCol("genres", genresJSON)
+		addCol("createdAt", nowStr)
+		addCol("updatedAt", nowStr)
 
 		query := fmt.Sprintf("INSERT INTO books (%s) VALUES (%s)", strings.Join(colNames, ", "), strings.Join(placeholders, ", "))
 		_, err = tx.Exec(query, args...)
@@ -1387,6 +1390,8 @@ func scanNewLibraryItem(db *sql.DB, libraryID, folderID, itemPath string, groupF
 		addCol("tags", tagsJSON)
 		addCol("genres", genresJSON)
 		addCol("numEpisodes", len(meta.AudioFiles))
+		addCol("createdAt", nowStr)
+		addCol("updatedAt", nowStr)
 
 		query := fmt.Sprintf("INSERT INTO podcasts (%s) VALUES (%s)", strings.Join(colNames, ", "), strings.Join(placeholders, ", "))
 		_, err = tx.Exec(query, args...)
@@ -1414,6 +1419,8 @@ func scanNewLibraryItem(db *sql.DB, libraryID, folderID, itemPath string, groupF
 			addColEp("podcastId", mediaID)
 			addColEp("title", ep.Title)
 			addColEp("audioFile", string(audioFileJSON))
+			addColEp("createdAt", nowStr)
+			addColEp("updatedAt", nowStr)
 
 			qEp := fmt.Sprintf("INSERT INTO podcastEpisodes (%s) VALUES (%s)", strings.Join(colNamesEp, ", "), strings.Join(placeholdersEp, ", "))
 			_, err = tx.Exec(qEp, argsEp...)
@@ -1425,7 +1432,6 @@ func scanNewLibraryItem(db *sql.DB, libraryID, folderID, itemPath string, groupF
 
 	mtimeStr := formatEpochMillis(mtime)
 	ctimeStr := formatEpochMillis(ctime)
-	nowStr := time.Now().Format("2006-01-02 15:04:05.000")
 
 	colsLI := getTableColumnsTx(tx, "libraryItems")
 	var colNamesLI []string
@@ -1495,6 +1501,8 @@ func scanExistingLibraryItem(db *sql.DB, itemID, libraryID, folderID, itemPath s
 	}
 	defer tx.Rollback()
 
+	nowStr := time.Now().Format("2006-01-02 15:04:05.000")
+
 	var itemRelPath string
 	if isFile {
 		itemRelPath = groupFiles[0].RelPath
@@ -1563,6 +1571,7 @@ func scanExistingLibraryItem(db *sql.DB, itemID, libraryID, folderID, itemPath s
 		addCol("chapters", chaptersJSON)
 		addCol("tags", tagsJSON)
 		addCol("genres", genresJSON)
+		addCol("updatedAt", nowStr)
 
 		args = append(args, mediaID)
 		query := fmt.Sprintf("UPDATE books SET %s WHERE id = ?", strings.Join(setStmts, ", "))
@@ -1631,6 +1640,7 @@ func scanExistingLibraryItem(db *sql.DB, itemID, libraryID, folderID, itemPath s
 		addCol("tags", tagsJSON)
 		addCol("genres", genresJSON)
 		addCol("numEpisodes", len(meta.AudioFiles))
+		addCol("updatedAt", nowStr)
 
 		args = append(args, mediaID)
 		query := fmt.Sprintf("UPDATE podcasts SET %s WHERE id = ?", strings.Join(setStmts, ", "))
@@ -1662,6 +1672,8 @@ func scanExistingLibraryItem(db *sql.DB, itemID, libraryID, folderID, itemPath s
 			addColEp("podcastId", mediaID)
 			addColEp("title", ep.Title)
 			addColEp("audioFile", string(audioFileJSON))
+			addColEp("createdAt", nowStr)
+			addColEp("updatedAt", nowStr)
 
 			qEp := fmt.Sprintf("INSERT INTO podcastEpisodes (%s) VALUES (%s)", strings.Join(colNamesEp, ", "), strings.Join(placeholdersEp, ", "))
 			_, err = tx.Exec(qEp, argsEp...)
@@ -1673,7 +1685,6 @@ func scanExistingLibraryItem(db *sql.DB, itemID, libraryID, folderID, itemPath s
 
 	mtimeStr := formatEpochMillis(mtime)
 	ctimeStr := formatEpochMillis(ctime)
-	nowStr := time.Now().Format("2006-01-02 15:04:05.000")
 
 	colsLI := getTableColumnsTx(tx, "libraryItems")
 	var setStmtsLI []string

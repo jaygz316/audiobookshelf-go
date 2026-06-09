@@ -376,6 +376,8 @@ func (m *PodcastManager) syncPodcastEpisodes(ctx context.Context, p podcastInfo,
 		hasEp := hasColumn(ctx, m.db, "podcastEpisodes", "episode")
 		hasEpType := hasColumn(ctx, m.db, "podcastEpisodes", "episodeType")
 		hasPublishedAt := hasColumn(ctx, m.db, "podcastEpisodes", "publishedAt")
+		hasCreatedAt := hasColumn(ctx, m.db, "podcastEpisodes", "createdAt")
+		hasUpdatedAt := hasColumn(ctx, m.db, "podcastEpisodes", "updatedAt")
 
 		cols := []string{"id", "podcastId", "title", "audioFile"}
 		vals := []interface{}{epID, p.ID, ep.Title, audioFileJSON}
@@ -407,6 +409,14 @@ func (m *PodcastManager) syncPodcastEpisodes(ctx context.Context, p podcastInfo,
 		if hasEpType {
 			cols = append(cols, "episodeType")
 			vals = append(vals, "")
+		}
+		if hasCreatedAt {
+			cols = append(cols, "createdAt")
+			vals = append(vals, time.Now().Format("2006-01-02 15:04:05.000"))
+		}
+		if hasUpdatedAt {
+			cols = append(cols, "updatedAt")
+			vals = append(vals, time.Now().Format("2006-01-02 15:04:05.000"))
 		}
 
 		placeholders := make([]string, len(cols))
