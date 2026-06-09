@@ -39,7 +39,8 @@ jobs:
         run: npm run generate
 
       - name: get server dependencies
-        run: npm ci --only=production
+        working-directory: client
+        run: npm ci --omit=dev
 
       - name: build binary
         run: pkg -t node20-linux-x64 -o audiobookshelf .
