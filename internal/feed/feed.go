@@ -361,16 +361,18 @@ func (m *FeedManager) serveFeedItem(w http.ResponseWriter, r *http.Request, item
 
 	if isPlaylist {
 		rows, err := m.db.QueryContext(ctx, `
-			SELECT mediaItemId, mediaItemType 
-			FROM playlistMediaItems 
-			WHERE playlistId = ? 
-			ORDER BY "order" ASC
+			SELECT p.mediaItemId, p.mediaItemType, b.audioFiles
+			FROM playlistMediaItems p
+			LEFT JOIN books b ON p.mediaItemId = b.id AND p.mediaItemType = 'book'
+			WHERE p.playlistId = ?
+			ORDER BY p."order" ASC
 		`, itemID)
 		if err == nil {
 			defer rows.Close()
 			for rows.Next() {
 				var mediaItemID, mediaItemType string
-				if err := rows.Scan(&mediaItemID, &mediaItemType); err == nil {
+				var audioFilesJSON sql.NullString
+				if err := rows.Scan(&mediaItemID, &mediaItemType, &audioFilesJSON); err == nil {
 					if mediaItemType == "podcastEpisode" && mediaItemID == episodeID {
 						var audioFileJSON string
 						err := m.db.QueryRowContext(ctx, "SELECT audioFile FROM podcastEpisodes WHERE id = ?", episodeID).Scan(&audioFileJSON)
@@ -382,23 +384,19 @@ func (m *FeedManager) serveFeedItem(w http.ResponseWriter, r *http.Request, item
 								break
 							}
 						}
-					} else if mediaItemType == "book" {
-						var audioFilesJSON string
-						err := m.db.QueryRowContext(ctx, "SELECT audioFiles FROM books WHERE id = ?", mediaItemID).Scan(&audioFilesJSON)
-						if err == nil {
-							var tracks []audiobookTrack
-							if json.Unmarshal([]byte(audioFilesJSON), &tracks) == nil {
-								for _, t := range tracks {
-									if t.Exclude {
-										continue
-									}
-									// PORT: Deterministic MD5 hash to uniquely identify tracks without database state
-									trackID := computeMD5(itemID + "_" + mediaItemID + "_" + t.Metadata.Path)
-									if trackID == episodeID {
-										filePath = t.Metadata.Path
-										mimeType = t.MimeType
-										break
-									}
+					} else if mediaItemType == "book" && audioFilesJSON.Valid {
+						var tracks []audiobookTrack
+						if json.Unmarshal([]byte(audioFilesJSON.String), &tracks) == nil {
+							for _, t := range tracks {
+								if t.Exclude {
+									continue
+								}
+								// PORT: Deterministic MD5 hash to uniquely identify tracks without database state
+								trackID := computeMD5(itemID + "_" + mediaItemID + "_" + t.Metadata.Path)
+								if trackID == episodeID {
+									filePath = t.Metadata.Path
+									mimeType = t.MimeType
+									break
 								}
 							}
 						}
