@@ -195,17 +195,29 @@ func handleRenameTag(db *sql.DB) http.HandlerFunc {
 		rows2.Close()
 
 		// 3. Update users permissions (itemTagsSelected)
+		// We use JSON manipulation functions to avoid N+1 queries. We extract the array, filter out the old tag and conditionally insert the new one
+		// For sqlite, modernc sqlite supports JSON1.
+		// Since itemTagsSelected is just a list of strings, we can query users that contain the tag:
+		// However, sqlite json doesn't have a simple way to replace a specific array element by value.
+		// Instead, we can fetch all records, compute the new JSON, and batch the updates.
 		rows3, err := tx.Query("SELECT id, permissions FROM users WHERE permissions IS NOT NULL")
 		if err != nil {
 			log.Printf("[Rename Tag] Query users failed: %v", err)
 			http.Error(w, "Database query error", http.StatusInternalServerError)
 			return
 		}
-		defer rows3.Close()
+
+		type userPermUpdate struct {
+			id       string
+			newPerms string
+		}
+		var updates []userPermUpdate
+
 		for rows3.Next() {
 			var id string
 			var permsStr sql.NullString
 			if err := rows3.Scan(&id, &permsStr); err != nil {
+				rows3.Close()
 				log.Printf("[Rename Tag] Scan user failed: %v", err)
 				http.Error(w, "Database scan error", http.StatusInternalServerError)
 				return
@@ -237,21 +249,48 @@ func handleRenameTag(db *sql.DB) http.HandlerFunc {
 						if changed {
 							perms["itemTagsSelected"] = newTagsSel
 							newPermsBytes, _ := json.Marshal(perms)
-							_, err = tx.Exec("UPDATE users SET permissions = ? WHERE id = ?", string(newPermsBytes), id)
-							if err != nil {
-								log.Printf("[Rename Tag] Update user failed: %v", err)
-								http.Error(w, "Database update error", http.StatusInternalServerError)
-								return
-							}
+							updates = append(updates, userPermUpdate{id: id, newPerms: string(newPermsBytes)})
 						}
 					}
 				}
 			}
 		}
 		if err := rows3.Err(); err != nil {
+			rows3.Close()
 			log.Printf("[Rename Tag] Users iteration failed: %v", err)
 			http.Error(w, "Database iteration error", http.StatusInternalServerError)
 			return
+		}
+		rows3.Close()
+
+		if len(updates) > 0 {
+			// Batch update using CASE WHEN
+			query := "UPDATE users SET permissions = CASE id"
+			args := make([]interface{}, 0, len(updates)*2)
+			ids := make([]string, 0, len(updates))
+
+			for _, u := range updates {
+				query += " WHEN ? THEN ?"
+				args = append(args, u.id, u.newPerms)
+				ids = append(ids, u.id)
+			}
+
+			query += " END WHERE id IN ("
+			for i := range ids {
+				if i > 0 {
+					query += ", "
+				}
+				query += "?"
+				args = append(args, ids[i])
+			}
+			query += ")"
+
+			_, err = tx.Exec(query, args...)
+			if err != nil {
+				log.Printf("[Rename Tag] Update user batch failed: %v", err)
+				http.Error(w, "Database update error", http.StatusInternalServerError)
+				return
+			}
 		}
 
 		if err := tx.Commit(); err != nil {
@@ -373,11 +412,18 @@ func handleDeleteTag(db *sql.DB) http.HandlerFunc {
 			http.Error(w, "Database query error", http.StatusInternalServerError)
 			return
 		}
-		defer rows3.Close()
+
+		type userPermUpdate struct {
+			id       string
+			newPerms string
+		}
+		var updates []userPermUpdate
+
 		for rows3.Next() {
 			var id string
 			var permsStr sql.NullString
 			if err := rows3.Scan(&id, &permsStr); err != nil {
+				rows3.Close()
 				log.Printf("[Delete Tag] Scan user failed: %v", err)
 				http.Error(w, "Database scan error", http.StatusInternalServerError)
 				return
@@ -398,21 +444,48 @@ func handleDeleteTag(db *sql.DB) http.HandlerFunc {
 						if changed {
 							perms["itemTagsSelected"] = newTagsSel
 							newPermsBytes, _ := json.Marshal(perms)
-							_, err = tx.Exec("UPDATE users SET permissions = ? WHERE id = ?", string(newPermsBytes), id)
-							if err != nil {
-								log.Printf("[Delete Tag] Update user failed: %v", err)
-								http.Error(w, "Database update error", http.StatusInternalServerError)
-								return
-							}
+							updates = append(updates, userPermUpdate{id: id, newPerms: string(newPermsBytes)})
 						}
 					}
 				}
 			}
 		}
 		if err := rows3.Err(); err != nil {
+			rows3.Close()
 			log.Printf("[Delete Tag] Users iteration failed: %v", err)
 			http.Error(w, "Database iteration error", http.StatusInternalServerError)
 			return
+		}
+		rows3.Close()
+
+		if len(updates) > 0 {
+			// Batch update using CASE WHEN
+			query := "UPDATE users SET permissions = CASE id"
+			args := make([]interface{}, 0, len(updates)*2)
+			ids := make([]string, 0, len(updates))
+
+			for _, u := range updates {
+				query += " WHEN ? THEN ?"
+				args = append(args, u.id, u.newPerms)
+				ids = append(ids, u.id)
+			}
+
+			query += " END WHERE id IN ("
+			for i := range ids {
+				if i > 0 {
+					query += ", "
+				}
+				query += "?"
+				args = append(args, ids[i])
+			}
+			query += ")"
+
+			_, err = tx.Exec(query, args...)
+			if err != nil {
+				log.Printf("[Delete Tag] Update user batch failed: %v", err)
+				http.Error(w, "Database update error", http.StatusInternalServerError)
+				return
+			}
 		}
 
 		if err := tx.Commit(); err != nil {
@@ -735,19 +808,19 @@ func handleGetAdminStatsForYear(db *sql.DB) http.HandlerFunc {
 		}
 
 		res := map[string]interface{}{
-			"totalListeningSessions":   0,
-			"totalListeningTime":       0,
-			"totalBookListeningTime":   0,
+			"totalListeningSessions":    0,
+			"totalListeningTime":        0,
+			"totalBookListeningTime":    0,
 			"totalPodcastListeningTime": 0,
-			"topAuthors":               []interface{}{},
-			"topGenres":                []interface{}{},
-			"mostListenedNarrator":     nil,
-			"mostListenedMonth":        nil,
-			"numBooksFinished":         0,
-			"numBooksListened":         0,
-			"longestAudiobookFinished": nil,
-			"booksWithCovers":          []interface{}{},
-			"finishedBooksWithCovers":  []interface{}{},
+			"topAuthors":                []interface{}{},
+			"topGenres":                 []interface{}{},
+			"mostListenedNarrator":      nil,
+			"mostListenedMonth":         nil,
+			"numBooksFinished":          0,
+			"numBooksListened":          0,
+			"longestAudiobookFinished":  nil,
+			"booksWithCovers":           []interface{}{},
+			"finishedBooksWithCovers":   []interface{}{},
 		}
 
 		w.Header().Set("Content-Type", "application/json")
