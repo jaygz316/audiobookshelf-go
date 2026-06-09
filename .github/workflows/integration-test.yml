@@ -20,14 +20,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
       - name: setup node
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: 'npm'
-
-      - name: install pkg (using yao-pkg fork for targeting node20)
-        run: npm install -g @yao-pkg/pkg
+          cache-dependency-path: 'client/package-lock.json'
 
       - name: get client dependencies
         working-directory: client
@@ -37,11 +40,11 @@ jobs:
         working-directory: client
         run: npm run generate
 
-      - name: get server dependencies
-        run: npm ci --only=production
+      - name: install dependencies
+        run: go mod download
 
       - name: build binary
-        run: pkg -t node20-linux-x64 -o audiobookshelf .
+        run: go build -o audiobookshelf .
 
       - name: run audiobookshelf
         run: |
