@@ -18,11 +18,17 @@ type FSWatcher struct {
 	paths   map[string]string      // maps watched path -> libraryId
 	timers  map[string]*time.Timer // maps libraryId -> debounce timer
 	db      *sql.DB
+	done    chan struct{}
+	wg      sync.WaitGroup
 }
 
 var GlobalWatcher *FSWatcher
 
 func InitFSWatcher(database *sql.DB) {
+	if database == nil {
+		log.Printf("[Watcher] Database is nil, skipping fs watcher initialization")
+		return
+	}
 	w, err := fsnotify.NewWatcher()
 	if err != nil {
 		log.Printf("[Watcher] Failed to create fsnotify watcher: %v", err)
@@ -33,14 +39,19 @@ func InitFSWatcher(database *sql.DB) {
 		paths:   make(map[string]string),
 		timers:  make(map[string]*time.Timer),
 		db:      database,
+		done:    make(chan struct{}),
 	}
+	GlobalWatcher.wg.Add(1)
 	go GlobalWatcher.start()
 	GlobalWatcher.Reload()
 }
 
 func (fw *FSWatcher) start() {
+	defer fw.wg.Done()
 	for {
 		select {
+		case <-fw.done:
+			return
 		case event, ok := <-fw.watcher.Events:
 			if !ok {
 				return
@@ -58,6 +69,12 @@ func (fw *FSWatcher) start() {
 				info, err := os.Stat(event.Name)
 				if err == nil && info.IsDir() {
 					fw.mu.Lock()
+					select {
+					case <-fw.done:
+						fw.mu.Unlock()
+						return
+					default:
+					}
 					fw.watcher.Add(event.Name)
 					fw.paths[event.Name] = libraryID
 					fw.mu.Unlock()
@@ -71,6 +88,41 @@ func (fw *FSWatcher) start() {
 			log.Printf("[Watcher] Error: %v", err)
 		}
 	}
+}
+
+func (fw *FSWatcher) Close() error {
+	if fw == nil {
+		return nil
+	}
+
+	fw.mu.Lock()
+	if fw.done != nil {
+		select {
+		case <-fw.done:
+			// Already closed
+			fw.mu.Unlock()
+			return nil
+		default:
+		}
+		close(fw.done)
+	}
+
+	// Stop all active timers
+	for _, timer := range fw.timers {
+		timer.Stop()
+	}
+	fw.timers = make(map[string]*time.Timer)
+	fw.mu.Unlock()
+
+	var err error
+	if fw.watcher != nil {
+		err = fw.watcher.Close()
+	}
+
+	// Wait for the start goroutine to exit
+	fw.wg.Wait()
+
+	return err
 }
 
 func shouldIgnorePath(path string) bool {
@@ -142,9 +194,14 @@ func (fw *FSWatcher) Reload() {
 
 	for rows.Next() {
 		var path, libID string
-		if err := rows.Scan(&path, &libID); err == nil {
-			fw.watchRecursive(path, libID)
+		if err := rows.Scan(&path, &libID); err != nil {
+			log.Printf("[Watcher] Failed to scan library folder: %v", err)
+			continue
 		}
+		fw.watchRecursive(path, libID)
+	}
+	if err := rows.Err(); err != nil {
+		log.Printf("[Watcher] Library folders query iteration error: %v", err)
 	}
 }
 

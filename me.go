@@ -24,7 +24,7 @@ func handleGetMe(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		user, err := getUserByID(db, userSess.ID)
+		user, err := getUserByID(r.Context(), db, userSess.ID)
 		if err != nil || user == nil {
 			log.Printf("[Me] User lookup failed: %v", err)
 			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
@@ -60,7 +60,7 @@ func handleUpdateMePassword(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		user, err := getUserByID(db, userSess.ID)
+		user, err := getUserByID(r.Context(), db, userSess.ID)
 		if err != nil || user == nil {
 			http.Error(w, `{"error": "User not found"}`, http.StatusNotFound)
 			return
@@ -79,7 +79,7 @@ func handleUpdateMePassword(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		_, err = db.Exec("UPDATE users SET pash = ?, updatedAt = ? WHERE id = ?", string(hashed), timeToDBStr(time.Now()), user.ID)
+		_, err = db.ExecContext(r.Context(), "UPDATE users SET pash = ?, updatedAt = ? WHERE id = ?", string(hashed), timeToDBStr(time.Now()), user.ID)
 		if err != nil {
 			log.Printf("[Me] Password update DB error: %v", err)
 			http.Error(w, `{"error": "Internal Server Error"}`, http.StatusInternalServerError)
@@ -116,10 +116,10 @@ func handleGetMeProgress(db *sql.DB) http.HandlerFunc {
 
 		var row *sql.Row
 		if episodeID != "" {
-			row = db.QueryRow(`SELECT id, userId, mediaItemId, mediaItemType, duration, currentTime, isFinished, hideFromContinueListening, ebookLocation, ebookProgress, finishedAt, extraData, createdAt, updatedAt, podcastId 
+			row = db.QueryRowContext(r.Context(), `SELECT id, userId, mediaItemId, mediaItemType, duration, currentTime, isFinished, hideFromContinueListening, ebookLocation, ebookProgress, finishedAt, extraData, createdAt, updatedAt, podcastId 
 				FROM mediaProgresses WHERE userId = ? AND mediaItemId = ?`, userSess.ID, episodeID)
 		} else {
-			row = db.QueryRow(`SELECT id, userId, mediaItemId, mediaItemType, duration, currentTime, isFinished, hideFromContinueListening, ebookLocation, ebookProgress, finishedAt, extraData, createdAt, updatedAt, podcastId 
+			row = db.QueryRowContext(r.Context(), `SELECT id, userId, mediaItemId, mediaItemType, duration, currentTime, isFinished, hideFromContinueListening, ebookLocation, ebookProgress, finishedAt, extraData, createdAt, updatedAt, podcastId 
 				FROM mediaProgresses WHERE userId = ? AND (mediaItemId = ? OR json_extract(extraData, '$.libraryItemId') = ?)`, userSess.ID, libraryItemID, libraryItemID)
 		}
 
@@ -166,7 +166,7 @@ func handleCreateUpdateMeProgress(db *sql.DB) http.HandlerFunc {
 		var podcastID sql.NullString
 
 		if episodeID != "" {
-			err := db.QueryRow("SELECT id, podcastId FROM podcastEpisodes WHERE id = ?", episodeID).Scan(&mediaItemID, &podcastID)
+			err := db.QueryRowContext(r.Context(), "SELECT id, podcastId FROM podcastEpisodes WHERE id = ?", episodeID).Scan(&mediaItemID, &podcastID)
 			if err == sql.ErrNoRows {
 				http.Error(w, "Episode not found", http.StatusNotFound)
 				return
@@ -177,7 +177,7 @@ func handleCreateUpdateMeProgress(db *sql.DB) http.HandlerFunc {
 			mediaItemType = "podcastEpisode"
 		} else {
 			var mediaType string
-			err := db.QueryRow("SELECT mediaId, mediaType FROM libraryItems WHERE id = ?", libraryItemID).Scan(&mediaItemID, &mediaType)
+			err := db.QueryRowContext(r.Context(), "SELECT mediaId, mediaType FROM libraryItems WHERE id = ?", libraryItemID).Scan(&mediaItemID, &mediaType)
 			if err == sql.ErrNoRows {
 				http.Error(w, "Library item not found", http.StatusNotFound)
 				return
@@ -218,7 +218,7 @@ func handleCreateUpdateMeProgress(db *sql.DB) http.HandlerFunc {
 		var currEbookLocation, currFinishedAt, currExtraData, currCreatedAt, currUpdatedAt sql.NullString
 		var currEbookProgress sql.NullFloat64
 
-		err := db.QueryRow(`SELECT id, duration, currentTime, isFinished, hideFromContinueListening, ebookLocation, ebookProgress, finishedAt, extraData, createdAt, updatedAt 
+		err := db.QueryRowContext(r.Context(), `SELECT id, duration, currentTime, isFinished, hideFromContinueListening, ebookLocation, ebookProgress, finishedAt, extraData, createdAt, updatedAt 
 			FROM mediaProgresses WHERE userId = ? AND mediaItemId = ?`, userSess.ID, mediaItemID).
 			Scan(&progressID, &currDuration, &currCurrentTime, &currIsFinished, &currHideFromContinueListening, &currEbookLocation, &currEbookProgress, &currFinishedAt, &currExtraData, &currCreatedAt, &currUpdatedAt)
 
@@ -341,7 +341,7 @@ func handleCreateUpdateMeProgress(db *sql.DB) http.HandlerFunc {
 		}
 
 		if exists {
-			_, err = db.Exec(`UPDATE mediaProgresses SET duration = ?, currentTime = ?, isFinished = ?, hideFromContinueListening = ?, ebookLocation = ?, ebookProgress = ?, finishedAt = ?, extraData = ?, updatedAt = ? WHERE id = ?`,
+			_, err = db.ExecContext(r.Context(), `UPDATE mediaProgresses SET duration = ?, currentTime = ?, isFinished = ?, hideFromContinueListening = ?, ebookLocation = ?, ebookProgress = ?, finishedAt = ?, extraData = ?, updatedAt = ? WHERE id = ?`,
 				durationVal, currentTimeVal, func() int {
 					if isFinishedVal {
 						return 1
@@ -355,7 +355,7 @@ func handleCreateUpdateMeProgress(db *sql.DB) http.HandlerFunc {
 				}(), ebookLocationNullable, ebookProgressVal, finishedAtNullable, string(extraBytes), updatedAtStr, progressID)
 		} else {
 			progressID = uuid.New().String()
-			_, err = db.Exec(`INSERT INTO mediaProgresses (id, userId, mediaItemId, mediaItemType, duration, currentTime, isFinished, hideFromContinueListening, ebookLocation, ebookProgress, finishedAt, extraData, podcastId, createdAt, updatedAt) 
+			_, err = db.ExecContext(r.Context(), `INSERT INTO mediaProgresses (id, userId, mediaItemId, mediaItemType, duration, currentTime, isFinished, hideFromContinueListening, ebookLocation, ebookProgress, finishedAt, extraData, podcastId, createdAt, updatedAt) 
 				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 				progressID, userSess.ID, mediaItemID, mediaItemType, durationVal, currentTimeVal, func() int {
 					if isFinishedVal {
@@ -377,7 +377,7 @@ func handleCreateUpdateMeProgress(db *sql.DB) http.HandlerFunc {
 		}
 
 		// Broadcast update
-		user, err := getUserByID(db, userSess.ID)
+		user, err := getUserByID(r.Context(), db, userSess.ID)
 		if err == nil && user != nil {
 			userJSON := user.toOldJSONForBrowser(user.Type != "root")
 			if SocketAuth != nil {
@@ -407,13 +407,13 @@ func handleRemoveMeProgress(db *sql.DB) http.HandlerFunc {
 
 		// Verify belongs to user
 		var count int
-		db.QueryRow("SELECT COUNT(*) FROM mediaProgresses WHERE id = ? AND userId = ?", progressID, userSess.ID).Scan(&count)
+		db.QueryRowContext(r.Context(), "SELECT COUNT(*) FROM mediaProgresses WHERE id = ? AND userId = ?", progressID, userSess.ID).Scan(&count)
 		if count == 0 {
 			http.Error(w, `{"error": "Progress not found"}`, http.StatusNotFound)
 			return
 		}
 
-		_, err := db.Exec("DELETE FROM mediaProgresses WHERE id = ?", progressID)
+		_, err := db.ExecContext(r.Context(), "DELETE FROM mediaProgresses WHERE id = ?", progressID)
 		if err != nil {
 			log.Printf("[Me Progress] Delete error: %v", err)
 			http.Error(w, "Database error", http.StatusInternalServerError)
@@ -421,7 +421,7 @@ func handleRemoveMeProgress(db *sql.DB) http.HandlerFunc {
 		}
 
 		// Broadcast update
-		user, err := getUserByID(db, userSess.ID)
+		user, err := getUserByID(r.Context(), db, userSess.ID)
 		if err == nil && user != nil {
 			userJSON := user.toOldJSONForBrowser(user.Type != "root")
 			if SocketAuth != nil {
@@ -452,7 +452,7 @@ func handleGetAllLibraryItemsInProgress(db *sql.DB) http.HandlerFunc {
 			}
 		}
 
-		rows, err := db.Query(`SELECT id, mediaItemId, mediaItemType, duration, currentTime, isFinished, hideFromContinueListening, ebookLocation, ebookProgress, finishedAt, extraData, createdAt, updatedAt, podcastId 
+		rows, err := db.QueryContext(r.Context(), `SELECT id, mediaItemId, mediaItemType, duration, currentTime, isFinished, hideFromContinueListening, ebookLocation, ebookProgress, finishedAt, extraData, createdAt, updatedAt, podcastId 
 			FROM mediaProgresses WHERE userId = ? AND isFinished = 0 AND (currentTime > 0 OR ebookProgress > 0) AND (hideFromContinueListening = 0)
 			ORDER BY updatedAt DESC LIMIT ?`, userSess.ID, limit)
 		if err != nil {
@@ -478,6 +478,7 @@ func handleGetAllLibraryItemsInProgress(db *sql.DB) http.HandlerFunc {
 
 			err := rows.Scan(&id, &mediaItemId, &mediaItemType, &duration, &currentTime, &isFinishedInt, &hideFromContinueListeningInt, &ebookLocation, &ebookProgress, &finishedAt, &extraData, &createdAt, &updatedAt, &podcastId)
 			if err != nil {
+				log.Printf("[Me Progress] Failed to scan progress row: %v", err)
 				continue
 			}
 
@@ -498,6 +499,11 @@ func handleGetAllLibraryItemsInProgress(db *sql.DB) http.HandlerFunc {
 				})
 			}
 		}
+		if err := rows.Err(); err != nil {
+			log.Printf("[Me Progress] Progresses iteration error: %v", err)
+			http.Error(w, "Database error", http.StatusInternalServerError)
+			return
+		}
 
 		var items []interface{} = []interface{}{}
 		if len(libraryItemIDs) > 0 {
@@ -509,31 +515,41 @@ func handleGetAllLibraryItemsInProgress(db *sql.DB) http.HandlerFunc {
 				qArgs[i] = lid
 			}
 			query := fmt.Sprintf("SELECT id, mediaType, mediaId, title FROM libraryItems WHERE id IN (%s)", strings.Join(qPlaceholders, ","))
-			itemRows, err := db.Query(query, qArgs...)
-			if err == nil {
-				defer itemRows.Close()
+			itemRows, err := db.QueryContext(r.Context(), query, qArgs...)
+			if err != nil {
+				log.Printf("[Me Progress] Failed to query library items: %v", err)
+				http.Error(w, "Database error", http.StatusInternalServerError)
+				return
+			}
+			defer itemRows.Close()
 
-				for itemRows.Next() {
-					var id, mediaType, mediaId, title string
-					if err := itemRows.Scan(&id, &mediaType, &mediaId, &title); err == nil {
-						// Match updatedAt
-						var lastUp int64
-						for _, p := range progressList {
-							if p.libraryItemID == id {
-								lastUp = p.updatedAtMs
-								break
-							}
-						}
-						// Construct minified item JSON
-						items = append(items, map[string]interface{}{
-							"id":                 id,
-							"mediaType":          mediaType,
-							"mediaId":            mediaId,
-							"title":              title,
-							"progressLastUpdate": lastUp,
-						})
+			for itemRows.Next() {
+				var id, mediaType, mediaId, title string
+				if err := itemRows.Scan(&id, &mediaType, &mediaId, &title); err != nil {
+					log.Printf("[Me Progress] Failed to scan library item row: %v", err)
+					continue
+				}
+				// Match updatedAt
+				var lastUp int64
+				for _, p := range progressList {
+					if p.libraryItemID == id {
+						lastUp = p.updatedAtMs
+						break
 					}
 				}
+				// Construct minified item JSON
+				items = append(items, map[string]interface{}{
+					"id":                 id,
+					"mediaType":          mediaType,
+					"mediaId":            mediaId,
+					"title":              title,
+					"progressLastUpdate": lastUp,
+				})
+			}
+			if err := itemRows.Err(); err != nil {
+				log.Printf("[Me Progress] Library items query iteration error: %v", err)
+				http.Error(w, "Database error", http.StatusInternalServerError)
+				return
 			}
 		}
 
@@ -563,13 +579,13 @@ func handleRemoveSeriesFromContinueListening(db *sql.DB) http.HandlerFunc {
 
 		// Check series exists
 		var count int
-		db.QueryRow("SELECT COUNT(*) FROM series WHERE id = ?", seriesID).Scan(&count)
+		db.QueryRowContext(r.Context(), "SELECT COUNT(*) FROM series WHERE id = ?", seriesID).Scan(&count)
 		if count == 0 {
 			http.Error(w, `{"error": "Series not found"}`, http.StatusNotFound)
 			return
 		}
 
-		user, err := getUserByID(db, userSess.ID)
+		user, err := getUserByID(r.Context(), db, userSess.ID)
 		if err != nil || user == nil {
 			http.Error(w, "User not found", http.StatusNotFound)
 			return
@@ -595,13 +611,13 @@ func handleRemoveSeriesFromContinueListening(db *sql.DB) http.HandlerFunc {
 			seriesArr = append(seriesArr, seriesID)
 			extra["seriesHideFromContinueListening"] = seriesArr
 			extraBytes, _ := json.Marshal(extra)
-			_, err = db.Exec("UPDATE users SET extraData = ?, updatedAt = ? WHERE id = ?", string(extraBytes), timeToDBStr(time.Now()), user.ID)
+			_, err = db.ExecContext(r.Context(), "UPDATE users SET extraData = ?, updatedAt = ? WHERE id = ?", string(extraBytes), timeToDBStr(time.Now()), user.ID)
 			if err != nil {
 				log.Printf("[Me Series] DB error: %v", err)
 				http.Error(w, "Database error", http.StatusInternalServerError)
 				return
 			}
-			user, _ = getUserByID(db, userSess.ID)
+			user, _ = getUserByID(r.Context(), db, userSess.ID)
 		}
 
 		userJSON := user.toOldJSONForBrowser(user.Type != "root")
@@ -631,7 +647,7 @@ func handleReaddSeriesFromContinueListening(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		user, err := getUserByID(db, userSess.ID)
+		user, err := getUserByID(r.Context(), db, userSess.ID)
 		if err != nil || user == nil {
 			http.Error(w, "User not found", http.StatusNotFound)
 			return
@@ -659,13 +675,13 @@ func handleReaddSeriesFromContinueListening(db *sql.DB) http.HandlerFunc {
 		if changed {
 			extra["seriesHideFromContinueListening"] = newSeriesArr
 			extraBytes, _ := json.Marshal(extra)
-			_, err = db.Exec("UPDATE users SET extraData = ?, updatedAt = ? WHERE id = ?", string(extraBytes), timeToDBStr(time.Now()), user.ID)
+			_, err = db.ExecContext(r.Context(), "UPDATE users SET extraData = ?, updatedAt = ? WHERE id = ?", string(extraBytes), timeToDBStr(time.Now()), user.ID)
 			if err != nil {
 				log.Printf("[Me Series] DB error: %v", err)
 				http.Error(w, "Database error", http.StatusInternalServerError)
 				return
 			}
-			user, _ = getUserByID(db, userSess.ID)
+			user, _ = getUserByID(r.Context(), db, userSess.ID)
 		}
 
 		userJSON := user.toOldJSONForBrowser(user.Type != "root")
@@ -695,7 +711,7 @@ func handleHideMeProgressFromContinueListening(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		_, err := db.Exec("UPDATE mediaProgresses SET hideFromContinueListening = 1, updatedAt = ? WHERE id = ? AND userId = ?",
+		_, err := db.ExecContext(r.Context(), "UPDATE mediaProgresses SET hideFromContinueListening = 1, updatedAt = ? WHERE id = ? AND userId = ?",
 			timeToDBStr(time.Now()), progressID, userSess.ID)
 		if err != nil {
 			log.Printf("[Me Progress] Hide progress error: %v", err)
@@ -703,7 +719,7 @@ func handleHideMeProgressFromContinueListening(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		user, err := getUserByID(db, userSess.ID)
+		user, err := getUserByID(r.Context(), db, userSess.ID)
 		if err == nil && user != nil {
 			userJSON := user.toOldJSONForBrowser(user.Type != "root")
 			if SocketAuth != nil {
@@ -761,7 +777,7 @@ func handleMeCreateBookmark(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		user, err := getUserByID(db, userSess.ID)
+		user, err := getUserByID(r.Context(), db, userSess.ID)
 		if err != nil || user == nil {
 			http.Error(w, "User not found", http.StatusNotFound)
 			return
@@ -782,14 +798,14 @@ func handleMeCreateBookmark(db *sql.DB) http.HandlerFunc {
 		bookmarks = append(bookmarks, newBookmark)
 
 		bookmarksBytes, _ := json.Marshal(bookmarks)
-		_, err = db.Exec("UPDATE users SET bookmarks = ?, updatedAt = ? WHERE id = ?", string(bookmarksBytes), timeToDBStr(time.Now()), user.ID)
+		_, err = db.ExecContext(r.Context(), "UPDATE users SET bookmarks = ?, updatedAt = ? WHERE id = ?", string(bookmarksBytes), timeToDBStr(time.Now()), user.ID)
 		if err != nil {
 			log.Printf("[Me Bookmark] DB error: %v", err)
 			http.Error(w, "Database error", http.StatusInternalServerError)
 			return
 		}
 
-		user, _ = getUserByID(db, userSess.ID)
+		user, _ = getUserByID(r.Context(), db, userSess.ID)
 		userJSON := user.toOldJSONForBrowser(user.Type != "root")
 		if SocketAuth != nil {
 			SocketAuth.BroadcastToUser(userSess.ID, "user_updated", userJSON)
@@ -826,7 +842,7 @@ func handleMeUpdateBookmark(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		user, err := getUserByID(db, userSess.ID)
+		user, err := getUserByID(r.Context(), db, userSess.ID)
 		if err != nil || user == nil {
 			http.Error(w, "User not found", http.StatusNotFound)
 			return
@@ -854,14 +870,14 @@ func handleMeUpdateBookmark(db *sql.DB) http.HandlerFunc {
 		}
 
 		bookmarksBytes, _ := json.Marshal(bookmarks)
-		_, err = db.Exec("UPDATE users SET bookmarks = ?, updatedAt = ? WHERE id = ?", string(bookmarksBytes), timeToDBStr(time.Now()), user.ID)
+		_, err = db.ExecContext(r.Context(), "UPDATE users SET bookmarks = ?, updatedAt = ? WHERE id = ?", string(bookmarksBytes), timeToDBStr(time.Now()), user.ID)
 		if err != nil {
 			log.Printf("[Me Bookmark] DB error: %v", err)
 			http.Error(w, "Database error", http.StatusInternalServerError)
 			return
 		}
 
-		user, _ = getUserByID(db, userSess.ID)
+		user, _ = getUserByID(r.Context(), db, userSess.ID)
 		userJSON := user.toOldJSONForBrowser(user.Type != "root")
 		if SocketAuth != nil {
 			SocketAuth.BroadcastToUser(userSess.ID, "user_updated", userJSON)
@@ -902,7 +918,7 @@ func handleMeRemoveBookmark(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		user, err := getUserByID(db, userSess.ID)
+		user, err := getUserByID(r.Context(), db, userSess.ID)
 		if err != nil || user == nil {
 			http.Error(w, "User not found", http.StatusNotFound)
 			return
@@ -929,14 +945,14 @@ func handleMeRemoveBookmark(db *sql.DB) http.HandlerFunc {
 		}
 
 		bookmarksBytes, _ := json.Marshal(newBookmarks)
-		_, err = db.Exec("UPDATE users SET bookmarks = ?, updatedAt = ? WHERE id = ?", string(bookmarksBytes), timeToDBStr(time.Now()), user.ID)
+		_, err = db.ExecContext(r.Context(), "UPDATE users SET bookmarks = ?, updatedAt = ? WHERE id = ?", string(bookmarksBytes), timeToDBStr(time.Now()), user.ID)
 		if err != nil {
 			log.Printf("[Me Bookmark] DB error: %v", err)
 			http.Error(w, "Database error", http.StatusInternalServerError)
 			return
 		}
 
-		user, _ = getUserByID(db, userSess.ID)
+		user, _ = getUserByID(r.Context(), db, userSess.ID)
 		userJSON := user.toOldJSONForBrowser(user.Type != "root")
 		if SocketAuth != nil {
 			SocketAuth.BroadcastToUser(userSess.ID, "user_updated", userJSON)

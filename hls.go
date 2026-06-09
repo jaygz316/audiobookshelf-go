@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -31,14 +30,14 @@ type Track struct {
 
 // Stream represents an active HLS transcoding session.
 type Stream struct {
-	ID                  string
-	UserID              string
-	LibraryItemID       string
-	EpisodeID           string
-	StartTime           float64 // Original client requested start time (sec)
-	AdjustedStartTime   float64 // Buffer-shifted start time (sec)
-	SegmentStartNumber  int     // Index of first segment written by this transcode run
-	SegmentLength       float64 // Typically 6 seconds
+	ID                 string
+	UserID             string
+	LibraryItemID      string
+	EpisodeID          string
+	StartTime          float64 // Original client requested start time (sec)
+	AdjustedStartTime  float64 // Buffer-shifted start time (sec)
+	SegmentStartNumber int     // Index of first segment written by this transcode run
+	SegmentLength      float64 // Typically 6 seconds
 
 	StreamPath        string // Base directory containing HLS output files
 	ConcatFilesPath   string // Path to files.txt concat input
@@ -68,8 +67,6 @@ type StreamManager struct {
 	streams   map[string]*Stream
 	streamsMu sync.RWMutex
 }
-
-var legacyURL = "http://localhost:3334"
 
 // NewStreamManager creates a new StreamManager.
 func NewStreamManager() *StreamManager {
@@ -692,23 +689,11 @@ func getPlaylistStr(segmentName string, duration float64, segmentLength float64,
 }
 
 func emitWebsocketEvent(userID string, event string, payload interface{}) {
-	bridgeURL := fmt.Sprintf("%s/api/internal/emit-websocket", strings.TrimSuffix(legacyURL, "/"))
-	body, err := json.Marshal(map[string]interface{}{
-		"userId":  userID,
-		"event":   event,
-		"payload": payload,
-	})
-	if err != nil {
-		log.Printf("[HLS Stream] Failed to marshal websocket event: %v", err)
-		return
+	if SocketAuth != nil {
+		SocketAuth.ClientEmitter(userID, event, payload)
+	} else {
+		log.Printf("[HLS Stream Warning] SocketAuth not initialized, cannot emit: %s", event)
 	}
-
-	resp, err := http.Post(bridgeURL, "application/json", bytes.NewBuffer(body))
-	if err != nil {
-		log.Printf("[HLS Stream] Failed to emit websocket event: %v", err)
-		return
-	}
-	resp.Body.Close()
 }
 
 // serveHLS returns an HTTP handler for intercepting HLS playlist and segment requests.

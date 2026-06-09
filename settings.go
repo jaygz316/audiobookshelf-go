@@ -176,46 +176,67 @@ func recomputeIgnorePrefixes(db *sql.DB, prefixes []string) {
 	log.Printf("[Prefix Recompute] Starting recompute with prefixes: %v", prefixes)
 	// For each book, recompute and update
 	rows, err := db.Query("SELECT id, title, titleIgnorePrefix FROM books")
-	if err == nil {
+	if err != nil {
+		log.Printf("[Prefix Recompute] Failed to query books: %v", err)
+	} else {
 		defer rows.Close()
 		for rows.Next() {
 			var id, title, currentIgnore string
-			if err := rows.Scan(&id, &title, &currentIgnore); err == nil {
-				newIgnore := getTitleIgnorePrefixGo(title, prefixes)
-				if newIgnore != currentIgnore {
-					db.Exec("UPDATE books SET titleIgnorePrefix = ? WHERE id = ?", newIgnore, id)
-				}
+			if err := rows.Scan(&id, &title, &currentIgnore); err != nil {
+				log.Printf("[Prefix Recompute] Failed to scan book: %v", err)
+				continue
 			}
+			newIgnore := getTitleIgnorePrefixGo(title, prefixes)
+			if newIgnore != currentIgnore {
+				db.Exec("UPDATE books SET titleIgnorePrefix = ? WHERE id = ?", newIgnore, id)
+			}
+		}
+		if err := rows.Err(); err != nil {
+			log.Printf("[Prefix Recompute] Books query iteration error: %v", err)
 		}
 	}
 
 	// For each podcast, recompute and update
 	rows2, err := db.Query("SELECT id, title, titleIgnorePrefix FROM podcasts")
-	if err == nil {
+	if err != nil {
+		log.Printf("[Prefix Recompute] Failed to query podcasts: %v", err)
+	} else {
 		defer rows2.Close()
 		for rows2.Next() {
 			var id, title, currentIgnore string
-			if err := rows2.Scan(&id, &title, &currentIgnore); err == nil {
-				newIgnore := getTitleIgnorePrefixGo(title, prefixes)
-				if newIgnore != currentIgnore {
-					db.Exec("UPDATE podcasts SET titleIgnorePrefix = ? WHERE id = ?", newIgnore, id)
-				}
+			if err := rows2.Scan(&id, &title, &currentIgnore); err != nil {
+				log.Printf("[Prefix Recompute] Failed to scan podcast: %v", err)
+				continue
 			}
+			newIgnore := getTitleIgnorePrefixGo(title, prefixes)
+			if newIgnore != currentIgnore {
+				db.Exec("UPDATE podcasts SET titleIgnorePrefix = ? WHERE id = ?", newIgnore, id)
+			}
+		}
+		if err := rows2.Err(); err != nil {
+			log.Printf("[Prefix Recompute] Podcasts query iteration error: %v", err)
 		}
 	}
 
 	// For each series, recompute and update
 	rows3, err := db.Query("SELECT id, name, nameIgnorePrefix FROM series")
-	if err == nil {
+	if err != nil {
+		log.Printf("[Prefix Recompute] Failed to query series: %v", err)
+	} else {
 		defer rows3.Close()
 		for rows3.Next() {
 			var id, name, currentIgnore string
-			if err := rows3.Scan(&id, &name, &currentIgnore); err == nil {
-				newIgnore := getTitleIgnorePrefixGo(name, prefixes)
-				if newIgnore != currentIgnore {
-					db.Exec("UPDATE series SET nameIgnorePrefix = ? WHERE id = ?", newIgnore, id)
-				}
+			if err := rows3.Scan(&id, &name, &currentIgnore); err != nil {
+				log.Printf("[Prefix Recompute] Failed to scan series: %v", err)
+				continue
 			}
+			newIgnore := getTitleIgnorePrefixGo(name, prefixes)
+			if newIgnore != currentIgnore {
+				db.Exec("UPDATE series SET nameIgnorePrefix = ? WHERE id = ?", newIgnore, id)
+			}
+		}
+		if err := rows3.Err(); err != nil {
+			log.Printf("[Prefix Recompute] Series query iteration error: %v", err)
 		}
 	}
 	log.Printf("[Prefix Recompute] Finished")
@@ -380,21 +401,28 @@ func handleGetMetadataProviders(db *sql.DB) http.HandlerFunc {
 		rows, err := db.Query("SELECT id, name, mediaType FROM customMetadataProviders")
 		var customBookProviders []map[string]interface{}
 		var customPodcastProviders []map[string]interface{}
-		if err == nil {
+		if err != nil {
+			log.Printf("[Settings] Failed to query custom metadata providers: %v", err)
+		} else {
 			defer rows.Close()
 			for rows.Next() {
 				var id, name, mediaType string
-				if err := rows.Scan(&id, &name, &mediaType); err == nil {
-					p := map[string]interface{}{
-						"value": "custom-" + id,
-						"text":  name,
-					}
-					if mediaType == "book" {
-						customBookProviders = append(customBookProviders, p)
-					} else if mediaType == "podcast" {
-						customPodcastProviders = append(customPodcastProviders, p)
-					}
+				if err := rows.Scan(&id, &name, &mediaType); err != nil {
+					log.Printf("[Settings] Failed to scan custom metadata provider: %v", err)
+					continue
 				}
+				p := map[string]interface{}{
+					"value": "custom-" + id,
+					"text":  name,
+				}
+				if mediaType == "book" {
+					customBookProviders = append(customBookProviders, p)
+				} else if mediaType == "podcast" {
+					customPodcastProviders = append(customPodcastProviders, p)
+				}
+			}
+			if err := rows.Err(); err != nil {
+				log.Printf("[Settings] Custom metadata providers query iteration error: %v", err)
 			}
 		}
 
@@ -483,21 +511,29 @@ func handleGetCustomMetadataProviders(db *sql.DB) http.HandlerFunc {
 		for rows.Next() {
 			var id, name, mediaType, url string
 			var authHeaderVal, extraData, createdAt, updatedAt sql.NullString
-			if err := rows.Scan(&id, &name, &mediaType, &url, &authHeaderVal, &extraData, &createdAt, &updatedAt); err == nil {
-				m := map[string]interface{}{
-					"id":        id,
-					"name":      name,
-					"mediaType": mediaType,
-					"url":       url,
-					"slug":      "custom-" + id,
-				}
-				if authHeaderVal.Valid {
-					m["authHeaderValue"] = authHeaderVal.String
-				} else {
-					m["authHeaderValue"] = nil
-				}
-				list = append(list, m)
+			if err := rows.Scan(&id, &name, &mediaType, &url, &authHeaderVal, &extraData, &createdAt, &updatedAt); err != nil {
+				log.Printf("[Settings] Failed to scan custom metadata provider: %v", err)
+				http.Error(w, `{"error": "Internal Error"}`, http.StatusInternalServerError)
+				return
 			}
+			m := map[string]interface{}{
+				"id":        id,
+				"name":      name,
+				"mediaType": mediaType,
+				"url":       url,
+				"slug":      "custom-" + id,
+			}
+			if authHeaderVal.Valid {
+				m["authHeaderValue"] = authHeaderVal.String
+			} else {
+				m["authHeaderValue"] = nil
+			}
+			list = append(list, m)
+		}
+		if err := rows.Err(); err != nil {
+			log.Printf("[Settings] Custom metadata providers query iteration error: %v", err)
+			http.Error(w, `{"error": "Internal Error"}`, http.StatusInternalServerError)
+			return
 		}
 
 		w.Header().Set("Content-Type", "application/json")

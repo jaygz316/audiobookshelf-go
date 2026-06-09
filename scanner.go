@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"database/sql"
 	"encoding/json"
 	"encoding/xml"
@@ -19,6 +20,8 @@ import (
 
 	"github.com/dhowden/tag"
 	"github.com/google/uuid"
+
+	"audiobookshelf/internal/metadata"
 )
 
 type FileItem struct {
@@ -901,6 +904,62 @@ func parseMetadataForGroup(db *sql.DB, groupFiles []FileItem, mediaType, itemPat
 				"ctime":    eb.CtimeMs,
 			},
 		}
+
+		// Parse metadata from ebook using internal/metadata
+		var parsed *metadata.EbookMetadata
+		var err error
+		if strings.ToLower(eb.Extension) == ".epub" {
+			parsed, err = metadata.ExtractEpubMetadata(context.Background(), eb.Path)
+		} else if ext := strings.ToLower(eb.Extension); ext == ".cbz" || ext == ".cbr" || ext == ".pdf" {
+			parsed, err = metadata.ExtractComicMetadata(context.Background(), eb.Path)
+		}
+		if err == nil && parsed != nil {
+			if meta.Title == "" && parsed.Title != "" {
+				meta.Title = parsed.Title
+			}
+			if len(meta.Authors) == 0 && parsed.Author != "" {
+				meta.Authors = parseNameString(parsed.Author)
+			}
+			if meta.Publisher == "" && parsed.Publisher != "" {
+				meta.Publisher = parsed.Publisher
+			}
+			if meta.PublishedYear == "" && parsed.PublishedYear != "" {
+				meta.PublishedYear = parsed.PublishedYear
+			}
+			if meta.Description == "" && parsed.Description != "" {
+				meta.Description = parsed.Description
+			}
+			if meta.Language == "" && parsed.Language != "" {
+				meta.Language = parsed.Language
+			}
+			if meta.ISBN == "" && parsed.ISBN != "" {
+				meta.ISBN = parsed.ISBN
+			}
+			if len(meta.Chapters) == 0 && len(parsed.Chapters) > 0 {
+				var chs []Chapter
+				for _, c := range parsed.Chapters {
+					chs = append(chs, Chapter{
+						ID:    c.ID,
+						Title: c.Title,
+					})
+				}
+				meta.Chapters = chs
+			}
+		}
+
+		// Extract cover from ebook if no cover image was found in the folder
+		if meta.CoverPath == "" {
+			destCover := filepath.Join(filepath.Dir(eb.Path), "cover.jpg")
+			var extractErr error
+			if strings.ToLower(eb.Extension) == ".epub" {
+				extractErr = metadata.ExtractEpubCover(context.Background(), eb.Path, destCover)
+			} else if ext := strings.ToLower(eb.Extension); ext == ".cbz" || ext == ".cbr" || ext == ".pdf" {
+				extractErr = metadata.ExtractComicCover(context.Background(), eb.Path, destCover)
+			}
+			if extractErr == nil {
+				meta.CoverPath = destCover
+			}
+		}
 	}
 
 	if opfFile != "" {
@@ -1056,9 +1115,13 @@ func ScanLibrary(db *sql.DB, libraryID string) error {
 	}
 	for rows.Next() {
 		var id, path string
-		if err := rows.Scan(&id, &path); err == nil {
-			folders = append(folders, struct{ id, path string }{id, path})
+		if err := rows.Scan(&id, &path); err != nil {
+			return err
 		}
+		folders = append(folders, struct{ id, path string }{id, path})
+	}
+	if err := rows.Err(); err != nil {
+		return err
 	}
 
 	var foundPaths []string
@@ -1130,28 +1193,36 @@ func ScanLibrary(db *sql.DB, libraryID string) error {
 	}
 
 	dbItems, err := db.Query("SELECT id, path FROM libraryItems WHERE libraryId = ? AND isMissing = 0", libraryID)
-	if err == nil {
-		defer dbItems.Close()
-		foundPathsMap := make(map[string]bool)
-		for _, p := range foundPaths {
-			foundPathsMap[p] = true
+	if err != nil {
+		return err
+	}
+	defer dbItems.Close()
+	foundPathsMap := make(map[string]bool)
+	for _, p := range foundPaths {
+		foundPathsMap[p] = true
+	}
+
+	for dbItems.Next() {
+		var id, path string
+		if err := dbItems.Scan(&id, &path); err != nil {
+			return err
 		}
+		if !foundPathsMap[path] {
+			log.Printf("[Scanner] Item %s not found on disk, marking as missing", path)
+			_, err = db.Exec("UPDATE libraryItems SET isMissing = 1 WHERE id = ?", id)
+			if err != nil {
+				return err
+			}
 
-		for dbItems.Next() {
-			var id, path string
-			if err := dbItems.Scan(&id, &path); err == nil {
-				if !foundPathsMap[path] {
-					log.Printf("[Scanner] Item %s not found on disk, marking as missing", path)
-					_, _ = db.Exec("UPDATE libraryItems SET isMissing = 1 WHERE id = ?", id)
-
-					if SocketAuth != nil {
-						if minItem, err := GetLibraryItemMinifiedByID(db, id); err == nil {
-							EmitLibraryItemEvent("item_updated", minItem)
-						}
-					}
+			if SocketAuth != nil {
+				if minItem, err := GetLibraryItemMinifiedByID(db, id); err == nil {
+					EmitLibraryItemEvent("item_updated", minItem)
 				}
 			}
 		}
+	}
+	if err := dbItems.Err(); err != nil {
+		return err
 	}
 
 	return nil
@@ -1712,25 +1783,39 @@ func GetLibraryItemMinifiedByID(db *sql.DB, itemID string) (*LibraryItemMinified
 
 			if tableExists(db, "bookAuthors") && tableExists(db, "authors") {
 				rows, err := db.Query("SELECT name FROM authors WHERE id IN (SELECT authorId FROM bookAuthors WHERE bookId = ?)", mediaID)
-				if err == nil {
+				if err != nil {
+					log.Printf("[Scanner] Failed to query authors: %v", err)
+				} else {
 					defer rows.Close()
 					for rows.Next() {
 						var name string
-						if err := rows.Scan(&name); err == nil {
-							authorNames = append(authorNames, name)
+						if err := rows.Scan(&name); err != nil {
+							log.Printf("[Scanner] Failed to scan author name: %v", err)
+							continue
 						}
+						authorNames = append(authorNames, name)
+					}
+					if err := rows.Err(); err != nil {
+						log.Printf("[Scanner] Authors iteration error: %v", err)
 					}
 				}
 			}
 			if tableExists(db, "bookSeries") && tableExists(db, "series") {
 				rows, err := db.Query("SELECT name FROM series WHERE id IN (SELECT seriesId FROM bookSeries WHERE bookId = ?)", mediaID)
-				if err == nil {
+				if err != nil {
+					log.Printf("[Scanner] Failed to query series: %v", err)
+				} else {
 					defer rows.Close()
 					for rows.Next() {
 						var name string
-						if err := rows.Scan(&name); err == nil {
-							seriesNames = append(seriesNames, name)
+						if err := rows.Scan(&name); err != nil {
+							log.Printf("[Scanner] Failed to scan series name: %v", err)
+							continue
 						}
+						seriesNames = append(seriesNames, name)
+					}
+					if err := rows.Err(); err != nil {
+						log.Printf("[Scanner] Series iteration error: %v", err)
 					}
 				}
 			}
@@ -1893,9 +1978,14 @@ func getTableColumnsTx(tx *sql.Tx, tableName string) map[string]bool {
 		var name, ctype string
 		var notnull, pk int
 		var dfltVal sql.NullString
-		if err := rows.Scan(&cid, &name, &ctype, &notnull, &dfltVal, &pk); err == nil {
-			columns[name] = true
+		if err := rows.Scan(&cid, &name, &ctype, &notnull, &dfltVal, &pk); err != nil {
+			log.Printf("[Scanner] Failed to scan table column info: %v", err)
+			continue
 		}
+		columns[name] = true
+	}
+	if err := rows.Err(); err != nil {
+		log.Printf("[Scanner] Table info iteration error for table %s: %v", tableName, err)
 	}
 	return columns
 }
