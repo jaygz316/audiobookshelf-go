@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"strings"
@@ -174,71 +175,59 @@ func handleUpdateSortingPrefixes(db *sql.DB) http.HandlerFunc {
 
 func recomputeIgnorePrefixes(db *sql.DB, prefixes []string) {
 	log.Printf("[Prefix Recompute] Starting recompute with prefixes: %v", prefixes)
-	// For each book, recompute and update
-	rows, err := db.Query("SELECT id, title, titleIgnorePrefix FROM books")
-	if err != nil {
-		log.Printf("[Prefix Recompute] Failed to query books: %v", err)
-	} else {
+
+	// A helper to batch updates
+	batchUpdate := func(table string, idCol string, titleCol string, ignoreCol string) {
+		query := fmt.Sprintf("SELECT %s, %s, %s FROM %s", idCol, titleCol, ignoreCol, table)
+		rows, err := db.Query(query)
+		if err != nil {
+			log.Printf("[Prefix Recompute] Failed to query %s: %v", table, err)
+			return
+		}
 		defer rows.Close()
+
+		tx, err := db.Begin()
+		if err != nil {
+			log.Printf("[Prefix Recompute] Failed to begin tx for %s: %v", table, err)
+			return
+		}
+
+		updateQuery := fmt.Sprintf("UPDATE %s SET %s = ? WHERE %s = ?", table, ignoreCol, idCol)
+		stmt, err := tx.Prepare(updateQuery)
+		if err != nil {
+			log.Printf("[Prefix Recompute] Failed to prepare statement for %s: %v", table, err)
+			tx.Rollback()
+			return
+		}
+		defer stmt.Close()
+
 		for rows.Next() {
 			var id, title, currentIgnore string
 			if err := rows.Scan(&id, &title, &currentIgnore); err != nil {
-				log.Printf("[Prefix Recompute] Failed to scan book: %v", err)
+				log.Printf("[Prefix Recompute] Failed to scan %s: %v", table, err)
 				continue
 			}
 			newIgnore := getTitleIgnorePrefixGo(title, prefixes)
 			if newIgnore != currentIgnore {
-				db.Exec("UPDATE books SET titleIgnorePrefix = ? WHERE id = ?", newIgnore, id)
+				if _, err := stmt.Exec(newIgnore, id); err != nil {
+					log.Printf("[Prefix Recompute] Failed to execute update on %s for id %s: %v", table, id, err)
+				}
 			}
 		}
+
 		if err := rows.Err(); err != nil {
-			log.Printf("[Prefix Recompute] Books query iteration error: %v", err)
+			log.Printf("[Prefix Recompute] %s query iteration error: %v", table, err)
+		}
+
+		if err := tx.Commit(); err != nil {
+			log.Printf("[Prefix Recompute] Failed to commit tx for %s: %v", table, err)
 		}
 	}
 
-	// For each podcast, recompute and update
-	rows2, err := db.Query("SELECT id, title, titleIgnorePrefix FROM podcasts")
-	if err != nil {
-		log.Printf("[Prefix Recompute] Failed to query podcasts: %v", err)
-	} else {
-		defer rows2.Close()
-		for rows2.Next() {
-			var id, title, currentIgnore string
-			if err := rows2.Scan(&id, &title, &currentIgnore); err != nil {
-				log.Printf("[Prefix Recompute] Failed to scan podcast: %v", err)
-				continue
-			}
-			newIgnore := getTitleIgnorePrefixGo(title, prefixes)
-			if newIgnore != currentIgnore {
-				db.Exec("UPDATE podcasts SET titleIgnorePrefix = ? WHERE id = ?", newIgnore, id)
-			}
-		}
-		if err := rows2.Err(); err != nil {
-			log.Printf("[Prefix Recompute] Podcasts query iteration error: %v", err)
-		}
-	}
+	batchUpdate("books", "id", "title", "titleIgnorePrefix")
+	batchUpdate("podcasts", "id", "title", "titleIgnorePrefix")
+	batchUpdate("series", "id", "name", "nameIgnorePrefix")
 
-	// For each series, recompute and update
-	rows3, err := db.Query("SELECT id, name, nameIgnorePrefix FROM series")
-	if err != nil {
-		log.Printf("[Prefix Recompute] Failed to query series: %v", err)
-	} else {
-		defer rows3.Close()
-		for rows3.Next() {
-			var id, name, currentIgnore string
-			if err := rows3.Scan(&id, &name, &currentIgnore); err != nil {
-				log.Printf("[Prefix Recompute] Failed to scan series: %v", err)
-				continue
-			}
-			newIgnore := getTitleIgnorePrefixGo(name, prefixes)
-			if newIgnore != currentIgnore {
-				db.Exec("UPDATE series SET nameIgnorePrefix = ? WHERE id = ?", newIgnore, id)
-			}
-		}
-		if err := rows3.Err(); err != nil {
-			log.Printf("[Prefix Recompute] Series query iteration error: %v", err)
-		}
-	}
 	log.Printf("[Prefix Recompute] Finished")
 }
 
