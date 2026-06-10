@@ -1103,6 +1103,21 @@ func ScanLibrary(db *sql.DB, libraryID string) error {
 		}
 	}()
 
+	var prefixes []string
+	var valStr string
+	_ = db.QueryRow("SELECT value FROM settings WHERE key = 'server-settings'").Scan(&valStr)
+	if valStr != "" {
+		var s struct {
+			SortingPrefixes []string `json:"sortingPrefixes"`
+		}
+		if json.Unmarshal([]byte(valStr), &s) == nil {
+			prefixes = s.SortingPrefixes
+		}
+	}
+	if len(prefixes) == 0 {
+		prefixes = []string{"the", "a", "an"}
+	}
+
 	rows, err := db.Query("SELECT id, path FROM libraryFolders WHERE libraryId = ?", libraryID)
 	if err != nil {
 		return err
@@ -1171,7 +1186,7 @@ func ScanLibrary(db *sql.DB, libraryID string) error {
 			err = db.QueryRow("SELECT id, mtime, isMissing FROM libraryItems WHERE path = ? AND libraryId = ?", itemPath, libraryID).Scan(&existingID, &existingMtimeStr, &existingIsMissing)
 
 			if err == sql.ErrNoRows {
-				err := scanNewLibraryItem(db, libraryID, folder.id, itemPath, groupFiles, mediaType, isFile, maxMtime, maxCtime, totalSize, ino, libSettings.AudiobooksOnly)
+				err := scanNewLibraryItem(db, libraryID, folder.id, itemPath, groupFiles, mediaType, isFile, maxMtime, maxCtime, totalSize, ino, libSettings.AudiobooksOnly, prefixes)
 				if err != nil {
 					log.Printf("[Scanner] Error scanning new item at %s: %v", itemPath, err)
 				}
@@ -1183,7 +1198,7 @@ func ScanLibrary(db *sql.DB, libraryID string) error {
 				existingMtime := parseEpochMillis(existingMtimeStr)
 				if maxMtime != existingMtime {
 					log.Printf("[Scanner] Mtime changed for existing item %s, rescanning", itemPath)
-					err := scanExistingLibraryItem(db, existingID, libraryID, folder.id, itemPath, groupFiles, mediaType, isFile, maxMtime, maxCtime, totalSize, ino, libSettings.AudiobooksOnly)
+					err := scanExistingLibraryItem(db, existingID, libraryID, folder.id, itemPath, groupFiles, mediaType, isFile, maxMtime, maxCtime, totalSize, ino, libSettings.AudiobooksOnly, prefixes)
 					if err != nil {
 						log.Printf("[Scanner] Error updating existing item at %s: %v", itemPath, err)
 					}
@@ -1228,7 +1243,7 @@ func ScanLibrary(db *sql.DB, libraryID string) error {
 	return nil
 }
 
-func scanNewLibraryItem(db *sql.DB, libraryID, folderID, itemPath string, groupFiles []FileItem, mediaType string, isFile bool, mtime, ctime, totalSize int64, ino string, audiobooksOnly bool) error {
+func scanNewLibraryItem(db *sql.DB, libraryID, folderID, itemPath string, groupFiles []FileItem, mediaType string, isFile bool, mtime, ctime, totalSize int64, ino string, audiobooksOnly bool, prefixes []string) error {
 	itemID := uuidStr()
 	mediaID := uuidStr()
 	nowStr := time.Now().Format("2006-01-02 15:04:05.000")
@@ -1256,7 +1271,7 @@ func scanNewLibraryItem(db *sql.DB, libraryID, folderID, itemPath string, groupF
 	if title == "" {
 		title = filepath.Base(itemPath)
 	}
-	titleIgnorePrefix := getTitleIgnorePrefix(db, title)
+	titleIgnorePrefix := getTitleIgnorePrefixGo(title, prefixes)
 
 	if mediaType == "book" {
 		authorNamesFirstLast = strings.Join(meta.Authors, ", ")
@@ -1488,7 +1503,7 @@ func scanNewLibraryItem(db *sql.DB, libraryID, folderID, itemPath string, groupF
 	return nil
 }
 
-func scanExistingLibraryItem(db *sql.DB, itemID, libraryID, folderID, itemPath string, groupFiles []FileItem, mediaType string, isFile bool, mtime, ctime, totalSize int64, ino string, audiobooksOnly bool) error {
+func scanExistingLibraryItem(db *sql.DB, itemID, libraryID, folderID, itemPath string, groupFiles []FileItem, mediaType string, isFile bool, mtime, ctime, totalSize int64, ino string, audiobooksOnly bool, prefixes []string) error {
 	var mediaID string
 	err := db.QueryRow("SELECT mediaId FROM libraryItems WHERE id = ?", itemID).Scan(&mediaID)
 	if err != nil {
@@ -1520,7 +1535,7 @@ func scanExistingLibraryItem(db *sql.DB, itemID, libraryID, folderID, itemPath s
 	if title == "" {
 		title = filepath.Base(itemPath)
 	}
-	titleIgnorePrefix := getTitleIgnorePrefix(db, title)
+	titleIgnorePrefix := getTitleIgnorePrefixGo(title, prefixes)
 
 	if mediaType == "book" {
 		authorNamesFirstLast = strings.Join(meta.Authors, ", ")
