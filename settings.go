@@ -179,7 +179,7 @@ func recomputeIgnorePrefixes(db *sql.DB, prefixes []string) {
 	if err != nil {
 		log.Printf("[Prefix Recompute] Failed to query books: %v", err)
 	} else {
-		defer rows.Close()
+		var updates []struct{ id, ignore string }
 		for rows.Next() {
 			var id, title, currentIgnore string
 			if err := rows.Scan(&id, &title, &currentIgnore); err != nil {
@@ -188,11 +188,28 @@ func recomputeIgnorePrefixes(db *sql.DB, prefixes []string) {
 			}
 			newIgnore := getTitleIgnorePrefixGo(title, prefixes)
 			if newIgnore != currentIgnore {
-				db.Exec("UPDATE books SET titleIgnorePrefix = ? WHERE id = ?", newIgnore, id)
+				updates = append(updates, struct{ id, ignore string }{id, newIgnore})
 			}
 		}
 		if err := rows.Err(); err != nil {
 			log.Printf("[Prefix Recompute] Books query iteration error: %v", err)
+		}
+		rows.Close()
+
+		if len(updates) > 0 {
+			tx, err := db.Begin()
+			if err != nil {
+				log.Printf("[Prefix Recompute] Failed to begin tx for books: %v", err)
+			} else {
+				stmt, err := tx.Prepare("UPDATE books SET titleIgnorePrefix = ? WHERE id = ?")
+				if err == nil {
+					for _, u := range updates {
+						stmt.Exec(u.ignore, u.id)
+					}
+					stmt.Close()
+				}
+				tx.Commit()
+			}
 		}
 	}
 
@@ -201,7 +218,7 @@ func recomputeIgnorePrefixes(db *sql.DB, prefixes []string) {
 	if err != nil {
 		log.Printf("[Prefix Recompute] Failed to query podcasts: %v", err)
 	} else {
-		defer rows2.Close()
+		var updates []struct{ id, ignore string }
 		for rows2.Next() {
 			var id, title, currentIgnore string
 			if err := rows2.Scan(&id, &title, &currentIgnore); err != nil {
@@ -210,11 +227,28 @@ func recomputeIgnorePrefixes(db *sql.DB, prefixes []string) {
 			}
 			newIgnore := getTitleIgnorePrefixGo(title, prefixes)
 			if newIgnore != currentIgnore {
-				db.Exec("UPDATE podcasts SET titleIgnorePrefix = ? WHERE id = ?", newIgnore, id)
+				updates = append(updates, struct{ id, ignore string }{id, newIgnore})
 			}
 		}
 		if err := rows2.Err(); err != nil {
 			log.Printf("[Prefix Recompute] Podcasts query iteration error: %v", err)
+		}
+		rows2.Close()
+
+		if len(updates) > 0 {
+			tx, err := db.Begin()
+			if err != nil {
+				log.Printf("[Prefix Recompute] Failed to begin tx for podcasts: %v", err)
+			} else {
+				stmt, err := tx.Prepare("UPDATE podcasts SET titleIgnorePrefix = ? WHERE id = ?")
+				if err == nil {
+					for _, u := range updates {
+						stmt.Exec(u.ignore, u.id)
+					}
+					stmt.Close()
+				}
+				tx.Commit()
+			}
 		}
 	}
 
@@ -223,7 +257,7 @@ func recomputeIgnorePrefixes(db *sql.DB, prefixes []string) {
 	if err != nil {
 		log.Printf("[Prefix Recompute] Failed to query series: %v", err)
 	} else {
-		defer rows3.Close()
+		var updates []struct{ id, ignore string }
 		for rows3.Next() {
 			var id, name, currentIgnore string
 			if err := rows3.Scan(&id, &name, &currentIgnore); err != nil {
@@ -232,11 +266,28 @@ func recomputeIgnorePrefixes(db *sql.DB, prefixes []string) {
 			}
 			newIgnore := getTitleIgnorePrefixGo(name, prefixes)
 			if newIgnore != currentIgnore {
-				db.Exec("UPDATE series SET nameIgnorePrefix = ? WHERE id = ?", newIgnore, id)
+				updates = append(updates, struct{ id, ignore string }{id, newIgnore})
 			}
 		}
 		if err := rows3.Err(); err != nil {
 			log.Printf("[Prefix Recompute] Series query iteration error: %v", err)
+		}
+		rows3.Close()
+
+		if len(updates) > 0 {
+			tx, err := db.Begin()
+			if err != nil {
+				log.Printf("[Prefix Recompute] Failed to begin tx for series: %v", err)
+			} else {
+				stmt, err := tx.Prepare("UPDATE series SET nameIgnorePrefix = ? WHERE id = ?")
+				if err == nil {
+					for _, u := range updates {
+						stmt.Exec(u.ignore, u.id)
+					}
+					stmt.Close()
+				}
+				tx.Commit()
+			}
 		}
 	}
 	log.Printf("[Prefix Recompute] Finished")
