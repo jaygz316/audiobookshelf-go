@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -1294,9 +1295,22 @@ func getUserLoginPayload(ctx context.Context, db *sql.DB, user *User) (map[strin
 		filteredLibs = []*LibraryJSON{}
 	}
 
+	var defaultLibraryID string
+	if len(filteredLibs) > 0 {
+		defaultLibraryID = filteredLibs[0].ID
+	}
+
+	source := os.Getenv("SOURCE")
+	if source == "" {
+		source = "debian"
+	}
+
 	payload := map[string]interface{}{
-		"serverSettings": browserSettings,
-		"libraries":      filteredLibs,
+		"serverSettings":       browserSettings,
+		"libraries":            filteredLibs,
+		"userDefaultLibraryId": defaultLibraryID,
+		"Source":               source,
+		"ereaderDevices":       []interface{}{},
 	}
 
 	// 3. If root/admin, return all users

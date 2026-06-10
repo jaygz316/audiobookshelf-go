@@ -767,7 +767,7 @@ func handleGetLoggerData(db *sql.DB) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
-			"currentDailyLogs": []interface{}{},
+			"currentDailyLogs": GlobalLogBuffer.Get(),
 		})
 	}
 }

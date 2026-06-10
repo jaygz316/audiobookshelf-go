@@ -138,7 +138,6 @@ export const actions = {
         return false
       })
   },
-  // Return true if calling load
   load({ state, commit, rootState }) {
     if (!rootState.user || !rootState.user.user) {
       console.error('libraries/load - User not set')
@@ -152,17 +151,18 @@ export const actions = {
       return false
     }
 
-    this.$axios
+    return this.$axios
       .$get(`/api/libraries`)
       .then((data) => {
         commit('set', data.libraries)
         commit('setLastLoad', new Date())
+        return true
       })
       .catch((error) => {
         console.error('Failed', error)
         commit('set', [])
+        return false
       })
-    return true
   }
 }
 

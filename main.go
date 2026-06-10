@@ -90,6 +90,7 @@ func getVersion(appRoot string) string {
 }
 
 func main() {
+	log.SetOutput(&LogWriter{Stdout: os.Stdout})
 	cfg := parseConfig()
 
 	appRoot, err := os.Getwd()
@@ -684,10 +685,43 @@ func setupHandler(db *sql.DB, cfg *Config, dbConnected bool, appRoot string, ver
 			}
 			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
 			return
+		} else if len(parts) == 2 && parts[1] == "personalized" {
+			libraryID := parts[0]
+			if r.Method == http.MethodGet {
+				AuthMiddleware(db, getTokenSecret(db), http.HandlerFunc(handleGetLibraryPersonalized(db, libraryID))).ServeHTTP(w, r)
+				return
+			}
+			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
+			return
 		} else if len(parts) == 2 && parts[1] == "items" {
 			libraryID := parts[0]
 			if r.Method == http.MethodGet {
 				AuthMiddleware(db, getTokenSecret(db), http.HandlerFunc(handleGetLibraryItems(db, libraryID))).ServeHTTP(w, r)
+				return
+			}
+			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
+			return
+		} else if len(parts) == 2 && parts[1] == "authors" {
+			libraryID := parts[0]
+			if r.Method == http.MethodGet {
+				AuthMiddleware(db, getTokenSecret(db), http.HandlerFunc(handleGetLibraryAuthors(db, libraryID))).ServeHTTP(w, r)
+				return
+			}
+			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
+			return
+		} else if len(parts) == 2 && parts[1] == "series" {
+			libraryID := parts[0]
+			if r.Method == http.MethodGet {
+				AuthMiddleware(db, getTokenSecret(db), http.HandlerFunc(handleGetLibrarySeries(db, libraryID))).ServeHTTP(w, r)
+				return
+			}
+			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
+			return
+		} else if len(parts) == 3 && parts[1] == "series" {
+			libraryID := parts[0]
+			seriesID := parts[2]
+			if r.Method == http.MethodGet {
+				AuthMiddleware(db, getTokenSecret(db), http.HandlerFunc(handleGetLibrarySeriesByID(db, libraryID, seriesID))).ServeHTTP(w, r)
 				return
 			}
 			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
@@ -732,6 +766,37 @@ func setupHandler(db *sql.DB, cfg *Config, dbConnected bool, appRoot string, ver
 			}
 			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
 			return
+		}
+
+		http.NotFound(w, r)
+	})
+
+	// Authors API (native Go implementation)
+	mux.HandleFunc(cfg.RouterBasePath+"/api/authors/", func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("[Go] %s %s", r.Method, r.URL.Path)
+
+		// strip RouterBasePath + "/api/authors/"
+		subPath := strings.TrimPrefix(r.URL.Path, cfg.RouterBasePath+"/api/authors/")
+		parts := strings.Split(subPath, "/")
+
+		if len(parts) == 1 && parts[0] != "" {
+			authorID := parts[0]
+			if r.Method == http.MethodGet {
+				AuthMiddleware(db, getTokenSecret(db), http.HandlerFunc(handleGetAuthorByID(db, authorID))).ServeHTTP(w, r)
+				return
+			}
+		} else if len(parts) == 2 && parts[1] == "image" {
+			authorID := parts[0]
+			if r.Method == http.MethodGet {
+				handleGetAuthorImage(db, cfg.MetadataPath, authorID)(w, r)
+				return
+			}
+		} else if len(parts) == 2 && parts[1] == "match" {
+			authorID := parts[0]
+			if r.Method == http.MethodPost {
+				AuthMiddleware(db, getTokenSecret(db), http.HandlerFunc(handleMatchAuthor(db, authorID))).ServeHTTP(w, r)
+				return
+			}
 		}
 
 		http.NotFound(w, r)
@@ -876,6 +941,29 @@ func setupHandler(db *sql.DB, cfg *Config, dbConnected bool, appRoot string, ver
 		if strings.HasSuffix(path, "/download") {
 			AuthMiddleware(db, getTokenSecret(db), http.HandlerFunc(serveDownload(db))).ServeHTTP(w, r)
 			return
+		}
+
+		subPath := strings.TrimPrefix(path, cfg.RouterBasePath+"/api/items/")
+		parts := strings.Split(subPath, "/")
+		if len(parts) == 1 && parts[0] != "" {
+			itemID := parts[0]
+			if r.Method == http.MethodGet {
+				AuthMiddleware(db, getTokenSecret(db), http.HandlerFunc(handleGetLibraryItemByID(db, itemID))).ServeHTTP(w, r)
+				return
+			}
+		} else if len(parts) == 2 && parts[1] == "ebook" {
+			itemID := parts[0]
+			if r.Method == http.MethodGet {
+				AuthMiddleware(db, getTokenSecret(db), http.HandlerFunc(handleServeEbook(db, itemID, ""))).ServeHTTP(w, r)
+				return
+			}
+		} else if len(parts) == 3 && parts[1] == "ebook" {
+			itemID := parts[0]
+			fileID := parts[2]
+			if r.Method == http.MethodGet {
+				AuthMiddleware(db, getTokenSecret(db), http.HandlerFunc(handleServeEbook(db, itemID, fileID))).ServeHTTP(w, r)
+				return
+			}
 		}
 
 		log.Printf("[Backend] 404 Not Found: %s %s", r.Method, r.URL.Path)
@@ -1272,14 +1360,20 @@ func handleGetLibraryByID(db *sql.DB, libraryID string) http.HandlerFunc {
 				http.Error(w, `{"error": "Library not found"}`, http.StatusNotFound)
 				return
 			}
-			libBytes, _ := json.Marshal(lib)
-			var libMap map[string]interface{}
-			json.Unmarshal(libBytes, &libMap)
-			libMap["filterdata"] = fd
-			libMap["issues"] = fd.NumIssues
+			playlists, err := queryPlaylistsForUserAndLibrary(r.Context(), db, user.ID, libraryID)
+			numPlaylists := 0
+			if err == nil {
+				numPlaylists = len(playlists)
+			}
+			responsePayload := map[string]interface{}{
+				"library":          lib,
+				"filterdata":       fd,
+				"issues":           fd.NumIssues,
+				"numUserPlaylists": numPlaylists,
+			}
 
 			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(libMap)
+			json.NewEncoder(w).Encode(responsePayload)
 			return
 		}
 
@@ -1385,6 +1479,154 @@ func handleGetLibraryItems(db *sql.DB, libraryID string) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(payload)
+	}
+}
+
+func handleGetLibraryPersonalized(db *sql.DB, libraryID string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		userVal := r.Context().Value(UserContextKey)
+		if userVal == nil {
+			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
+			return
+		}
+		user := userVal.(*UserSession)
+
+		if !user.CanAccessLibrary(libraryID) {
+			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
+			return
+		}
+
+		lib, err := GetLibraryByID(db, libraryID)
+		if err != nil {
+			log.Printf("[Go] Failed to get library %s: %v", libraryID, err)
+			http.Error(w, fmt.Sprintf(`{"error": "%s"}`, err.Error()), http.StatusInternalServerError)
+			return
+		}
+		if lib == nil {
+			http.Error(w, "Library not found", http.StatusNotFound)
+			return
+		}
+
+		q := r.URL.Query()
+		limitVal := 20
+		if q.Get("limit") != "" {
+			fmt.Sscanf(q.Get("limit"), "%d", &limitVal)
+		}
+
+		type Shelf struct {
+			ID             string                      `json:"id"`
+			Label          string                      `json:"label"`
+			LabelStringKey string                      `json:"labelStringKey"`
+			Type           string                      `json:"type"`
+			Entities       []*LibraryItemMinifiedJSON  `json:"entities"`
+		}
+
+		var shelves []Shelf
+
+		// 1. Fetch in-progress items
+		optsProgress := GetFilteredLibraryItemsOptions{
+			LibraryID:      libraryID,
+			User:           user,
+			FilterBy:       "progress.in-progress",
+			SortBy:         "progress",
+			SortDesc:       true,
+			Limit:          limitVal,
+			Page:           0,
+			MediaType:      lib.MediaType,
+			Minified:       true,
+		}
+		progressItems, _, err := GetFilteredLibraryItems(db, optsProgress)
+		if err == nil && len(progressItems) > 0 {
+			if lib.MediaType == "book" {
+				var listeningItems []*LibraryItemMinifiedJSON
+				var readingItems []*LibraryItemMinifiedJSON
+
+				for _, item := range progressItems {
+					if item.IsMissing || item.IsInvalid {
+						continue
+					}
+					bookMin, ok := item.Media.(*BookMinifiedJSON)
+					if ok && bookMin.NumAudioFiles > 0 {
+						listeningItems = append(listeningItems, item)
+					} else {
+						readingItems = append(readingItems, item)
+					}
+				}
+
+				if len(listeningItems) > 0 {
+					shelves = append(shelves, Shelf{
+						ID:             "continue-listening",
+						Label:          "Continue Listening",
+						LabelStringKey: "LabelContinueListening",
+						Type:           "book",
+						Entities:       listeningItems,
+					})
+				}
+				if len(readingItems) > 0 {
+					shelves = append(shelves, Shelf{
+						ID:             "continue-reading",
+						Label:          "Continue Reading",
+						LabelStringKey: "LabelContinueReading",
+						Type:           "book",
+						Entities:       readingItems,
+					})
+				}
+			} else if lib.MediaType == "podcast" {
+				var filteredProgress []*LibraryItemMinifiedJSON
+				for _, item := range progressItems {
+					if item.IsMissing || item.IsInvalid {
+						continue
+					}
+					filteredProgress = append(filteredProgress, item)
+				}
+				if len(filteredProgress) > 0 {
+					shelves = append(shelves, Shelf{
+						ID:             "continue-listening",
+						Label:          "Continue Listening",
+						LabelStringKey: "LabelContinueListening",
+						Type:           "episode",
+						Entities:       filteredProgress,
+					})
+				}
+			}
+		}
+
+		// 2. Fetch recently added items
+		optsRecent := GetFilteredLibraryItemsOptions{
+			LibraryID:      libraryID,
+			User:           user,
+			SortBy:         "addedAt",
+			SortDesc:       true,
+			Limit:          limitVal,
+			Page:           0,
+			MediaType:      lib.MediaType,
+			Minified:       true,
+		}
+		recentItems, _, err := GetFilteredLibraryItems(db, optsRecent)
+		if err == nil && len(recentItems) > 0 {
+			var filteredRecent []*LibraryItemMinifiedJSON
+			for _, item := range recentItems {
+				if item.IsMissing || item.IsInvalid {
+					continue
+				}
+				filteredRecent = append(filteredRecent, item)
+			}
+			if len(filteredRecent) > 0 {
+				shelves = append(shelves, Shelf{
+					ID:             "recently-added",
+					Label:          "Recently Added",
+					LabelStringKey: "LabelRecentlyAdded",
+					Type:           lib.MediaType,
+					Entities:       filteredRecent,
+				})
+			}
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		if shelves == nil {
+			shelves = []Shelf{}
+		}
+		json.NewEncoder(w).Encode(shelves)
 	}
 }
 
