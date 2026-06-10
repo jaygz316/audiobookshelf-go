@@ -5,12 +5,10 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
-	"net/http"
 	"sync"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/zishang520/engine.io/v2/types"
 	"github.com/zishang520/socket.io/v2/socket"
 )
 
@@ -71,24 +69,10 @@ func NewSocketAuthority(db *sql.DB) *SocketAuthority {
 
 // AuthenticateSocket validates the JWT token and binds the user session to the socket
 func (sa *SocketAuthority) AuthenticateSocket(client *socket.Socket, token string) {
-	tokenSecret := getTokenSecret(sa.db)
-	userID, err := validateToken(token, tokenSecret)
+	userSession, err := sa.resolveUserSession(token)
 	if err != nil {
-		log.Printf("[Socket] Authentication failed: %v", err)
+		log.Printf("[Socket] Auth failed: %v", err)
 		client.Emit("auth_failed", map[string]string{"message": "Invalid token"})
-		return
-	}
-
-	userSession, err := GetUserByIDOrOldID(sa.db, userID)
-	if err != nil {
-		log.Printf("[Socket] User lookup failed for ID %s: %v", userID, err)
-		client.Emit("auth_failed", map[string]string{"message": "Invalid token"})
-		return
-	}
-
-	if !userSession.IsActive {
-		log.Printf("[Socket] User %s is inactive", userSession.Username)
-		client.Emit("auth_failed", map[string]string{"message": "Invalid user"})
 		return
 	}
 
@@ -104,11 +88,42 @@ func (sa *SocketAuthority) AuthenticateSocket(client *socket.Socket, token strin
 		return
 	}
 
-	// Fetch extra fields for user online events
-	var createdAtStr, lastSeenStr sql.NullString
-	_ = sa.db.QueryRow("SELECT createdAt, lastSeen FROM users WHERE id = ?", userSession.ID).Scan(&createdAtStr, &lastSeenStr)
+	createdAtMs, lastSeenMs, err := sa.updateUserActivity(userSession.ID)
+	if err != nil {
+		log.Printf("[Socket] Failed to update user activity: %v", err)
+	}
 
-	var createdAtMs, lastSeenMs int64
+	sa.broadcastUserOnline(client, userSession, createdAtMs, lastSeenMs)
+}
+
+// resolveUserSession decodes the token and retrieves the corresponding session
+func (sa *SocketAuthority) resolveUserSession(token string) (*UserSession, error) {
+	tokenSecret := getTokenSecret(sa.db)
+	userID, err := validateToken(token, tokenSecret)
+	if err != nil {
+		return nil, fmt.Errorf("token validation failed: %w", err)
+	}
+
+	userSession, err := GetUserByIDOrOldID(sa.db, userID)
+	if err != nil {
+		return nil, fmt.Errorf("user lookup failed: %w", err)
+	}
+
+	if !userSession.IsActive {
+		return nil, fmt.Errorf("user %s is inactive", userSession.Username)
+	}
+
+	return userSession, nil
+}
+
+// updateUserActivity updates user activity timestamps in the database
+func (sa *SocketAuthority) updateUserActivity(userID string) (createdAtMs int64, lastSeenMs int64, err error) {
+	var createdAtStr, lastSeenStr sql.NullString
+	err = sa.db.QueryRow("SELECT createdAt, lastSeen FROM users WHERE id = ?", userID).Scan(&createdAtStr, &lastSeenStr)
+	if err != nil {
+		return 0, 0, err
+	}
+
 	if createdAtStr.Valid && createdAtStr.String != "" {
 		if t, err := parseSQLiteTime(createdAtStr.String); err == nil {
 			createdAtMs = t.UnixMilli()
@@ -122,13 +137,13 @@ func (sa *SocketAuthority) AuthenticateSocket(client *socket.Socket, token strin
 		lastSeenMs = time.Now().UnixMilli()
 	}
 
-	// Update lastSeen in database
 	nowStr := time.Now().UTC().Format("2006-01-02 15:04:05.000 +00:00")
-	_, dbErr := sa.db.Exec("UPDATE users SET lastSeen = ?, updatedAt = ? WHERE id = ?", nowStr, nowStr, userSession.ID)
-	if dbErr != nil {
-		log.Printf("[Socket] Failed to update user lastSeen in database: %v", dbErr)
-	}
+	_, err = sa.db.Exec("UPDATE users SET lastSeen = ?, updatedAt = ? WHERE id = ?", nowStr, nowStr, userID)
+	return createdAtMs, lastSeenMs, err
+}
 
+// broadcastUserOnline handles post-login user broadcasting and client initialization
+func (sa *SocketAuthority) broadcastUserOnline(client *socket.Socket, userSession *UserSession, createdAtMs, lastSeenMs int64) {
 	log.Printf("[SocketAuthority] User Online: %s", userSession.Username)
 
 	// Broadcast user_online to admins
@@ -233,89 +248,6 @@ func (sa *SocketAuthority) RequireAdminSocket(client *socket.Socket, eventName s
 	return false
 }
 
-// HandleCoverSearch begins a simulated cover search process asynchronously
-func (sa *SocketAuthority) HandleCoverSearch(client *socket.Socket, payload map[string]interface{}) {
-	reqID, _ := payload["requestId"].(string)
-	title, _ := payload["title"].(string)
-	if reqID == "" || title == "" {
-		client.Emit("cover_search_error", map[string]string{
-			"requestId": reqID,
-			"error":     "Invalid request parameters",
-		})
-		return
-	}
-
-	sa.mu.Lock()
-	c, ok := sa.clients[string(client.Id())]
-	sa.mu.Unlock()
-
-	if !ok || c.User == nil {
-		client.Emit("cover_search_error", map[string]string{
-			"requestId": reqID,
-			"error":     "Unauthorized",
-		})
-		return
-	}
-
-	ctx, cancel := context.WithCancel(context.Background())
-	sa.activeSearchLock.Lock()
-	if sa.activeSearches == nil {
-		sa.activeSearches = make(map[string]context.CancelFunc)
-	}
-	sa.activeSearches[reqID] = cancel
-	sa.activeSearchLock.Unlock()
-
-	go func() {
-		defer func() {
-			sa.activeSearchLock.Lock()
-			delete(sa.activeSearches, reqID)
-			sa.activeSearchLock.Unlock()
-		}()
-
-		select {
-		case <-ctx.Done():
-			return
-		case <-time.After(100 * time.Millisecond):
-			client.Emit("cover_search_result", map[string]interface{}{
-				"requestId": reqID,
-				"provider":  "openlibrary",
-				"covers":    []interface{}{},
-				"total":     0,
-			})
-		}
-
-		select {
-		case <-ctx.Done():
-			return
-		case <-time.After(50 * time.Millisecond):
-			client.Emit("cover_search_complete", map[string]interface{}{
-				"requestId": reqID,
-			})
-		}
-	}()
-}
-
-// HandleCancelCoverSearch cancels an ongoing cover search
-func (sa *SocketAuthority) HandleCancelCoverSearch(client *socket.Socket, reqID string) {
-	sa.activeSearchLock.Lock()
-	cancel, ok := sa.activeSearches[reqID]
-	if ok {
-		delete(sa.activeSearches, reqID)
-	}
-	sa.activeSearchLock.Unlock()
-
-	if ok {
-		cancel()
-		client.Emit("cover_search_cancelled", map[string]string{
-			"requestId": reqID,
-		})
-	}
-}
-
-func (sa *SocketAuthority) cancelSocketCoverSearches(socketID string) {
-	log.Printf("[SocketAuthority] Socket %s disconnected, any active searches will timeout", socketID)
-}
-
 // Close gracefully closes the Socket.IO server
 func (sa *SocketAuthority) Close() {
 	if sa.io != nil {
@@ -342,7 +274,6 @@ func validateToken(tokenStr string, tokenSecret string) (string, error) {
 func (u *UserSession) CheckCanAccessLibraryItem(item map[string]interface{}) bool {
 	libID, _ := item["libraryId"].(string)
 	if libID == "" {
-		// Fallback
 		if media, ok := item["media"].(map[string]interface{}); ok {
 			libID, _ = media["libraryId"].(string)
 		}
@@ -497,149 +428,6 @@ func (sa *SocketAuthority) LibraryItemsEmitter(evt string, items []map[string]in
 			}
 		}
 	}
-}
-
-// InitSocketAuthority initializes the global Socket.IO server and handlers
-func InitSocketAuthority(db *sql.DB) http.Handler {
-	sa := NewSocketAuthority(db)
-	SocketAuth = sa
-
-	opts := socket.DefaultServerOptions()
-	cors := &types.Cors{
-		Origin:      "*",
-		Methods:     []string{"GET", "POST"},
-		Credentials: true,
-	}
-	opts.SetCors(cors)
-
-	io := socket.NewServer(nil, opts)
-	sa.io = io
-
-	io.On("connection", func(clients ...any) {
-		client := clients[0].(*socket.Socket)
-		socketID := string(client.Id())
-
-		log.Printf("[SocketAuthority] Socket Connected: %s", socketID)
-
-		sa.mu.Lock()
-		sa.clients[socketID] = &SocketClient{
-			ID:          socketID,
-			Socket:      client,
-			ConnectedAt: time.Now(),
-		}
-		sa.mu.Unlock()
-
-		// Auth
-		client.On("auth", func(args ...any) {
-			if len(args) == 0 || args[0] == nil {
-				return
-			}
-			token, ok := args[0].(string)
-			if !ok {
-				log.Printf("[Socket] Auth payload is not a string")
-				client.Emit("auth_failed", map[string]string{"message": "Invalid token"})
-				return
-			}
-			sa.AuthenticateSocket(client, token)
-		})
-
-		// Cancel scan
-		client.On("cancel_scan", func(args ...any) {
-			if !sa.RequireAdminSocket(client, "cancel_scan") {
-				return
-			}
-			if len(args) == 0 {
-				return
-			}
-			libraryID, _ := args[0].(string)
-			log.Printf("[Socket] Cancel scan library: %s", libraryID)
-		})
-
-		// Cover search
-		client.On("search_covers", func(args ...any) {
-			if len(args) == 0 {
-				return
-			}
-			payload, ok := args[0].(map[string]interface{})
-			if !ok {
-				log.Printf("[Socket] Cover search payload is not a map")
-				return
-			}
-			sa.HandleCoverSearch(client, payload)
-		})
-
-		client.On("cancel_cover_search", func(args ...any) {
-			if len(args) == 0 {
-				return
-			}
-			reqID, _ := args[0].(string)
-			sa.HandleCancelCoverSearch(client, reqID)
-		})
-
-		// Log listener
-		client.On("set_log_listener", func(args ...any) {
-			if !sa.RequireAdminSocket(client, "set_log_listener") {
-				return
-			}
-			level := 2 // Default: Info
-			if len(args) > 0 {
-				if val, ok := args[0].(float64); ok {
-					level = int(val)
-				} else if val, ok := args[0].(int); ok {
-					level = val
-				}
-			}
-			sa.logListenersMu.Lock()
-			sa.logListeners[string(client.Id())] = level
-			sa.logListenersMu.Unlock()
-		})
-
-		client.On("remove_log_listener", func(args ...any) {
-			sa.logListenersMu.Lock()
-			delete(sa.logListeners, string(client.Id()))
-			sa.logListenersMu.Unlock()
-		})
-
-		// message_all_users
-		client.On("message_all_users", func(args ...any) {
-			if len(args) == 0 {
-				return
-			}
-			payload, ok := args[0].(map[string]interface{})
-			if !ok {
-				return
-			}
-			sa.mu.RLock()
-			clientSession := sa.clients[socketID]
-			sa.mu.RUnlock()
-
-			if clientSession != nil && clientSession.User != nil && (clientSession.User.Type == "root" || clientSession.User.Type == "admin") {
-				msg, _ := payload["message"].(string)
-				sa.Emitter("admin_message", msg, nil)
-			} else {
-				log.Printf("[Socket] Non-admin user sent the message_all_users event")
-			}
-		})
-
-		// Ping
-		client.On("ping", func(args ...any) {
-			client.Emit("pong")
-		})
-
-		// Disconnect
-		client.On("disconnect", func(reason ...any) {
-			r := "unknown"
-			if len(reason) > 0 {
-				if rs, ok := reason[0].(string); ok {
-					r = rs
-				}
-			}
-			log.Printf("[SocketAuthority] Socket %s disconnected (Reason: %s)", socketID, r)
-			sa.RemoveClient(socketID)
-		})
-	})
-
-	return io.ServeHandler(nil)
 }
 
 // BroadcastLog sends a log message to all connected clients registered for this log level or lower

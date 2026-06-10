@@ -48,6 +48,12 @@ func AuthMiddleware(db *sql.DB, tokenSecret string, next http.Handler) http.Hand
 			return
 		}
 
+		if db == nil {
+			log.Printf("[Auth] Database is not connected")
+			http.Error(w, `{"error": "Database not connected"}`, http.StatusInternalServerError)
+			return
+		}
+
 		// Extract token
 		var tokenStr string
 		authHeader := r.Header.Get("Authorization")

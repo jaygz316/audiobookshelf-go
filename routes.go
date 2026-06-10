@@ -1,0 +1,974 @@
+package main
+
+import (
+	"database/sql"
+	"encoding/json"
+	"flag"
+	"log"
+	"net/http"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+	"syscall"
+	"time"
+
+	"audiobookshelf/internal/auth"
+)
+
+func joinPath(basePath, routePath string) string {
+	if basePath == "" {
+		basePath = "/"
+	}
+	if !strings.HasPrefix(routePath, "/") {
+		routePath = "/" + routePath
+	}
+	if basePath == "/" {
+		return routePath
+	}
+	basePath = strings.TrimSuffix(basePath, "/")
+	return basePath + routePath
+}
+
+func trimBasePath(p, base string) string {
+	if base == "" || base == "/" {
+		return p
+	}
+	trimmed := strings.TrimPrefix(p, base)
+	if !strings.HasPrefix(trimmed, "/") {
+		trimmed = "/" + trimmed
+	}
+	return trimmed
+}
+
+func setupHandler(db *sql.DB, cfg *Config, dbConnected bool, appRoot string, version string) http.Handler {
+	mux := http.NewServeMux()
+
+	registerBaseRoutes(mux, cfg, db, dbConnected, version)
+	registerAuthAndUserRoutes(mux, cfg, db, appRoot)
+	registerLibraryRoutes(mux, cfg, db)
+	registerPlaylistCollectionRoutes(mux, cfg, db)
+	registerShareRoutes(mux, cfg, db)
+	registerSearchRoutes(mux, cfg, db)
+	registerBackupRoutes(mux, cfg, db)
+	registerMiscRoutes(mux, cfg, db, appRoot)
+	registerFallbackRoutes(mux, cfg, db, appRoot)
+
+	return BasePathRewriteMiddleware(cfg.RouterBasePath, mux)
+}
+
+func registerBaseRoutes(mux *http.ServeMux, cfg *Config, db *sql.DB, dbConnected bool, version string) {
+	dbPath := filepath.Join(cfg.ConfigPath, "absdatabase.sqlite")
+
+	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/ping"), func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("[Go] GET /ping")
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"success":true}`))
+	})
+
+	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/healthcheck"), func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("[Go] GET /healthcheck")
+		w.WriteHeader(http.StatusOK)
+	})
+
+	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/status"), func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("[Go] GET /status")
+		if !dbConnected {
+			var reconnectErr error
+			db, reconnectErr = initDB(dbPath)
+			if reconnectErr == nil {
+				dbConnected = true
+				globalDB = db
+				if SocketAuth != nil {
+					SocketAuth.db = db
+				}
+				log.Printf("Connected to SQLite database on-demand: %s", dbPath)
+				reinitManagers(db)
+			}
+		}
+
+		if !dbConnected || db == nil {
+			log.Printf("[Status] DB not connected.")
+			http.Error(w, `{"error": "Database not connected"}`, http.StatusInternalServerError)
+			return
+		}
+
+		isInit, err := HasRootUser(db)
+		if err != nil {
+			log.Printf("[Status] Failed to check root user: %v", err)
+			http.Error(w, `{"error": "Failed to check status"}`, http.StatusInternalServerError)
+			return
+		}
+
+		settings, err := GetServerSettings(db)
+		if err != nil {
+			log.Printf("[Status] Failed to get server settings: %v", err)
+			http.Error(w, `{"error": "Failed to check status"}`, http.StatusInternalServerError)
+			return
+		}
+
+		payload := map[string]interface{}{
+			"app":           "audiobookshelf",
+			"serverVersion": version,
+			"isInit":        isInit,
+			"language":      settings.Language,
+			"authMethods":   settings.AuthActiveAuthMethods,
+			"authFormData": map[string]interface{}{
+				"authLoginCustomMessage": settings.AuthLoginCustomMessage,
+			},
+		}
+
+		if !isInit {
+			payload["ConfigPath"] = cfg.ConfigPath
+			payload["MetadataPath"] = cfg.MetadataPath
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Content-Security-Policy", "frame-ancestors 'self'")
+		w.Header().Set("Referrer-Policy", "no-referrer")
+		_ = json.NewEncoder(w).Encode(payload)
+	})
+}
+
+func registerAuthAndUserRoutes(mux *http.ServeMux, cfg *Config, db *sql.DB, appRoot string) {
+	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/login"), func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			handleLogin(db)(w, r)
+		} else if r.Method == http.MethodGet {
+			http.ServeFile(w, r, filepath.Join(appRoot, "client", "dist", "index.html"))
+		} else {
+			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
+		}
+	})
+	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/logout"), func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			handleLogout(db)(w, r)
+		} else if r.Method == http.MethodGet {
+			http.ServeFile(w, r, filepath.Join(appRoot, "client", "dist", "index.html"))
+		} else {
+			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
+		}
+	})
+	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/init"), func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			handleInit(db)(w, r)
+		} else if r.Method == http.MethodGet {
+			http.ServeFile(w, r, filepath.Join(appRoot, "client", "dist", "index.html"))
+		} else {
+			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
+		}
+	})
+	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/auth/logout"), func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			handleLogout(db)(w, r)
+		} else {
+			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
+		}
+	})
+	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/auth/refresh"), func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			handleRefresh(db)(w, r)
+		} else {
+			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
+		}
+	})
+	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/authorize"), func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			AuthMiddlewareWrapper(db, handleAuthorize(db)).ServeHTTP(w, r)
+		} else {
+			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
+		}
+	})
+
+	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/users/online"), func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			AuthMiddlewareWrapper(db, handleGetOnlineUsers(db)).ServeHTTP(w, r)
+		} else {
+			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
+		}
+	})
+
+	handleUsersDispatch := func(db *sql.DB) http.HandlerFunc {
+		usersHandler := handleGetUsers(db)
+		crudHandler := handleUserCRUD(db)
+		return func(w http.ResponseWriter, r *http.Request) {
+			pathWithoutPrefix := trimBasePath(r.URL.Path, cfg.RouterBasePath)
+			if pathWithoutPrefix == "/api/users" || pathWithoutPrefix == "/api/users/" {
+				if r.Method == http.MethodGet {
+					usersHandler(w, r)
+					return
+				}
+			}
+			crudHandler(w, r)
+		}
+	}
+
+	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/users"), func(w http.ResponseWriter, r *http.Request) {
+		AuthMiddlewareWrapper(db, handleUsersDispatch(db)).ServeHTTP(w, r)
+	})
+	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/users/"), func(w http.ResponseWriter, r *http.Request) {
+		AuthMiddlewareWrapper(db, handleUsersDispatch(db)).ServeHTTP(w, r)
+	})
+}
+
+func registerLibraryRoutes(mux *http.ServeMux, cfg *Config, db *sql.DB) {
+	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/libraries"), func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("[Go] %s /api/libraries", r.Method)
+		if r.Method == http.MethodGet {
+			AuthMiddlewareWrapper(db, http.HandlerFunc(handleGetLibraries(db))).ServeHTTP(w, r)
+		} else if r.Method == http.MethodPost {
+			AuthMiddlewareWrapper(db, http.HandlerFunc(handleCreateLibrary(db))).ServeHTTP(w, r)
+		} else {
+			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
+		}
+	})
+
+	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/libraries/"), handleLibrariesDispatch(db, cfg))
+}
+
+func registerPlaylistCollectionRoutes(mux *http.ServeMux, cfg *Config, db *sql.DB) {
+	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/playlists"), func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			AuthMiddlewareWrapper(db, http.HandlerFunc(handleGetPlaylists(db))).ServeHTTP(w, r)
+		} else if r.Method == http.MethodPost {
+			AuthMiddlewareWrapper(db, http.HandlerFunc(handleCreatePlaylist(db))).ServeHTTP(w, r)
+		} else {
+			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
+		}
+	})
+	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/playlists/"), handlePlaylistsDispatch(db, cfg))
+
+	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/collections"), func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			AuthMiddlewareWrapper(db, http.HandlerFunc(handleGetCollections(db))).ServeHTTP(w, r)
+		} else if r.Method == http.MethodPost {
+			AuthMiddlewareWrapper(db, http.HandlerFunc(handleCreateCollection(db))).ServeHTTP(w, r)
+		} else {
+			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
+		}
+	})
+	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/collections/"), handleCollectionsDispatch(db, cfg))
+}
+
+func registerShareRoutes(mux *http.ServeMux, cfg *Config, db *sql.DB) {
+	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/share/mediaitem"), func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			AuthMiddlewareWrapper(db, http.HandlerFunc(handleCreateShare(db))).ServeHTTP(w, r)
+		} else {
+			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
+		}
+	})
+	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/share/mediaitem/"), handleSharesDispatch(db, cfg))
+}
+
+func registerSearchRoutes(mux *http.ServeMux, cfg *Config, db *sql.DB) {
+	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/search/books"), func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			AuthMiddlewareWrapper(db, http.HandlerFunc(handleSearchBooks(db))).ServeHTTP(w, r)
+		} else {
+			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
+		}
+	})
+	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/search/podcast"), func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			AuthMiddlewareWrapper(db, http.HandlerFunc(handleSearchPodcasts(db))).ServeHTTP(w, r)
+		} else {
+			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
+		}
+	})
+}
+
+func registerBackupRoutes(mux *http.ServeMux, cfg *Config, db *sql.DB) {
+	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/backups"), func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			AuthMiddlewareWrapper(db, handleGetBackups(db, cfg.MetadataPath)).ServeHTTP(w, r)
+		} else if r.Method == http.MethodPost {
+			AuthMiddlewareWrapper(db, handleCreateBackup(db, cfg.ConfigPath, cfg.MetadataPath)).ServeHTTP(w, r)
+		} else {
+			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
+		}
+	})
+	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/backups/path"), func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			AuthMiddlewareWrapper(db, handleUpdateBackupPath(db, cfg.MetadataPath)).ServeHTTP(w, r)
+		} else {
+			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
+		}
+	})
+	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/backups/upload"), func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			AuthMiddlewareWrapper(db, handleUploadBackup(db, cfg.MetadataPath)).ServeHTTP(w, r)
+		} else {
+			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
+		}
+	})
+	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/backups/"), handleBackupsDispatch(db, cfg))
+}
+
+func registerSettingsRoutes(mux *http.ServeMux, cfg *Config, db *sql.DB) {
+	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/settings"), func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			AuthMiddlewareWrapper(db, handleGetServerSettings(db)).ServeHTTP(w, r)
+		} else if r.Method == http.MethodPatch {
+			AuthMiddlewareWrapper(db, handleUpdateServerSettings(db)).ServeHTTP(w, r)
+		} else {
+			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
+		}
+	})
+	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/sorting-prefixes"), func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPatch {
+			AuthMiddlewareWrapper(db, handleUpdateSortingPrefixes(db)).ServeHTTP(w, r)
+		} else {
+			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
+		}
+	})
+	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/auth-settings"), func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			AuthMiddlewareWrapper(db, handleGetAuthSettings(db)).ServeHTTP(w, r)
+		} else if r.Method == http.MethodPatch {
+			AuthMiddlewareWrapper(db, handleUpdateAuthSettings(db)).ServeHTTP(w, r)
+		} else {
+			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
+		}
+	})
+}
+
+func registerMetadataRoutes(mux *http.ServeMux, cfg *Config, db *sql.DB) {
+	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/search/providers"), func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			AuthMiddlewareWrapper(db, handleGetMetadataProviders(db)).ServeHTTP(w, r)
+		} else {
+			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
+		}
+	})
+	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/custom-metadata-providers"), func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			AuthMiddlewareWrapper(db, handleGetCustomMetadataProviders(db)).ServeHTTP(w, r)
+		} else if r.Method == http.MethodPost {
+			AuthMiddlewareWrapper(db, handleCreateCustomMetadataProvider(db)).ServeHTTP(w, r)
+		} else {
+			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
+		}
+	})
+	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/custom-metadata-providers/"), func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodDelete {
+			AuthMiddlewareWrapper(db, handleDeleteCustomMetadataProvider(db)).ServeHTTP(w, r)
+		} else {
+			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
+		}
+	})
+}
+
+func registerMockAndFeedRoutes(mux *http.ServeMux, cfg *Config, db *sql.DB) {
+	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/api-keys"), func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			AuthMiddlewareWrapper(db, handleGetApiKeys(db)).ServeHTTP(w, r)
+		} else {
+			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
+		}
+	})
+
+	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/notifications"), func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			AuthMiddlewareWrapper(db, handleGetNotifications(db)).ServeHTTP(w, r)
+		} else {
+			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
+		}
+	})
+
+	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/emails/settings"), func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			AuthMiddlewareWrapper(db, handleGetEmailsSettings(db)).ServeHTTP(w, r)
+		} else {
+			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
+		}
+	})
+
+	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/feeds"), func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			AuthMiddlewareWrapper(db, handleGetFeeds(db)).ServeHTTP(w, r)
+		} else {
+			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
+		}
+	})
+}
+
+func registerMeRoutes(mux *http.ServeMux, cfg *Config, db *sql.DB) {
+	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/me"), func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			AuthMiddlewareWrapper(db, handleGetMe(db)).ServeHTTP(w, r)
+			return
+		}
+		http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
+	})
+	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/me/"), handleMeDispatch(db, cfg))
+}
+
+func registerTagsAndGenresRoutes(mux *http.ServeMux, cfg *Config, db *sql.DB) {
+	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/tags"), func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			AuthMiddlewareWrapper(db, handleGetAllTags(db)).ServeHTTP(w, r)
+		} else {
+			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
+		}
+	})
+	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/tags/rename"), func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			AuthMiddlewareWrapper(db, handleRenameTag(db)).ServeHTTP(w, r)
+		} else {
+			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
+		}
+	})
+	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/tags/"), func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodDelete {
+			AuthMiddlewareWrapper(db, handleDeleteTag(db)).ServeHTTP(w, r)
+		} else {
+			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
+		}
+	})
+
+	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/genres"), func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			AuthMiddlewareWrapper(db, handleGetAllGenres(db)).ServeHTTP(w, r)
+		} else {
+			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
+		}
+	})
+	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/genres/rename"), func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			AuthMiddlewareWrapper(db, handleRenameGenre(db)).ServeHTTP(w, r)
+		} else {
+			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
+		}
+	})
+	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/genres/"), func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodDelete {
+			AuthMiddlewareWrapper(db, handleDeleteGenre(db)).ServeHTTP(w, r)
+		} else {
+			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
+		}
+	})
+}
+
+func registerStatsAndFilesystemRoutes(mux *http.ServeMux, cfg *Config, db *sql.DB, appRoot string) {
+	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/stats/year/"), func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			AuthMiddlewareWrapper(db, handleGetAdminStatsForYear(db)).ServeHTTP(w, r)
+		} else {
+			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
+		}
+	})
+
+	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/logger-data"), func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			AuthMiddlewareWrapper(db, handleGetLoggerData(db)).ServeHTTP(w, r)
+		} else {
+			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
+		}
+	})
+
+	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/validate-cron"), func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			AuthMiddlewareWrapper(db, http.HandlerFunc(handleValidateCron)).ServeHTTP(w, r)
+		} else {
+			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
+		}
+	})
+
+	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/watcher/update"), func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			AuthMiddlewareWrapper(db, http.HandlerFunc(handleWatcherUpdate)).ServeHTTP(w, r)
+		} else {
+			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
+		}
+	})
+	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/filesystem"), func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			AuthMiddlewareWrapper(db, handleGetFilesystem(appRoot)).ServeHTTP(w, r)
+		} else {
+			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
+		}
+	})
+
+	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/filesystem/"), func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			AuthMiddlewareWrapper(db, handleGetFilesystem(appRoot)).ServeHTTP(w, r)
+		} else {
+			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
+		}
+	})
+
+	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/filesystem/pathexists"), func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			AuthMiddlewareWrapper(db, handleCheckPathExists(db)).ServeHTTP(w, r)
+		} else {
+			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
+		}
+	})
+}
+
+func registerTasksAndOtherRoutes(mux *http.ServeMux, cfg *Config, db *sql.DB, metadataPath string) {
+	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/tasks"), func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			AuthMiddlewareWrapper(db, handleGetTasks(db)).ServeHTTP(w, r)
+		} else {
+			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
+		}
+	})
+
+	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/tasks/"), func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			AuthMiddlewareWrapper(db, handleGetTasks(db)).ServeHTTP(w, r)
+		} else {
+			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
+		}
+	})
+
+	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/authors/"), handleAuthorsDispatch(db, cfg))
+
+	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/feed/"), func(w http.ResponseWriter, r *http.Request) {
+		initManagers(db)
+		pathWithoutPrefix := trimBasePath(r.URL.Path, cfg.RouterBasePath)
+		subPath := strings.TrimPrefix(pathWithoutPrefix, "/feed/")
+		parts := strings.Split(subPath, "/")
+		if len(parts) == 0 || parts[0] == "" {
+			http.NotFound(w, r)
+			return
+		}
+		slug := parts[0]
+		globalFeedManager.ServeRSSFeed(slug).ServeHTTP(w, r)
+	})
+
+	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/auth/openid"), func(w http.ResponseWriter, r *http.Request) {
+		s, err := getOIDCSettings(db)
+		if err != nil || s.IssuerURL == "" {
+			log.Printf("[OIDC Login] Error getting OIDC settings or not configured: %v", err)
+			http.Error(w, "OIDC is not configured or settings error", http.StatusBadRequest)
+			return
+		}
+		globalOIDCHandlerMu.Lock()
+		if globalOIDCHandler == nil {
+			globalOIDCHandler = auth.NewOIDCHandler(s, nil)
+		} else {
+			globalOIDCHandler.UpdateSettings(s)
+		}
+		globalOIDCHandlerMu.Unlock()
+		globalOIDCHandler.HandleLogin(w, r)
+	})
+	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/auth/openid/callback"), func(w http.ResponseWriter, r *http.Request) {
+		handleOIDCCallback(db)(w, r)
+	})
+	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/auth/openid/mobile-redirect"), func(w http.ResponseWriter, r *http.Request) {
+		handleOIDCCallback(db)(w, r)
+	})
+
+	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/items/"), handleItemsDispatch(db, cfg))
+
+	socketHandler := InitSocketAuthority(db)
+	mux.Handle(joinPath(cfg.RouterBasePath, "/socket.io/"), socketHandler)
+	if cfg.RouterBasePath != "" {
+		mux.Handle("/socket.io/", socketHandler)
+	}
+
+	InitFSWatcher(db)
+
+	mux.Handle(joinPath(cfg.RouterBasePath, "/hls/"), AuthMiddlewareWrapper(db, serveHLS(metadataPath, streamManager)))
+}
+
+func registerMiscRoutes(mux *http.ServeMux, cfg *Config, db *sql.DB, appRoot string) {
+	registerSettingsRoutes(mux, cfg, db)
+	registerMetadataRoutes(mux, cfg, db)
+	registerMockAndFeedRoutes(mux, cfg, db)
+	registerMeRoutes(mux, cfg, db)
+	registerTagsAndGenresRoutes(mux, cfg, db)
+	registerStatsAndFilesystemRoutes(mux, cfg, db, appRoot)
+	registerTasksAndOtherRoutes(mux, cfg, db, cfg.MetadataPath)
+}
+
+func registerFallbackRoutes(mux *http.ServeMux, cfg *Config, db *sql.DB, appRoot string) {
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		path := r.URL.Path
+		if strings.HasPrefix(path, cfg.RouterBasePath) {
+			path = trimBasePath(path, cfg.RouterBasePath)
+		}
+
+		prefixes := []string{"/api/", "/auth/", "/hls/", "/public/", "/feed/", "/status", "/login", "/logout", "/init"}
+		isBackend := false
+		for _, prefix := range prefixes {
+			if strings.HasPrefix(path, prefix) || path == prefix[:len(prefix)-1] {
+				isBackend = true
+				break
+			}
+		}
+
+		if isBackend {
+			log.Printf("[Backend] 404 Not Found: %s %s", r.Method, r.URL.Path)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusNotFound)
+			_, _ = w.Write([]byte(`{"error": "API route not found"}`))
+			return
+		}
+
+		distPath := filepath.Join(appRoot, "client", "dist")
+		serveStaticOrSPA(distPath, cfg.RouterBasePath)(w, r)
+	})
+}
+
+func handleLibrarySubRouteDispatch(db *sql.DB, w http.ResponseWriter, r *http.Request, parts []string) bool {
+	libraryID := parts[0]
+	action := parts[1]
+
+	switch action {
+	case "personalized":
+		if r.Method == http.MethodGet {
+			AuthMiddlewareWrapper(db, http.HandlerFunc(handleGetLibraryPersonalized(db, libraryID))).ServeHTTP(w, r)
+		} else {
+			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
+		}
+		return true
+	case "items":
+		if r.Method == http.MethodGet {
+			AuthMiddlewareWrapper(db, http.HandlerFunc(handleGetLibraryItems(db, libraryID))).ServeHTTP(w, r)
+		} else {
+			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
+		}
+		return true
+	case "authors":
+		if r.Method == http.MethodGet {
+			AuthMiddlewareWrapper(db, http.HandlerFunc(handleGetLibraryAuthors(db, libraryID))).ServeHTTP(w, r)
+		} else {
+			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
+		}
+		return true
+	case "series":
+		if r.Method == http.MethodGet {
+			AuthMiddlewareWrapper(db, http.HandlerFunc(handleGetLibrarySeries(db, libraryID))).ServeHTTP(w, r)
+		} else {
+			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
+		}
+		return true
+	case "filterdata":
+		if r.Method == http.MethodGet {
+			AuthMiddlewareWrapper(db, http.HandlerFunc(handleGetLibraryFilterData(db, libraryID))).ServeHTTP(w, r)
+		} else {
+			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
+		}
+		return true
+	case "playlists":
+		if r.Method == http.MethodGet {
+			AuthMiddlewareWrapper(db, http.HandlerFunc(handleGetLibraryPlaylists(db, libraryID))).ServeHTTP(w, r)
+		} else {
+			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
+		}
+		return true
+	case "collections":
+		if r.Method == http.MethodGet {
+			AuthMiddlewareWrapper(db, http.HandlerFunc(handleGetLibraryCollections(db, libraryID))).ServeHTTP(w, r)
+		} else {
+			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
+		}
+		return true
+	case "opml":
+		if r.Method == http.MethodGet {
+			AuthMiddlewareWrapper(db, http.HandlerFunc(handleGetLibraryOPML(db, libraryID))).ServeHTTP(w, r)
+		} else {
+			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
+		}
+		return true
+	case "scan":
+		if r.Method == http.MethodPost {
+			AuthMiddlewareWrapper(db, http.HandlerFunc(handleScanLibrary(db, libraryID))).ServeHTTP(w, r)
+		} else {
+			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
+		}
+		return true
+	}
+	return false
+}
+
+func handleLibrariesDispatch(db *sql.DB, cfg *Config) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("[Go] %s %s", r.Method, r.URL.Path)
+
+		subPath := strings.TrimPrefix(r.URL.Path, joinPath(cfg.RouterBasePath, "/api/libraries/"))
+		if subPath == "" {
+			if r.Method == http.MethodGet {
+				AuthMiddlewareWrapper(db, http.HandlerFunc(handleGetLibraries(db))).ServeHTTP(w, r)
+				return
+			}
+			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
+			return
+		}
+
+		parts := strings.Split(subPath, "/")
+		if len(parts) == 1 && parts[0] != "" {
+			libraryID := parts[0]
+			if r.Method == http.MethodGet {
+				AuthMiddlewareWrapper(db, http.HandlerFunc(handleGetLibraryByID(db, libraryID))).ServeHTTP(w, r)
+				return
+			} else if r.Method == http.MethodPatch {
+				AuthMiddlewareWrapper(db, http.HandlerFunc(handleUpdateLibrary(db, libraryID))).ServeHTTP(w, r)
+				return
+			} else if r.Method == http.MethodDelete {
+				AuthMiddlewareWrapper(db, http.HandlerFunc(handleDeleteLibrary(db, libraryID))).ServeHTTP(w, r)
+				return
+			}
+			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
+			return
+		} else if len(parts) == 2 {
+			if handleLibrarySubRouteDispatch(db, w, r, parts) {
+				return
+			}
+			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
+			return
+		} else if len(parts) == 3 && parts[1] == "series" {
+			libraryID := parts[0]
+			seriesID := parts[2]
+			if r.Method == http.MethodGet {
+				AuthMiddlewareWrapper(db, http.HandlerFunc(handleGetLibrarySeriesByID(db, libraryID, seriesID))).ServeHTTP(w, r)
+				return
+			}
+			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
+			return
+		}
+
+		http.NotFound(w, r)
+	}
+}
+
+func handleMeDispatch(db *sql.DB, cfg *Config) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		subPath := strings.TrimPrefix(r.URL.Path, joinPath(cfg.RouterBasePath, "/api/me/"))
+		parts := strings.Split(subPath, "/")
+
+		if len(parts) == 1 && parts[0] == "password" {
+			if r.Method == http.MethodPost {
+				AuthMiddlewareWrapper(db, handleUpdateMePassword(db)).ServeHTTP(w, r)
+				return
+			}
+		} else if len(parts) == 1 && parts[0] == "items-in-progress" {
+			if r.Method == http.MethodGet {
+				AuthMiddlewareWrapper(db, handleGetAllLibraryItemsInProgress(db)).ServeHTTP(w, r)
+				return
+			}
+		} else if (len(parts) == 2 || (len(parts) == 3 && parts[2] != "hide-from-continue-listening")) && parts[0] == "progress" {
+			if r.Method == http.MethodGet {
+				AuthMiddlewareWrapper(db, handleGetMeProgress(db)).ServeHTTP(w, r)
+				return
+			} else if r.Method == http.MethodPatch || r.Method == http.MethodPost {
+				AuthMiddlewareWrapper(db, handleCreateUpdateMeProgress(db)).ServeHTTP(w, r)
+				return
+			} else if r.Method == http.MethodDelete {
+				AuthMiddlewareWrapper(db, handleRemoveMeProgress(db)).ServeHTTP(w, r)
+				return
+			}
+		} else if len(parts) == 3 && parts[0] == "progress" && parts[2] == "hide-from-continue-listening" {
+			if r.Method == http.MethodPatch {
+				AuthMiddlewareWrapper(db, handleHideMeProgressFromContinueListening(db)).ServeHTTP(w, r)
+				return
+			}
+		} else if len(parts) == 3 && parts[0] == "series" && parts[2] == "remove" {
+			if r.Method == http.MethodPost {
+				AuthMiddlewareWrapper(db, handleRemoveSeriesFromContinueListening(db)).ServeHTTP(w, r)
+				return
+			}
+		} else if len(parts) == 3 && parts[0] == "series" && parts[2] == "readd" {
+			if r.Method == http.MethodPost {
+				AuthMiddlewareWrapper(db, handleReaddSeriesFromContinueListening(db)).ServeHTTP(w, r)
+				return
+			}
+		} else if len(parts) == 3 && parts[0] == "item" && parts[2] == "bookmark" {
+			if r.Method == http.MethodPost {
+				AuthMiddlewareWrapper(db, handleMeCreateBookmark(db)).ServeHTTP(w, r)
+				return
+			} else if r.Method == http.MethodPatch {
+				AuthMiddlewareWrapper(db, handleMeUpdateBookmark(db)).ServeHTTP(w, r)
+				return
+			} else if r.Method == http.MethodDelete {
+				AuthMiddlewareWrapper(db, handleMeRemoveBookmark(db)).ServeHTTP(w, r)
+				return
+			}
+		}
+
+		http.NotFound(w, r)
+	}
+}
+
+func handleBackupsDispatch(db *sql.DB, cfg *Config) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		subPath := strings.TrimPrefix(r.URL.Path, joinPath(cfg.RouterBasePath, "/api/backups/"))
+		parts := strings.Split(subPath, "/")
+		if len(parts) == 1 && parts[0] != "" {
+			if r.Method == http.MethodDelete {
+				AuthMiddlewareWrapper(db, handleDeleteBackup(db, cfg.MetadataPath)).ServeHTTP(w, r)
+				return
+			}
+		} else if len(parts) == 2 && parts[1] == "download" {
+			if r.Method == http.MethodGet {
+				AuthMiddlewareWrapper(db, handleDownloadBackup(db, cfg.MetadataPath)).ServeHTTP(w, r)
+				return
+			}
+		} else if len(parts) == 2 && parts[1] == "apply" {
+			if r.Method == http.MethodPost {
+				AuthMiddlewareWrapper(db, handleApplyBackup(db, cfg.ConfigPath, cfg.MetadataPath, func() {
+					log.Printf("[Backup Apply] Restarting Go Gateway process...")
+					go func() {
+						time.Sleep(500 * time.Millisecond)
+
+						if flag.Lookup("test.v") != nil || os.Getenv("UNDER_TEST") == "true" {
+							log.Printf("[Backup Apply] Test environment detected, skipping syscall.Exec.")
+							return
+						}
+
+						if globalDB != nil {
+							globalDB.Close()
+						}
+
+						binary, err := exec.LookPath(os.Args[0])
+						if err != nil {
+							binary = os.Args[0]
+						}
+
+						log.Printf("[Backup Apply] Executing %s %v", binary, os.Args)
+						err = syscall.Exec(binary, os.Args, os.Environ())
+						if err != nil {
+							log.Printf("[Backup Apply] syscall.Exec failed: %v", err)
+							os.Exit(1)
+						}
+					}()
+				})).ServeHTTP(w, r)
+				return
+			}
+		}
+		http.NotFound(w, r)
+	}
+}
+
+func handleItemsDispatch(db *sql.DB, cfg *Config) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		path := r.URL.Path
+		if strings.HasSuffix(path, "/cover") {
+			serveCover(db, cfg.MetadataPath)(w, r)
+			return
+		}
+		if strings.HasSuffix(path, "/download") {
+			AuthMiddlewareWrapper(db, http.HandlerFunc(serveDownload(db))).ServeHTTP(w, r)
+			return
+		}
+
+		subPath := strings.TrimPrefix(path, joinPath(cfg.RouterBasePath, "/api/items/"))
+		parts := strings.Split(subPath, "/")
+		if len(parts) == 1 && parts[0] != "" {
+			itemID := parts[0]
+			if r.Method == http.MethodGet {
+				AuthMiddlewareWrapper(db, http.HandlerFunc(handleGetLibraryItemByID(db, itemID))).ServeHTTP(w, r)
+				return
+			}
+		} else if len(parts) == 2 && parts[1] == "ebook" {
+			itemID := parts[0]
+			if r.Method == http.MethodGet {
+				AuthMiddlewareWrapper(db, http.HandlerFunc(handleServeEbook(db, itemID, ""))).ServeHTTP(w, r)
+				return
+			}
+		} else if len(parts) == 3 && parts[1] == "ebook" {
+			itemID := parts[0]
+			fileID := parts[2]
+			if r.Method == http.MethodGet {
+				AuthMiddlewareWrapper(db, http.HandlerFunc(handleServeEbook(db, itemID, fileID))).ServeHTTP(w, r)
+				return
+			}
+		}
+
+		log.Printf("[Backend] 404 Not Found: %s %s", r.Method, r.URL.Path)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		_, _ = w.Write([]byte(`{"error": "API route not found"}`))
+	}
+}
+
+func handleAuthorsDispatch(db *sql.DB, cfg *Config) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("[Go] %s %s", r.Method, r.URL.Path)
+
+		subPath := strings.TrimPrefix(r.URL.Path, joinPath(cfg.RouterBasePath, "/api/authors/"))
+		parts := strings.Split(subPath, "/")
+
+		if len(parts) == 1 && parts[0] != "" {
+			authorID := parts[0]
+			if r.Method == http.MethodGet {
+				AuthMiddlewareWrapper(db, http.HandlerFunc(handleGetAuthorByID(db, authorID))).ServeHTTP(w, r)
+				return
+			}
+		} else if len(parts) == 2 && parts[1] == "image" {
+			authorID := parts[0]
+			if r.Method == http.MethodGet {
+				handleGetAuthorImage(db, cfg.MetadataPath, authorID)(w, r)
+				return
+			}
+		} else if len(parts) == 2 && parts[1] == "match" {
+			authorID := parts[0]
+			if r.Method == http.MethodPost {
+				AuthMiddlewareWrapper(db, http.HandlerFunc(handleMatchAuthor(db, authorID))).ServeHTTP(w, r)
+				return
+			}
+		}
+
+		http.NotFound(w, r)
+	}
+}
+
+func handlePlaylistsDispatch(db *sql.DB, cfg *Config) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		pathWithoutPrefix := trimBasePath(r.URL.Path, cfg.RouterBasePath)
+		id := strings.TrimPrefix(pathWithoutPrefix, "/api/playlists/")
+		if id == "" {
+			http.NotFound(w, r)
+			return
+		}
+		if r.Method == http.MethodGet {
+			AuthMiddlewareWrapper(db, http.HandlerFunc(handleGetPlaylist(db, id))).ServeHTTP(w, r)
+		} else if r.Method == http.MethodPatch {
+			AuthMiddlewareWrapper(db, http.HandlerFunc(handleUpdatePlaylist(db, id))).ServeHTTP(w, r)
+		} else if r.Method == http.MethodDelete {
+			AuthMiddlewareWrapper(db, http.HandlerFunc(handleDeletePlaylist(db, id))).ServeHTTP(w, r)
+		} else {
+			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
+		}
+	}
+}
+
+func handleCollectionsDispatch(db *sql.DB, cfg *Config) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		pathWithoutPrefix := trimBasePath(r.URL.Path, cfg.RouterBasePath)
+		id := strings.TrimPrefix(pathWithoutPrefix, "/api/collections/")
+		if id == "" {
+			http.NotFound(w, r)
+			return
+		}
+		if r.Method == http.MethodGet {
+			AuthMiddlewareWrapper(db, http.HandlerFunc(handleGetCollection(db, id))).ServeHTTP(w, r)
+		} else if r.Method == http.MethodPatch {
+			AuthMiddlewareWrapper(db, http.HandlerFunc(handleUpdateCollection(db, id))).ServeHTTP(w, r)
+		} else if r.Method == http.MethodDelete {
+			AuthMiddlewareWrapper(db, http.HandlerFunc(handleDeleteCollection(db, id))).ServeHTTP(w, r)
+		} else {
+			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
+		}
+	}
+}
+
+func handleSharesDispatch(db *sql.DB, cfg *Config) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		pathWithoutPrefix := trimBasePath(r.URL.Path, cfg.RouterBasePath)
+		id := strings.TrimPrefix(pathWithoutPrefix, "/api/share/mediaitem/")
+		if id == "" {
+			http.NotFound(w, r)
+			return
+		}
+		if r.Method == http.MethodDelete {
+			AuthMiddlewareWrapper(db, http.HandlerFunc(handleDeleteShare(db, id))).ServeHTTP(w, r)
+		} else {
+			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
+		}
+	}
+}

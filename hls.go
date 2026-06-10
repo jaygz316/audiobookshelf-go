@@ -699,6 +699,17 @@ func emitWebsocketEvent(userID string, event string, payload interface{}) {
 // serveHLS returns an HTTP handler for intercepting HLS playlist and segment requests.
 func serveHLS(metadataPath string, sm *StreamManager) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		userVal := r.Context().Value(UserContextKey)
+		if userVal == nil {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+		userSess, ok := userVal.(*UserSession)
+		if !ok || userSess == nil {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+
 		path := r.URL.Path
 		parts := strings.Split(strings.Trim(path, "/"), "/")
 		hlsIdx := -1
@@ -725,6 +736,11 @@ func serveHLS(metadataPath string, sm *StreamManager) http.HandlerFunc {
 		if err != nil {
 			log.Printf("[HLS Gateway] Error loading or creating stream %s: %v", streamID, err)
 			http.Error(w, "Stream not found", http.StatusNotFound)
+			return
+		}
+
+		if userSess.Type != "admin" && userSess.Type != "root" && stream.UserID != userSess.ID {
+			http.Error(w, "Forbidden", http.StatusForbidden)
 			return
 		}
 

@@ -25,4 +25,19 @@ sw.*
 tailwind.compiled.css
 tailwind.config.js
 /legacy-archive/
+.agents/
+/ORIGINAL_REQUEST.md
+/test_output.log
+/test-bin
+/abs-gateway-bin
+/audiobookshelf-go-bin
+/e2e_tests.test
+/abs-gateway-test
+/audiobookshelf-go
+/audiobookshelf
+*.tmp
+/test_output_full.log
+/coverage.out
+/e2e_run.log
+
 
