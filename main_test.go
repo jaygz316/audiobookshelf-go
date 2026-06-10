@@ -467,7 +467,17 @@ func TestHLSServing(t *testing.T) {
 
 	sm.AddStream(s)
 
+	user := &UserSession{
+		ID:                 "user1",
+		Username:           "admin",
+		Type:               "admin",
+		IsActive:           true,
+		AccessAllLibraries: true,
+		AccessAllTags:      true,
+	}
+
 	req := httptest.NewRequest("GET", "/hls/"+streamID+"/output.m3u8", nil)
+	req = req.WithContext(context.WithValue(req.Context(), UserContextKey, user))
 	rr := httptest.NewRecorder()
 
 	handler := serveHLS(t.TempDir(), sm)
@@ -481,6 +491,7 @@ func TestHLSServing(t *testing.T) {
 	}
 
 	req = httptest.NewRequest("GET", "/hls/"+streamID+"/output-0.ts", nil)
+	req = req.WithContext(context.WithValue(req.Context(), UserContextKey, user))
 	rr = httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 

@@ -90,6 +90,14 @@ func handleUpdateMePassword(db *sql.DB) http.HandlerFunc {
 	}
 }
 
+// trimPathPrefix extracts the part of path after prefix, ignoring any router base path.
+func trimPathPrefix(path, prefix string) string {
+	if idx := strings.Index(path, prefix); idx != -1 {
+		return path[idx+len(prefix):]
+	}
+	return strings.TrimPrefix(path, prefix)
+}
+
 // handleGetMeProgress retrieves a specific media progress object
 func handleGetMeProgress(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -101,7 +109,7 @@ func handleGetMeProgress(db *sql.DB) http.HandlerFunc {
 		}
 
 		// Path format: /api/me/progress/:id/:episodeId?
-		subPath := strings.TrimPrefix(r.URL.Path, "/api/me/progress/")
+		subPath := trimPathPrefix(r.URL.Path, "/api/me/progress/")
 		parts := strings.Split(subPath, "/")
 		if len(parts) == 0 || parts[0] == "" {
 			http.Error(w, `{"error": "Bad Request"}`, http.StatusBadRequest)
@@ -149,7 +157,7 @@ func handleCreateUpdateMeProgress(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		subPath := strings.TrimPrefix(r.URL.Path, "/api/me/progress/")
+		subPath := trimPathPrefix(r.URL.Path, "/api/me/progress/")
 		parts := strings.Split(subPath, "/")
 		if len(parts) == 0 || parts[0] == "" {
 			http.Error(w, `{"error": "Bad Request"}`, http.StatusBadRequest)
@@ -399,7 +407,7 @@ func handleRemoveMeProgress(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		progressID := strings.TrimPrefix(r.URL.Path, "/api/me/progress/")
+		progressID := trimPathPrefix(r.URL.Path, "/api/me/progress/")
 		if progressID == "" || strings.Contains(progressID, "/") {
 			http.Error(w, `{"error": "Bad Request"}`, http.StatusBadRequest)
 			return
@@ -570,7 +578,7 @@ func handleRemoveSeriesFromContinueListening(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		sub := strings.TrimPrefix(r.URL.Path, "/api/me/series/")
+		sub := trimPathPrefix(r.URL.Path, "/api/me/series/")
 		seriesID := strings.TrimSuffix(sub, "/remove-from-continue-listening")
 		if seriesID == "" || strings.Contains(seriesID, "/") {
 			http.Error(w, `{"error": "Bad Request"}`, http.StatusBadRequest)
@@ -640,7 +648,7 @@ func handleReaddSeriesFromContinueListening(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		sub := strings.TrimPrefix(r.URL.Path, "/api/me/series/")
+		sub := trimPathPrefix(r.URL.Path, "/api/me/series/")
 		seriesID := strings.TrimSuffix(sub, "/readd-to-continue-listening")
 		if seriesID == "" || strings.Contains(seriesID, "/") {
 			http.Error(w, `{"error": "Bad Request"}`, http.StatusBadRequest)
@@ -704,8 +712,9 @@ func handleHideMeProgressFromContinueListening(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		sub := strings.TrimPrefix(r.URL.Path, "/api/me/progress/")
+		sub := trimPathPrefix(r.URL.Path, "/api/me/progress/")
 		progressID := strings.TrimSuffix(sub, "/remove-from-continue-listening")
+		progressID = strings.TrimSuffix(progressID, "/hide-from-continue-listening")
 		if progressID == "" || strings.Contains(progressID, "/") {
 			http.Error(w, `{"error": "Bad Request"}`, http.StatusBadRequest)
 			return
@@ -755,7 +764,7 @@ func handleMeCreateBookmark(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		sub := strings.TrimPrefix(r.URL.Path, "/api/me/item/")
+		sub := trimPathPrefix(r.URL.Path, "/api/me/item/")
 		libraryItemID := strings.TrimSuffix(sub, "/bookmark")
 		if libraryItemID == "" || strings.Contains(libraryItemID, "/") {
 			http.Error(w, `{"error": "Bad Request"}`, http.StatusBadRequest)
@@ -825,7 +834,7 @@ func handleMeUpdateBookmark(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		sub := strings.TrimPrefix(r.URL.Path, "/api/me/item/")
+		sub := trimPathPrefix(r.URL.Path, "/api/me/item/")
 		libraryItemID := strings.TrimSuffix(sub, "/bookmark")
 		if libraryItemID == "" || strings.Contains(libraryItemID, "/") {
 			http.Error(w, `{"error": "Bad Request"}`, http.StatusBadRequest)
@@ -898,7 +907,7 @@ func handleMeRemoveBookmark(db *sql.DB) http.HandlerFunc {
 		}
 
 		// Route format: /api/me/item/:id/bookmark/:time
-		sub := strings.TrimPrefix(r.URL.Path, "/api/me/item/")
+		sub := trimPathPrefix(r.URL.Path, "/api/me/item/")
 		parts := strings.Split(sub, "/bookmark/")
 		if len(parts) != 2 {
 			http.Error(w, `{"error": "Bad Request"}`, http.StatusBadRequest)

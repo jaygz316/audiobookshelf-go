@@ -307,6 +307,10 @@ func cleanupExpiredSessions(ctx context.Context, db *sql.DB) (int64, error) {
 func handleInit(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[Go] POST /init")
+		if db == nil {
+			http.Error(w, `{"error": "Database not connected"}`, http.StatusInternalServerError)
+			return
+		}
 		if r.Method != http.MethodPost {
 			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
 			return
@@ -384,6 +388,10 @@ func handleInit(db *sql.DB) http.HandlerFunc {
 func handleLogin(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[Go] POST /login")
+		if db == nil {
+			http.Error(w, `{"error": "Database not connected"}`, http.StatusInternalServerError)
+			return
+		}
 		if r.Method != http.MethodPost {
 			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
 			return
@@ -545,6 +553,10 @@ func handleAuthorize(db *sql.DB) http.HandlerFunc {
 func handleLogout(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[Go] POST /logout")
+		if db == nil {
+			http.Error(w, `{"error": "Database not connected"}`, http.StatusInternalServerError)
+			return
+		}
 		if r.Method != http.MethodPost {
 			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
 			return
@@ -572,6 +584,10 @@ func handleLogout(db *sql.DB) http.HandlerFunc {
 func handleRefresh(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[Go] POST /auth/refresh")
+		if db == nil {
+			http.Error(w, `{"error": "Database not connected"}`, http.StatusInternalServerError)
+			return
+		}
 		if r.Method != http.MethodPost {
 			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
 			return
@@ -969,7 +985,7 @@ func handleUserCRUD(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		subPath := strings.TrimPrefix(r.URL.Path, "/api/users/")
+		subPath := trimPathPrefix(r.URL.Path, "/api/users/")
 		if subPath == "" || strings.Contains(subPath, "/") {
 			http.NotFound(w, r)
 			return

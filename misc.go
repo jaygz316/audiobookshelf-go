@@ -277,7 +277,13 @@ func handleDeleteTag(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		tagParam := strings.TrimPrefix(r.URL.Path, "/api/tags/")
+		tagParam := r.URL.Path
+		idx := strings.Index(tagParam, "/api/tags/")
+		if idx != -1 {
+			tagParam = tagParam[idx+len("/api/tags/"):]
+		} else {
+			tagParam = strings.TrimPrefix(tagParam, "/")
+		}
 		if tagParam == "" || strings.Contains(tagParam, "/") {
 			http.Error(w, `{"error": "Bad Request"}`, http.StatusBadRequest)
 			return
@@ -626,7 +632,13 @@ func handleDeleteGenre(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		genreParam := strings.TrimPrefix(r.URL.Path, "/api/genres/")
+		genreParam := r.URL.Path
+		idx := strings.Index(genreParam, "/api/genres/")
+		if idx != -1 {
+			genreParam = genreParam[idx+len("/api/genres/"):]
+		} else {
+			genreParam = strings.TrimPrefix(genreParam, "/")
+		}
 		if genreParam == "" || strings.Contains(genreParam, "/") {
 			http.Error(w, `{"error": "Bad Request"}`, http.StatusBadRequest)
 			return
