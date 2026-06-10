@@ -15,6 +15,7 @@
 </template>
 
 <script>
+import path from 'path'
 import ePub from 'epubjs'
 
 /**
@@ -388,20 +389,18 @@ export default {
 
       const tocTree = []
 
-      const resolveURL = (url, relativeTo) => {
-        // see https://github.com/futurepress/epub.js/issues/1084
-        // HACK-ish: abuse the URL API a little to resolve the path
-        // the base needs to be a valid URL, or it will throw a TypeError,
-        // so we just set a random base URI and remove it later
-        const base = 'https://example.invalid/'
-        return new URL(url, base + relativeTo).href.replace(base, '')
+      const resolvePath = (url, relativeTo) => {
+        if (url.startsWith('/')) {
+          return path.posix.join('.', url).replace(/^\//, '')
+        }
+        return path.posix.join(path.posix.dirname(relativeTo), url)
       }
 
       const basePath = this.book.packaging.navPath || this.book.packaging.ncxPath
 
       const createTree = async (toc, parent) => {
         const promises = toc.map(async (tocItem, i) => {
-          const href = resolveURL(tocItem.href, basePath)
+          const href = resolvePath(tocItem.href, basePath)
           const id = href.split('#')[1]
           const item = this.book.spine.get(href)
           await item.load(this.book.load.bind(this.book))
