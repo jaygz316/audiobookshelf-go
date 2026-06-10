@@ -1085,6 +1085,7 @@ func ScanLibrary(db *sql.DB, libraryID string) error {
 	if err != nil {
 		return fmt.Errorf("library not found: %w", err)
 	}
+	log.Printf("[Scanner] Library name: %s, Media type: %s", libName, mediaType)
 
 	var libSettings struct {
 		AudiobooksOnly bool `json:"audiobooksOnly"`
@@ -1098,6 +1099,7 @@ func ScanLibrary(db *sql.DB, libraryID string) error {
 	}
 
 	defer func() {
+		log.Printf("[Scanner] defer library_scan_complete for library ID: %s", libraryID)
 		if SocketAuth != nil {
 			SocketAuth.Emitter("library_scan_complete", libraryID, nil)
 		}
@@ -1117,6 +1119,7 @@ func ScanLibrary(db *sql.DB, libraryID string) error {
 	if len(prefixes) == 0 {
 		prefixes = []string{"the", "a", "an"}
 	}
+	log.Printf("[Scanner] Loaded %d sorting prefixes", len(prefixes))
 
 	rows, err := db.Query("SELECT id, path FROM libraryFolders WHERE libraryId = ?", libraryID)
 	if err != nil {
@@ -1138,17 +1141,21 @@ func ScanLibrary(db *sql.DB, libraryID string) error {
 	if err := rows.Err(); err != nil {
 		return err
 	}
+	log.Printf("[Scanner] Found %d library folders to scan", len(folders))
 
 	var foundPaths []string
 
 	for _, folder := range folders {
+		log.Printf("[Scanner] Walking folder: %s", folder.path)
 		files, err := WalkLibraryFolder(folder.path)
 		if err != nil {
 			log.Printf("[Scanner] Failed to walk folder %s: %v", folder.path, err)
 			continue
 		}
+		log.Printf("[Scanner] Walk complete. Found %d file items. Grouping them...", len(files))
 
 		grouped := GroupFileItemsIntoLibraryItemDirs(mediaType, files, libSettings.AudiobooksOnly)
+		log.Printf("[Scanner] Grouped into %d library item directories", len(grouped))
 
 		for groupDir, groupFiles := range grouped {
 			var itemPath string
@@ -1186,18 +1193,20 @@ func ScanLibrary(db *sql.DB, libraryID string) error {
 			err = db.QueryRow("SELECT id, mtime, isMissing FROM libraryItems WHERE path = ? AND libraryId = ?", itemPath, libraryID).Scan(&existingID, &existingMtimeStr, &existingIsMissing)
 
 			if err == sql.ErrNoRows {
+				log.Printf("[Scanner] Scanning new item at: %s", itemPath)
 				err := scanNewLibraryItem(db, libraryID, folder.id, itemPath, groupFiles, mediaType, isFile, maxMtime, maxCtime, totalSize, ino, libSettings.AudiobooksOnly, prefixes)
 				if err != nil {
 					log.Printf("[Scanner] Error scanning new item at %s: %v", itemPath, err)
 				}
 			} else if err == nil {
 				if existingIsMissing != 0 {
+					log.Printf("[Scanner] Item %s marked as missing but exists now. Restoring.", itemPath)
 					_, _ = db.Exec("UPDATE libraryItems SET isMissing = 0 WHERE id = ?", existingID)
 				}
 
 				existingMtime := parseEpochMillis(existingMtimeStr)
 				if maxMtime != existingMtime {
-					log.Printf("[Scanner] Mtime changed for existing item %s, rescanning", itemPath)
+					log.Printf("[Scanner] Mtime changed for existing item %s (mtime: %d != existing: %d), rescanning", itemPath, maxMtime, existingMtime)
 					err := scanExistingLibraryItem(db, existingID, libraryID, folder.id, itemPath, groupFiles, mediaType, isFile, maxMtime, maxCtime, totalSize, ino, libSettings.AudiobooksOnly, prefixes)
 					if err != nil {
 						log.Printf("[Scanner] Error updating existing item at %s: %v", itemPath, err)
@@ -1207,6 +1216,7 @@ func ScanLibrary(db *sql.DB, libraryID string) error {
 		}
 	}
 
+	log.Printf("[Scanner] Checking for missing library items...")
 	dbItems, err := db.Query("SELECT id, path FROM libraryItems WHERE libraryId = ? AND isMissing = 0", libraryID)
 	if err != nil {
 		return err
@@ -1240,6 +1250,7 @@ func ScanLibrary(db *sql.DB, libraryID string) error {
 		return err
 	}
 
+	log.Printf("[Scanner] Scan complete for library ID: %s", libraryID)
 	return nil
 }
 
