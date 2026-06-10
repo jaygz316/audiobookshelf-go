@@ -33,8 +33,10 @@ type OIDCSettings struct {
 
 // OIDCHandler coordinates OIDC authentication login redirects and callback parsing.
 type OIDCHandler struct {
+	mu       sync.RWMutex
 	Settings OIDCSettings
 	sessions sync.Map // stores active state parameters mapped to oidcSession
+	client   *http.Client
 }
 
 type oidcSession struct {
@@ -53,18 +55,42 @@ func init() {
 }
 
 // NewOIDCHandler constructs an OIDC authentication handler.
-func NewOIDCHandler(settings OIDCSettings) *OIDCHandler {
+func NewOIDCHandler(settings OIDCSettings, client *http.Client) *OIDCHandler {
 	return &OIDCHandler{
 		Settings: settings,
+		client:   client,
 	}
+}
+
+// getClient returns the injected http.Client or falls back to the safeClient.
+func (h *OIDCHandler) getClient() *http.Client {
+	if h.client != nil {
+		return h.client
+	}
+	return safeClient
+}
+
+// getSettings thread-safely returns a copy of the handler's settings.
+func (h *OIDCHandler) getSettings() OIDCSettings {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	return h.Settings
+}
+
+// UpdateSettings thread-safely updates the handler's settings.
+func (h *OIDCHandler) UpdateSettings(settings OIDCSettings) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.Settings = settings
 }
 
 // HandleLogin redirects the browser to the OIDC authorization endpoint.
 func (h *OIDCHandler) HandleLogin(w http.ResponseWriter, r *http.Request) {
-	ctx := oidc.ClientContext(r.Context(), safeClient)
+	ctx := oidc.ClientContext(r.Context(), h.getClient())
+	settings := h.getSettings()
 
 	// PORT: Perform discovery dynamically using the IssuerURL and safe HTTP client.
-	provider, err := oidc.NewProvider(ctx, h.Settings.IssuerURL)
+	provider, err := oidc.NewProvider(ctx, settings.IssuerURL)
 	if err != nil {
 		log.Printf("[OidcAuth] Discovery failed: %v", err)
 		http.Error(w, "Failed to discover OIDC provider", http.StatusInternalServerError)
@@ -99,7 +125,13 @@ func (h *OIDCHandler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 
 	state := r.URL.Query().Get("state")
 	if state == "" {
-		state = generateRandomString(16)
+		var err error
+		state, err = generateRandomString(16)
+		if err != nil {
+			log.Printf("[OidcAuth] Failed to generate state: %v", err)
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			return
+		}
 	}
 
 	var codeChallenge, codeChallengeMethod, codeVerifier string
@@ -116,7 +148,12 @@ func (h *OIDCHandler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		}
 		codeChallengeMethod = "S256"
 	} else {
-		verifier := generateVerifier()
+		verifier, err := generateVerifier()
+		if err != nil {
+			log.Printf("[OidcAuth] Failed to generate verifier: %v", err)
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			return
+		}
 		codeVerifier = verifier
 		codeChallenge = s256Challenge(verifier)
 		codeChallengeMethod = "S256"
@@ -134,8 +171,8 @@ func (h *OIDCHandler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	h.sessions.Store(state, sess)
 
 	oauth2Config := &oauth2.Config{
-		ClientID:     h.Settings.ClientID,
-		ClientSecret: h.Settings.ClientSecret,
+		ClientID:     settings.ClientID,
+		ClientSecret: settings.ClientSecret,
 		Endpoint:     provider.Endpoint(),
 		RedirectURL:  ssoRedirectURI,
 		Scopes:       h.getScopes(),
@@ -153,7 +190,8 @@ func (h *OIDCHandler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 // HandleCallback processes authorization code redirection, retrieves tokens, and validates claims.
 // Returns the OIDC user details map containing decoded user claims and the raw id_token.
 func (h *OIDCHandler) HandleCallback(w http.ResponseWriter, r *http.Request) (map[string]interface{}, error) {
-	ctx := oidc.ClientContext(r.Context(), safeClient)
+	ctx := oidc.ClientContext(r.Context(), h.getClient())
+	settings := h.getSettings()
 
 	state := r.URL.Query().Get("state")
 	code := r.URL.Query().Get("code")
@@ -204,14 +242,14 @@ func (h *OIDCHandler) HandleCallback(w http.ResponseWriter, r *http.Request) (ma
 		codeVerifier = clientVerifier
 	}
 
-	provider, err := oidc.NewProvider(ctx, h.Settings.IssuerURL)
+	provider, err := oidc.NewProvider(ctx, settings.IssuerURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to discover OIDC provider: %w", err)
 	}
 
 	oauth2Config := &oauth2.Config{
-		ClientID:     h.Settings.ClientID,
-		ClientSecret: h.Settings.ClientSecret,
+		ClientID:     settings.ClientID,
+		ClientSecret: settings.ClientSecret,
 		Endpoint:     provider.Endpoint(),
 		RedirectURL:  ssoRedirectURI,
 		Scopes:       h.getScopes(),
@@ -232,7 +270,7 @@ func (h *OIDCHandler) HandleCallback(w http.ResponseWriter, r *http.Request) (ma
 		return nil, fmt.Errorf("no id_token found in token response")
 	}
 
-	verifier := provider.Verifier(&oidc.Config{ClientID: h.Settings.ClientID})
+	verifier := provider.Verifier(&oidc.Config{ClientID: settings.ClientID})
 	idToken, err := verifier.Verify(ctx, rawIDToken)
 	if err != nil {
 		return nil, fmt.Errorf("failed to verify ID token: %w", err)
@@ -257,9 +295,9 @@ func (h *OIDCHandler) HandleCallback(w http.ResponseWriter, r *http.Request) (ma
 		return nil, fmt.Errorf("invalid claims, no sub")
 	}
 
-	if h.Settings.GroupClaim != "" {
-		if _, ok := claims[h.Settings.GroupClaim]; !ok {
-			return nil, fmt.Errorf("group claim %s not found in user claims", h.Settings.GroupClaim)
+	if settings.GroupClaim != "" {
+		if _, ok := claims[settings.GroupClaim]; !ok {
+			return nil, fmt.Errorf("group claim %s not found in user claims", settings.GroupClaim)
 		}
 	}
 
@@ -269,7 +307,8 @@ func (h *OIDCHandler) HandleCallback(w http.ResponseWriter, r *http.Request) (ma
 }
 
 func (h *OIDCHandler) isValidRedirectURI(uri string) bool {
-	for _, allowed := range h.Settings.MobileRedirectURIs {
+	settings := h.getSettings()
+	for _, allowed := range settings.MobileRedirectURIs {
 		if allowed == "*" || allowed == uri {
 			return true
 		}
@@ -278,12 +317,13 @@ func (h *OIDCHandler) isValidRedirectURI(uri string) bool {
 }
 
 func (h *OIDCHandler) getScopes() []string {
+	settings := h.getSettings()
 	scopes := []string{"openid", "profile", "email"}
-	if h.Settings.GroupClaim != "" {
-		scopes = append(scopes, h.Settings.GroupClaim)
+	if settings.GroupClaim != "" {
+		scopes = append(scopes, settings.GroupClaim)
 	}
-	if h.Settings.AdvancedPermsClaim != "" {
-		scopes = append(scopes, h.Settings.AdvancedPermsClaim)
+	if settings.AdvancedPermsClaim != "" {
+		scopes = append(scopes, settings.AdvancedPermsClaim)
 	}
 	return scopes
 }
@@ -300,7 +340,8 @@ func (h *OIDCHandler) getRedirectURL(r *http.Request, isMobile bool) string {
 	}
 
 	var subfolder string
-	if h.Settings.SubfolderForRedirectURLs {
+	settings := h.getSettings()
+	if settings.SubfolderForRedirectURLs {
 		path := r.URL.Path
 		if idx := strings.Index(path, "/auth/openid"); idx != -1 {
 			subfolder = path[:idx]
@@ -315,20 +356,20 @@ func (h *OIDCHandler) getRedirectURL(r *http.Request, isMobile bool) string {
 	return fmt.Sprintf("%s://%s%s%s", scheme, host, subfolder, suffix)
 }
 
-func generateRandomString(n int) string {
+func generateRandomString(n int) (string, error) {
 	b := make([]byte, n)
 	if _, err := rand.Read(b); err != nil {
-		panic(err)
+		return "", fmt.Errorf("read random: %w", err)
 	}
-	return hex.EncodeToString(b)
+	return hex.EncodeToString(b), nil
 }
 
-func generateVerifier() string {
+func generateVerifier() (string, error) {
 	b := make([]byte, 32)
 	if _, err := rand.Read(b); err != nil {
-		panic(err)
+		return "", fmt.Errorf("read random: %w", err)
 	}
-	return base64.RawURLEncoding.EncodeToString(b)
+	return base64.RawURLEncoding.EncodeToString(b), nil
 }
 
 func s256Challenge(verifier string) string {

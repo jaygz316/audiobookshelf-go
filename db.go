@@ -25,6 +25,9 @@ type ServerSettings struct {
 
 // GetServerSettings reads the server settings from the settings table
 func GetServerSettings(db *sql.DB) (*ServerSettings, error) {
+	if db == nil {
+		return nil, fmt.Errorf("database not initialized")
+	}
 	var valStr string
 	err := db.QueryRow("SELECT value FROM settings WHERE key = 'server-settings'").Scan(&valStr)
 	if err != nil {
@@ -49,6 +52,9 @@ func GetServerSettings(db *sql.DB) (*ServerSettings, error) {
 
 // GetSortingIgnorePrefix reads sortingIgnorePrefix from server-settings
 func GetSortingIgnorePrefix(db *sql.DB) bool {
+	if db == nil {
+		return false
+	}
 	var valStr string
 	err := db.QueryRow("SELECT value FROM settings WHERE key = 'server-settings'").Scan(&valStr)
 	if err != nil {
@@ -65,6 +71,9 @@ func GetSortingIgnorePrefix(db *sql.DB) bool {
 
 // HasRootUser checks if any user of type 'root' exists in the users table
 func HasRootUser(db *sql.DB) (bool, error) {
+	if db == nil {
+		return false, fmt.Errorf("database not initialized")
+	}
 	var count int
 	err := db.QueryRow("SELECT count(*) FROM users WHERE type = 'root'").Scan(&count)
 	if err != nil {
@@ -148,6 +157,9 @@ func parsePermissions(permsStr sql.NullString, user *UserSession) {
 
 // GetUserByID fetches minimum info needed for authentication for a user ID
 func GetUserByID(db *sql.DB, userID string) (*UserSession, error) {
+	if db == nil {
+		return nil, fmt.Errorf("database not initialized")
+	}
 	var user UserSession
 	var isActiveInt int
 	var permsStr sql.NullString
@@ -163,6 +175,9 @@ func GetUserByID(db *sql.DB, userID string) (*UserSession, error) {
 
 // GetUserByIDOrOldID fetches minimum info needed for authentication for a user ID or old user ID
 func GetUserByIDOrOldID(db *sql.DB, userID string) (*UserSession, error) {
+	if db == nil {
+		return nil, fmt.Errorf("database not initialized")
+	}
 	var user UserSession
 	var isActiveInt int
 	var extraDataStr string
@@ -188,6 +203,9 @@ func GetUserByIDOrOldID(db *sql.DB, userID string) (*UserSession, error) {
 
 // CheckAPIKey verifies that an API key is active and not expired, returning the user associated with it.
 func CheckAPIKey(db *sql.DB, keyID string) (*UserSession, error) {
+	if db == nil {
+		return nil, fmt.Errorf("database not initialized")
+	}
 	var isActiveInt int
 	var expiresAtStr sql.NullString
 	var userID string
@@ -245,6 +263,9 @@ type LibraryItemDownloadInfo struct {
 
 // GetLibraryItemDownloadInfo fetches file path, relPath, and isFile status for a library item.
 func GetLibraryItemDownloadInfo(db *sql.DB, itemID string) (*LibraryItemDownloadInfo, error) {
+	if db == nil {
+		return nil, fmt.Errorf("database not initialized")
+	}
 	var info LibraryItemDownloadInfo
 	var isFileVal int
 	err := db.QueryRow("SELECT path, relPath, isFile FROM libraryItems WHERE id = ?", itemID).
@@ -258,6 +279,9 @@ func GetLibraryItemDownloadInfo(db *sql.DB, itemID string) (*LibraryItemDownload
 
 // GetCoverPath reads the media coverPath from books or podcasts table based on the library item ID
 func GetCoverPath(db *sql.DB, itemID string) (string, error) {
+	if db == nil {
+		return "", fmt.Errorf("database not initialized")
+	}
 	var mediaType, mediaID string
 	err := db.QueryRow("SELECT mediaType, mediaId FROM libraryItems WHERE id = ?", itemID).Scan(&mediaType, &mediaID)
 	if err != nil {

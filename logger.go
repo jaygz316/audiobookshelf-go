@@ -20,6 +20,7 @@ type LogBuffer struct {
 	mu       sync.Mutex
 	messages []LogMessage
 	maxSize  int
+	start    int
 }
 
 // NewLogBuffer creates a LogBuffer with specified size cap
@@ -34,10 +35,11 @@ func NewLogBuffer(maxSize int) *LogBuffer {
 func (lb *LogBuffer) Add(msg LogMessage) {
 	lb.mu.Lock()
 	defer lb.mu.Unlock()
-	if len(lb.messages) >= lb.maxSize {
-		lb.messages = append(lb.messages[1:], msg)
-	} else {
+	if len(lb.messages) < lb.maxSize {
 		lb.messages = append(lb.messages, msg)
+	} else {
+		lb.messages[lb.start] = msg
+		lb.start = (lb.start + 1) % lb.maxSize
 	}
 }
 
@@ -46,7 +48,12 @@ func (lb *LogBuffer) Get() []LogMessage {
 	lb.mu.Lock()
 	defer lb.mu.Unlock()
 	copied := make([]LogMessage, len(lb.messages))
-	copy(copied, lb.messages)
+	if len(lb.messages) < lb.maxSize {
+		copy(copied, lb.messages)
+	} else {
+		n := copy(copied, lb.messages[lb.start:])
+		copy(copied[n:], lb.messages[:lb.start])
+	}
 	return copied
 }
 
