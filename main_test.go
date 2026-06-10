@@ -36,6 +36,8 @@ func setupTestDB(t *testing.T) *sql.DB {
 		`CREATE TABLE mediaProgresses (id TEXT PRIMARY KEY, userId TEXT, mediaItemId TEXT, isFinished INTEGER, currentTime REAL, updatedAt TEXT)`,
 		`CREATE TABLE playbackSessions (id TEXT PRIMARY KEY, userId TEXT, mediaItemId TEXT, mediaItemType TEXT, startTime REAL, libraryId TEXT, extraData TEXT)`,
 		`CREATE TABLE podcastEpisodes (id TEXT PRIMARY KEY, podcastId TEXT, title TEXT, audioFile TEXT)`,
+		`CREATE TABLE playlists (id TEXT PRIMARY KEY, name TEXT NOT NULL, description TEXT, createdAt TEXT, updatedAt TEXT, libraryId TEXT, userId TEXT)`,
+		`CREATE TABLE playlistMediaItems (id TEXT PRIMARY KEY, mediaItemId TEXT, mediaItemType TEXT, "order" INTEGER, createdAt TEXT, playlistId TEXT)`,
 	}
 
 	for _, q := range queries {
@@ -120,9 +122,6 @@ func TestGetLibraryByID(t *testing.T) {
 		t.Fatalf("Failed to insert library: %v", err)
 	}
 
-	handler := handleGetLibraryByID(db, "lib1")
-	req := httptest.NewRequest("GET", "/api/libraries/lib1", nil)
-
 	user := &UserSession{
 		ID:                 "user1",
 		Username:           "admin",
@@ -131,23 +130,78 @@ func TestGetLibraryByID(t *testing.T) {
 		AccessAllLibraries: true,
 		AccessAllTags:      true,
 	}
-	ctx := context.WithValue(req.Context(), UserContextKey, user)
-	req = req.WithContext(ctx)
 
-	rr := httptest.NewRecorder()
-	handler.ServeHTTP(rr, req)
+	// Test case 1: Standard GET without filterdata
+	{
+		handler := handleGetLibraryByID(db, "lib1")
+		req := httptest.NewRequest("GET", "/api/libraries/lib1", nil)
+		ctx := context.WithValue(req.Context(), UserContextKey, user)
+		req = req.WithContext(ctx)
 
-	if rr.Code != http.StatusOK {
-		t.Errorf("Expected status 200, got %d", rr.Code)
+		rr := httptest.NewRecorder()
+		handler.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusOK {
+			t.Errorf("Expected status 200, got %d", rr.Code)
+		}
+
+		var lib LibraryJSON
+		if err := json.Unmarshal(rr.Body.Bytes(), &lib); err != nil {
+			t.Fatalf("Failed to parse JSON response: %v", err)
+		}
+
+		if lib.ID != "lib1" {
+			t.Errorf("Expected library ID lib1, got %s", lib.ID)
+		}
 	}
 
-	var lib LibraryJSON
-	if err := json.Unmarshal(rr.Body.Bytes(), &lib); err != nil {
-		t.Fatalf("Failed to parse JSON response: %v", err)
-	}
+	// Test case 2: GET with include=filterdata
+	{
+		// Insert a test playlist
+		_, err := db.Exec(`INSERT INTO playlists (id, name, libraryId, userId, createdAt, updatedAt) VALUES ('playlist1', 'My Playlist', 'lib1', 'user1', '2026-06-08 12:00:00.000', '2026-06-08 12:00:00.000')`)
+		if err != nil {
+			t.Fatalf("Failed to insert playlist: %v", err)
+		}
 
-	if lib.ID != "lib1" {
-		t.Errorf("Expected library ID lib1, got %s", lib.ID)
+		handler := handleGetLibraryByID(db, "lib1")
+		req := httptest.NewRequest("GET", "/api/libraries/lib1?include=filterdata", nil)
+		ctx := context.WithValue(req.Context(), UserContextKey, user)
+		req = req.WithContext(ctx)
+
+		rr := httptest.NewRecorder()
+		handler.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusOK {
+			t.Errorf("Expected status 200, got %d. Body: %s", rr.Code, rr.Body.String())
+		}
+
+		var resp map[string]interface{}
+		if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
+			t.Fatalf("Failed to parse JSON response: %v", err)
+		}
+
+		// Verify wrapper keys
+		if _, ok := resp["library"]; !ok {
+			t.Errorf("Expected response to contain 'library' key")
+		}
+		if _, ok := resp["filterdata"]; !ok {
+			t.Errorf("Expected response to contain 'filterdata' key")
+		}
+		if _, ok := resp["issues"]; !ok {
+			t.Errorf("Expected response to contain 'issues' key")
+		}
+		if numPlaylists, ok := resp["numUserPlaylists"].(float64); !ok || numPlaylists != 1 {
+			t.Errorf("Expected 'numUserPlaylists' to be 1, got %v", resp["numUserPlaylists"])
+		}
+
+		// Verify library detail inside wrapper
+		libMap, ok := resp["library"].(map[string]interface{})
+		if !ok {
+			t.Fatalf("Expected 'library' to be a map")
+		}
+		if libMap["id"] != "lib1" {
+			t.Errorf("Expected library ID lib1, got %v", libMap["id"])
+		}
 	}
 }
 
@@ -477,4 +531,73 @@ func TestLoadOrCreateStream(t *testing.T) {
 		sm.RemoveStream("session-1")
 	}
 }
+
+func TestGetLibraryPersonalized(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	// Insert library
+	_, err := db.Exec(`INSERT INTO libraries (id, name, displayOrder, icon, mediaType, provider, settings, createdAt, updatedAt) VALUES ('lib1', 'Audiobooks', 1, 'book', 'book', 'local', '{}', '2026-06-08 12:00:00.000', '2026-06-08 12:00:00.000')`)
+	if err != nil {
+		t.Fatalf("Failed to insert library: %v", err)
+	}
+
+	// Insert book
+	_, err = db.Exec(`INSERT INTO books (id, title, titleIgnorePrefix, explicit, abridged, coverPath, duration, narrators, audioFiles, ebookFile, chapters, tags, genres) VALUES ('book1', 'The Great Book', 'Great Book', 0, 0, 'covers/book1.jpg', 3600.0, '["Narrator A"]', '[]', 'null', '[]', '["TagA"]', '["GenreA"]')`)
+	if err != nil {
+		t.Fatalf("Failed to insert book: %v", err)
+	}
+
+	// Insert library item
+	_, err = db.Exec(`INSERT INTO libraryItems (id, ino, libraryId, path, relPath, isFile, mtime, ctime, birthtime, createdAt, updatedAt, isMissing, isInvalid, mediaType, mediaId, size, libraryFolderId, authorNamesFirstLast, authorNamesLastFirst, title, titleIgnorePrefix) VALUES ('item1', '12345', 'lib1', '/audiobooks/book1', 'book1', 0, '2026-06-08 12:00:00.000', '2026-06-08 12:00:00.000', '2026-06-08 12:00:00.000', '2026-06-08 12:00:00.000', '2026-06-08 12:00:00.000', 0, 0, 'book', 'book1', 5000, 'folder1', 'Author X', 'Author, X', 'The Great Book', 'Great Book')`)
+	if err != nil {
+		t.Fatalf("Failed to insert library item: %v", err)
+	}
+
+	handler := handleGetLibraryPersonalized(db, "lib1")
+	req := httptest.NewRequest("GET", "/api/libraries/lib1/personalized?limit=10", nil)
+
+	user := &UserSession{
+		ID:                 "user1",
+		Username:           "admin",
+		Type:               "admin",
+		IsActive:           true,
+		AccessAllLibraries: true,
+		AccessAllTags:      true,
+	}
+	ctx := context.WithValue(req.Context(), UserContextKey, user)
+	req = req.WithContext(ctx)
+
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("Expected status 200, got %d. Body: %s", rr.Code, rr.Body.String())
+	}
+
+	var shelves []map[string]interface{}
+	if err := json.Unmarshal(rr.Body.Bytes(), &shelves); err != nil {
+		t.Fatalf("Failed to parse JSON response: %v", err)
+	}
+
+	if len(shelves) != 1 {
+		t.Fatalf("Expected 1 shelf (recently-added), got %d: %v", len(shelves), shelves)
+	}
+
+	shelf := shelves[0]
+	if shelf["id"] != "recently-added" {
+		t.Errorf("Expected recently-added shelf, got id: %v", shelf["id"])
+	}
+
+	entities := shelf["entities"].([]interface{})
+	if len(entities) != 1 {
+		t.Fatalf("Expected 1 entity in recently-added shelf, got %d", len(entities))
+	}
+
+	entity := entities[0].(map[string]interface{})
+	if entity["id"] != "item1" {
+		t.Errorf("Expected entity item1, got %v", entity["id"])
+	}
+}
+
 

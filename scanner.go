@@ -136,6 +136,7 @@ func splitPath(path string) []string {
 }
 
 func WalkLibraryFolder(folderPath string) ([]FileItem, error) {
+	log.Printf("[Scanner] WalkLibraryFolder: Starting walk of folder: %s", folderPath)
 	var items []FileItem
 	err := filepath.WalkDir(folderPath, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
@@ -767,6 +768,7 @@ func parseMetadataForGroup(db *sql.DB, groupFiles []FileItem, mediaType, itemPat
 	var audioFilesData []interface{}
 
 	for i, f := range audioFiles {
+		log.Printf("[Scanner] [%s] Probing audio file (%d/%d): %s", itemPath, i+1, len(audioFiles), f.Path)
 		probe, err := probeAudioFile(f.Path)
 		var duration float64
 		var bitrate int64
@@ -782,9 +784,12 @@ func parseMetadataForGroup(db *sql.DB, groupFiles []FileItem, mediaType, itemPat
 			sampleRate = probe.SampleRate
 			chapters = probe.Chapters
 			totalDuration += duration
+		} else {
+			log.Printf("[Scanner] [%s] Probing audio file failed: %v", itemPath, err)
 		}
 
-		tags, _ := parseAudioTags(f.Path)
+		log.Printf("[Scanner] [%s] Parsing audio tags for: %s", itemPath, f.Path)
+		tags, tagsErr := parseAudioTags(f.Path)
 		var trackNum, discNum int
 		var tagTitle, tagArtist, tagAlbum, tagGenre, tagYear string
 		if tags != nil {
@@ -795,6 +800,8 @@ func parseMetadataForGroup(db *sql.DB, groupFiles []FileItem, mediaType, itemPat
 			tagYear = tags.Year
 			trackNum = tags.Track
 			discNum = tags.Disc
+		} else if tagsErr != nil {
+			log.Printf("[Scanner] [%s] Parsing audio tags failed: %v", itemPath, tagsErr)
 		}
 
 		afObj := map[string]interface{}{
@@ -908,10 +915,14 @@ func parseMetadataForGroup(db *sql.DB, groupFiles []FileItem, mediaType, itemPat
 		// Parse metadata from ebook using internal/metadata
 		var parsed *metadata.EbookMetadata
 		var err error
+		log.Printf("[Scanner] [%s] Extracting ebook metadata from: %s", itemPath, eb.Path)
 		if strings.ToLower(eb.Extension) == ".epub" {
 			parsed, err = metadata.ExtractEpubMetadata(context.Background(), eb.Path)
 		} else if ext := strings.ToLower(eb.Extension); ext == ".cbz" || ext == ".cbr" || ext == ".pdf" {
 			parsed, err = metadata.ExtractComicMetadata(context.Background(), eb.Path)
+		}
+		if err != nil {
+			log.Printf("[Scanner] [%s] Extracting ebook metadata failed: %v", itemPath, err)
 		}
 		if err == nil && parsed != nil {
 			if meta.Title == "" && parsed.Title != "" {
@@ -951,6 +962,7 @@ func parseMetadataForGroup(db *sql.DB, groupFiles []FileItem, mediaType, itemPat
 		if meta.CoverPath == "" {
 			destCover := filepath.Join(filepath.Dir(eb.Path), "cover.jpg")
 			var extractErr error
+			log.Printf("[Scanner] [%s] Extracting ebook cover from: %s to %s", itemPath, eb.Path, destCover)
 			if strings.ToLower(eb.Extension) == ".epub" {
 				extractErr = metadata.ExtractEpubCover(context.Background(), eb.Path, destCover)
 			} else if ext := strings.ToLower(eb.Extension); ext == ".cbz" || ext == ".cbr" || ext == ".pdf" {
@@ -958,11 +970,14 @@ func parseMetadataForGroup(db *sql.DB, groupFiles []FileItem, mediaType, itemPat
 			}
 			if extractErr == nil {
 				meta.CoverPath = destCover
+			} else {
+				log.Printf("[Scanner] [%s] Extracting ebook cover failed: %v", itemPath, extractErr)
 			}
 		}
 	}
 
 	if opfFile != "" {
+		log.Printf("[Scanner] [%s] Parsing OPF file: %s", itemPath, opfFile)
 		if opf, err := parseOPFFile(opfFile); err == nil {
 			if len(opf.Metadata.Title) > 0 {
 				meta.Title = opf.Metadata.Title[0]
@@ -1010,10 +1025,13 @@ func parseMetadataForGroup(db *sql.DB, groupFiles []FileItem, mediaType, itemPat
 					meta.ASIN = id.Value
 				}
 			}
+		} else {
+			log.Printf("[Scanner] [%s] Parsing OPF file failed: %v", itemPath, err)
 		}
 	}
 
 	if nfoFile != "" {
+		log.Printf("[Scanner] [%s] Parsing NFO file: %s", itemPath, nfoFile)
 		if nfo, err := parseNFOFile(nfoFile); err == nil {
 			if nfo.Title != "" {
 				meta.Title = nfo.Title
@@ -1057,20 +1075,28 @@ func parseMetadataForGroup(db *sql.DB, groupFiles []FileItem, mediaType, itemPat
 			if nfo.Description != "" {
 				meta.Description = nfo.Description
 			}
+		} else {
+			log.Printf("[Scanner] [%s] Parsing NFO file failed: %v", itemPath, err)
 		}
 	}
 
 	if descFile != "" {
+		log.Printf("[Scanner] [%s] Reading description file: %s", itemPath, descFile)
 		if data, err := os.ReadFile(descFile); err == nil && len(data) > 0 {
 			meta.Description = strings.TrimSpace(string(data))
+		} else if err != nil {
+			log.Printf("[Scanner] [%s] Reading description file failed: %v", itemPath, err)
 		}
 	}
 	if readerFile != "" {
+		log.Printf("[Scanner] [%s] Reading reader file: %s", itemPath, readerFile)
 		if data, err := os.ReadFile(readerFile); err == nil && len(data) > 0 {
 			lines := strings.Split(string(data), "\n")
 			if len(lines) > 0 && strings.TrimSpace(lines[0]) != "" {
 				meta.Narrators = parseNameString(strings.TrimSpace(lines[0]))
 			}
+		} else if err != nil {
+			log.Printf("[Scanner] [%s] Reading reader file failed: %v", itemPath, err)
 		}
 	}
 
@@ -1168,6 +1194,7 @@ func ScanLibrary(db *sql.DB, libraryID string) error {
 				isFile = false
 			}
 
+			log.Printf("[Scanner] Processing grouped item: %s (%d files, isFile: %t)", itemPath, len(groupFiles), isFile)
 			foundPaths = append(foundPaths, itemPath)
 
 			var maxMtime, maxCtime int64
@@ -1211,6 +1238,8 @@ func ScanLibrary(db *sql.DB, libraryID string) error {
 					if err != nil {
 						log.Printf("[Scanner] Error updating existing item at %s: %v", itemPath, err)
 					}
+				} else {
+					log.Printf("[Scanner] Item %s mtime unchanged (%d), skipping rescan", itemPath, maxMtime)
 				}
 			}
 		}
@@ -1259,6 +1288,7 @@ func scanNewLibraryItem(db *sql.DB, libraryID, folderID, itemPath string, groupF
 	mediaID := uuidStr()
 	nowStr := time.Now().Format("2006-01-02 15:04:05.000")
 
+	log.Printf("[Scanner] [%s] scanNewLibraryItem: Beginning transaction", itemPath)
 	tx, err := db.Begin()
 	if err != nil {
 		return err
@@ -1275,6 +1305,7 @@ func scanNewLibraryItem(db *sql.DB, libraryID, folderID, itemPath string, groupF
 		}
 	}
 
+	log.Printf("[Scanner] [%s] scanNewLibraryItem: Parsing metadata", itemPath)
 	meta := parseMetadataForGroup(db, groupFiles, mediaType, itemPath, itemRelPath, audiobooksOnly)
 
 	var title, authorNamesFirstLast, authorNamesLastFirst string
@@ -1342,11 +1373,13 @@ func scanNewLibraryItem(db *sql.DB, libraryID, folderID, itemPath string, groupF
 		addCol("updatedAt", nowStr)
 
 		query := fmt.Sprintf("INSERT INTO books (%s) VALUES (%s)", strings.Join(colNames, ", "), strings.Join(placeholders, ", "))
+		log.Printf("[Scanner] [%s] scanNewLibraryItem: Inserting into books table", itemPath)
 		_, err = tx.Exec(query, args...)
 		if err != nil {
 			return err
 		}
 
+		log.Printf("[Scanner] [%s] scanNewLibraryItem: Inserting authors", itemPath)
 		for _, author := range meta.Authors {
 			authorID := uuidStr()
 			lastFirst := nameToLastFirst(author)
@@ -1361,6 +1394,7 @@ func scanNewLibraryItem(db *sql.DB, libraryID, folderID, itemPath string, groupF
 		}
 
 		if meta.SeriesName != "" {
+			log.Printf("[Scanner] [%s] scanNewLibraryItem: Inserting series", itemPath)
 			seriesID := uuidStr()
 			_ = insertSeries(tx, seriesID, meta.SeriesName, libraryID)
 
@@ -1420,11 +1454,13 @@ func scanNewLibraryItem(db *sql.DB, libraryID, folderID, itemPath string, groupF
 		addCol("updatedAt", nowStr)
 
 		query := fmt.Sprintf("INSERT INTO podcasts (%s) VALUES (%s)", strings.Join(colNames, ", "), strings.Join(placeholders, ", "))
+		log.Printf("[Scanner] [%s] scanNewLibraryItem: Inserting into podcasts table", itemPath)
 		_, err = tx.Exec(query, args...)
 		if err != nil {
 			return err
 		}
 
+		log.Printf("[Scanner] [%s] scanNewLibraryItem: Inserting podcast episodes", itemPath)
 		for _, ep := range meta.PodcastEpisodes {
 			audioFileJSON, _ := json.Marshal(ep.AudioFile)
 
@@ -1495,15 +1531,18 @@ func scanNewLibraryItem(db *sql.DB, libraryID, folderID, itemPath string, groupF
 	addColLI("titleIgnorePrefix", titleIgnorePrefix)
 
 	queryLI := fmt.Sprintf("INSERT INTO libraryItems (%s) VALUES (%s)", strings.Join(colNamesLI, ", "), strings.Join(placeholdersLI, ", "))
+	log.Printf("[Scanner] [%s] scanNewLibraryItem: Inserting into libraryItems table", itemPath)
 	_, err = tx.Exec(queryLI, argsLI...)
 	if err != nil {
 		return err
 	}
 
+	log.Printf("[Scanner] [%s] scanNewLibraryItem: Committing transaction", itemPath)
 	err = tx.Commit()
 	if err != nil {
 		return err
 	}
+	log.Printf("[Scanner] [%s] scanNewLibraryItem: Transaction committed successfully", itemPath)
 
 	if SocketAuth != nil {
 		if minItem, err := GetLibraryItemMinifiedByID(db, itemID); err == nil {
@@ -1521,6 +1560,7 @@ func scanExistingLibraryItem(db *sql.DB, itemID, libraryID, folderID, itemPath s
 		return err
 	}
 
+	log.Printf("[Scanner] [%s] scanExistingLibraryItem: Beginning transaction", itemPath)
 	tx, err := db.Begin()
 	if err != nil {
 		return err
@@ -1539,6 +1579,7 @@ func scanExistingLibraryItem(db *sql.DB, itemID, libraryID, folderID, itemPath s
 		}
 	}
 
+	log.Printf("[Scanner] [%s] scanExistingLibraryItem: Parsing metadata", itemPath)
 	meta := parseMetadataForGroup(db, groupFiles, mediaType, itemPath, itemRelPath, audiobooksOnly)
 
 	var title, authorNamesFirstLast, authorNamesLastFirst string
@@ -1601,11 +1642,13 @@ func scanExistingLibraryItem(db *sql.DB, itemID, libraryID, folderID, itemPath s
 
 		args = append(args, mediaID)
 		query := fmt.Sprintf("UPDATE books SET %s WHERE id = ?", strings.Join(setStmts, ", "))
+		log.Printf("[Scanner] [%s] scanExistingLibraryItem: Updating books table", itemPath)
 		_, err = tx.Exec(query, args...)
 		if err != nil {
 			return err
 		}
 
+		log.Printf("[Scanner] [%s] scanExistingLibraryItem: Updating authors", itemPath)
 		if tableExistsTx(tx, "bookAuthors") {
 			_, _ = tx.Exec("DELETE FROM bookAuthors WHERE bookId = ?", mediaID)
 		}
@@ -1622,6 +1665,7 @@ func scanExistingLibraryItem(db *sql.DB, itemID, libraryID, folderID, itemPath s
 			_ = insertBookAuthor(tx, mediaID, authorID)
 		}
 
+		log.Printf("[Scanner] [%s] scanExistingLibraryItem: Updating series", itemPath)
 		if tableExistsTx(tx, "bookSeries") {
 			_, _ = tx.Exec("DELETE FROM bookSeries WHERE bookId = ?", mediaID)
 		}
@@ -1670,11 +1714,13 @@ func scanExistingLibraryItem(db *sql.DB, itemID, libraryID, folderID, itemPath s
 
 		args = append(args, mediaID)
 		query := fmt.Sprintf("UPDATE podcasts SET %s WHERE id = ?", strings.Join(setStmts, ", "))
+		log.Printf("[Scanner] [%s] scanExistingLibraryItem: Updating podcasts table", itemPath)
 		_, err = tx.Exec(query, args...)
 		if err != nil {
 			return err
 		}
 
+		log.Printf("[Scanner] [%s] scanExistingLibraryItem: Updating podcast episodes", itemPath)
 		if tableExistsTx(tx, "podcastEpisodes") {
 			_, _ = tx.Exec("DELETE FROM podcastEpisodes WHERE podcastId = ?", mediaID)
 		}
@@ -1735,15 +1781,18 @@ func scanExistingLibraryItem(db *sql.DB, itemID, libraryID, folderID, itemPath s
 
 	argsLI = append(argsLI, itemID)
 	queryLI := fmt.Sprintf("UPDATE libraryItems SET %s WHERE id = ?", strings.Join(setStmtsLI, ", "))
+	log.Printf("[Scanner] [%s] scanExistingLibraryItem: Updating libraryItems table", itemPath)
 	_, err = tx.Exec(queryLI, argsLI...)
 	if err != nil {
 		return err
 	}
 
+	log.Printf("[Scanner] [%s] scanExistingLibraryItem: Committing transaction", itemPath)
 	err = tx.Commit()
 	if err != nil {
 		return err
 	}
+	log.Printf("[Scanner] [%s] scanExistingLibraryItem: Transaction committed successfully", itemPath)
 
 	if SocketAuth != nil {
 		if minItem, err := GetLibraryItemMinifiedByID(db, itemID); err == nil {
@@ -1984,7 +2033,6 @@ func EmitLibraryItemsEvent(evt string, item *LibraryItemMinifiedJSON) {
 
 func handleScanLibrary(db *sql.DB, libraryID string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[Go] POST /api/libraries/%s/scan", libraryID)
 		userSess := r.Context().Value(UserContextKey).(*UserSession)
 		if userSess.Type != "root" && userSess.Type != "admin" {
 			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)

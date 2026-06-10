@@ -52,6 +52,8 @@ type SocketAuthority struct {
 	io               *socket.Server
 	activeSearches   map[string]context.CancelFunc
 	activeSearchLock sync.Mutex
+	logListeners     map[string]int
+	logListenersMu   sync.RWMutex
 }
 
 // SocketAuth is the global reference to the socket authority
@@ -63,6 +65,7 @@ func NewSocketAuthority(db *sql.DB) *SocketAuthority {
 		clients:        make(map[string]*SocketClient),
 		db:             db,
 		activeSearches: make(map[string]context.CancelFunc),
+		logListeners:   make(map[string]int),
 	}
 }
 
@@ -192,6 +195,10 @@ func (sa *SocketAuthority) RemoveClient(socketID string) {
 		delete(sa.clients, socketID)
 	}
 	sa.mu.Unlock()
+
+	sa.logListenersMu.Lock()
+	delete(sa.logListeners, socketID)
+	sa.logListenersMu.Unlock()
 
 	if exists && client.User != nil {
 		log.Printf("[SocketAuthority] User Offline %s", client.User.Username)
@@ -574,9 +581,23 @@ func InitSocketAuthority(db *sql.DB) http.Handler {
 			if !sa.RequireAdminSocket(client, "set_log_listener") {
 				return
 			}
+			level := 2 // Default: Info
+			if len(args) > 0 {
+				if val, ok := args[0].(float64); ok {
+					level = int(val)
+				} else if val, ok := args[0].(int); ok {
+					level = val
+				}
+			}
+			sa.logListenersMu.Lock()
+			sa.logListeners[string(client.Id())] = level
+			sa.logListenersMu.Unlock()
 		})
 
 		client.On("remove_log_listener", func(args ...any) {
+			sa.logListenersMu.Lock()
+			delete(sa.logListeners, string(client.Id()))
+			sa.logListenersMu.Unlock()
 		})
 
 		// message_all_users
@@ -619,4 +640,21 @@ func InitSocketAuthority(db *sql.DB) http.Handler {
 	})
 
 	return io.ServeHandler(nil)
+}
+
+// BroadcastLog sends a log message to all connected clients registered for this log level or lower
+func (sa *SocketAuthority) BroadcastLog(msg LogMessage) {
+	sa.logListenersMu.RLock()
+	defer sa.logListenersMu.RUnlock()
+
+	sa.mu.RLock()
+	defer sa.mu.RUnlock()
+
+	for socketID, minLevel := range sa.logListeners {
+		if msg.Level >= minLevel {
+			if client, ok := sa.clients[socketID]; ok && client.Socket != nil {
+				client.Socket.Emit("log", msg)
+			}
+		}
+	}
 }
