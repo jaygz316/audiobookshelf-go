@@ -389,12 +389,30 @@ export default {
       const tocTree = []
 
       const resolveURL = (url, relativeTo) => {
-        // see https://github.com/futurepress/epub.js/issues/1084
-        // HACK-ish: abuse the URL API a little to resolve the path
-        // the base needs to be a valid URL, or it will throw a TypeError,
-        // so we just set a random base URI and remove it later
-        const base = 'https://example.invalid/'
-        return new URL(url, base + relativeTo).href.replace(base, '')
+        if (/^https?:\/\//i.test(url)) return url
+
+        if (url.startsWith('/')) {
+          url = url.substring(1)
+          relativeTo = ''
+        } else if (/^[#?]/.test(url)) {
+          return relativeTo + url
+        }
+
+        const relativeParts = relativeTo ? relativeTo.split('/') : []
+        const urlParts = url.split('/')
+
+        if (relativeParts.length > 0) relativeParts.pop()
+
+        for (const part of urlParts) {
+          if (part === '.') continue
+          if (part === '..') {
+            if (relativeParts.length > 0) relativeParts.pop()
+          } else {
+            relativeParts.push(part)
+          }
+        }
+
+        return relativeParts.join('/')
       }
 
       const basePath = this.book.packaging.navPath || this.book.packaging.ncxPath
