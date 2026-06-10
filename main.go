@@ -64,6 +64,9 @@ func getTokenSecret(db *sql.DB) string {
 	if cachedSecret != "" {
 		return cachedSecret
 	}
+	if db == nil {
+		return ""
+	}
 	settings, err := GetServerSettings(db)
 	if err == nil && settings != nil && settings.TokenSecret != "" {
 		cachedSecret = settings.TokenSecret
@@ -920,7 +923,11 @@ func setupHandler(db *sql.DB, cfg *Config, dbConnected bool, appRoot string, ver
 			return
 		}
 		globalOIDCHandlerMu.Lock()
-		globalOIDCHandler = auth.NewOIDCHandler(s)
+		if globalOIDCHandler == nil {
+			globalOIDCHandler = auth.NewOIDCHandler(s, nil)
+		} else {
+			globalOIDCHandler.UpdateSettings(s)
+		}
 		globalOIDCHandlerMu.Unlock()
 		globalOIDCHandler.HandleLogin(w, r)
 	})

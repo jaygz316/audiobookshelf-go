@@ -23,9 +23,6 @@ var (
 )
 
 func init() {
-	// Bypass loopback blocking in safeurl for testing
-	safeClient = http.DefaultClient
-
 	// Generate RSA keypair for JWT signing
 	var err error
 	testPrivKey, err = rsa.GenerateKey(rand.Reader, 2048)
@@ -144,7 +141,7 @@ func TestHandleLogin_Web(t *testing.T) {
 		ClientID:     "test-client-id",
 		ClientSecret: "test-client-secret",
 	}
-	h := NewOIDCHandler(settings)
+	h := NewOIDCHandler(settings, http.DefaultClient)
 
 	req := httptest.NewRequest("GET", "/auth/openid/login", nil)
 	req.Host = "example.com"
@@ -231,7 +228,7 @@ func TestHandleLogin_Web_WithState(t *testing.T) {
 		ClientID:     "test-client-id",
 		ClientSecret: "test-client-secret",
 	}
-	h := NewOIDCHandler(settings)
+	h := NewOIDCHandler(settings, http.DefaultClient)
 
 	// In web flow, sending a state query parameter on login is an error
 	req := httptest.NewRequest("GET", "/auth/openid/login?state=user-provided-state", nil)
@@ -254,7 +251,7 @@ func TestHandleLogin_Web_InvalidResponseType(t *testing.T) {
 		ClientID:     "test-client-id",
 		ClientSecret: "test-client-secret",
 	}
-	h := NewOIDCHandler(settings)
+	h := NewOIDCHandler(settings, http.DefaultClient)
 
 	req := httptest.NewRequest("GET", "/auth/openid/login?response_type=token", nil)
 	rec := httptest.NewRecorder()
@@ -277,7 +274,7 @@ func TestHandleLogin_Mobile_Success(t *testing.T) {
 		ClientSecret:       "test-client-secret",
 		MobileRedirectURIs: []string{"audiobookshelf://oauth", "another://uri"},
 	}
-	h := NewOIDCHandler(settings)
+	h := NewOIDCHandler(settings, http.DefaultClient)
 
 	reqURL := "/auth/openid/login?response_type=code&redirect_uri=audiobookshelf://oauth&code_challenge=challenge123&code_challenge_method=S256&state=mobile-state"
 	req := httptest.NewRequest("GET", reqURL, nil)
@@ -332,7 +329,7 @@ func TestHandleLogin_Mobile_WildcardRedirect(t *testing.T) {
 		ClientSecret:       "test-client-secret",
 		MobileRedirectURIs: []string{"*"},
 	}
-	h := NewOIDCHandler(settings)
+	h := NewOIDCHandler(settings, http.DefaultClient)
 
 	reqURL := "/auth/openid/login?response_type=code&redirect_uri=arbitrary://uri&code_challenge=challenge123"
 	req := httptest.NewRequest("GET", reqURL, nil)
@@ -356,7 +353,7 @@ func TestHandleLogin_Mobile_InvalidRedirect(t *testing.T) {
 		ClientSecret:       "test-client-secret",
 		MobileRedirectURIs: []string{"audiobookshelf://oauth"},
 	}
-	h := NewOIDCHandler(settings)
+	h := NewOIDCHandler(settings, http.DefaultClient)
 
 	reqURL := "/auth/openid/login?response_type=code&redirect_uri=attacker://uri&code_challenge=challenge123"
 	req := httptest.NewRequest("GET", reqURL, nil)
@@ -380,7 +377,7 @@ func TestHandleLogin_Mobile_MissingChallenge(t *testing.T) {
 		ClientSecret:       "test-client-secret",
 		MobileRedirectURIs: []string{"audiobookshelf://oauth"},
 	}
-	h := NewOIDCHandler(settings)
+	h := NewOIDCHandler(settings, http.DefaultClient)
 
 	reqURL := "/auth/openid/login?response_type=code&redirect_uri=audiobookshelf://oauth"
 	req := httptest.NewRequest("GET", reqURL, nil)
@@ -404,7 +401,7 @@ func TestHandleLogin_Mobile_InvalidChallengeMethod(t *testing.T) {
 		ClientSecret:       "test-client-secret",
 		MobileRedirectURIs: []string{"audiobookshelf://oauth"},
 	}
-	h := NewOIDCHandler(settings)
+	h := NewOIDCHandler(settings, http.DefaultClient)
 
 	reqURL := "/auth/openid/login?response_type=code&redirect_uri=audiobookshelf://oauth&code_challenge=foo&code_challenge_method=plain"
 	req := httptest.NewRequest("GET", reqURL, nil)
@@ -427,7 +424,7 @@ func TestHandleCallback_Web_Success(t *testing.T) {
 		ClientID:     "test-client-id",
 		ClientSecret: "test-client-secret",
 	}
-	h := NewOIDCHandler(settings)
+	h := NewOIDCHandler(settings, http.DefaultClient)
 
 	state := "test-state-123"
 	codeVerifier := "verifier1234567890123456789012345678901234567890"
@@ -479,7 +476,7 @@ func TestHandleCallback_MobileRedirect_Success(t *testing.T) {
 		ClientID:     "test-client-id",
 		ClientSecret: "test-client-secret",
 	}
-	h := NewOIDCHandler(settings)
+	h := NewOIDCHandler(settings, http.DefaultClient)
 
 	state := "mobile-state-123"
 	sess := &oidcSession{
@@ -524,7 +521,7 @@ func TestHandleCallback_MobileExchange_Success(t *testing.T) {
 		ClientID:     "test-client-id",
 		ClientSecret: "test-client-secret",
 	}
-	h := NewOIDCHandler(settings)
+	h := NewOIDCHandler(settings, http.DefaultClient)
 
 	// In this flow, mobile app calls callback endpoint directly with code_verifier
 	reqURL := "/auth/openid/callback?state=dummy-state&code=test-auth-code&code_verifier=xyz123"
@@ -550,7 +547,7 @@ func TestHandleCallback_MissingState(t *testing.T) {
 	settings := OIDCSettings{
 		IssuerURL: "http://example.com",
 	}
-	h := NewOIDCHandler(settings)
+	h := NewOIDCHandler(settings, http.DefaultClient)
 
 	req := httptest.NewRequest("GET", "/auth/openid/callback?code=some-code", nil)
 	rec := httptest.NewRecorder()
@@ -571,7 +568,7 @@ func TestHandleCallback_MobileRedirect_StateMismatch(t *testing.T) {
 	settings := OIDCSettings{
 		IssuerURL: "http://example.com",
 	}
-	h := NewOIDCHandler(settings)
+	h := NewOIDCHandler(settings, http.DefaultClient)
 
 	req := httptest.NewRequest("GET", "/auth/openid/mobile-redirect?state=unknown-state&code=code", nil)
 	rec := httptest.NewRecorder()
@@ -595,7 +592,7 @@ func TestHandleCallback_MobileRedirect_MissingRedirectURI(t *testing.T) {
 	settings := OIDCSettings{
 		IssuerURL: "http://example.com",
 	}
-	h := NewOIDCHandler(settings)
+	h := NewOIDCHandler(settings, http.DefaultClient)
 
 	state := "mobile-state-123"
 	sess := &oidcSession{
@@ -637,7 +634,7 @@ func TestHandleCallback_TokenExchangeFailure(t *testing.T) {
 		ClientID:     "test-client-id",
 		ClientSecret: "test-client-secret",
 	}
-	h := NewOIDCHandler(settings)
+	h := NewOIDCHandler(settings, http.DefaultClient)
 
 	state := "state-123"
 	sess := &oidcSession{
@@ -673,7 +670,7 @@ func TestHandleCallback_GroupClaim_Success(t *testing.T) {
 		ClientSecret: "test-client-secret",
 		GroupClaim:   "groups",
 	}
-	h := NewOIDCHandler(settings)
+	h := NewOIDCHandler(settings, http.DefaultClient)
 
 	state := "state-123"
 	sess := &oidcSession{
@@ -741,7 +738,7 @@ func TestHandleCallback_GroupClaim_Missing(t *testing.T) {
 		ClientSecret: "test-client-secret",
 		GroupClaim:   "non_existent_groups_claim",
 	}
-	h := NewOIDCHandler(settings)
+	h := NewOIDCHandler(settings, http.DefaultClient)
 
 	state := "state-123"
 	sess := &oidcSession{
@@ -771,7 +768,7 @@ func TestHandleLogin_DiscoveryFailure(t *testing.T) {
 	settings := OIDCSettings{
 		IssuerURL: "http://127.0.0.1:0", // Invalid port
 	}
-	h := NewOIDCHandler(settings)
+	h := NewOIDCHandler(settings, http.DefaultClient)
 
 	req := httptest.NewRequest("GET", "/auth/openid/login", nil)
 	rec := httptest.NewRecorder()
@@ -788,7 +785,7 @@ func TestHandleCallback_DiscoveryFailure(t *testing.T) {
 	settings := OIDCSettings{
 		IssuerURL: "http://127.0.0.1:0", // Invalid port
 	}
-	h := NewOIDCHandler(settings)
+	h := NewOIDCHandler(settings, http.DefaultClient)
 
 	req := httptest.NewRequest("GET", "/auth/openid/callback?state=some-state&code=code", nil)
 	rec := httptest.NewRecorder()
@@ -844,7 +841,7 @@ func TestHandleCallback_MissingSub(t *testing.T) {
 		ClientID:     "test-client-id",
 		ClientSecret: "test-client-secret",
 	}
-	h := NewOIDCHandler(settings)
+	h := NewOIDCHandler(settings, http.DefaultClient)
 
 	state := "state-123"
 	sess := &oidcSession{
@@ -909,7 +906,7 @@ func TestHandleCallback_UserInfoMerge(t *testing.T) {
 		ClientID:     "test-client-id",
 		ClientSecret: "test-client-secret",
 	}
-	h := NewOIDCHandler(settings)
+	h := NewOIDCHandler(settings, http.DefaultClient)
 
 	state := "state-123"
 	sess := &oidcSession{
@@ -946,7 +943,7 @@ func TestHandleLogin_SubfolderForRedirectURLs(t *testing.T) {
 		ClientSecret:             "test-client-secret",
 		SubfolderForRedirectURLs: true,
 	}
-	h := NewOIDCHandler(settings)
+	h := NewOIDCHandler(settings, http.DefaultClient)
 
 	req := httptest.NewRequest("GET", "/my-app/auth/openid/login", nil)
 	req.Host = "example.com"
@@ -969,5 +966,29 @@ func TestHandleLogin_SubfolderForRedirectURLs(t *testing.T) {
 	expectedRedirect := "http://example.com/my-app/auth/openid/callback"
 	if q.Get("redirect_uri") != expectedRedirect {
 		t.Errorf("expected redirect_uri %s, got %s", expectedRedirect, q.Get("redirect_uri"))
+	}
+}
+
+func TestOIDCHandler_UpdateSettings(t *testing.T) {
+	settings1 := OIDCSettings{
+		IssuerURL:    "http://example.com",
+		ClientID:     "client-1",
+		ClientSecret: "secret-1",
+	}
+	h := NewOIDCHandler(settings1, http.DefaultClient)
+
+	if h.getSettings().ClientID != "client-1" {
+		t.Errorf("expected ClientID client-1, got %s", h.getSettings().ClientID)
+	}
+
+	settings2 := OIDCSettings{
+		IssuerURL:    "http://example.com",
+		ClientID:     "client-2",
+		ClientSecret: "secret-2",
+	}
+	h.UpdateSettings(settings2)
+
+	if h.getSettings().ClientID != "client-2" {
+		t.Errorf("expected ClientID client-2, got %s", h.getSettings().ClientID)
 	}
 }
