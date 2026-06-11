@@ -1,4 +1,4 @@
-package main
+package handlers
 
 import (
 	"context"
@@ -17,7 +17,8 @@ import (
 	"github.com/doyensec/safeurl"
 	_ "modernc.org/sqlite"
 
-	"audiobookshelf/internal/core")
+	"audiobookshelf/internal/core"
+)
 
 func setupTestDBShared(t *testing.T) *sql.DB {
 	dsn := fmt.Sprintf("file:%s?mode=memory&cache=shared", t.Name())
@@ -675,7 +676,7 @@ func TestUpdateCoverFromURL(t *testing.T) {
 	defer db.Close()
 
 	tempDir := t.TempDir()
-	cfg := &Config{
+	cfg := &core.Config{
 		MetadataPath: tempDir,
 	}
 

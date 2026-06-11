@@ -1,4 +1,4 @@
-package main
+package scanner
 
 import (
 	"database/sql"
@@ -133,7 +133,7 @@ func TestScanLibraryIntegration(t *testing.T) {
 	}
 
 	// Run ScanLibrary
-	err = ScanLibrary(db, libraryID)
+	err = ScanLibrary(db, libraryID, nil)
 	if err != nil {
 		t.Fatalf("ScanLibrary failed: %v", err)
 	}

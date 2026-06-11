@@ -1,4 +1,4 @@
-package main
+package handlers
 
 import (
 	"context"
@@ -14,7 +14,8 @@ import (
 
 	"github.com/google/uuid"
 
-	"audiobookshelf/internal/core")
+	"audiobookshelf/internal/core"
+)
 
 func parseMsFromDBStr(s string) int64 {
 	if s == "" {

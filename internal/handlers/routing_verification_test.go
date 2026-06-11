@@ -1,10 +1,10 @@
-package main
+package handlers
 
 import (
 	"database/sql"
-	"io/fs"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -12,24 +12,23 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 
-	"audiobookshelf/internal/core")
+	"audiobookshelf/internal/core"
+	ihls "audiobookshelf/internal/hls"
+	isocket "audiobookshelf/internal/socket"
+)
 
 func TestRoutingAndEmbeddingDefaultBase(t *testing.T) {
 	// Initialize subFS since main() is not called in test
-	var err error
-	subFS, err = fs.Sub(frontendFS, "frontend")
-	if err != nil {
-		t.Fatalf("Failed to initialize subFS: %v", err)
-	}
+	subFS = os.DirFS("../../frontend")
 
 	// 1. Setup config with default base path (empty string)
-	cfg := &Config{
+	cfg := &core.Config{
 		RouterBasePath: "",
 		ConfigPath:     t.TempDir(),
 		MetadataPath:   t.TempDir(),
 	}
 
-	handler := setupHandler(nil, cfg, false, ".", "2.35.1")
+	handler := SetupHandler(nil, cfg, false, ".", "2.35.1")
 
 	// Test case A: Request index.html directly
 	{
@@ -117,20 +116,16 @@ func TestRoutingAndEmbeddingDefaultBase(t *testing.T) {
 
 func TestRoutingAndEmbeddingCustomBase(t *testing.T) {
 	// Initialize subFS since main() is not called in test
-	var err error
-	subFS, err = fs.Sub(frontendFS, "frontend")
-	if err != nil {
-		t.Fatalf("Failed to initialize subFS: %v", err)
-	}
+	subFS = os.DirFS("../../frontend")
 
 	// 2. Setup config with a custom RouterBasePath
-	cfg := &Config{
+	cfg := &core.Config{
 		RouterBasePath: "/mybase",
 		ConfigPath:     t.TempDir(),
 		MetadataPath:   t.TempDir(),
 	}
 
-	handler := setupHandler(nil, cfg, false, ".", "2.35.1")
+	handler := SetupHandler(nil, cfg, false, ".", "2.35.1")
 
 	// Test case A: Request /mybase/index.html
 	{
@@ -252,13 +247,13 @@ func TestRoutingAndEmbeddingCustomBase(t *testing.T) {
 }
 
 func TestRoutingMeProgressRoutes(t *testing.T) {
-	cfg := &Config{
+	cfg := &core.Config{
 		RouterBasePath: "/audiobookshelf",
 		ConfigPath:     t.TempDir(),
 		MetadataPath:   t.TempDir(),
 	}
 
-	handler := setupHandler(nil, cfg, false, ".", "2.35.1")
+	handler := SetupHandler(nil, cfg, false, ".", "2.35.1")
 
 	// 1. GET /audiobookshelf/api/me/progress/some-id/remove-from-continue-listening
 	// This should hit AuthMiddlewareWrapper which returns 500 Internal Server Error (Database not connected) since db is nil,
@@ -294,7 +289,7 @@ func TestMockHLSRequest(t *testing.T) {
 	defer db.Close()
 
 	globalDB = db
-	streamManager = NewStreamManager()
+	streamManager = ihls.NewStreamManager()
 	metadataPath, _ := filepath.Abs("metadata")
 
 	// Sign token dynamically using database's actual tokenSecret
@@ -317,7 +312,7 @@ func TestMockHLSRequest(t *testing.T) {
 	req := httptest.NewRequest("GET", url, nil)
 	rr := httptest.NewRecorder()
 
-	handler := AuthMiddlewareWrapper(db, serveHLS(metadataPath, streamManager))
+	handler := AuthMiddlewareWrapper(db, ihls.ServeHLS(db, metadataPath, streamManager, isocket.GlobalAuth))
 	handler.ServeHTTP(rr, req)
 
 	t.Logf("Response Code: %d", rr.Code)
@@ -327,4 +322,3 @@ func TestMockHLSRequest(t *testing.T) {
 		t.Logf("Response Body: %s", rr.Body.String())
 	}
 }
-

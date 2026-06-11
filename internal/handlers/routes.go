@@ -1,9 +1,10 @@
-package main
+package handlers
 
 import (
 	"database/sql"
 	"encoding/json"
 	"flag"
+	"io/fs"
 	"log"
 	"net/http"
 	"os"
@@ -14,7 +15,19 @@ import (
 	"time"
 
 	"audiobookshelf/internal/auth"
+	"audiobookshelf/internal/core"
+	idb "audiobookshelf/internal/db"
+	ihls "audiobookshelf/internal/hls"
+	iscanner "audiobookshelf/internal/scanner"
+	isocket "audiobookshelf/internal/socket"
+	iwatcher "audiobookshelf/internal/watcher"
 )
+
+var subFS fs.FS
+
+func SetSubFS(f fs.FS) {
+	subFS = f
+}
 
 func joinPath(basePath, routePath string) string {
 	if basePath == "" {
@@ -41,7 +54,7 @@ func trimBasePath(p, base string) string {
 	return trimmed
 }
 
-func setupHandler(db *sql.DB, cfg *Config, dbConnected bool, appRoot string, version string) http.Handler {
+func SetupHandler(db *sql.DB, cfg *core.Config, dbConnected bool, appRoot string, version string) http.Handler {
 	mux := http.NewServeMux()
 
 	registerBaseRoutes(mux, cfg, db, dbConnected, version)
@@ -57,7 +70,7 @@ func setupHandler(db *sql.DB, cfg *Config, dbConnected bool, appRoot string, ver
 	return BasePathRewriteMiddleware(cfg.RouterBasePath, mux)
 }
 
-func registerBaseRoutes(mux *http.ServeMux, cfg *Config, db *sql.DB, dbConnected bool, version string) {
+func registerBaseRoutes(mux *http.ServeMux, cfg *core.Config, db *sql.DB, dbConnected bool, version string) {
 	dbPath := filepath.Join(cfg.ConfigPath, "absdatabase.sqlite")
 
 	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/ping"), func(w http.ResponseWriter, r *http.Request) {
@@ -75,12 +88,12 @@ func registerBaseRoutes(mux *http.ServeMux, cfg *Config, db *sql.DB, dbConnected
 		log.Printf("[Go] GET /status")
 		if !dbConnected {
 			var reconnectErr error
-			db, reconnectErr = initDB(dbPath)
+			db, reconnectErr = idb.InitDB(dbPath)
 			if reconnectErr == nil {
 				dbConnected = true
 				globalDB = db
-				if SocketAuth != nil {
-					SocketAuth.SetDB(db)
+				if isocket.GlobalAuth != nil {
+					isocket.GlobalAuth.SetDB(db)
 				}
 				log.Printf("Connected to SQLite database on-demand: %s", dbPath)
 				reinitManagers(db)
@@ -93,14 +106,14 @@ func registerBaseRoutes(mux *http.ServeMux, cfg *Config, db *sql.DB, dbConnected
 			return
 		}
 
-		isInit, err := HasRootUser(db)
+		isInit, err := idb.HasRootUser(db)
 		if err != nil {
 			log.Printf("[Status] Failed to check root user: %v", err)
 			http.Error(w, `{"error": "Failed to check status"}`, http.StatusInternalServerError)
 			return
 		}
 
-		settings, err := GetServerSettings(db)
+		settings, err := idb.GetServerSettings(db)
 		if err != nil {
 			log.Printf("[Status] Failed to get server settings: %v", err)
 			http.Error(w, `{"error": "Failed to check status"}`, http.StatusInternalServerError)
@@ -130,7 +143,7 @@ func registerBaseRoutes(mux *http.ServeMux, cfg *Config, db *sql.DB, dbConnected
 	})
 }
 
-func registerAuthAndUserRoutes(mux *http.ServeMux, cfg *Config, db *sql.DB, appRoot string) {
+func registerAuthAndUserRoutes(mux *http.ServeMux, cfg *core.Config, db *sql.DB, appRoot string) {
 	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/login"), func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPost {
 			handleLogin(db)(w, r)
@@ -216,13 +229,13 @@ func registerAuthAndUserRoutes(mux *http.ServeMux, cfg *Config, db *sql.DB, appR
 	})
 }
 
-func registerLibraryRoutes(mux *http.ServeMux, cfg *Config, db *sql.DB) {
+func registerLibraryRoutes(mux *http.ServeMux, cfg *core.Config, db *sql.DB) {
 	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/libraries"), func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[Go] %s /api/libraries", r.Method)
 		if r.Method == http.MethodGet {
-			AuthMiddlewareWrapper(db, http.HandlerFunc(handleGetLibraries(db))).ServeHTTP(w, r)
+			AuthMiddlewareWrapper(db, http.HandlerFunc(HandleGetLibraries(db))).ServeHTTP(w, r)
 		} else if r.Method == http.MethodPost {
-			AuthMiddlewareWrapper(db, http.HandlerFunc(handleCreateLibrary(db))).ServeHTTP(w, r)
+			AuthMiddlewareWrapper(db, http.HandlerFunc(HandleCreateLibrary(db))).ServeHTTP(w, r)
 		} else {
 			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
 		}
@@ -231,7 +244,7 @@ func registerLibraryRoutes(mux *http.ServeMux, cfg *Config, db *sql.DB) {
 	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/libraries/"), handleLibrariesDispatch(db, cfg))
 }
 
-func registerPlaylistCollectionRoutes(mux *http.ServeMux, cfg *Config, db *sql.DB) {
+func registerPlaylistCollectionRoutes(mux *http.ServeMux, cfg *core.Config, db *sql.DB) {
 	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/playlists"), func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
 			AuthMiddlewareWrapper(db, http.HandlerFunc(handleGetPlaylists(db))).ServeHTTP(w, r)
@@ -255,7 +268,7 @@ func registerPlaylistCollectionRoutes(mux *http.ServeMux, cfg *Config, db *sql.D
 	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/collections/"), handleCollectionsDispatch(db, cfg))
 }
 
-func registerShareRoutes(mux *http.ServeMux, cfg *Config, db *sql.DB) {
+func registerShareRoutes(mux *http.ServeMux, cfg *core.Config, db *sql.DB) {
 	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/share/mediaitem"), func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPost {
 			AuthMiddlewareWrapper(db, http.HandlerFunc(handleCreateShare(db))).ServeHTTP(w, r)
@@ -266,7 +279,7 @@ func registerShareRoutes(mux *http.ServeMux, cfg *Config, db *sql.DB) {
 	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/share/mediaitem/"), handleSharesDispatch(db, cfg))
 }
 
-func registerSearchRoutes(mux *http.ServeMux, cfg *Config, db *sql.DB) {
+func registerSearchRoutes(mux *http.ServeMux, cfg *core.Config, db *sql.DB) {
 	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/search/books"), func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
 			AuthMiddlewareWrapper(db, http.HandlerFunc(handleSearchBooks(db))).ServeHTTP(w, r)
@@ -283,7 +296,7 @@ func registerSearchRoutes(mux *http.ServeMux, cfg *Config, db *sql.DB) {
 	})
 }
 
-func registerBackupRoutes(mux *http.ServeMux, cfg *Config, db *sql.DB) {
+func registerBackupRoutes(mux *http.ServeMux, cfg *core.Config, db *sql.DB) {
 	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/backups"), func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
 			AuthMiddlewareWrapper(db, handleGetBackups(db, cfg.MetadataPath)).ServeHTTP(w, r)
@@ -310,7 +323,7 @@ func registerBackupRoutes(mux *http.ServeMux, cfg *Config, db *sql.DB) {
 	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/backups/"), handleBackupsDispatch(db, cfg))
 }
 
-func registerSettingsRoutes(mux *http.ServeMux, cfg *Config, db *sql.DB) {
+func registerSettingsRoutes(mux *http.ServeMux, cfg *core.Config, db *sql.DB) {
 	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/settings"), func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
 			AuthMiddlewareWrapper(db, handleGetServerSettings(db)).ServeHTTP(w, r)
@@ -338,7 +351,7 @@ func registerSettingsRoutes(mux *http.ServeMux, cfg *Config, db *sql.DB) {
 	})
 }
 
-func registerMetadataRoutes(mux *http.ServeMux, cfg *Config, db *sql.DB) {
+func registerMetadataRoutes(mux *http.ServeMux, cfg *core.Config, db *sql.DB) {
 	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/search/providers"), func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
 			AuthMiddlewareWrapper(db, handleGetMetadataProviders(db)).ServeHTTP(w, r)
@@ -364,7 +377,7 @@ func registerMetadataRoutes(mux *http.ServeMux, cfg *Config, db *sql.DB) {
 	})
 }
 
-func registerMockAndFeedRoutes(mux *http.ServeMux, cfg *Config, db *sql.DB) {
+func registerMockAndFeedRoutes(mux *http.ServeMux, cfg *core.Config, db *sql.DB) {
 	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/api-keys"), func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
 			AuthMiddlewareWrapper(db, handleGetApiKeys(db)).ServeHTTP(w, r)
@@ -398,7 +411,7 @@ func registerMockAndFeedRoutes(mux *http.ServeMux, cfg *Config, db *sql.DB) {
 	})
 }
 
-func registerMeRoutes(mux *http.ServeMux, cfg *Config, db *sql.DB) {
+func registerMeRoutes(mux *http.ServeMux, cfg *core.Config, db *sql.DB) {
 	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/me"), func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
 			AuthMiddlewareWrapper(db, handleGetMe(db)).ServeHTTP(w, r)
@@ -409,7 +422,7 @@ func registerMeRoutes(mux *http.ServeMux, cfg *Config, db *sql.DB) {
 	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/me/"), handleMeDispatch(db, cfg))
 }
 
-func registerTagsAndGenresRoutes(mux *http.ServeMux, cfg *Config, db *sql.DB) {
+func registerTagsAndGenresRoutes(mux *http.ServeMux, cfg *core.Config, db *sql.DB) {
 	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/tags"), func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
 			AuthMiddlewareWrapper(db, handleGetAllTags(db)).ServeHTTP(w, r)
@@ -455,7 +468,7 @@ func registerTagsAndGenresRoutes(mux *http.ServeMux, cfg *Config, db *sql.DB) {
 	})
 }
 
-func registerStatsAndFilesystemRoutes(mux *http.ServeMux, cfg *Config, db *sql.DB, appRoot string) {
+func registerStatsAndFilesystemRoutes(mux *http.ServeMux, cfg *core.Config, db *sql.DB, appRoot string) {
 	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/stats/year/"), func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
 			AuthMiddlewareWrapper(db, handleGetAdminStatsForYear(db)).ServeHTTP(w, r)
@@ -512,7 +525,7 @@ func registerStatsAndFilesystemRoutes(mux *http.ServeMux, cfg *Config, db *sql.D
 	})
 }
 
-func registerTasksAndOtherRoutes(mux *http.ServeMux, cfg *Config, db *sql.DB, metadataPath string) {
+func registerTasksAndOtherRoutes(mux *http.ServeMux, cfg *core.Config, db *sql.DB, metadataPath string) {
 	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/tasks"), func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
 			AuthMiddlewareWrapper(db, handleGetTasks(db)).ServeHTTP(w, r)
@@ -577,20 +590,23 @@ func registerTasksAndOtherRoutes(mux *http.ServeMux, cfg *Config, db *sql.DB, me
 		handleOIDCCallback(db)(w, r)
 	})
 
-	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/items/"), handleItemsDispatch(db, cfg))
+	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/items/"), HandleItemsDispatch(db, cfg))
 
-	socketHandler := InitSocketAuthority(db)
+	isocket.GlobalAuth = isocket.NewAuthority(db)
+	socketHandler := isocket.InitSocketAuthority(isocket.GlobalAuth)
 	mux.Handle(joinPath(cfg.RouterBasePath, "/socket.io/"), socketHandler)
 	if cfg.RouterBasePath != "" && cfg.RouterBasePath != "/" {
 		mux.Handle("/socket.io/", socketHandler)
 	}
 
-	InitFSWatcher(db)
+	iwatcher.InitFSWatcher(db, func(db *sql.DB, libraryID string) error {
+		return iscanner.ScanLibrary(db, libraryID, isocket.GlobalAuth)
+	})
 
-	mux.Handle(joinPath(cfg.RouterBasePath, "/hls/"), AuthMiddlewareWrapper(db, serveHLS(metadataPath, streamManager)))
+	mux.Handle(joinPath(cfg.RouterBasePath, "/hls/"), AuthMiddlewareWrapper(db, ihls.ServeHLS(db, metadataPath, streamManager, isocket.GlobalAuth)))
 }
 
-func registerMiscRoutes(mux *http.ServeMux, cfg *Config, db *sql.DB, appRoot string) {
+func registerMiscRoutes(mux *http.ServeMux, cfg *core.Config, db *sql.DB, appRoot string) {
 	registerSettingsRoutes(mux, cfg, db)
 	registerMetadataRoutes(mux, cfg, db)
 	registerMockAndFeedRoutes(mux, cfg, db)
@@ -600,7 +616,7 @@ func registerMiscRoutes(mux *http.ServeMux, cfg *Config, db *sql.DB, appRoot str
 	registerTasksAndOtherRoutes(mux, cfg, db, cfg.MetadataPath)
 }
 
-func registerFallbackRoutes(mux *http.ServeMux, cfg *Config, db *sql.DB, appRoot string) {
+func registerFallbackRoutes(mux *http.ServeMux, cfg *core.Config, db *sql.DB, appRoot string) {
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Path
 		if strings.HasPrefix(path, cfg.RouterBasePath) {
@@ -635,14 +651,14 @@ func handleLibrarySubRouteDispatch(db *sql.DB, w http.ResponseWriter, r *http.Re
 	switch action {
 	case "personalized":
 		if r.Method == http.MethodGet {
-			AuthMiddlewareWrapper(db, http.HandlerFunc(handleGetLibraryPersonalized(db, libraryID))).ServeHTTP(w, r)
+			AuthMiddlewareWrapper(db, http.HandlerFunc(HandleGetLibraryPersonalized(db, libraryID))).ServeHTTP(w, r)
 		} else {
 			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
 		}
 		return true
 	case "items":
 		if r.Method == http.MethodGet {
-			AuthMiddlewareWrapper(db, http.HandlerFunc(handleGetLibraryItems(db, libraryID))).ServeHTTP(w, r)
+			AuthMiddlewareWrapper(db, http.HandlerFunc(HandleGetLibraryItems(db, libraryID))).ServeHTTP(w, r)
 		} else {
 			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
 		}
@@ -691,7 +707,7 @@ func handleLibrarySubRouteDispatch(db *sql.DB, w http.ResponseWriter, r *http.Re
 		return true
 	case "scan":
 		if r.Method == http.MethodPost {
-			AuthMiddlewareWrapper(db, http.HandlerFunc(handleScanLibrary(db, libraryID))).ServeHTTP(w, r)
+			AuthMiddlewareWrapper(db, iscanner.HandleScanLibrary(db, libraryID, isocket.GlobalAuth)).ServeHTTP(w, r)
 		} else {
 			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
 		}
@@ -707,14 +723,14 @@ func handleLibrarySubRouteDispatch(db *sql.DB, w http.ResponseWriter, r *http.Re
 	return false
 }
 
-func handleLibrariesDispatch(db *sql.DB, cfg *Config) http.HandlerFunc {
+func handleLibrariesDispatch(db *sql.DB, cfg *core.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[Go] %s %s", r.Method, r.URL.Path)
 
 		subPath := strings.TrimPrefix(r.URL.Path, joinPath(cfg.RouterBasePath, "/api/libraries/"))
 		if subPath == "" {
 			if r.Method == http.MethodGet {
-				AuthMiddlewareWrapper(db, http.HandlerFunc(handleGetLibraries(db))).ServeHTTP(w, r)
+				AuthMiddlewareWrapper(db, http.HandlerFunc(HandleGetLibraries(db))).ServeHTTP(w, r)
 				return
 			}
 			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
@@ -725,13 +741,13 @@ func handleLibrariesDispatch(db *sql.DB, cfg *Config) http.HandlerFunc {
 		if len(parts) == 1 && parts[0] != "" {
 			libraryID := parts[0]
 			if r.Method == http.MethodGet {
-				AuthMiddlewareWrapper(db, http.HandlerFunc(handleGetLibraryByID(db, libraryID))).ServeHTTP(w, r)
+				AuthMiddlewareWrapper(db, http.HandlerFunc(HandleGetLibraryByID(db, libraryID))).ServeHTTP(w, r)
 				return
 			} else if r.Method == http.MethodPatch {
-				AuthMiddlewareWrapper(db, http.HandlerFunc(handleUpdateLibrary(db, libraryID))).ServeHTTP(w, r)
+				AuthMiddlewareWrapper(db, http.HandlerFunc(HandleUpdateLibrary(db, libraryID))).ServeHTTP(w, r)
 				return
 			} else if r.Method == http.MethodDelete {
-				AuthMiddlewareWrapper(db, http.HandlerFunc(handleDeleteLibrary(db, libraryID))).ServeHTTP(w, r)
+				AuthMiddlewareWrapper(db, http.HandlerFunc(HandleDeleteLibrary(db, libraryID))).ServeHTTP(w, r)
 				return
 			}
 			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
@@ -757,7 +773,7 @@ func handleLibrariesDispatch(db *sql.DB, cfg *Config) http.HandlerFunc {
 	}
 }
 
-func handleMeDispatch(db *sql.DB, cfg *Config) http.HandlerFunc {
+func handleMeDispatch(db *sql.DB, cfg *core.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		subPath := strings.TrimPrefix(r.URL.Path, joinPath(cfg.RouterBasePath, "/api/me/"))
 		parts := strings.Split(subPath, "/")
@@ -815,7 +831,7 @@ func handleMeDispatch(db *sql.DB, cfg *Config) http.HandlerFunc {
 	}
 }
 
-func handleBackupsDispatch(db *sql.DB, cfg *Config) http.HandlerFunc {
+func handleBackupsDispatch(db *sql.DB, cfg *core.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		subPath := strings.TrimPrefix(r.URL.Path, joinPath(cfg.RouterBasePath, "/api/backups/"))
 		parts := strings.Split(subPath, "/")
@@ -865,7 +881,7 @@ func handleBackupsDispatch(db *sql.DB, cfg *Config) http.HandlerFunc {
 	}
 }
 
-func handleItemsDispatch(db *sql.DB, cfg *Config) http.HandlerFunc {
+func HandleItemsDispatch(db *sql.DB, cfg *core.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Path
 		if strings.HasSuffix(path, "/cover") {
@@ -903,7 +919,7 @@ func handleItemsDispatch(db *sql.DB, cfg *Config) http.HandlerFunc {
 			}
 		} else if (len(parts) == 2 || len(parts) == 3) && parts[1] == "play" {
 			if r.Method == http.MethodPost {
-				AuthMiddlewareWrapper(db, handlePlayItem(db, streamManager)).ServeHTTP(w, r)
+				AuthMiddlewareWrapper(db, ihls.HandlePlayItem(db, streamManager)).ServeHTTP(w, r)
 				return
 			}
 		} else if len(parts) == 2 && parts[1] == "cover-from-url" {
@@ -921,7 +937,7 @@ func handleItemsDispatch(db *sql.DB, cfg *Config) http.HandlerFunc {
 	}
 }
 
-func handleAuthorsDispatch(db *sql.DB, cfg *Config) http.HandlerFunc {
+func handleAuthorsDispatch(db *sql.DB, cfg *core.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[Go] %s %s", r.Method, r.URL.Path)
 
@@ -952,7 +968,7 @@ func handleAuthorsDispatch(db *sql.DB, cfg *Config) http.HandlerFunc {
 	}
 }
 
-func handlePlaylistsDispatch(db *sql.DB, cfg *Config) http.HandlerFunc {
+func handlePlaylistsDispatch(db *sql.DB, cfg *core.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		pathWithoutPrefix := trimBasePath(r.URL.Path, cfg.RouterBasePath)
 		id := strings.TrimPrefix(pathWithoutPrefix, "/api/playlists/")
@@ -972,7 +988,7 @@ func handlePlaylistsDispatch(db *sql.DB, cfg *Config) http.HandlerFunc {
 	}
 }
 
-func handleCollectionsDispatch(db *sql.DB, cfg *Config) http.HandlerFunc {
+func handleCollectionsDispatch(db *sql.DB, cfg *core.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		pathWithoutPrefix := trimBasePath(r.URL.Path, cfg.RouterBasePath)
 		id := strings.TrimPrefix(pathWithoutPrefix, "/api/collections/")
@@ -992,7 +1008,7 @@ func handleCollectionsDispatch(db *sql.DB, cfg *Config) http.HandlerFunc {
 	}
 }
 
-func handleSharesDispatch(db *sql.DB, cfg *Config) http.HandlerFunc {
+func handleSharesDispatch(db *sql.DB, cfg *core.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		pathWithoutPrefix := trimBasePath(r.URL.Path, cfg.RouterBasePath)
 		id := strings.TrimPrefix(pathWithoutPrefix, "/api/share/mediaitem/")

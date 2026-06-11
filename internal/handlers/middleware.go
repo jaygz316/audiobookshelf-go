@@ -1,4 +1,4 @@
-package main
+package handlers
 
 import (
 	"context"
@@ -6,13 +6,31 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"regexp"
 	"strings"
+	"sync"
 
 	"github.com/golang-jwt/jwt/v5"
 
 	"audiobookshelf/internal/core"
+	idb "audiobookshelf/internal/db"
 )
+
+// BasePathRewriteMiddleware ensures the request path starts with RouterBasePath.
+func BasePathRewriteMiddleware(routerBasePath string, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !strings.HasPrefix(r.URL.Path, routerBasePath) {
+			r.URL.Path = joinPath(routerBasePath, r.URL.Path)
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+// AuthMiddlewareWrapper wraps the standard AuthMiddleware from auth.go using the DB-derived token secret.
+func AuthMiddlewareWrapper(db *sql.DB, next http.Handler) http.Handler {
+	return AuthMiddleware(db, getTokenSecret(db), next)
+}
 
 var (
 	coverRegex  = regexp.MustCompile(`^/audiobookshelf/api/items/[^/]+/cover$`)
@@ -53,7 +71,6 @@ func AuthMiddleware(db *sql.DB, tokenSecret string, next http.Handler) http.Hand
 		}
 
 		if tokenStr == "" {
-			// Check cookie (refresh token or session token, though Audiobookshelf relies on Bearer/Query)
 			log.Printf("[Auth] Unauthorized: No token found for %s %s", r.Method, r.URL.Path)
 			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
 			return
@@ -80,7 +97,7 @@ func AuthMiddleware(db *sql.DB, tokenSecret string, next http.Handler) http.Hand
 
 		if claims.Type == "api" {
 			// API Key based authentication
-			userSession, authErr = CheckAPIKey(db, claims.KeyID)
+			userSession, authErr = idb.CheckAPIKey(db, claims.KeyID)
 			if authErr != nil {
 				log.Printf("[Auth] API key auth failed: %v", authErr)
 				http.Error(w, fmt.Sprintf(`{"error": "%s"}`, authErr.Error()), http.StatusUnauthorized)
@@ -88,7 +105,7 @@ func AuthMiddleware(db *sql.DB, tokenSecret string, next http.Handler) http.Hand
 			}
 		} else {
 			// Standard JWT authentication
-			userSession, authErr = GetUserByIDOrOldID(db, claims.UserID)
+			userSession, authErr = idb.GetUserByIDOrOldID(db, claims.UserID)
 			if authErr != nil {
 				log.Printf("[Auth] User lookup failed for ID %s: %v", claims.UserID, authErr)
 				http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
@@ -115,10 +132,28 @@ func AuthMiddleware(db *sql.DB, tokenSecret string, next http.Handler) http.Hand
 	})
 }
 
-// trimAPIPath extracts the subpath after the specified API segment, in a router base path agnostic manner.
-func trimAPIPath(path, segment string) string {
-	if idx := strings.Index(path, segment); idx != -1 {
-		return path[idx+len(segment):]
+var tokenSecretCache string
+var tokenSecretCacheMu sync.RWMutex
+
+func getTokenSecret(db *sql.DB) string {
+	if envSecret := os.Getenv("JWT_SECRET_KEY"); envSecret != "" {
+		return envSecret
 	}
-	return strings.TrimPrefix(path, segment)
+	tokenSecretCacheMu.RLock()
+	cached := tokenSecretCache
+	tokenSecretCacheMu.RUnlock()
+	if cached != "" {
+		return cached
+	}
+	if db == nil {
+		return ""
+	}
+	settings, err := idb.GetServerSettings(db)
+	if err == nil && settings != nil && settings.TokenSecret != "" {
+		tokenSecretCacheMu.Lock()
+		tokenSecretCache = settings.TokenSecret
+		tokenSecretCacheMu.Unlock()
+		return settings.TokenSecret
+	}
+	return ""
 }

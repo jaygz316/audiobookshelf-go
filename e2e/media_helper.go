@@ -16,15 +16,15 @@ func locateFFmpeg() string {
 	if path, err := exec.LookPath("ffmpeg"); err == nil {
 		return path
 	}
-	// Try "../ffmpeg" (relative to e2e directory)
-	if _, err := os.Stat("../ffmpeg"); err == nil {
-		if abs, err := filepath.Abs("../ffmpeg"); err == nil {
+	// Try "../dependencies/ffmpeg" (relative to e2e directory)
+	if _, err := os.Stat("../dependencies/ffmpeg"); err == nil {
+		if abs, err := filepath.Abs("../dependencies/ffmpeg"); err == nil {
 			return abs
 		}
 	}
-	// Try "./ffmpeg" (relative to project root)
-	if _, err := os.Stat("./ffmpeg"); err == nil {
-		if abs, err := filepath.Abs("./ffmpeg"); err == nil {
+	// Try "./dependencies/ffmpeg" (relative to project root)
+	if _, err := os.Stat("./dependencies/ffmpeg"); err == nil {
+		if abs, err := filepath.Abs("./dependencies/ffmpeg"); err == nil {
 			return abs
 		}
 	}

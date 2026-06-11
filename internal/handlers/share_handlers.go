@@ -1,4 +1,4 @@
-package main
+package handlers
 
 import (
 	"database/sql"
@@ -11,7 +11,8 @@ import (
 
 	"golang.org/x/crypto/bcrypt"
 
-	"audiobookshelf/internal/core")
+	"audiobookshelf/internal/core"
+)
 
 func handleCreateShare(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {

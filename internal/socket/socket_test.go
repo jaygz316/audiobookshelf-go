@@ -1,4 +1,4 @@
-package main
+package socket
 
 import (
 	"database/sql"
@@ -10,10 +10,56 @@ import (
 	"testing"
 	"time"
 
+	_ "modernc.org/sqlite"
+
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/gorilla/websocket"
 
-	"audiobookshelf/internal/core")
+	"audiobookshelf/internal/core"
+)
+
+var cachedSecret string
+var SocketAuth *Authority
+
+func setupTestDB(t *testing.T) *sql.DB {
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatalf("Failed to open memory db: %v", err)
+	}
+
+	// Create tables
+	queries := []string{
+		`CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT)`,
+		`CREATE TABLE users (id TEXT PRIMARY KEY, username TEXT, type TEXT, isActive INTEGER, permissions TEXT, extraData TEXT)`,
+		`CREATE TABLE apiKeys (id TEXT PRIMARY KEY, isActive INTEGER, expiresAt TEXT, userId TEXT)`,
+		`CREATE TABLE libraries (id TEXT PRIMARY KEY, name TEXT, displayOrder INTEGER, icon TEXT, mediaType TEXT, provider TEXT, lastScan TEXT, lastScanVersion TEXT, settings TEXT, createdAt TEXT, updatedAt TEXT)`,
+		`CREATE TABLE libraryFolders (id TEXT PRIMARY KEY, path TEXT, libraryId TEXT, createdAt TEXT, updatedAt TEXT)`,
+		`CREATE TABLE libraryItems (id TEXT PRIMARY KEY, ino TEXT, libraryId TEXT, path TEXT, relPath TEXT, isFile INTEGER, mtime TEXT, ctime TEXT, birthtime TEXT, createdAt TEXT, updatedAt TEXT, isMissing INTEGER, isInvalid INTEGER, mediaType TEXT, mediaId TEXT, size INTEGER, libraryFolderId TEXT, authorNamesFirstLast TEXT, authorNamesLastFirst TEXT, title TEXT, titleIgnorePrefix TEXT)`,
+		`CREATE TABLE books (id TEXT PRIMARY KEY, title TEXT, titleIgnorePrefix TEXT, subtitle TEXT, publishedYear TEXT, publishedDate TEXT, publisher TEXT, description TEXT, isbn TEXT, asin TEXT, language TEXT, explicit INTEGER, abridged INTEGER, coverPath TEXT, duration REAL, narrators BLOB, audioFiles BLOB, ebookFile BLOB, chapters BLOB, tags BLOB, genres BLOB)`,
+		`CREATE TABLE podcasts (id TEXT PRIMARY KEY, title TEXT, titleIgnorePrefix TEXT, author TEXT, releaseDate TEXT, feedURL TEXT, imageURL TEXT, description TEXT, itunesPageURL TEXT, itunesId TEXT, itunesArtistId TEXT, language TEXT, podcastType TEXT, explicit INTEGER, autoDownloadEpisodes INTEGER, autoDownloadSchedule TEXT, lastEpisodeCheck TEXT, maxEpisodesToKeep INTEGER, maxNewEpisodesToDownload INTEGER, coverPath TEXT, tags BLOB, genres BLOB, numEpisodes INTEGER)`,
+		`CREATE TABLE bookSeries (bookId TEXT, seriesId TEXT, sequence TEXT)`,
+		`CREATE TABLE series (id TEXT PRIMARY KEY, name TEXT)`,
+		`CREATE TABLE mediaProgresses (id TEXT PRIMARY KEY, userId TEXT, mediaItemId TEXT, isFinished INTEGER, currentTime REAL, updatedAt TEXT)`,
+		`CREATE TABLE playbackSessions (id TEXT PRIMARY KEY, userId TEXT, mediaItemId TEXT, mediaItemType TEXT, startTime REAL, libraryId TEXT, extraData TEXT)`,
+		`CREATE TABLE podcastEpisodes (id TEXT PRIMARY KEY, podcastId TEXT, title TEXT, audioFile TEXT)`,
+		`CREATE TABLE playlists (id TEXT PRIMARY KEY, name TEXT NOT NULL, description TEXT, createdAt TEXT, updatedAt TEXT, libraryId TEXT, userId TEXT)`,
+		`CREATE TABLE playlistMediaItems (id TEXT PRIMARY KEY, mediaItemId TEXT, mediaItemType TEXT, "order" INTEGER, createdAt TEXT, playlistId TEXT)`,
+	}
+
+	for _, q := range queries {
+		if _, err := db.Exec(q); err != nil {
+			t.Fatalf("Failed to execute query %q: %v", q, err)
+		}
+	}
+
+	// Insert settings
+	_, err = db.Exec(`INSERT INTO settings (key, value) VALUES ('server-settings', '{"sortingIgnorePrefix": true}')`)
+	if err != nil {
+		t.Fatalf("Failed to insert settings: %v", err)
+	}
+
+	return db
+}
 
 func generateTestToken(userID, username, userType, secret string) (string, error) {
 	claims := &core.AuthClaims{
@@ -99,7 +145,6 @@ func insertTestUser(t *testing.T, db *sql.DB, id, username, uType string, isActi
 	}
 }
 
-
 type SocketEvent struct {
 	Name string
 	Args []interface{}
@@ -169,7 +214,8 @@ func TestSocketAuthAndHandshake(t *testing.T) {
 	cachedSecret = "test-secret-12345"
 	insertTestUser(t, db, "user-root", "rootuser", "root", true, true, true, true, true, false, nil, nil)
 
-	handler := InitSocketAuthority(db)
+	SocketAuth = NewAuthority(db)
+	handler := InitSocketAuthority(SocketAuth)
 	defer SocketAuth.Close()
 
 	server := httptest.NewServer(handler)
@@ -313,7 +359,8 @@ func TestSocketAuthFailed(t *testing.T) {
 
 	cachedSecret = "test-secret-12345"
 
-	handler := InitSocketAuthority(db)
+	SocketAuth = NewAuthority(db)
+	handler := InitSocketAuthority(SocketAuth)
 	defer SocketAuth.Close()
 
 	server := httptest.NewServer(handler)
@@ -368,7 +415,8 @@ func TestPermissionBroadcasting(t *testing.T) {
 	// user3: Regular user, explicit allowed, tag filter TagA only
 	insertTestUser(t, db, "user3", "regular-tag-filtered", "user", true, true, true, true, false, false, nil, []string{"TagA"})
 
-	handler := InitSocketAuthority(db)
+	SocketAuth = NewAuthority(db)
+	handler := InitSocketAuthority(SocketAuth)
 	defer SocketAuth.Close()
 
 	server := httptest.NewServer(handler)

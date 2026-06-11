@@ -1,9 +1,13 @@
-package main
+package handlers
 
 // backup_handlers.go — thin wrapper re-exporting backup HTTP handlers from internal/backup.
 
 import (
+	"log"
+
 	ibackup "audiobookshelf/internal/backup"
+	idb "audiobookshelf/internal/db"
+	isocket "audiobookshelf/internal/socket"
 	"database/sql"
 	"net/http"
 )
@@ -43,8 +47,22 @@ func handleApplyBackup(db *sql.DB, configPath string, metadataPath string, trigg
 	return ibackup.HandleApplyBackup(db, configPath, metadataPath, func(dbPath string) error {
 		return reconnectDB(dbPath)
 	}, triggerReload, func() {
-		if SocketAuth != nil {
-			SocketAuth.BroadcastToAll("backup_applied", nil)
+		if isocket.GlobalAuth != nil {
+			isocket.GlobalAuth.BroadcastToAll("backup_applied", nil)
 		}
 	})
+}
+
+func reconnectDB(dbPath string) error {
+	dbFile, err := idb.InitDB(dbPath)
+	if err != nil {
+		log.Printf("[Apply Backup] Failed to reconnect to restored DB: %v", err)
+		return err
+	}
+	globalDB = dbFile
+	if isocket.GlobalAuth != nil {
+		isocket.GlobalAuth.SetDB(dbFile)
+	}
+	reinitManagers(dbFile)
+	return nil
 }

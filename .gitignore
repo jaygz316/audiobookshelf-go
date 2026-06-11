@@ -16,6 +16,7 @@
 /ffprobe*
 /unicode*
 /libnusqlite3*
+/dependencies/
 *sync-conflict*
 sw.*
 .DS_STORE

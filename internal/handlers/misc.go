@@ -1,4 +1,4 @@
-package main
+package handlers
 
 import (
 	"database/sql"
@@ -14,7 +14,32 @@ import (
 	"strconv"
 	"strings"
 
-	"audiobookshelf/internal/core")
+	"audiobookshelf/internal/core"
+	idb "audiobookshelf/internal/db"
+	"audiobookshelf/internal/logger"
+	isocket "audiobookshelf/internal/socket"
+	"audiobookshelf/internal/utils"
+)
+
+// EmitLibraryItemEvent emits a library item event to all clients via the socket authority.
+func EmitLibraryItemEvent(evt string, item *idb.LibraryItemMinifiedJSON) {
+	if item == nil {
+		return
+	}
+	if isocket.GlobalAuth != nil {
+		isocket.GlobalAuth.BroadcastToAll(evt, item)
+	}
+}
+
+// EmitLibraryItemsEvent emits a library items event to all clients via the socket authority.
+func EmitLibraryItemsEvent(evt string, item *idb.LibraryItemMinifiedJSON) {
+	if item == nil {
+		return
+	}
+	if isocket.GlobalAuth != nil {
+		isocket.GlobalAuth.BroadcastToAll(evt, item)
+	}
+}
 
 // handleGetAllTags returns all unique tags in alphabetical order (case insensitive)
 func handleGetAllTags(db *sql.DB) http.HandlerFunc {
@@ -157,7 +182,7 @@ func handleRenameTag(db *sql.DB) http.HandlerFunc {
 				http.Error(w, "Database scan error", http.StatusInternalServerError)
 				return
 			}
-			if updated, changed := replaceInJSONArray(tagsStr, tagVal, newTagVal); changed {
+			if updated, changed := utils.ReplaceInJSONArray(tagsStr, tagVal, newTagVal); changed {
 				_, err = tx.Exec("UPDATE books SET tags = ? WHERE id = ?", updated, id)
 				if err != nil {
 					log.Printf("[Rename Tag] Update book failed: %v", err)
@@ -189,7 +214,7 @@ func handleRenameTag(db *sql.DB) http.HandlerFunc {
 				http.Error(w, "Database scan error", http.StatusInternalServerError)
 				return
 			}
-			if updated, changed := replaceInJSONArray(tagsStr, tagVal, newTagVal); changed {
+			if updated, changed := utils.ReplaceInJSONArray(tagsStr, tagVal, newTagVal); changed {
 				_, err = tx.Exec("UPDATE podcasts SET tags = ? WHERE id = ?", updated, id)
 				if err != nil {
 					log.Printf("[Rename Tag] Update podcast failed: %v", err)
@@ -288,7 +313,7 @@ func handleDeleteTag(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		tagParam := trimAPIPath(r.URL.Path, "/api/tags/")
+		tagParam := utils.TrimAPIPath(r.URL.Path, "/api/tags/")
 		if tagParam == "" || strings.Contains(tagParam, "/") {
 			http.Error(w, `{"error": "Bad Request"}`, http.StatusBadRequest)
 			return
@@ -329,7 +354,7 @@ func handleDeleteTag(db *sql.DB) http.HandlerFunc {
 				http.Error(w, "Database scan error", http.StatusInternalServerError)
 				return
 			}
-			if updated, changed := removeFromJSONArray(tagsStr, targetTag); changed {
+			if updated, changed := utils.RemoveFromJSONArray(tagsStr, targetTag); changed {
 				_, err = tx.Exec("UPDATE books SET tags = ? WHERE id = ?", updated, id)
 				if err != nil {
 					log.Printf("[Delete Tag] Update book failed: %v", err)
@@ -361,7 +386,7 @@ func handleDeleteTag(db *sql.DB) http.HandlerFunc {
 				http.Error(w, "Database scan error", http.StatusInternalServerError)
 				return
 			}
-			if updated, changed := removeFromJSONArray(tagsStr, targetTag); changed {
+			if updated, changed := utils.RemoveFromJSONArray(tagsStr, targetTag); changed {
 				_, err = tx.Exec("UPDATE podcasts SET tags = ? WHERE id = ?", updated, id)
 				if err != nil {
 					log.Printf("[Delete Tag] Update podcast failed: %v", err)
@@ -567,7 +592,7 @@ func handleRenameGenre(db *sql.DB) http.HandlerFunc {
 				http.Error(w, "Database scan error", http.StatusInternalServerError)
 				return
 			}
-			if updated, changed := replaceInJSONArray(gStr, body.Genre, body.NewGenre); changed {
+			if updated, changed := utils.ReplaceInJSONArray(gStr, body.Genre, body.NewGenre); changed {
 				_, err = tx.Exec("UPDATE books SET genres = ? WHERE id = ?", updated, id)
 				if err != nil {
 					log.Printf("[Rename Genre] Update book failed: %v", err)
@@ -599,7 +624,7 @@ func handleRenameGenre(db *sql.DB) http.HandlerFunc {
 				http.Error(w, "Database scan error", http.StatusInternalServerError)
 				return
 			}
-			if updated, changed := replaceInJSONArray(gStr, body.Genre, body.NewGenre); changed {
+			if updated, changed := utils.ReplaceInJSONArray(gStr, body.Genre, body.NewGenre); changed {
 				_, err = tx.Exec("UPDATE podcasts SET genres = ? WHERE id = ?", updated, id)
 				if err != nil {
 					log.Printf("[Rename Genre] Update podcast failed: %v", err)
@@ -637,7 +662,7 @@ func handleDeleteGenre(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		genreParam := trimAPIPath(r.URL.Path, "/api/genres/")
+		genreParam := utils.TrimAPIPath(r.URL.Path, "/api/genres/")
 		if genreParam == "" || strings.Contains(genreParam, "/") {
 			http.Error(w, `{"error": "Bad Request"}`, http.StatusBadRequest)
 			return
@@ -678,7 +703,7 @@ func handleDeleteGenre(db *sql.DB) http.HandlerFunc {
 				http.Error(w, "Database scan error", http.StatusInternalServerError)
 				return
 			}
-			if updated, changed := removeFromJSONArray(gStr, targetGenre); changed {
+			if updated, changed := utils.RemoveFromJSONArray(gStr, targetGenre); changed {
 				_, err = tx.Exec("UPDATE books SET genres = ? WHERE id = ?", updated, id)
 				if err != nil {
 					log.Printf("[Delete Genre] Update book failed: %v", err)
@@ -710,7 +735,7 @@ func handleDeleteGenre(db *sql.DB) http.HandlerFunc {
 				http.Error(w, "Database scan error", http.StatusInternalServerError)
 				return
 			}
-			if updated, changed := removeFromJSONArray(gStr, targetGenre); changed {
+			if updated, changed := utils.RemoveFromJSONArray(gStr, targetGenre); changed {
 				_, err = tx.Exec("UPDATE podcasts SET genres = ? WHERE id = ?", updated, id)
 				if err != nil {
 					log.Printf("[Delete Genre] Update podcast failed: %v", err)
@@ -778,7 +803,7 @@ func handleGetLoggerData(db *sql.DB) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
-			"currentDailyLogs": GlobalLogBuffer.Get(),
+			"currentDailyLogs": logger.GlobalLogBuffer.Get(),
 		})
 	}
 }
@@ -809,85 +834,10 @@ func handleWatcherUpdate(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-// Helper functions for tags/genres array replacement
-func replaceInJSONArray(jsonStr sql.NullString, oldVal, newVal string) (string, bool) {
-	if !jsonStr.Valid || jsonStr.String == "" || jsonStr.String == "null" {
-		return "[]", false
-	}
-	var arr []string
-	if err := json.Unmarshal([]byte(jsonStr.String), &arr); err != nil {
-		return jsonStr.String, false
-	}
-	found := false
-	newArr := []string{}
-	for _, val := range arr {
-		if val == oldVal {
-			found = true
-			alreadyHasNew := false
-			for _, v := range arr {
-				if v == newVal {
-					alreadyHasNew = true
-					break
-				}
-			}
-			if !alreadyHasNew {
-				newArr = append(newArr, newVal)
-			}
-		} else {
-			newArr = append(newArr, val)
-		}
-	}
-	if !found {
-		return jsonStr.String, false
-	}
-	res, _ := json.Marshal(newArr)
-	return string(res), true
-}
-
-func removeFromJSONArray(jsonStr sql.NullString, valToRemove string) (string, bool) {
-	if !jsonStr.Valid || jsonStr.String == "" || jsonStr.String == "null" {
-		return "[]", false
-	}
-	var arr []string
-	if err := json.Unmarshal([]byte(jsonStr.String), &arr); err != nil {
-		return jsonStr.String, false
-	}
-	found := false
-	newArr := []string{}
-	for _, val := range arr {
-		if val == valToRemove {
-			found = true
-		} else {
-			newArr = append(newArr, val)
-		}
-	}
-	if !found {
-		return jsonStr.String, false
-	}
-	res, _ := json.Marshal(newArr)
-	return string(res), true
-}
-
 type DirectoryInfo struct {
 	Path    string `json:"path"`
 	Dirname string `json:"dirname"`
 	Level   int    `json:"level"`
-}
-
-func isSameOrSubPath(parentPath, childPath string) bool {
-	parentPath = filepath.Clean(parentPath)
-	childPath = filepath.Clean(childPath)
-	if parentPath == childPath {
-		return true
-	}
-	rel, err := filepath.Rel(parentPath, childPath)
-	if err != nil {
-		return false
-	}
-	if rel == "" || rel == "." {
-		return true
-	}
-	return !strings.HasPrefix(rel, "..")
 }
 
 // handleGetFilesystem retrieves POSIX directories in a path
@@ -1024,7 +974,7 @@ func handleCheckPathExists(db *sql.DB) http.HandlerFunc {
 
 		// Check user can access library
 		if !userSess.CanAccessLibrary(libraryID) {
-			log.Printf("[FileSystem] User %s attempting to check path exists for library %s without access", userSess.Username, libraryID)
+			log.Printf("[FileSystem] idb.User %s attempting to check path exists for library %s without access", userSess.Username, libraryID)
 			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
 			return
 		}
@@ -1034,7 +984,7 @@ func handleCheckPathExists(db *sql.DB) http.HandlerFunc {
 		folderPathPOSIX := filepath.ToSlash(body.FolderPath)
 
 		// Ensure filepath is inside library folder (prevents directory traversal)
-		if !isSameOrSubPath(folderPathPOSIX, filePathPOSIX) {
+		if !utils.IsSameOrSubPath(folderPathPOSIX, filePathPOSIX) {
 			log.Printf("[FileSystem] Filepath is not inside library folder: %s", filePathPOSIX)
 			http.Error(w, `{"error": "Invalid path"}`, http.StatusBadRequest)
 			return

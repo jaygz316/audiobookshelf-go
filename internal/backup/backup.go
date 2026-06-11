@@ -432,6 +432,8 @@ func restoreDBFile(configPath, zipPath string) error {
 
 	realDBPath := filepath.Join(configPath, "absdatabase.sqlite")
 	_ = os.Remove(realDBPath)
+	_ = os.Remove(realDBPath + "-wal")
+	_ = os.Remove(realDBPath + "-shm")
 	if err := os.Rename(tempDBPath, realDBPath); err != nil {
 		os.Remove(tempDBPath)
 		return err

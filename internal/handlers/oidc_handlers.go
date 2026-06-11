@@ -1,4 +1,4 @@
-package main
+package handlers
 
 import (
 	"database/sql"
@@ -9,6 +9,7 @@ import (
 	"net/url"
 
 	"audiobookshelf/internal/auth"
+	idb "audiobookshelf/internal/db"
 )
 
 func getOIDCSettings(db *sql.DB) (auth.OIDCSettings, error) {
@@ -98,9 +99,9 @@ func handleOIDCCallback(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		u, err := findUserFromOpenIdUserInfo(r.Context(), db, claims, s.MatchExistingBy)
+		u, err := idb.FindUserFromOpenIdUserInfo(r.Context(), db, claims, s.MatchExistingBy)
 		if err != nil {
-			log.Printf("[OIDC Callback] User match error: %v", err)
+			log.Printf("[OIDC Callback] idb.User match error: %v", err)
 			http.Error(w, err.Error(), http.StatusUnauthorized)
 			return
 		}
@@ -111,15 +112,15 @@ func handleOIDCCallback(db *sql.DB) http.HandlerFunc {
 					http.Error(w, "Auto-registration is disabled and no matching user was found", http.StatusUnauthorized)
 					return
 				}
-				u, err = createUserFromOpenIdUserInfo(r.Context(), db, claims, getTokenSecret(db), mapped)
+				u, err = idb.CreateUserFromOpenIdUserInfo(r.Context(), db, claims, getTokenSecret(db), mapped)
 				if err != nil {
-					log.Printf("[OIDC Callback] User registration failed: %v", err)
+					log.Printf("[OIDC Callback] idb.User registration failed: %v", err)
 					http.Error(w, "Failed to register user", http.StatusInternalServerError)
 					return
 				}
 			} else {
 				if u.Type != mapped {
-					err = updateUserTypeAndToken(r.Context(), db, u, mapped, getTokenSecret(db))
+					err = idb.UpdateUserTypeAndToken(r.Context(), db, u, mapped, getTokenSecret(db))
 					if err != nil {
 						log.Printf("[OIDC Callback] Failed to update user type and token: %v", err)
 						http.Error(w, "Failed to update user type", http.StatusInternalServerError)
@@ -133,9 +134,9 @@ func handleOIDCCallback(db *sql.DB) http.HandlerFunc {
 					http.Error(w, "Auto-registration is disabled and no matching user was found", http.StatusUnauthorized)
 					return
 				}
-				u, err = createUserFromOpenIdUserInfo(r.Context(), db, claims, getTokenSecret(db), "user")
+				u, err = idb.CreateUserFromOpenIdUserInfo(r.Context(), db, claims, getTokenSecret(db), "user")
 				if err != nil {
-					log.Printf("[OIDC Callback] User registration failed: %v", err)
+					log.Printf("[OIDC Callback] idb.User registration failed: %v", err)
 					http.Error(w, "Failed to register user", http.StatusInternalServerError)
 					return
 				}

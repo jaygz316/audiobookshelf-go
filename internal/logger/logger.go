@@ -1,4 +1,4 @@
-package main
+package logger
 
 import (
 	"io"
@@ -11,7 +11,6 @@ import (
 
 // LogMessage is an alias for the type in internal/core.
 type LogMessage = core.LogMessage
-
 
 // LogBuffer is a thread-safe ring buffer for LogMessages
 type LogBuffer struct {
@@ -57,6 +56,9 @@ func (lb *LogBuffer) Get() []LogMessage {
 
 // GlobalLogBuffer stores up to 2000 log lines
 var GlobalLogBuffer = NewLogBuffer(2000)
+
+// LogCallback is a callback to broadcast logs (typically via WebSocket).
+var LogCallback func(LogMessage)
 
 // LogWriter is an io.Writer that intercepts logs, parses them, and stores them in the GlobalLogBuffer
 type LogWriter struct {
@@ -104,8 +106,8 @@ func (w *LogWriter) Write(p []byte) (n int, err error) {
 		}
 
 		GlobalLogBuffer.Add(logMsg)
-		if SocketAuth != nil {
-			SocketAuth.BroadcastLog(logMsg)
+		if LogCallback != nil {
+			LogCallback(logMsg)
 		}
 	}
 	return len(p), nil

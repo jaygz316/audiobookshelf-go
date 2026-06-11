@@ -1,4 +1,4 @@
-package main
+package handlers
 
 import (
 	"database/sql"
@@ -12,7 +12,12 @@ import (
 	"strings"
 	"time"
 
-	"audiobookshelf/internal/core")
+	"audiobookshelf/internal/core"
+	idb "audiobookshelf/internal/db"
+	iscanner "audiobookshelf/internal/scanner"
+	isocket "audiobookshelf/internal/socket"
+	"audiobookshelf/internal/utils"
+)
 
 // AuthorExpandedJSON represents the expanded author object with book count
 type AuthorExpandedJSON struct {
@@ -25,19 +30,6 @@ type AuthorExpandedJSON struct {
 	AddedAt     int64  `json:"addedAt"`
 	UpdatedAt   int64  `json:"updatedAt"`
 	NumBooks    int    `json:"numBooks"`
-}
-
-// GetAuthorImagePath retrieves the imagePath for a specific author
-func GetAuthorImagePath(db *sql.DB, authorID string) (string, error) {
-	var imagePath sql.NullString
-	err := db.QueryRow("SELECT imagePath FROM authors WHERE id = ?", authorID).Scan(&imagePath)
-	if err != nil {
-		return "", err
-	}
-	if !imagePath.Valid {
-		return "", nil
-	}
-	return imagePath.String, nil
 }
 
 // handleGetLibraryAuthors resolves GET /api/libraries/{id}/authors
@@ -95,8 +87,8 @@ func handleGetLibraryAuthors(db *sql.DB, libraryID string) http.HandlerFunc {
 					Asin:        asin.String,
 					Description: description.String,
 					ImagePath:   imagePath.String,
-					AddedAt:     parseEpochMillis(createdAtStr),
-					UpdatedAt:   parseEpochMillis(updatedAtStr),
+					AddedAt:     idb.ParseEpochMillis(createdAtStr),
+					UpdatedAt:   idb.ParseEpochMillis(updatedAtStr),
 					NumBooks:    numBooks,
 				})
 			} else {
@@ -242,8 +234,8 @@ func handleGetLibrarySeries(db *sql.DB, libraryID string) http.HandlerFunc {
 						var bCoverPath, bSequence, bTitleIgnorePrefix sql.NullString
 						var bDuration float64
 						if err := bookRows.Scan(&bLID, &bCoverPath, &bSequence, &bUpdatedAtStr, &bCreatedAtStr, &bDuration, &bTitle, &bTitleIgnorePrefix); err == nil {
-							bAddedAt := parseEpochMillis(bCreatedAtStr)
-							bUpdatedAt := parseEpochMillis(bUpdatedAtStr)
+							bAddedAt := idb.ParseEpochMillis(bCreatedAtStr)
+							bUpdatedAt := idb.ParseEpochMillis(bUpdatedAtStr)
 							totalDuration += bDuration
 							if bAddedAt > lastBookAdded {
 								lastBookAdded = bAddedAt
@@ -259,7 +251,7 @@ func handleGetLibrarySeries(db *sql.DB, libraryID string) http.HandlerFunc {
 								AddedAt:   bAddedAt,
 								Sequence:  bSequence.String,
 								Media: map[string]interface{}{
-									"coverPath": nullIfEmpty(bCoverPath.String),
+									"coverPath": utils.NullIfEmpty(bCoverPath.String),
 									"metadata": map[string]interface{}{
 										"title":             bTitle,
 										"titleIgnorePrefix": bTitleIgnorePrefix.String,
@@ -279,8 +271,8 @@ func handleGetLibrarySeries(db *sql.DB, libraryID string) http.HandlerFunc {
 				list = append(list, SeriesBooksJSON{
 					ID:                   id,
 					Name:                 name,
-					AddedAt:              parseEpochMillis(createdAtStr),
-					UpdatedAt:            parseEpochMillis(updatedAtStr),
+					AddedAt:              idb.ParseEpochMillis(createdAtStr),
+					UpdatedAt:            idb.ParseEpochMillis(updatedAtStr),
 					NameIgnorePrefix:     nameIgnorePrefix.String,
 					NameIgnorePrefixSort: strings.TrimSpace(nameIgnorePrefix.String),
 					Type:                 "series",
@@ -421,9 +413,9 @@ func handleGetLibrarySeriesByID(db *sql.DB, libraryID string, seriesID string) h
 			"id":               id,
 			"name":             name,
 			"nameIgnorePrefix": nameIgnorePrefix.String,
-			"description":      nullIfEmpty(description.String),
-			"addedAt":          parseEpochMillis(createdAtStr),
-			"updatedAt":        parseEpochMillis(updatedAtStr),
+			"description":      utils.NullIfEmpty(description.String),
+			"addedAt":          idb.ParseEpochMillis(createdAtStr),
+			"updatedAt":        idb.ParseEpochMillis(updatedAtStr),
 			"progress": map[string]interface{}{
 				"libraryItemIds":         libraryItemIds,
 				"libraryItemIdsFinished": libraryItemIdsFinished,
@@ -462,11 +454,11 @@ func handleGetAuthorByID(db *sql.DB, authorID string) http.HandlerFunc {
 			"id":          id,
 			"name":        name,
 			"lastFirst":   lastFirst,
-			"asin":        nullIfEmpty(asin.String),
-			"description": nullIfEmpty(description.String),
-			"imagePath":   nullIfEmpty(imagePath.String),
-			"addedAt":     parseEpochMillis(createdAtStr),
-			"updatedAt":   parseEpochMillis(updatedAtStr),
+			"asin":        utils.NullIfEmpty(asin.String),
+			"description": utils.NullIfEmpty(description.String),
+			"imagePath":   utils.NullIfEmpty(imagePath.String),
+			"addedAt":     idb.ParseEpochMillis(createdAtStr),
+			"updatedAt":   idb.ParseEpochMillis(updatedAtStr),
 		}
 
 		if includeItems {
@@ -507,11 +499,11 @@ func handleGetAuthorByID(db *sql.DB, authorID string) http.HandlerFunc {
 							"path":            path,
 							"relPath":         relPath,
 							"isFile":          isFileVal != 0,
-							"mtimeMs":         parseEpochMillis(mtimeStr),
-							"ctimeMs":         parseEpochMillis(ctimeStr),
-							"birthtimeMs":     parseEpochMillis(birthtimeStr),
-							"addedAt":         parseEpochMillis(createdAtStr),
-							"updatedAt":       parseEpochMillis(updatedAtStr),
+							"mtimeMs":         idb.ParseEpochMillis(mtimeStr),
+							"ctimeMs":         idb.ParseEpochMillis(ctimeStr),
+							"birthtimeMs":     idb.ParseEpochMillis(birthtimeStr),
+							"addedAt":         idb.ParseEpochMillis(createdAtStr),
+							"updatedAt":       idb.ParseEpochMillis(updatedAtStr),
 							"isMissing":       isMissingVal != 0,
 							"isInvalid":       isInvalidVal != 0,
 							"mediaType":       mediaType,
@@ -519,7 +511,7 @@ func handleGetAuthorByID(db *sql.DB, authorID string) http.HandlerFunc {
 							"libraryFolderId": folderID.String,
 							"media": map[string]interface{}{
 								"id":        mediaID,
-								"coverPath": nullIfEmpty(coverPath.String),
+								"coverPath": utils.NullIfEmpty(coverPath.String),
 								"tags":      tags,
 								"metadata": map[string]interface{}{
 									"title":             title,
@@ -589,11 +581,11 @@ func handleGetAuthorByID(db *sql.DB, authorID string) http.HandlerFunc {
 										"path":            path,
 										"relPath":         relPath,
 										"isFile":          isFileVal != 0,
-										"mtimeMs":         parseEpochMillis(mtimeStr),
-										"ctimeMs":         parseEpochMillis(ctimeStr),
-										"birthtimeMs":     parseEpochMillis(birthtimeStr),
-										"addedAt":         parseEpochMillis(createdAtStr),
-										"updatedAt":       parseEpochMillis(updatedAtStr),
+										"mtimeMs":         idb.ParseEpochMillis(mtimeStr),
+										"ctimeMs":         idb.ParseEpochMillis(ctimeStr),
+										"birthtimeMs":     idb.ParseEpochMillis(birthtimeStr),
+										"addedAt":         idb.ParseEpochMillis(createdAtStr),
+										"updatedAt":       idb.ParseEpochMillis(updatedAtStr),
 										"isMissing":       isMissingVal != 0,
 										"isInvalid":       isInvalidVal != 0,
 										"mediaType":       mediaType,
@@ -602,7 +594,7 @@ func handleGetAuthorByID(db *sql.DB, authorID string) http.HandlerFunc {
 										"sequence":        sequence.String,
 										"media": map[string]interface{}{
 											"id":        mediaID,
-											"coverPath": nullIfEmpty(coverPath.String),
+											"coverPath": utils.NullIfEmpty(coverPath.String),
 											"tags":      tags,
 											"metadata": map[string]interface{}{
 												"title":             title,
@@ -639,7 +631,7 @@ func handleGetAuthorImage(db *sql.DB, metadataPath string, authorID string) http
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[Go] GET /api/authors/%s/image", authorID)
 
-		imagePath, err := GetAuthorImagePath(db, authorID)
+		imagePath, err := idb.GetAuthorImagePath(db, authorID)
 		if err != nil || imagePath == "" {
 			http.NotFound(w, r)
 			return
@@ -704,11 +696,11 @@ func handleGetLibraryItemByID(db *sql.DB, itemID string) http.HandlerFunc {
 			"path":         path,
 			"relPath":      relPath,
 			"isFile":       isFileVal != 0,
-			"mtimeMs":      parseEpochMillis(mtimeStr),
-			"ctimeMs":      parseEpochMillis(ctimeStr),
-			"birthtimeMs":  parseEpochMillis(birthtimeStr),
-			"addedAt":      parseEpochMillis(createdAtStr),
-			"updatedAt":    parseEpochMillis(updatedAtStr),
+			"mtimeMs":      idb.ParseEpochMillis(mtimeStr),
+			"ctimeMs":      idb.ParseEpochMillis(ctimeStr),
+			"birthtimeMs":  idb.ParseEpochMillis(birthtimeStr),
+			"addedAt":      idb.ParseEpochMillis(createdAtStr),
+			"updatedAt":    idb.ParseEpochMillis(updatedAtStr),
 			"isMissing":    isMissingVal != 0,
 			"isInvalid":    isInvalidVal != 0,
 			"mediaType":    mediaType,
@@ -838,7 +830,7 @@ func handleGetLibraryItemByID(db *sql.DB, itemID string) http.HandlerFunc {
 
 				payload["media"] = map[string]interface{}{
 					"id":            mediaID,
-					"coverPath":     nullIfEmpty(bCoverPath.String),
+					"coverPath":     utils.NullIfEmpty(bCoverPath.String),
 					"tags":          tags,
 					"numTracks":     len(tracks),
 					"numAudioFiles": len(audioFiles),
@@ -853,22 +845,22 @@ func handleGetLibraryItemByID(db *sql.DB, itemID string) http.HandlerFunc {
 					"metadata": map[string]interface{}{
 						"title":             bTitle,
 						"titleIgnorePrefix": bTitleIgnorePrefix.String,
-						"subtitle":          nullIfEmpty(bSubtitle.String),
+						"subtitle":          utils.NullIfEmpty(bSubtitle.String),
 						"authors":           authorsList,
 						"authorName":        authorName,
-						"authorNameLF":      nameToLastFirst(authorName),
+						"authorNameLF":      utils.NameToLastFirst(authorName),
 						"narrators":         narratorNames,
 						"narratorName":      narratorName,
 						"series":            seriesList,
 						"seriesName":        seriesName,
 						"genres":            genres,
-						"publishedYear":     nullIfEmpty(bPublishedYear.String),
-						"publishedDate":     nullIfEmpty(bPublishedDate.String),
-						"publisher":         nullIfEmpty(bPublisher.String),
-						"description":       nullIfEmpty(bDescription.String),
-						"isbn":              nullIfEmpty(bIsbn.String),
-						"asin":              nullIfEmpty(bAsin.String),
-						"language":          nullIfEmpty(bLanguage.String),
+						"publishedYear":     utils.NullIfEmpty(bPublishedYear.String),
+						"publishedDate":     utils.NullIfEmpty(bPublishedDate.String),
+						"publisher":         utils.NullIfEmpty(bPublisher.String),
+						"description":       utils.NullIfEmpty(bDescription.String),
+						"isbn":              utils.NullIfEmpty(bIsbn.String),
+						"asin":              utils.NullIfEmpty(bAsin.String),
+						"language":          utils.NullIfEmpty(bLanguage.String),
 						"explicit":          bExplicit.Valid && bExplicit.Int64 != 0,
 						"abridged":          bAbridged.Valid && bAbridged.Int64 != 0,
 					},
@@ -1052,15 +1044,15 @@ func handleGetLibraryItemByID(db *sql.DB, itemID string) http.HandlerFunc {
 
 				payload["media"] = map[string]interface{}{
 					"id":        mediaID,
-					"coverPath": nullIfEmpty(pCoverPath.String),
+					"coverPath": utils.NullIfEmpty(pCoverPath.String),
 					"tags":      tags,
 					"episodes":  episodes,
 					"metadata": map[string]interface{}{
 						"title":       pTitle.String,
 						"author":      pAuthor.String,
-						"description": nullIfEmpty(pDescription.String),
-						"language":    nullIfEmpty(pLanguage.String),
-						"podcastType": nullIfEmpty(pPodcastType.String),
+						"description": utils.NullIfEmpty(pDescription.String),
+						"language":    utils.NullIfEmpty(pLanguage.String),
+						"podcastType": utils.NullIfEmpty(pPodcastType.String),
 						"explicit":    pExplicit.Valid && pExplicit.Int64 != 0,
 						"genres":      genres,
 					},
@@ -1155,23 +1147,23 @@ func handleUpdateLibraryItemByID(db *sql.DB, itemID string) http.HandlerFunc {
 		}
 
 		var payload struct {
-			Title             string   `json:"title"`
-			Subtitle          string   `json:"subtitle"`
-			Authors           []string `json:"authors"`
-			Narrators         []string `json:"narrators"`
-			SeriesName        string   `json:"seriesName"`
-			SeriesSequence    string   `json:"seriesSequence"`
-			Publisher         string   `json:"publisher"`
-			PublishedYear     string   `json:"publishedYear"`
-			PublishedDate     string   `json:"publishedDate"`
-			Description       string   `json:"description"`
-			Isbn              string   `json:"isbn"`
-			Asin              string   `json:"asin"`
-			Language          string   `json:"language"`
-			Explicit          bool     `json:"explicit"`
-			Abridged          bool     `json:"abridged"`
-			Tags              []string `json:"tags"`
-			Genres            []string `json:"genres"`
+			Title          string   `json:"title"`
+			Subtitle       string   `json:"subtitle"`
+			Authors        []string `json:"authors"`
+			Narrators      []string `json:"narrators"`
+			SeriesName     string   `json:"seriesName"`
+			SeriesSequence string   `json:"seriesSequence"`
+			Publisher      string   `json:"publisher"`
+			PublishedYear  string   `json:"publishedYear"`
+			PublishedDate  string   `json:"publishedDate"`
+			Description    string   `json:"description"`
+			Isbn           string   `json:"isbn"`
+			Asin           string   `json:"asin"`
+			Language       string   `json:"language"`
+			Explicit       bool     `json:"explicit"`
+			Abridged       bool     `json:"abridged"`
+			Tags           []string `json:"tags"`
+			Genres         []string `json:"genres"`
 		}
 
 		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
@@ -1192,7 +1184,7 @@ func handleUpdateLibraryItemByID(db *sql.DB, itemID string) http.HandlerFunc {
 			authorNamesFirstLast := strings.Join(payload.Authors, ", ")
 			var lfs []string
 			for _, a := range payload.Authors {
-				lfs = append(lfs, nameToLastFirst(a))
+				lfs = append(lfs, utils.NameToLastFirst(a))
 			}
 			authorNamesLastFirst := strings.Join(lfs, ", ")
 
@@ -1200,7 +1192,7 @@ func handleUpdateLibraryItemByID(db *sql.DB, itemID string) http.HandlerFunc {
 			tagsJSON, _ := json.Marshal(payload.Tags)
 			genresJSON, _ := json.Marshal(payload.Genres)
 
-			prefixes := getSortingPrefixes(db)
+			prefixes := idb.GetSortingPrefixes(db)
 			titleIgnorePrefix := getTitleIgnorePrefixGo(payload.Title, prefixes)
 
 			_, err = tx.Exec(`
@@ -1213,7 +1205,7 @@ func handleUpdateLibraryItemByID(db *sql.DB, itemID string) http.HandlerFunc {
 				return
 			}
 
-			if tableExistsTx(tx, "bookAuthors") {
+			if idb.TableExistsTx(tx, "bookAuthors") {
 				_, _ = tx.Exec("DELETE FROM bookAuthors WHERE bookId = ?", mediaID)
 			}
 			for _, author := range payload.Authors {
@@ -1221,31 +1213,31 @@ func handleUpdateLibraryItemByID(db *sql.DB, itemID string) http.HandlerFunc {
 				if trimmed == "" {
 					continue
 				}
-				authorID := uuidStr()
-				lastFirst := nameToLastFirst(trimmed)
-				_ = insertAuthor(tx, authorID, trimmed, lastFirst, libraryID)
+				authorID := utils.UUIDStr()
+				lastFirst := utils.NameToLastFirst(trimmed)
+				_ = iscanner.InsertAuthor(tx, authorID, trimmed, lastFirst, libraryID)
 
 				var existingAuthorID string
 				_ = tx.QueryRow("SELECT id FROM authors WHERE name = ? AND libraryId = ?", trimmed, libraryID).Scan(&existingAuthorID)
 				if existingAuthorID != "" {
 					authorID = existingAuthorID
 				}
-				_ = insertBookAuthor(tx, mediaID, authorID)
+				_ = iscanner.InsertBookAuthor(tx, mediaID, authorID)
 			}
 
-			if tableExistsTx(tx, "bookSeries") {
+			if idb.TableExistsTx(tx, "bookSeries") {
 				_, _ = tx.Exec("DELETE FROM bookSeries WHERE bookId = ?", mediaID)
 			}
 			if payload.SeriesName != "" {
-				seriesID := uuidStr()
-				_ = insertSeries(tx, seriesID, payload.SeriesName, libraryID)
+				seriesID := utils.UUIDStr()
+				_ = iscanner.InsertSeries(tx, seriesID, payload.SeriesName, libraryID)
 
 				var existingSeriesID string
 				_ = tx.QueryRow("SELECT id FROM series WHERE name = ? AND libraryId = ?", payload.SeriesName, libraryID).Scan(&existingSeriesID)
 				if existingSeriesID != "" {
 					seriesID = existingSeriesID
 				}
-				_ = insertBookSeries(tx, mediaID, seriesID, payload.SeriesSequence)
+				_ = iscanner.InsertBookSeries(tx, mediaID, seriesID, payload.SeriesSequence)
 			}
 
 			_, err = tx.Exec(`
@@ -1266,7 +1258,7 @@ func handleUpdateLibraryItemByID(db *sql.DB, itemID string) http.HandlerFunc {
 				author = payload.Authors[0]
 			}
 
-			prefixes := getSortingPrefixes(db)
+			prefixes := idb.GetSortingPrefixes(db)
 			titleIgnorePrefix := getTitleIgnorePrefixGo(payload.Title, prefixes)
 
 			_, err = tx.Exec(`
@@ -1296,8 +1288,8 @@ func handleUpdateLibraryItemByID(db *sql.DB, itemID string) http.HandlerFunc {
 			return
 		}
 
-		if SocketAuth != nil {
-			if minItem, err := GetLibraryItemMinifiedByID(db, itemID); err == nil {
+		if isocket.GlobalAuth != nil {
+			if minItem, err := idb.GetLibraryItemMinifiedByID(db, itemID); err == nil {
 				EmitLibraryItemEvent("item_updated", minItem)
 			}
 		}
@@ -1305,21 +1297,6 @@ func handleUpdateLibraryItemByID(db *sql.DB, itemID string) http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/json")
 		w.Write([]byte(`{"success": true}`))
 	}
-}
-
-func getSortingPrefixes(db *sql.DB) []string {
-	var valStr string
-	err := db.QueryRow("SELECT value FROM settings WHERE key = 'server-settings'").Scan(&valStr)
-	if err != nil {
-		return []string{"the", "a"}
-	}
-	var settings struct {
-		SortingPrefixes []string `json:"sortingPrefixes"`
-	}
-	if err := json.Unmarshal([]byte(valStr), &settings); err == nil {
-		return settings.SortingPrefixes
-	}
-	return []string{"the", "a"}
 }
 
 func boolToInt(b bool) int {

@@ -1,4 +1,4 @@
-package main
+package handlers
 
 import (
 	"database/sql"
@@ -8,7 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"audiobookshelf/internal/core")
+	"audiobookshelf/internal/core"
+	idb "audiobookshelf/internal/db"
+)
 
 // handleGetServerSettings maps to GET /api/settings
 func handleGetServerSettings(db *sql.DB) http.HandlerFunc {
@@ -132,7 +134,7 @@ func saveSettings(db *sql.DB, key string, settings map[string]interface{}) error
 	if err != nil {
 		return err
 	}
-	nowStr := timeToDBStr(time.Now())
+	nowStr := idb.TimeToDBStr(time.Now())
 	_, err = db.Exec("INSERT INTO settings (key, value, createdAt, updatedAt) VALUES (?, ?, ?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value, updatedAt=excluded.updatedAt",
 		key, string(newValBytes), nowStr, nowStr)
 	return err
