@@ -65,7 +65,7 @@ func AuthMiddleware(db *sql.DB, tokenSecret string, next http.Handler) http.Hand
 
 		if tokenStr == "" {
 			// Check cookie (refresh token or session token, though Audiobookshelf relies on Bearer/Query)
-			log.Printf("[Auth] Unauthorized: No token found")
+			log.Printf("[Auth] Unauthorized: No token found for %s %s", r.Method, r.URL.Path)
 			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
 			return
 		}
@@ -80,7 +80,7 @@ func AuthMiddleware(db *sql.DB, tokenSecret string, next http.Handler) http.Hand
 		})
 
 		if err != nil || !token.Valid {
-			log.Printf("[Auth] Unauthorized: Invalid JWT signature or expired: %v", err)
+			log.Printf("[Auth] Unauthorized: Invalid JWT signature or expired for %s %s: %v", r.Method, r.URL.Path, err)
 			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
 			return
 		}

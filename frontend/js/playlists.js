@@ -1,6 +1,6 @@
-// frontend/js/playlists.js (Proposed Implementation)
 import { request, resolvePath } from './api.js';
 import { playItem } from './player.js';
+import { loadItemDetails } from './itemDetails.js';
 
 export async function loadPlaylists(libraryId) {
   const container = document.getElementById('bookshelf');
@@ -310,9 +310,9 @@ function renderPlaylistItemsRows(playlist, itemsDetails, libraryId) {
       </div>
     `;
 
-    // Click cover/title plays item
+    // Click cover/title views item details
     li.querySelector('.play-trigger').onclick = () => {
-      playItem(item, 0);
+      loadItemDetails(item.id, libraryId, () => loadPlaylistDetails(playlist.id, libraryId));
     };
 
     // Reorder actions

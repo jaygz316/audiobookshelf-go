@@ -2,38 +2,21 @@
 	"version": "2.0.0",
 	"tasks": [
 		{
-			"path": "client",
-			"type": "npm",
-			"script": "generate",
-			"detail": "nuxt generate",
-			"label": "Build client",
+			"label": "Build Gateway",
+			"type": "shell",
+			"command": "go build -o abs-gateway .",
 			"group": {
 				"kind": "build",
 				"isDefault": true
 			}
 		},
 		{
-			"dependsOn": [
-				"Build client"
-			],
-			"type": "npm",
-			"script": "dev",
-			"detail": "nodemon --watch server index.js",
-			"label": "Run server",
+			"label": "Run Tests",
+			"type": "shell",
+			"command": "go test ./...",
 			"group": {
 				"kind": "test",
 				"isDefault": true
-			}
-		},
-		{
-			"path": "client",
-			"type": "npm",
-			"script": "dev",
-			"detail": "nuxt",
-			"label": "Run Live-reload client",
-			"group": {
-				"kind": "test",
-				"isDefault": false
 			}
 		}
 	]

@@ -218,7 +218,7 @@ function bootstrapApp(payload) {
     onEvent('user_item_progress_updated', (data) => {
       console.log('[Socket] progress updated:', data);
       const activeLibId = getActiveLibraryId();
-      if (activeLibId) {
+      if (activeLibId && isDashboardActive()) {
         loadDashboard(activeLibId);
       }
     });
@@ -226,7 +226,7 @@ function bootstrapApp(payload) {
     onEvent('user_updated', (data) => {
       console.log('[Socket] user updated:', data);
       const activeLibId = getActiveLibraryId();
-      if (activeLibId) {
+      if (activeLibId && isDashboardActive()) {
         loadDashboard(activeLibId);
       }
     });
@@ -245,7 +245,9 @@ function bootstrapApp(payload) {
         const icon = document.getElementById('scan-btn-icon');
         if (icon) icon.classList.remove('animate-spin');
         showToast('Library scan completed', 'success');
-        loadDashboard(libraryId); // refresh
+        if (isDashboardActive()) {
+          loadDashboard(libraryId); // refresh
+        }
       }
     });
   }
@@ -290,4 +292,12 @@ function showToast(message, type = 'info') {
       toast.remove();
     }, 300);
   }, 4000);
+}
+
+function isDashboardActive() {
+  const activeLink = document.querySelector('#siderail-buttons-container a.bg-primary/80');
+  if (!activeLink) return false;
+  const pageName = activeLink.querySelector('p').textContent.trim();
+  const hasDetailsBtn = !!document.getElementById('details-back-btn');
+  return (pageName === 'Home' || pageName === 'Library') && !hasDetailsBtn;
 }
