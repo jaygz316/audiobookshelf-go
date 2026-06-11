@@ -281,6 +281,64 @@ func TestRoutingMeProgressRoutes(t *testing.T) {
 	}
 }
 
+func TestRoutingDocs(t *testing.T) {
+	// Initialize docsFS since main() is not called in test
+	docsFS = os.DirFS("../../docs")
+
+	cfg := &core.Config{
+		RouterBasePath: "/audiobookshelf",
+		ConfigPath:     t.TempDir(),
+		MetadataPath:   t.TempDir(),
+	}
+
+	handler := SetupHandler(nil, cfg, false, ".", "2.35.1")
+
+	// 1. GET /audiobookshelf/docs -> Redirect to /audiobookshelf/docs/
+	{
+		req := httptest.NewRequest("GET", "/audiobookshelf/docs", nil)
+		rr := httptest.NewRecorder()
+		handler.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusMovedPermanently {
+			t.Errorf("Expected 301 Redirect for /audiobookshelf/docs, got %d", rr.Code)
+		}
+		loc := rr.Header().Get("Location")
+		if loc != "/audiobookshelf/docs/" {
+			t.Errorf("Expected redirect Location '/audiobookshelf/docs/', got %q", loc)
+		}
+	}
+
+	// 2. GET /audiobookshelf/docs/ -> Serves index.html
+	{
+		req := httptest.NewRequest("GET", "/audiobookshelf/docs/", nil)
+		rr := httptest.NewRecorder()
+		handler.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusOK {
+			t.Errorf("Expected 200 OK for /audiobookshelf/docs/, got %d. Body: %s", rr.Code, rr.Body.String())
+		}
+		body := rr.Body.String()
+		if !strings.Contains(body, "Audiobookshelf API") {
+			t.Errorf("Expected body to contain 'Audiobookshelf API'")
+		}
+	}
+
+	// 3. GET /audiobookshelf/docs/openapi.json -> Serves openapi.json
+	{
+		req := httptest.NewRequest("GET", "/audiobookshelf/docs/openapi.json", nil)
+		rr := httptest.NewRecorder()
+		handler.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusOK {
+			t.Errorf("Expected 200 OK for openapi.json, got %d. Body: %s", rr.Code, rr.Body.String())
+		}
+		body := rr.Body.String()
+		if !strings.Contains(body, `"openapi"`) {
+			t.Errorf("Expected openapi.json to contain '\"openapi\"'")
+		}
+	}
+}
+
 func TestMockHLSRequest(t *testing.T) {
 	db, err := sql.Open("sqlite", "config/absdatabase.sqlite")
 	if err != nil {

@@ -29,6 +29,12 @@ func SetSubFS(f fs.FS) {
 	subFS = f
 }
 
+var docsFS fs.FS
+
+func SetDocsFS(f fs.FS) {
+	docsFS = f
+}
+
 func joinPath(basePath, routePath string) string {
 	if basePath == "" {
 		basePath = "/"
@@ -65,6 +71,7 @@ func SetupHandler(db *sql.DB, cfg *core.Config, dbConnected bool, appRoot string
 	registerSearchRoutes(mux, cfg, db)
 	registerBackupRoutes(mux, cfg, db)
 	registerMiscRoutes(mux, cfg, db, appRoot)
+	registerDocsRoutes(mux, cfg)
 	registerFallbackRoutes(mux, cfg, db, appRoot)
 
 	return BasePathRewriteMiddleware(cfg.RouterBasePath, mux)
@@ -623,7 +630,7 @@ func registerFallbackRoutes(mux *http.ServeMux, cfg *core.Config, db *sql.DB, ap
 			path = trimBasePath(path, cfg.RouterBasePath)
 		}
 
-		prefixes := []string{"/api/", "/auth/", "/hls/", "/public/", "/feed/", "/status", "/login", "/logout", "/init"}
+		prefixes := []string{"/api/", "/auth/", "/hls/", "/public/", "/feed/", "/status", "/login", "/logout", "/init", "/docs/"}
 		isBackend := false
 		for _, prefix := range prefixes {
 			if strings.HasPrefix(path, prefix) || path == prefix[:len(prefix)-1] {
@@ -1021,5 +1028,22 @@ func handleSharesDispatch(db *sql.DB, cfg *core.Config) http.HandlerFunc {
 		} else {
 			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
 		}
+	}
+}
+
+func registerDocsRoutes(mux *http.ServeMux, cfg *core.Config) {
+	docsPath := joinPath(cfg.RouterBasePath, "/docs")
+	
+	// Redirect /docs to /docs/ for clean trailing slash
+	mux.HandleFunc(docsPath, func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, docsPath+"/", http.StatusMovedPermanently)
+	})
+
+	if docsFS != nil {
+		mux.Handle(docsPath+"/", http.StripPrefix(docsPath+"/", http.FileServer(http.FS(docsFS))))
+	} else {
+		mux.HandleFunc(docsPath+"/", func(w http.ResponseWriter, r *http.Request) {
+			http.Error(w, "Documentation not embedded", http.StatusNotFound)
+		})
 	}
 }

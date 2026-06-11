@@ -28,6 +28,9 @@ import (
 //go:embed frontend
 var frontendFS embed.FS
 
+//go:embed docs
+var docsFS embed.FS
+
 var subFS fs.FS
 
 var cachedSecret string
@@ -83,6 +86,13 @@ func main() {
 	subFS, err = fs.Sub(frontendFS, "frontend")
 	if err != nil {
 		log.Fatalf("Failed to initialize embedded frontend filesystem: %v", err)
+	}
+
+	subDocs, err := fs.Sub(docsFS, "docs")
+	if err == nil {
+		handlers.SetDocsFS(subDocs)
+	} else {
+		log.Printf("Warning: Failed to initialize embedded docs filesystem: %v", err)
 	}
 
 	appRoot, err := os.Getwd()
