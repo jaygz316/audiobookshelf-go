@@ -13,13 +13,14 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-)
+
+	"audiobookshelf/internal/core")
 
 // handleGetAllTags returns all unique tags in alphabetical order (case insensitive)
 func handleGetAllTags(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[Go] GET /api/tags")
-		userSess, ok := r.Context().Value(UserContextKey).(*UserSession)
+		userSess, ok := r.Context().Value(core.UserContextKey).(*core.UserSession)
 		if !ok || !userSess.IsAdminOrUp() {
 			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
 			return
@@ -104,7 +105,7 @@ func handleGetAllTags(db *sql.DB) http.HandlerFunc {
 func handleRenameTag(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[Go] POST /api/tags/rename")
-		userSess, ok := r.Context().Value(UserContextKey).(*UserSession)
+		userSess, ok := r.Context().Value(core.UserContextKey).(*core.UserSession)
 		if !ok || !userSess.IsAdminOrUp() {
 			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
 			return
@@ -281,7 +282,7 @@ func handleRenameTag(db *sql.DB) http.HandlerFunc {
 func handleDeleteTag(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[Go] DELETE %s", r.URL.Path)
-		userSess, ok := r.Context().Value(UserContextKey).(*UserSession)
+		userSess, ok := r.Context().Value(core.UserContextKey).(*core.UserSession)
 		if !ok || !userSess.IsAdminOrUp() {
 			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
 			return
@@ -439,7 +440,7 @@ func handleDeleteTag(db *sql.DB) http.HandlerFunc {
 func handleGetAllGenres(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[Go] GET /api/genres")
-		userSess, ok := r.Context().Value(UserContextKey).(*UserSession)
+		userSess, ok := r.Context().Value(core.UserContextKey).(*core.UserSession)
 		if !ok || !userSess.IsAdminOrUp() {
 			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
 			return
@@ -524,7 +525,7 @@ func handleGetAllGenres(db *sql.DB) http.HandlerFunc {
 func handleRenameGenre(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[Go] POST /api/genres/rename")
-		userSess, ok := r.Context().Value(UserContextKey).(*UserSession)
+		userSess, ok := r.Context().Value(core.UserContextKey).(*core.UserSession)
 		if !ok || !userSess.IsAdminOrUp() {
 			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
 			return
@@ -630,7 +631,7 @@ func handleRenameGenre(db *sql.DB) http.HandlerFunc {
 func handleDeleteGenre(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[Go] DELETE %s", r.URL.Path)
-		userSess, ok := r.Context().Value(UserContextKey).(*UserSession)
+		userSess, ok := r.Context().Value(core.UserContextKey).(*core.UserSession)
 		if !ok || !userSess.IsAdminOrUp() {
 			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
 			return
@@ -738,7 +739,7 @@ func handleDeleteGenre(db *sql.DB) http.HandlerFunc {
 func handleGetAdminStatsForYear(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[Go] GET %s", r.URL.Path)
-		userSess, ok := r.Context().Value(UserContextKey).(*UserSession)
+		userSess, ok := r.Context().Value(core.UserContextKey).(*core.UserSession)
 		if !ok || !userSess.IsAdminOrUp() {
 			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
 			return
@@ -769,7 +770,7 @@ func handleGetAdminStatsForYear(db *sql.DB) http.HandlerFunc {
 func handleGetLoggerData(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[Go] GET /api/logger-data")
-		userSess, ok := r.Context().Value(UserContextKey).(*UserSession)
+		userSess, ok := r.Context().Value(core.UserContextKey).(*core.UserSession)
 		if !ok || !userSess.IsAdminOrUp() {
 			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
 			return
@@ -893,7 +894,7 @@ func isSameOrSubPath(parentPath, childPath string) bool {
 func handleGetFilesystem(appRoot string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[Go] GET /api/filesystem")
-		userSess, ok := r.Context().Value(UserContextKey).(*UserSession)
+		userSess, ok := r.Context().Value(core.UserContextKey).(*core.UserSession)
 		if !ok || !userSess.IsAdminOrUp() {
 			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
 			return
@@ -986,7 +987,7 @@ func handleGetFilesystem(appRoot string) http.HandlerFunc {
 func handleCheckPathExists(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[Go] POST /api/filesystem/pathexists")
-		userSess, ok := r.Context().Value(UserContextKey).(*UserSession)
+		userSess, ok := r.Context().Value(core.UserContextKey).(*core.UserSession)
 		if !ok {
 			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
 			return
@@ -1091,7 +1092,7 @@ func handleCheckPathExists(db *sql.DB) http.HandlerFunc {
 func handleGetTasks(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[Go] GET /api/tasks")
-		userSess, ok := r.Context().Value(UserContextKey).(*UserSession)
+		userSess, ok := r.Context().Value(core.UserContextKey).(*core.UserSession)
 		if !ok || !userSess.IsAdminOrUp() {
 			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
 			return
@@ -1127,7 +1128,7 @@ func handleGetTasks(db *sql.DB) http.HandlerFunc {
 func handleCancelAllTasks(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[Go] POST /api/tasks/cancel-all")
-		userSess, ok := r.Context().Value(UserContextKey).(*UserSession)
+		userSess, ok := r.Context().Value(core.UserContextKey).(*core.UserSession)
 		if !ok || !userSess.IsAdminOrUp() {
 			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
 			return

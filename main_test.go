@@ -13,7 +13,8 @@ import (
 	"testing"
 
 	_ "modernc.org/sqlite"
-)
+
+	"audiobookshelf/internal/core")
 
 func setupTestDB(t *testing.T) *sql.DB {
 	db, err := sql.Open("sqlite", ":memory:")
@@ -75,7 +76,7 @@ func TestGetLibraries(t *testing.T) {
 	req := httptest.NewRequest("GET", "/api/libraries", nil)
 
 	// Inject admin user
-	user := &UserSession{
+	user := &core.UserSession{
 		ID:                 "user1",
 		Username:           "admin",
 		Type:               "admin",
@@ -83,7 +84,7 @@ func TestGetLibraries(t *testing.T) {
 		AccessAllLibraries: true,
 		AccessAllTags:      true,
 	}
-	ctx := context.WithValue(req.Context(), UserContextKey, user)
+	ctx := context.WithValue(req.Context(), core.UserContextKey, user)
 	req = req.WithContext(ctx)
 
 	rr := httptest.NewRecorder()
@@ -122,7 +123,7 @@ func TestGetLibraryByID(t *testing.T) {
 		t.Fatalf("Failed to insert library: %v", err)
 	}
 
-	user := &UserSession{
+	user := &core.UserSession{
 		ID:                 "user1",
 		Username:           "admin",
 		Type:               "admin",
@@ -135,7 +136,7 @@ func TestGetLibraryByID(t *testing.T) {
 	{
 		handler := handleGetLibraryByID(db, "lib1")
 		req := httptest.NewRequest("GET", "/api/libraries/lib1", nil)
-		ctx := context.WithValue(req.Context(), UserContextKey, user)
+		ctx := context.WithValue(req.Context(), core.UserContextKey, user)
 		req = req.WithContext(ctx)
 
 		rr := httptest.NewRecorder()
@@ -165,7 +166,7 @@ func TestGetLibraryByID(t *testing.T) {
 
 		handler := handleGetLibraryByID(db, "lib1")
 		req := httptest.NewRequest("GET", "/api/libraries/lib1?include=filterdata", nil)
-		ctx := context.WithValue(req.Context(), UserContextKey, user)
+		ctx := context.WithValue(req.Context(), core.UserContextKey, user)
 		req = req.WithContext(ctx)
 
 		rr := httptest.NewRecorder()
@@ -230,7 +231,7 @@ func TestGetLibraryItems(t *testing.T) {
 	handler := handleGetLibraryItems(db, "lib1")
 	req := httptest.NewRequest("GET", "/api/libraries/lib1/items?sort=media.metadata.title&desc=0&minified=1", nil)
 
-	user := &UserSession{
+	user := &core.UserSession{
 		ID:                 "user1",
 		Username:           "admin",
 		Type:               "admin",
@@ -238,7 +239,7 @@ func TestGetLibraryItems(t *testing.T) {
 		AccessAllLibraries: true,
 		AccessAllTags:      true,
 	}
-	ctx := context.WithValue(req.Context(), UserContextKey, user)
+	ctx := context.WithValue(req.Context(), core.UserContextKey, user)
 	req = req.WithContext(ctx)
 
 	rr := httptest.NewRecorder()
@@ -286,13 +287,13 @@ func TestCreateLibrary(t *testing.T) {
 	handler := handleCreateLibrary(db)
 	req := httptest.NewRequest("POST", "/api/libraries", bytes.NewBuffer(body))
 
-	user := &UserSession{
+	user := &core.UserSession{
 		ID:       "user1",
 		Username: "admin",
 		Type:     "admin",
 		IsActive: true,
 	}
-	ctx := context.WithValue(req.Context(), UserContextKey, user)
+	ctx := context.WithValue(req.Context(), core.UserContextKey, user)
 	req = req.WithContext(ctx)
 
 	rr := httptest.NewRecorder()
@@ -335,13 +336,13 @@ func TestUpdateLibrary(t *testing.T) {
 	handler := handleUpdateLibrary(db, "lib1")
 	req := httptest.NewRequest("PATCH", "/api/libraries/lib1", bytes.NewBuffer(body))
 
-	user := &UserSession{
+	user := &core.UserSession{
 		ID:       "user1",
 		Username: "admin",
 		Type:     "admin",
 		IsActive: true,
 	}
-	ctx := context.WithValue(req.Context(), UserContextKey, user)
+	ctx := context.WithValue(req.Context(), core.UserContextKey, user)
 	req = req.WithContext(ctx)
 
 	rr := httptest.NewRecorder()
@@ -386,13 +387,13 @@ func TestDeleteLibrary(t *testing.T) {
 	handler := handleDeleteLibrary(db, "lib1")
 	req := httptest.NewRequest("DELETE", "/api/libraries/lib1", nil)
 
-	user := &UserSession{
+	user := &core.UserSession{
 		ID:       "user1",
 		Username: "admin",
 		Type:     "admin",
 		IsActive: true,
 	}
-	ctx := context.WithValue(req.Context(), UserContextKey, user)
+	ctx := context.WithValue(req.Context(), core.UserContextKey, user)
 	req = req.WithContext(ctx)
 
 	rr := httptest.NewRecorder()
@@ -450,7 +451,7 @@ func TestHLSServing(t *testing.T) {
 		PlaylistPath:      filepath.Join(tempDir, "output.m3u8"),
 		FinalPlaylistPath: filepath.Join(tempDir, "final-output.m3u8"),
 		Tracks:            []Track{{Index: 0, Duration: 60.0, Path: "dummy.mp3"}},
-		segmentsCreated:   make(map[int]bool),
+		SegmentsCreated:   make(map[int]bool),
 	}
 
 	dummyPlaylist := getPlaylistStr("output", 60.0, 6.0, "mpegts")
@@ -467,7 +468,7 @@ func TestHLSServing(t *testing.T) {
 
 	sm.AddStream(s)
 
-	user := &UserSession{
+	user := &core.UserSession{
 		ID:                 "user1",
 		Username:           "admin",
 		Type:               "admin",
@@ -477,7 +478,7 @@ func TestHLSServing(t *testing.T) {
 	}
 
 	req := httptest.NewRequest("GET", "/hls/"+streamID+"/output.m3u8", nil)
-	req = req.WithContext(context.WithValue(req.Context(), UserContextKey, user))
+	req = req.WithContext(context.WithValue(req.Context(), core.UserContextKey, user))
 	rr := httptest.NewRecorder()
 
 	handler := serveHLS(t.TempDir(), sm)
@@ -491,7 +492,7 @@ func TestHLSServing(t *testing.T) {
 	}
 
 	req = httptest.NewRequest("GET", "/hls/"+streamID+"/output-0.ts", nil)
-	req = req.WithContext(context.WithValue(req.Context(), UserContextKey, user))
+	req = req.WithContext(context.WithValue(req.Context(), core.UserContextKey, user))
 	rr = httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 
@@ -527,7 +528,7 @@ func TestLoadOrCreateStream(t *testing.T) {
 	sm := NewStreamManager()
 	tempDir := t.TempDir()
 
-	s, err := sm.LoadOrCreateStream("session-1", tempDir)
+	s, err := sm.LoadOrCreateStream(db, "session-1", tempDir, nil)
 	if err != nil {
 		if !strings.Contains(err.Error(), "exec") && !strings.Contains(err.Error(), "failed to start transcode") {
 			t.Errorf("Unexpected error from LoadOrCreateStream: %v", err)
@@ -568,7 +569,7 @@ func TestGetLibraryPersonalized(t *testing.T) {
 	handler := handleGetLibraryPersonalized(db, "lib1")
 	req := httptest.NewRequest("GET", "/api/libraries/lib1/personalized?limit=10", nil)
 
-	user := &UserSession{
+	user := &core.UserSession{
 		ID:                 "user1",
 		Username:           "admin",
 		Type:               "admin",
@@ -576,7 +577,7 @@ func TestGetLibraryPersonalized(t *testing.T) {
 		AccessAllLibraries: true,
 		AccessAllTags:      true,
 	}
-	ctx := context.WithValue(req.Context(), UserContextKey, user)
+	ctx := context.WithValue(req.Context(), core.UserContextKey, user)
 	req = req.WithContext(ctx)
 
 	rr := httptest.NewRecorder()
@@ -643,7 +644,7 @@ func TestPlayItemRoute(t *testing.T) {
 		MetadataPath:   t.TempDir(),
 	}
 
-	user := &UserSession{
+	user := &core.UserSession{
 		ID:                 "user1",
 		Username:           "admin",
 		Type:               "admin",
@@ -656,7 +657,7 @@ func TestPlayItemRoute(t *testing.T) {
 
 	bodyBytes := []byte(`{"startTime": 0.0}`)
 	req := httptest.NewRequest("POST", "/audiobookshelf/api/items/item1/play", bytes.NewBuffer(bodyBytes))
-	req = req.WithContext(context.WithValue(req.Context(), UserContextKey, user))
+	req = req.WithContext(context.WithValue(req.Context(), core.UserContextKey, user))
 
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)

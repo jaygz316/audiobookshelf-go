@@ -11,7 +11,8 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-)
+
+	"audiobookshelf/internal/core")
 
 func TestRoutingAndEmbeddingDefaultBase(t *testing.T) {
 	// Initialize subFS since main() is not called in test
@@ -298,7 +299,7 @@ func TestMockHLSRequest(t *testing.T) {
 
 	// Sign token dynamically using database's actual tokenSecret
 	secret := getTokenSecret(db)
-	claims := &AuthClaims{
+	claims := &core.AuthClaims{
 		UserID:   "743336bf-a4f6-4da2-8a5f-9a1eb3fa74fd",
 		Username: "root",
 		Type:     "root",

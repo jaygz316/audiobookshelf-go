@@ -10,11 +10,12 @@ import (
 	"audiobookshelf/internal/share"
 
 	"golang.org/x/crypto/bcrypt"
-)
+
+	"audiobookshelf/internal/core")
 
 func handleCreateShare(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		userSess := r.Context().Value(UserContextKey).(*UserSession)
+		userSess := r.Context().Value(core.UserContextKey).(*core.UserSession)
 		initManagers(db)
 
 		var req struct {

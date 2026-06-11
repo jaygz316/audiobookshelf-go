@@ -15,7 +15,8 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
-)
+
+	"audiobookshelf/internal/core")
 
 // User represents the full user structure matching the SQLite table
 type User struct {
@@ -359,7 +360,7 @@ func handleInit(db *sql.DB) http.HandlerFunc {
 		}
 
 		userID := uuid.New().String()
-		apiToken := jwt.NewWithClaims(jwt.SigningMethodHS256, &AuthClaims{
+		apiToken := jwt.NewWithClaims(jwt.SigningMethodHS256, &core.AuthClaims{
 			UserID:   userID,
 			Username: username,
 			Type:     "root",
@@ -447,7 +448,7 @@ func handleLogin(db *sql.DB) http.HandlerFunc {
 
 		// Generate access token (expiring)
 		secret := getTokenSecret(db)
-		claims := &AuthClaims{
+		claims := &core.AuthClaims{
 			UserID:   user.ID,
 			Username: user.Username,
 			Type:     "access",
@@ -464,7 +465,7 @@ func handleLogin(db *sql.DB) http.HandlerFunc {
 		}
 
 		// Generate refresh token
-		refreshClaims := &AuthClaims{
+		refreshClaims := &core.AuthClaims{
 			UserID:   user.ID,
 			Username: user.Username,
 			Type:     "refresh",
@@ -529,12 +530,12 @@ func handleAuthorize(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		userVal := r.Context().Value(UserContextKey)
+		userVal := r.Context().Value(core.UserContextKey)
 		if userVal == nil {
 			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
 			return
 		}
-		userSess := userVal.(*UserSession)
+		userSess := userVal.(*core.UserSession)
 
 		user, err := getUserByID(r.Context(), db, userSess.ID)
 		if err != nil {
@@ -617,7 +618,7 @@ func handleRefresh(db *sql.DB) http.HandlerFunc {
 		secret := getTokenSecret(db)
 
 		// Verify refresh token
-		claims := &AuthClaims{}
+		claims := &core.AuthClaims{}
 		token, err := jwt.ParseWithClaims(refreshToken, claims, func(t *jwt.Token) (interface{}, error) {
 			if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
 				return nil, fmt.Errorf("unexpected signing method")
@@ -685,7 +686,7 @@ func handleRefresh(db *sql.DB) http.HandlerFunc {
 			}
 		}
 
-		newAccessTokenClaims := &AuthClaims{
+		newAccessTokenClaims := &core.AuthClaims{
 			UserID:   user.ID,
 			Username: user.Username,
 			Type:     "access",
@@ -703,7 +704,7 @@ func handleRefresh(db *sql.DB) http.HandlerFunc {
 
 		newRefreshToken := refreshToken
 		if !isGracePeriod {
-			newRefreshClaims := &AuthClaims{
+			newRefreshClaims := &core.AuthClaims{
 				UserID:   user.ID,
 				Username: user.Username,
 				Type:     "refresh",
@@ -763,7 +764,7 @@ func handleRefresh(db *sql.DB) http.HandlerFunc {
 func handleGetUsers(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[Go] GET /api/users")
-		userSess := r.Context().Value(UserContextKey).(*UserSession)
+		userSess := r.Context().Value(core.UserContextKey).(*core.UserSession)
 		if userSess.Type != "root" && userSess.Type != "admin" {
 			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
 			return
@@ -846,7 +847,7 @@ func handleGetUsers(db *sql.DB) http.HandlerFunc {
 func handleGetOnlineUsers(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[Go] GET /api/users/online")
-		userSess := r.Context().Value(UserContextKey).(*UserSession)
+		userSess := r.Context().Value(core.UserContextKey).(*core.UserSession)
 		if userSess.Type != "root" && userSess.Type != "admin" {
 			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
 			return
@@ -867,7 +868,7 @@ func handleGetOnlineUsers(db *sql.DB) http.HandlerFunc {
 
 func handleUserCRUD(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		userSess := r.Context().Value(UserContextKey).(*UserSession)
+		userSess := r.Context().Value(core.UserContextKey).(*core.UserSession)
 
 		pathWithoutPrefix := trimAPIPath(r.URL.Path, "/api/users")
 		if r.Method == http.MethodPost && (pathWithoutPrefix == "" || pathWithoutPrefix == "/") {
@@ -911,7 +912,7 @@ func handleUserCRUD(db *sql.DB) http.HandlerFunc {
 
 			userID := uuid.New().String()
 			secret := getTokenSecret(db)
-			apiToken := jwt.NewWithClaims(jwt.SigningMethodHS256, &AuthClaims{
+			apiToken := jwt.NewWithClaims(jwt.SigningMethodHS256, &core.AuthClaims{
 				UserID:   userID,
 				Username: body.Username,
 				Type:     body.Type,
@@ -1181,7 +1182,7 @@ func handleUserCRUD(db *sql.DB) http.HandlerFunc {
 			if hasUpdates {
 				if shouldUpdateToken {
 					secret := getTokenSecret(db)
-					apiToken := jwt.NewWithClaims(jwt.SigningMethodHS256, &AuthClaims{
+					apiToken := jwt.NewWithClaims(jwt.SigningMethodHS256, &core.AuthClaims{
 						UserID:   targetUser.ID,
 						Username: targetUser.Username,
 						Type:     targetUser.Type,
@@ -1311,7 +1312,7 @@ func getUserLoginPayload(ctx context.Context, db *sql.DB, user *User) (map[strin
 	}
 
 	// 2. Get libraries filtered by user's access
-	userSess := &UserSession{
+	userSess := &core.UserSession{
 		ID:   user.ID,
 		Type: user.Type,
 	}

@@ -5,15 +5,13 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"audiobookshelf/internal/core"
 )
 
-// LogMessage represents a single log entry formatted for the client
-type LogMessage struct {
-	Timestamp string `json:"timestamp"`
-	Level     int    `json:"level"`
-	LevelName string `json:"levelName"`
-	Message   string `json:"message"`
-}
+// LogMessage is an alias for the type in internal/core.
+type LogMessage = core.LogMessage
+
 
 // LogBuffer is a thread-safe ring buffer for LogMessages
 type LogBuffer struct {

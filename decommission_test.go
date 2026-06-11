@@ -10,7 +10,8 @@ import (
 	"testing"
 
 	_ "modernc.org/sqlite"
-)
+
+	"audiobookshelf/internal/core")
 
 func prepareTestDB(t *testing.T) *sql.DB {
 	db := setupTestDB(t)
@@ -192,7 +193,7 @@ func TestUsersCRUD(t *testing.T) {
 	defer db.Close()
 
 	// Insert an admin user session context for authentication checks
-	adminSession := &UserSession{
+	adminSession := &core.UserSession{
 		ID:                 "admin-id",
 		Username:           "admin",
 		Type:               "admin",
@@ -204,7 +205,7 @@ func TestUsersCRUD(t *testing.T) {
 
 	t.Run("GetUsers", func(t *testing.T) {
 		req := httptest.NewRequest("GET", "/api/users", nil)
-		req = req.WithContext(context.WithValue(req.Context(), UserContextKey, adminSession))
+		req = req.WithContext(context.WithValue(req.Context(), core.UserContextKey, adminSession))
 		rr := httptest.NewRecorder()
 		handleGetUsers(db).ServeHTTP(rr, req)
 
@@ -216,7 +217,7 @@ func TestUsersCRUD(t *testing.T) {
 	t.Run("CreateUser", func(t *testing.T) {
 		createUserBody := `{"username": "newuser", "password": "newpassword", "type": "user", "isActive": true}`
 		req := httptest.NewRequest("POST", "/api/users", bytes.NewBufferString(createUserBody))
-		req = req.WithContext(context.WithValue(req.Context(), UserContextKey, adminSession))
+		req = req.WithContext(context.WithValue(req.Context(), core.UserContextKey, adminSession))
 		rr := httptest.NewRecorder()
 		handleUserCRUD(db).ServeHTTP(rr, req)
 
@@ -240,7 +241,7 @@ func TestUsersCRUD(t *testing.T) {
 		}
 		updateUserBody := `{"email": "newuser@example.com"}`
 		req := httptest.NewRequest("PATCH", "/api/users/"+createdUserID, bytes.NewBufferString(updateUserBody))
-		req = req.WithContext(context.WithValue(req.Context(), UserContextKey, adminSession))
+		req = req.WithContext(context.WithValue(req.Context(), core.UserContextKey, adminSession))
 		rr := httptest.NewRecorder()
 		handleUserCRUD(db).ServeHTTP(rr, req)
 
@@ -260,7 +261,7 @@ func TestUsersCRUD(t *testing.T) {
 			t.Skip("skipping delete test, user not created")
 		}
 		req := httptest.NewRequest("DELETE", "/api/users/"+createdUserID, nil)
-		req = req.WithContext(context.WithValue(req.Context(), UserContextKey, adminSession))
+		req = req.WithContext(context.WithValue(req.Context(), core.UserContextKey, adminSession))
 		rr := httptest.NewRecorder()
 		handleUserCRUD(db).ServeHTTP(rr, req)
 
@@ -280,7 +281,7 @@ func TestServerSettingsCRUD(t *testing.T) {
 	db := prepareTestDB(t)
 	defer db.Close()
 
-	adminSession := &UserSession{
+	adminSession := &core.UserSession{
 		ID:       "admin-id",
 		Username: "admin",
 		Type:     "admin",
@@ -289,7 +290,7 @@ func TestServerSettingsCRUD(t *testing.T) {
 
 	t.Run("GetSettings", func(t *testing.T) {
 		req := httptest.NewRequest("GET", "/api/settings", nil)
-		req = req.WithContext(context.WithValue(req.Context(), UserContextKey, adminSession))
+		req = req.WithContext(context.WithValue(req.Context(), core.UserContextKey, adminSession))
 		rr := httptest.NewRecorder()
 		handleGetServerSettings(db).ServeHTTP(rr, req)
 
@@ -301,7 +302,7 @@ func TestServerSettingsCRUD(t *testing.T) {
 	t.Run("UpdateSettings", func(t *testing.T) {
 		updateSettingsBody := `{"language": "fr"}`
 		req := httptest.NewRequest("POST", "/api/settings", bytes.NewBufferString(updateSettingsBody))
-		req = req.WithContext(context.WithValue(req.Context(), UserContextKey, adminSession))
+		req = req.WithContext(context.WithValue(req.Context(), core.UserContextKey, adminSession))
 		rr := httptest.NewRecorder()
 		handleUpdateServerSettings(db).ServeHTTP(rr, req)
 
@@ -332,7 +333,7 @@ func TestAuthorize(t *testing.T) {
 		t.Fatalf("Failed to fetch root user: %v", err)
 	}
 
-	userSession := &UserSession{
+	userSession := &core.UserSession{
 		ID:                 user.ID,
 		Username:           user.Username,
 		Type:               user.Type,
@@ -342,7 +343,7 @@ func TestAuthorize(t *testing.T) {
 
 	tests := []struct {
 		name           string
-		session        *UserSession
+		session        *core.UserSession
 		expectedStatus int
 		checkResponse  func(t *testing.T, body string)
 	}{
@@ -367,7 +368,7 @@ func TestAuthorize(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			req := httptest.NewRequest("POST", "/api/authorize", nil)
 			if tt.session != nil {
-				req = req.WithContext(context.WithValue(req.Context(), UserContextKey, tt.session))
+				req = req.WithContext(context.WithValue(req.Context(), core.UserContextKey, tt.session))
 			}
 			rr := httptest.NewRecorder()
 			handleAuthorize(db).ServeHTTP(rr, req)

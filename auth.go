@@ -10,20 +10,9 @@ import (
 	"strings"
 
 	"github.com/golang-jwt/jwt/v5"
+
+	"audiobookshelf/internal/core"
 )
-
-type contextKey string
-
-const UserContextKey contextKey = "user"
-
-// AuthClaims represents the structure of Audiobookshelf JWT claims
-type AuthClaims struct {
-	UserID   string `json:"userId,omitempty"`
-	Username string `json:"username,omitempty"`
-	KeyID    string `json:"keyId,omitempty"`
-	Type     string `json:"type,omitempty"`
-	jwt.RegisteredClaims
-}
 
 var (
 	coverRegex  = regexp.MustCompile(`^/audiobookshelf/api/items/[^/]+/cover$`)
@@ -71,7 +60,7 @@ func AuthMiddleware(db *sql.DB, tokenSecret string, next http.Handler) http.Hand
 		}
 
 		// Parse and validate JWT
-		claims := &AuthClaims{}
+		claims := &core.AuthClaims{}
 		token, err := jwt.ParseWithClaims(tokenStr, claims, func(token *jwt.Token) (interface{}, error) {
 			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 				return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
@@ -86,7 +75,7 @@ func AuthMiddleware(db *sql.DB, tokenSecret string, next http.Handler) http.Hand
 		}
 
 		// Authenticate based on token type
-		var userSession *UserSession
+		var userSession *core.UserSession
 		var authErr error
 
 		if claims.Type == "api" {
@@ -121,7 +110,7 @@ func AuthMiddleware(db *sql.DB, tokenSecret string, next http.Handler) http.Hand
 		}
 
 		// Inject user info into context
-		ctx := context.WithValue(r.Context(), UserContextKey, userSession)
+		ctx := context.WithValue(r.Context(), core.UserContextKey, userSession)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

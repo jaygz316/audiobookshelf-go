@@ -17,7 +17,8 @@ import (
 	"time"
 
 	"github.com/doyensec/safeurl"
-)
+
+	"audiobookshelf/internal/core")
 
 func serveStaticOrSPA(fSys fs.FS, routerBasePath string) http.HandlerFunc {
 	if fSys == nil {
@@ -268,12 +269,12 @@ func streamDirAsZip(w io.Writer, dirPath string) error {
 
 func serveDownload(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		userVal := r.Context().Value(UserContextKey)
+		userVal := r.Context().Value(core.UserContextKey)
 		if userVal == nil {
 			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
 			return
 		}
-		user := userVal.(*UserSession)
+		user := userVal.(*core.UserSession)
 
 		if !user.CanDownload {
 			log.Printf("[Download] Forbidden: User %s does not have download permissions", user.Username)
@@ -321,12 +322,12 @@ func serveDownload(db *sql.DB) http.HandlerFunc {
 
 func handleGetLibraries(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		userVal := r.Context().Value(UserContextKey)
+		userVal := r.Context().Value(core.UserContextKey)
 		if userVal == nil {
 			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
 			return
 		}
-		user := userVal.(*UserSession)
+		user := userVal.(*core.UserSession)
 
 		libs, err := GetLibraries(db)
 		if err != nil {
@@ -365,12 +366,12 @@ func handleGetLibraries(db *sql.DB) http.HandlerFunc {
 
 func handleGetLibraryByID(db *sql.DB, libraryID string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		userVal := r.Context().Value(UserContextKey)
+		userVal := r.Context().Value(core.UserContextKey)
 		if userVal == nil {
 			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
 			return
 		}
-		user := userVal.(*UserSession)
+		user := userVal.(*core.UserSession)
 
 		if !user.CanAccessLibrary(libraryID) {
 			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
@@ -424,12 +425,12 @@ func handleGetLibraryByID(db *sql.DB, libraryID string) http.HandlerFunc {
 
 func handleGetLibraryItems(db *sql.DB, libraryID string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		userVal := r.Context().Value(UserContextKey)
+		userVal := r.Context().Value(core.UserContextKey)
 		if userVal == nil {
 			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
 			return
 		}
-		user := userVal.(*UserSession)
+		user := userVal.(*core.UserSession)
 
 		if !user.CanAccessLibrary(libraryID) {
 			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
@@ -519,7 +520,7 @@ type Shelf struct {
 	Entities       []*LibraryItemMinifiedJSON `json:"entities"`
 }
 
-func fetchProgressShelves(db *sql.DB, libraryID string, user *UserSession, limitVal int, mediaType string) ([]Shelf, error) {
+func fetchProgressShelves(db *sql.DB, libraryID string, user *core.UserSession, limitVal int, mediaType string) ([]Shelf, error) {
 	var shelves []Shelf
 	optsProgress := GetFilteredLibraryItemsOptions{
 		LibraryID:      libraryID,
@@ -594,7 +595,7 @@ func fetchProgressShelves(db *sql.DB, libraryID string, user *UserSession, limit
 	return shelves, nil
 }
 
-func fetchRecentlyAddedShelf(db *sql.DB, libraryID string, user *UserSession, limitVal int, mediaType string) (*Shelf, error) {
+func fetchRecentlyAddedShelf(db *sql.DB, libraryID string, user *core.UserSession, limitVal int, mediaType string) (*Shelf, error) {
 	optsRecent := GetFilteredLibraryItemsOptions{
 		LibraryID:      libraryID,
 		User:           user,
@@ -633,12 +634,12 @@ func fetchRecentlyAddedShelf(db *sql.DB, libraryID string, user *UserSession, li
 
 func handleGetLibraryPersonalized(db *sql.DB, libraryID string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		userVal := r.Context().Value(UserContextKey)
+		userVal := r.Context().Value(core.UserContextKey)
 		if userVal == nil {
 			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
 			return
 		}
-		user := userVal.(*UserSession)
+		user := userVal.(*core.UserSession)
 
 		if !user.CanAccessLibrary(libraryID) {
 			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
@@ -686,12 +687,12 @@ func handleGetLibraryPersonalized(db *sql.DB, libraryID string) http.HandlerFunc
 
 func handleCreateLibrary(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		userVal := r.Context().Value(UserContextKey)
+		userVal := r.Context().Value(core.UserContextKey)
 		if userVal == nil {
 			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
 			return
 		}
-		user := userVal.(*UserSession)
+		user := userVal.(*core.UserSession)
 
 		if user.Type != "admin" && user.Type != "root" {
 			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
@@ -745,12 +746,12 @@ func handleCreateLibrary(db *sql.DB) http.HandlerFunc {
 
 func handleUpdateLibrary(db *sql.DB, libraryID string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		userVal := r.Context().Value(UserContextKey)
+		userVal := r.Context().Value(core.UserContextKey)
 		if userVal == nil {
 			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
 			return
 		}
-		user := userVal.(*UserSession)
+		user := userVal.(*core.UserSession)
 
 		if user.Type != "admin" && user.Type != "root" {
 			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
@@ -807,12 +808,12 @@ func handleUpdateLibrary(db *sql.DB, libraryID string) http.HandlerFunc {
 
 func handleDeleteLibrary(db *sql.DB, libraryID string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		userVal := r.Context().Value(UserContextKey)
+		userVal := r.Context().Value(core.UserContextKey)
 		if userVal == nil {
 			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
 			return
 		}
-		user := userVal.(*UserSession)
+		user := userVal.(*core.UserSession)
 
 		if user.Type != "admin" && user.Type != "root" {
 			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
@@ -837,12 +838,12 @@ func handleDeleteLibrary(db *sql.DB, libraryID string) http.HandlerFunc {
 
 func handleGetLibraryFilterData(db *sql.DB, libraryID string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		userVal := r.Context().Value(UserContextKey)
+		userVal := r.Context().Value(core.UserContextKey)
 		if userVal == nil {
 			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
 			return
 		}
-		user := userVal.(*UserSession)
+		user := userVal.(*core.UserSession)
 
 		if !user.CanAccessLibrary(libraryID) {
 			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
@@ -863,12 +864,12 @@ func handleGetLibraryFilterData(db *sql.DB, libraryID string) http.HandlerFunc {
 
 func handleGetLibraryStats(db *sql.DB, libraryID string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		userVal := r.Context().Value(UserContextKey)
+		userVal := r.Context().Value(core.UserContextKey)
 		if userVal == nil {
 			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
 			return
 		}
-		user := userVal.(*UserSession)
+		user := userVal.(*core.UserSession)
 
 		if !user.CanAccessLibrary(libraryID) {
 			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
@@ -918,12 +919,12 @@ func handleUpdateCoverFromURL(db *sql.DB, cfg *Config, itemID string) http.Handl
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[Go] POST /api/items/%s/cover-from-url", itemID)
 
-		userVal := r.Context().Value(UserContextKey)
+		userVal := r.Context().Value(core.UserContextKey)
 		if userVal == nil {
 			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
 			return
 		}
-		user := userVal.(*UserSession)
+		user := userVal.(*core.UserSession)
 		if user.Type != "root" && user.Type != "admin" {
 			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
 			return

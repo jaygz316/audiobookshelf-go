@@ -12,256 +12,47 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+
+	"audiobookshelf/internal/core"
+	idb "audiobookshelf/internal/db"
 )
 
-type ServerSettings struct {
-	TokenSecret            string   `json:"tokenSecret"`
-	Language               string   `json:"language"`
-	AuthActiveAuthMethods  []string `json:"authActiveAuthMethods"`
-	AuthLoginCustomMessage *string  `json:"authLoginCustomMessage"`
-	BackupPath             string   `json:"backupPath"`
-	BackupsToKeep          int      `json:"backupsToKeep"`
-}
+// ServerSettings is an alias for the type in internal/db.
+type ServerSettings = idb.ServerSettings
 
-// GetServerSettings reads the server settings from the settings table
+// GetServerSettings reads the server settings from the settings table.
 func GetServerSettings(db *sql.DB) (*ServerSettings, error) {
-	if db == nil {
-		return nil, fmt.Errorf("database not initialized")
-	}
-	var valStr string
-	err := db.QueryRow("SELECT value FROM settings WHERE key = 'server-settings'").Scan(&valStr)
-	if err != nil {
-		return nil, err
-	}
-
-	var settings ServerSettings
-	if err := json.Unmarshal([]byte(valStr), &settings); err != nil {
-		return nil, err
-	}
-
-	// Fallback to defaults
-	if len(settings.AuthActiveAuthMethods) == 0 {
-		settings.AuthActiveAuthMethods = []string{"local"}
-	}
-	if settings.Language == "" {
-		settings.Language = "en-us"
-	}
-
-	return &settings, nil
+	return idb.GetServerSettings(db)
 }
 
-// GetSortingIgnorePrefix reads sortingIgnorePrefix from server-settings
+// GetSortingIgnorePrefix reads sortingIgnorePrefix from server-settings.
 func GetSortingIgnorePrefix(db *sql.DB) bool {
-	if db == nil {
-		return false
-	}
-	var valStr string
-	err := db.QueryRow("SELECT value FROM settings WHERE key = 'server-settings'").Scan(&valStr)
-	if err != nil {
-		return false
-	}
-	var s struct {
-		SortingIgnorePrefix bool `json:"sortingIgnorePrefix"`
-	}
-	if err := json.Unmarshal([]byte(valStr), &s); err != nil {
-		return false
-	}
-	return s.SortingIgnorePrefix
+	return idb.GetSortingIgnorePrefix(db)
 }
 
-// HasRootUser checks if any user of type 'root' exists in the users table
+// HasRootUser checks if any user of type 'root' exists in the users table.
 func HasRootUser(db *sql.DB) (bool, error) {
-	if db == nil {
-		return false, fmt.Errorf("database not initialized")
-	}
-	var count int
-	err := db.QueryRow("SELECT count(*) FROM users WHERE type = 'root'").Scan(&count)
-	if err != nil {
-		return false, err
-	}
-	return count > 0, nil
+	return idb.HasRootUser(db)
 }
 
-type UserSession struct {
-	ID                        string
-	Username                  string
-	Type                      string
-	IsActive                  bool
-	CanDownload               bool
-	CanAccessExplicitContent  bool
-	AccessAllLibraries        bool
-	LibrariesAccessible       []string
-	AccessAllTags             bool
-	ItemTagsSelected          []string
-	SelectedTagsNotAccessible bool
+// parsePermissions is a local wrapper for the internal/db implementation.
+func parsePermissions(permsStr sql.NullString, user *core.UserSession) {
+	idb.ParsePermissions(permsStr, user)
 }
 
-type userPermissions struct {
-	Download                  *bool    `json:"download"`
-	AccessExplicitContent     *bool    `json:"accessExplicitContent"`
-	AccessAllLibraries        *bool    `json:"accessAllLibraries"`
-	LibrariesAccessible       []string `json:"librariesAccessible"`
-	Libraries                 []string `json:"libraries"`
-	AccessAllTags             *bool    `json:"accessAllTags"`
-	ItemTagsSelected          []string `json:"itemTagsSelected"`
-	SelectedTagsNotAccessible *bool    `json:"selectedTagsNotAccessible"`
+// GetUserByID fetches minimum info needed for authentication for a user ID.
+func GetUserByID(db *sql.DB, userID string) (*core.UserSession, error) {
+	return idb.GetUserByID(db, userID)
 }
 
-func parsePermissions(permsStr sql.NullString, user *UserSession) {
-	// default values:
-	user.CanDownload = true
-	user.CanAccessExplicitContent = false
-	user.AccessAllLibraries = true
-	user.LibrariesAccessible = []string{}
-	user.AccessAllTags = true
-	user.ItemTagsSelected = []string{}
-	user.SelectedTagsNotAccessible = false
-
-	// if it's admin or root, they have all access by default
-	if user.Type == "root" || user.Type == "admin" {
-		user.CanAccessExplicitContent = true
-		user.AccessAllLibraries = true
-		user.AccessAllTags = true
-	}
-
-	if !permsStr.Valid || permsStr.String == "" {
-		return
-	}
-
-	var perms userPermissions
-	if err := json.Unmarshal([]byte(permsStr.String), &perms); err != nil {
-		return
-	}
-
-	if perms.Download != nil {
-		user.CanDownload = *perms.Download
-	}
-	if perms.AccessExplicitContent != nil {
-		user.CanAccessExplicitContent = *perms.AccessExplicitContent
-	}
-	if perms.AccessAllLibraries != nil {
-		user.AccessAllLibraries = *perms.AccessAllLibraries
-	}
-	if perms.LibrariesAccessible != nil {
-		user.LibrariesAccessible = perms.LibrariesAccessible
-		if perms.AccessAllLibraries == nil {
-			user.AccessAllLibraries = false
-		}
-	} else if perms.Libraries != nil {
-		user.LibrariesAccessible = perms.Libraries
-		if perms.AccessAllLibraries == nil {
-			user.AccessAllLibraries = false
-		}
-	}
-	if perms.AccessAllTags != nil {
-		user.AccessAllTags = *perms.AccessAllTags
-	}
-	if perms.ItemTagsSelected != nil {
-		user.ItemTagsSelected = perms.ItemTagsSelected
-	}
-	if perms.SelectedTagsNotAccessible != nil {
-		user.SelectedTagsNotAccessible = *perms.SelectedTagsNotAccessible
-	}
+// GetUserByIDOrOldID fetches minimum info needed for authentication for a user ID or old user ID.
+func GetUserByIDOrOldID(db *sql.DB, userID string) (*core.UserSession, error) {
+	return idb.GetUserByIDOrOldID(db, userID)
 }
 
-// GetUserByID fetches minimum info needed for authentication for a user ID
-func GetUserByID(db *sql.DB, userID string) (*UserSession, error) {
-	if db == nil {
-		return nil, fmt.Errorf("database not initialized")
-	}
-	var user UserSession
-	var isActiveInt int
-	var permsStr sql.NullString
-	err := db.QueryRow("SELECT id, username, type, isActive, permissions FROM users WHERE id = ?", userID).
-		Scan(&user.ID, &user.Username, &user.Type, &isActiveInt, &permsStr)
-	if err != nil {
-		return nil, err
-	}
-	user.IsActive = isActiveInt != 0
-	parsePermissions(permsStr, &user)
-	return &user, nil
-}
-
-// GetUserByIDOrOldID fetches minimum info needed for authentication for a user ID or old user ID
-func GetUserByIDOrOldID(db *sql.DB, userID string) (*UserSession, error) {
-	if db == nil {
-		return nil, fmt.Errorf("database not initialized")
-	}
-	var user UserSession
-	var isActiveInt int
-	var extraDataStr string
-	var permsStr sql.NullString
-
-	// First query matching id
-	err := db.QueryRow("SELECT id, username, type, isActive, extraData, permissions FROM users WHERE id = ?", userID).
-		Scan(&user.ID, &user.Username, &user.Type, &isActiveInt, &extraDataStr, &permsStr)
-
-	if err == sql.ErrNoRows {
-		// Fallback: check extraData->>'oldUserId' if it exists. SQLite JSON extraction: json_extract(extraData, '$.oldUserId')
-		err = db.QueryRow("SELECT id, username, type, isActive, extraData, permissions FROM users WHERE json_extract(extraData, '$.oldUserId') = ?", userID).
-			Scan(&user.ID, &user.Username, &user.Type, &isActiveInt, &extraDataStr, &permsStr)
-	}
-
-	if err != nil {
-		return nil, err
-	}
-	user.IsActive = isActiveInt != 0
-	parsePermissions(permsStr, &user)
-	return &user, nil
-}
-
-// CheckAPIKey verifies that an API key is active and not expired, returning the user associated with it.
-func CheckAPIKey(db *sql.DB, keyID string) (*UserSession, error) {
-	if db == nil {
-		return nil, fmt.Errorf("database not initialized")
-	}
-	var isActiveInt int
-	var expiresAtStr sql.NullString
-	var userID string
-
-	err := db.QueryRow("SELECT isActive, expiresAt, userId FROM apiKeys WHERE id = ?", keyID).
-		Scan(&isActiveInt, &expiresAtStr, &userID)
-	if err != nil {
-		return nil, err
-	}
-
-	if isActiveInt == 0 {
-		return nil, fmt.Errorf("API key is inactive")
-	}
-
-	// Check expiration
-	if expiresAtStr.Valid && expiresAtStr.String != "" {
-		// SQLite dates can be parsed. Sequelize formats dates as ISO strings.
-		// Try parsing ISO formats.
-		layouts := []string{
-			"2006-01-02 15:04:05.000 +00:00",
-			"2006-01-02T15:04:05.000Z",
-			"2006-01-02 15:04:05.000000 +00:00",
-			"2006-01-02 15:04:05.000",
-			"2006-01-02 15:04:05",
-			time.RFC3339,
-		}
-		var expiresAt time.Time
-		var parseErr error
-		for _, layout := range layouts {
-			expiresAt, parseErr = time.Parse(layout, expiresAtStr.String)
-			if parseErr == nil {
-				break
-			}
-		}
-		if parseErr != nil {
-			// Try time parsing with standard sqlite date layouts or just fallback to treating as expired if parse fails completely
-			return nil, fmt.Errorf("failed to parse API key expiry: %v", parseErr)
-		}
-
-		if time.Now().After(expiresAt) {
-			// Mark inactive in background or caller could do it, but here we just return expired
-			return nil, fmt.Errorf("API key has expired")
-		}
-	}
-
-	// Get user
-	return GetUserByID(db, userID)
+// CheckAPIKey verifies that an API key is active and not expired.
+func CheckAPIKey(db *sql.DB, keyID string) (*core.UserSession, error) {
+	return idb.CheckAPIKey(db, keyID)
 }
 
 type LibraryItemDownloadInfo struct {
@@ -289,7 +80,7 @@ func GetLibraryItemDownloadInfo(db *sql.DB, itemID string) (*LibraryItemDownload
 	return &info, nil
 }
 
-// GetCoverPath reads the media coverPath from books or podcasts table based on the library item ID
+// GetCoverPath reads the media coverPath from books or podcasts table based on the library item ID.
 func GetCoverPath(db *sql.DB, itemID string) (string, error) {
 	if db == nil {
 		return "", fmt.Errorf("database not initialized")
@@ -320,41 +111,11 @@ func GetCoverPath(db *sql.DB, itemID string) (string, error) {
 	return coverPath.String, nil
 }
 
+// parseSQLiteTime delegates to internal/db for SQLite timestamp parsing.
 func parseSQLiteTime(s string) (time.Time, error) {
-	layouts := []string{
-		"2006-01-02 15:04:05.000 +00:00",
-		"2006-01-02T15:04:05.000Z",
-		"2006-01-02 15:04:05.000000 +00:00",
-		"2006-01-02 15:04:05.000",
-		"2006-01-02 15:04:05",
-		time.RFC3339,
-	}
-	for _, layout := range layouts {
-		if t, err := time.Parse(layout, s); err == nil {
-			return t, nil
-		}
-	}
-	return time.Time{}, fmt.Errorf("failed to parse time: %s", s)
+	return idb.ParseSQLiteTime(s)
 }
 
-func (u *UserSession) CanAccessLibrary(libraryID string) bool {
-	if u.Type == "root" || u.Type == "admin" {
-		return true
-	}
-	if u.AccessAllLibraries {
-		return true
-	}
-	for _, id := range u.LibrariesAccessible {
-		if id == libraryID {
-			return true
-		}
-	}
-	return false
-}
-
-func (u *UserSession) IsAdminOrUp() bool {
-	return u.Type == "root" || u.Type == "admin"
-}
 
 type LibraryFolderJSON struct {
 	ID        string `json:"id"`
@@ -630,7 +391,7 @@ func decodeFilterValue(s string) string {
 	return string(data)
 }
 
-func getUserPermissionWhere(user *UserSession, tableAlias string) (string, []interface{}) {
+func getUserPermissionWhere(user *core.UserSession, tableAlias string) (string, []interface{}) {
 	var conds []string
 	var args []interface{}
 
@@ -786,7 +547,7 @@ func getSortOrder(sortBy string, sortDesc bool, sortingIgnorePrefix bool, mediaT
 
 type GetFilteredLibraryItemsOptions struct {
 	LibraryID      string
-	User           *UserSession
+	User           *core.UserSession
 	FilterBy       string
 	SortBy         string
 	SortDesc       bool
@@ -883,6 +644,191 @@ type PodcastMetadataMin struct {
 	Explicit          bool     `json:"explicit"`
 	Language          *string  `json:"language"`
 	Type              *string  `json:"type"`
+}
+
+// GetLibraryItemMinifiedByID retrieves a library item in its minified JSON form by ID.
+func GetLibraryItemMinifiedByID(db *sql.DB, itemID string) (*LibraryItemMinifiedJSON, error) {
+	var li LibraryItemMinifiedJSON
+	var id, ino, libraryID, folderID, path, relPath, mediaType, mediaID, mtimeStr, ctimeStr, birthtimeStr, createdAtStr, updatedAtStr string
+	var isFileVal, isMissingVal, isInvalidVal int
+	var size int64
+
+	query := `
+		SELECT id, ino, libraryId, libraryFolderId, path, relPath, isFile, mtime, ctime, birthtime, createdAt, updatedAt, isMissing, isInvalid, mediaType, mediaId, size
+		FROM libraryItems
+		WHERE id = ?
+	`
+	err := db.QueryRow(query, itemID).Scan(
+		&id, &ino, &libraryID, &folderID, &path, &relPath, &isFileVal, &mtimeStr, &ctimeStr, &birthtimeStr, &createdAtStr, &updatedAtStr, &isMissingVal, &isInvalidVal, &mediaType, &mediaID, &size,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	li.ID = id
+	li.Ino = ino
+	li.LibraryID = libraryID
+	li.FolderID = folderID
+	li.Path = path
+	li.RelPath = relPath
+	li.IsFile = isFileVal != 0
+	li.MtimeMs = parseEpochMillis(mtimeStr)
+	li.CtimeMs = parseEpochMillis(ctimeStr)
+	li.BirthtimeMs = parseEpochMillis(birthtimeStr)
+	li.AddedAt = parseEpochMillis(createdAtStr)
+	li.UpdatedAt = parseEpochMillis(updatedAtStr)
+	li.IsMissing = isMissingVal != 0
+	li.IsInvalid = isInvalidVal != 0
+	li.MediaType = mediaType
+	li.Size = size
+
+	if mediaType == "book" {
+		var bTitle, bTitleIgnorePrefix, bSubtitle, bPublishedYear, bPublishedDate, bPublisher, bDescription, bIsbn, bAsin, bLanguage, bCoverPath string
+		var bDuration float64
+		var bNarrators, bAudioFiles, bEbookFile, bChapters, bTags, bGenres []byte
+		var bExplicit, bAbridged int
+
+		err = db.QueryRow(`
+			SELECT title, titleIgnorePrefix, subtitle, publishedYear, publishedDate, publisher, description, isbn, asin, language, explicit, abridged, coverPath, duration, narrators, audioFiles, ebookFile, chapters, tags, genres
+			FROM books WHERE id = ?
+		`, mediaID).Scan(
+			&bTitle, &bTitleIgnorePrefix, &bSubtitle, &bPublishedYear, &bPublishedDate, &bPublisher, &bDescription, &bIsbn, &bAsin, &bLanguage, &bExplicit, &bAbridged, &bCoverPath, &bDuration, &bNarrators, &bAudioFiles, &bEbookFile, &bChapters, &bTags, &bGenres,
+		)
+		if err == nil {
+			var tags []string
+			_ = json.Unmarshal(bTags, &tags)
+			var genres []string
+			_ = json.Unmarshal(bGenres, &genres)
+			var audioFiles []interface{}
+			_ = json.Unmarshal(bAudioFiles, &audioFiles)
+			var chapters []interface{}
+			_ = json.Unmarshal(bChapters, &chapters)
+			var narratorNames []string
+			_ = json.Unmarshal(bNarrators, &narratorNames)
+
+			var authorNames []string
+			rows, err2 := db.Query("SELECT name FROM authors WHERE id IN (SELECT authorId FROM bookAuthors WHERE bookId = ?)", mediaID)
+			if err2 == nil {
+				defer rows.Close()
+				for rows.Next() {
+					var name string
+					if err := rows.Scan(&name); err == nil {
+						authorNames = append(authorNames, name)
+					}
+				}
+			}
+
+			var seriesNames []string
+			srows, err3 := db.Query("SELECT name FROM series WHERE id IN (SELECT seriesId FROM bookSeries WHERE bookId = ?)", mediaID)
+			if err3 == nil {
+				defer srows.Close()
+				for srows.Next() {
+					var name string
+					if err := srows.Scan(&name); err == nil {
+						seriesNames = append(seriesNames, name)
+					}
+				}
+			}
+
+			var ebookFormat *string
+			if len(bEbookFile) > 0 {
+				var eb struct {
+					EbookFormat string `json:"ebookFormat"`
+				}
+				if jsonUnmarshalSafe(bEbookFile, &eb) && eb.EbookFormat != "" {
+					ebookFormat = &eb.EbookFormat
+				}
+			}
+
+			authorName := strings.Join(authorNames, ", ")
+			seriesName := strings.Join(seriesNames, ", ")
+			narratorName := strings.Join(narratorNames, ", ")
+
+			bookMin := &BookMinifiedJSON{
+				ID:            mediaID,
+				CoverPath:     nullIfEmpty(bCoverPath),
+				Tags:          tags,
+				NumTracks:     len(audioFiles),
+				NumAudioFiles: len(audioFiles),
+				NumChapters:   len(chapters),
+				Duration:      bDuration,
+				Size:          size,
+				EbookFormat:   ebookFormat,
+				Metadata: &BookMetadataMinified{
+					Title:             bTitle,
+					TitleIgnorePrefix: bTitleIgnorePrefix,
+					Subtitle:          nullIfEmpty(bSubtitle),
+					AuthorName:        authorName,
+					AuthorNameLF:      nameToLastFirst(authorName),
+					NarratorName:      narratorName,
+					SeriesName:        seriesName,
+					Genres:            genres,
+					PublishedYear:     nullIfEmpty(bPublishedYear),
+					PublishedDate:     nullIfEmpty(bPublishedDate),
+					Publisher:         nullIfEmpty(bPublisher),
+					Description:       nullIfEmpty(bDescription),
+					Isbn:              nullIfEmpty(bIsbn),
+					Asin:              nullIfEmpty(bAsin),
+					Language:          nullIfEmpty(bLanguage),
+					Explicit:          bExplicit != 0,
+					Abridged:          bAbridged != 0,
+				},
+			}
+			li.Media = bookMin
+		}
+	} else if mediaType == "podcast" {
+		var pTitle, pTitleIgnorePrefix, pAuthor, pReleaseDate, pFeedURL, pImageURL, pDescription, pItunesPageURL, pItunesID, pItunesArtistID, pLanguage, pPodcastType, pCoverPath string
+		var pExplicit, pAutoDownloadEpisodes, pMaxEpisodesToKeep, pMaxNewEpisodesToDownload, pNumEpisodes int
+		var pTags, pGenres []byte
+
+		err = db.QueryRow(`
+			SELECT title, titleIgnorePrefix, author, releaseDate, feedURL, imageURL, description, itunesPageURL, itunesId, itunesArtistId, language, podcastType, explicit, autoDownloadEpisodes, maxEpisodesToKeep, maxNewEpisodesToDownload, coverPath, tags, genres, numEpisodes
+			FROM podcasts WHERE id = ?
+		`, mediaID).Scan(
+			&pTitle, &pTitleIgnorePrefix, &pAuthor, &pReleaseDate, &pFeedURL, &pImageURL, &pDescription, &pItunesPageURL, &pItunesID, &pItunesArtistID, &pLanguage, &pPodcastType, &pExplicit, &pAutoDownloadEpisodes, &pMaxEpisodesToKeep, &pMaxNewEpisodesToDownload, &pCoverPath, &pTags, &pGenres, &pNumEpisodes,
+		)
+		if err == nil {
+			var tags []string
+			_ = json.Unmarshal(pTags, &tags)
+			var genres []string
+			_ = json.Unmarshal(pGenres, &genres)
+
+			podcastMin := &PodcastMinifiedJSON{
+				ID:                       mediaID,
+				CoverPath:                nullIfEmpty(pCoverPath),
+				Tags:                     tags,
+				NumEpisodes:              pNumEpisodes,
+				AutoDownloadEpisodes:     pAutoDownloadEpisodes != 0,
+				MaxEpisodesToKeep:        pMaxEpisodesToKeep,
+				MaxNewEpisodesToDownload: pMaxNewEpisodesToDownload,
+				Size:                     size,
+				Metadata: &PodcastMetadataMin{
+					Title:             pTitle,
+					TitleIgnorePrefix: pTitleIgnorePrefix,
+					Author:            nullIfEmpty(pAuthor),
+					Description:       nullIfEmpty(pDescription),
+					ReleaseDate:       nullIfEmpty(pReleaseDate),
+					Genres:            genres,
+					FeedURL:           nullIfEmpty(pFeedURL),
+					ImageURL:          nullIfEmpty(pImageURL),
+					ItunesPageURL:     nullIfEmpty(pItunesPageURL),
+					ItunesID:          nullIfEmpty(pItunesID),
+					ItunesArtistID:    nullIfEmpty(pItunesArtistID),
+					Explicit:          pExplicit != 0,
+					Language:          nullIfEmpty(pLanguage),
+					Type:              nullIfEmpty(pPodcastType),
+				},
+			}
+			li.Media = podcastMin
+		}
+	}
+
+	return &li, nil
+}
+
+// jsonUnmarshalSafe unmarshals JSON safely, returning false on error.
+func jsonUnmarshalSafe(data []byte, v interface{}) bool {
+	return json.Unmarshal(data, v) == nil
 }
 
 func GetFilteredLibraryItems(db *sql.DB, options GetFilteredLibraryItemsOptions) ([]*LibraryItemMinifiedJSON, int, error) {
@@ -1338,23 +1284,14 @@ func GetFilteredLibraryItems(db *sql.DB, options GetFilteredLibraryItemsOptions)
 	return results, total, nil
 }
 
+// parseEpochMillis delegates to internal/db.
 func parseEpochMillis(s string) int64 {
-	t, err := parseSQLiteTime(s)
-	if err != nil {
-		return 0
-	}
-	return t.UnixNano() / int64(time.Millisecond)
+	return idb.ParseEpochMillis(s)
 }
 
+// jsonArrayToCommaString delegates to internal/db.
 func jsonArrayToCommaString(jsonBytes []byte) string {
-	if len(jsonBytes) == 0 {
-		return ""
-	}
-	var arr []string
-	if err := json.Unmarshal(jsonBytes, &arr); err != nil {
-		return ""
-	}
-	return strings.Join(arr, ", ")
+	return idb.JsonArrayToCommaString(jsonBytes)
 }
 
 type CreateFolderPayload struct {
@@ -2039,4 +1976,12 @@ func getLibraryFilterDataGo(db *sql.DB, libraryID string) (*LibraryFilterData, e
 	sort.Strings(fd.PublishedDecades)
 
 	return fd, nil
+}
+
+// nullIfEmpty returns nil if s is empty, otherwise returns a pointer to s.
+func nullIfEmpty(s string) *string {
+	if s == "" {
+		return nil
+	}
+	return &s
 }

@@ -12,10 +12,11 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/gorilla/websocket"
-)
+
+	"audiobookshelf/internal/core")
 
 func generateTestToken(userID, username, userType, secret string) (string, error) {
-	claims := &AuthClaims{
+	claims := &core.AuthClaims{
 		UserID:   userID,
 		Username: username,
 		Type:     userType,
@@ -42,11 +43,36 @@ func setupSocketTestDB(t *testing.T) *sql.DB {
 	if err != nil {
 		t.Fatalf("Failed to alter table users for updatedAt: %v", err)
 	}
+
+	// Update server-settings to include the tokenSecret used by tests.
+	// internal/socket reads it from the DB (not from the root cachedSecret var).
+	const testSecret = "test-secret-12345"
+	_, err = db.Exec(`UPDATE settings SET value = ? WHERE key = 'server-settings'`,
+		`{"sortingIgnorePrefix":true,"tokenSecret":"test-secret-12345"}`)
+	if err != nil {
+		t.Fatalf("Failed to update server settings with tokenSecret: %v", err)
+	}
+
+	// Also set cachedSecret for any root-level code that still uses it.
+	cachedSecret = testSecret
+
 	return db
 }
 
+// socketTestPerms mirrors the permissions structure for building test JSON.
+type socketTestPerms struct {
+	Download                  *bool    `json:"download"`
+	AccessExplicitContent     *bool    `json:"accessExplicitContent"`
+	AccessAllLibraries        *bool    `json:"accessAllLibraries"`
+	LibrariesAccessible       []string `json:"librariesAccessible"`
+	Libraries                 []string `json:"libraries"`
+	AccessAllTags             *bool    `json:"accessAllTags"`
+	ItemTagsSelected          []string `json:"itemTagsSelected"`
+	SelectedTagsNotAccessible *bool    `json:"selectedTagsNotAccessible"`
+}
+
 func insertTestUser(t *testing.T, db *sql.DB, id, username, uType string, isActive bool, download, explicit, allLibs, allTags, tagsNotAccessible bool, libsAccessible, tagsSelected []string) {
-	perm := userPermissions{
+	perm := socketTestPerms{
 		Download:                  &download,
 		AccessExplicitContent:     &explicit,
 		AccessAllLibraries:        &allLibs,
@@ -72,6 +98,7 @@ func insertTestUser(t *testing.T, db *sql.DB, id, username, uType string, isActi
 		t.Fatalf("Failed to insert user: %v", err)
 	}
 }
+
 
 type SocketEvent struct {
 	Name string
@@ -274,9 +301,7 @@ func TestSocketAuthAndHandshake(t *testing.T) {
 	// Wait briefly for disconnect handler to process
 	time.Sleep(100 * time.Millisecond)
 
-	SocketAuth.mu.RLock()
-	clientsLen := len(SocketAuth.clients)
-	SocketAuth.mu.RUnlock()
+	clientsLen := SocketAuth.ClientCount()
 	if clientsLen != 0 {
 		t.Errorf("Expected clients registry to be empty after disconnect, got size %d", clientsLen)
 	}

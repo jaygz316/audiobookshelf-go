@@ -5,13 +5,14 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
-)
+
+	"audiobookshelf/internal/core")
 
 // handleGetAuthSettings maps to GET /api/auth-settings
 func handleGetAuthSettings(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[Go] GET /api/auth-settings")
-		userSess := r.Context().Value(UserContextKey).(*UserSession)
+		userSess := r.Context().Value(core.UserContextKey).(*core.UserSession)
 		if userSess.Type != "root" && userSess.Type != "admin" {
 			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
 			return
@@ -35,7 +36,7 @@ func handleGetAuthSettings(db *sql.DB) http.HandlerFunc {
 func handleUpdateAuthSettings(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[Go] PATCH /api/auth-settings")
-		userSess := r.Context().Value(UserContextKey).(*UserSession)
+		userSess := r.Context().Value(core.UserContextKey).(*core.UserSession)
 		if userSess.Type != "root" && userSess.Type != "admin" {
 			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
 			return

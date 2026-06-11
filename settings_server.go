@@ -7,13 +7,14 @@ import (
 	"net/http"
 	"strings"
 	"time"
-)
+
+	"audiobookshelf/internal/core")
 
 // handleGetServerSettings maps to GET /api/settings
 func handleGetServerSettings(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[Go] GET /api/settings")
-		userSess := r.Context().Value(UserContextKey).(*UserSession)
+		userSess := r.Context().Value(core.UserContextKey).(*core.UserSession)
 		if userSess.Type != "root" && userSess.Type != "admin" {
 			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
 			return
@@ -34,7 +35,7 @@ func handleGetServerSettings(db *sql.DB) http.HandlerFunc {
 func handleUpdateServerSettings(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[Go] PATCH /api/settings")
-		userSess := r.Context().Value(UserContextKey).(*UserSession)
+		userSess := r.Context().Value(core.UserContextKey).(*core.UserSession)
 		if userSess.Type != "root" && userSess.Type != "admin" {
 			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
 			return
@@ -80,7 +81,7 @@ func handleUpdateServerSettings(db *sql.DB) http.HandlerFunc {
 func handleUpdateSortingPrefixes(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[Go] PATCH /api/sorting-prefixes")
-		userSess := r.Context().Value(UserContextKey).(*UserSession)
+		userSess := r.Context().Value(core.UserContextKey).(*core.UserSession)
 		if userSess.Type != "root" && userSess.Type != "admin" {
 			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
 			return

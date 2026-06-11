@@ -16,7 +16,8 @@ import (
 
 	"github.com/doyensec/safeurl"
 	_ "modernc.org/sqlite"
-)
+
+	"audiobookshelf/internal/core")
 
 func setupTestDBShared(t *testing.T) *sql.DB {
 	dsn := fmt.Sprintf("file:%s?mode=memory&cache=shared", t.Name())
@@ -90,14 +91,14 @@ func TestGetLibraryAuthors(t *testing.T) {
 	handler := handleGetLibraryAuthors(db, "lib1")
 	req := httptest.NewRequest("GET", "/api/libraries/lib1/authors?sort=name", nil)
 
-	user := &UserSession{
+	user := &core.UserSession{
 		ID:                 "user1",
 		Username:           "admin",
 		Type:               "admin",
 		IsActive:           true,
 		AccessAllLibraries: true,
 	}
-	req = req.WithContext(context.WithValue(req.Context(), UserContextKey, user))
+	req = req.WithContext(context.WithValue(req.Context(), core.UserContextKey, user))
 
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
@@ -167,14 +168,14 @@ func TestGetLibrarySeries(t *testing.T) {
 	handler := handleGetLibrarySeries(db, "lib1")
 	req := httptest.NewRequest("GET", "/api/libraries/lib1/series", nil)
 
-	user := &UserSession{
+	user := &core.UserSession{
 		ID:                 "user1",
 		Username:           "admin",
 		Type:               "admin",
 		IsActive:           true,
 		AccessAllLibraries: true,
 	}
-	req = req.WithContext(context.WithValue(req.Context(), UserContextKey, user))
+	req = req.WithContext(context.WithValue(req.Context(), core.UserContextKey, user))
 
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
@@ -252,14 +253,14 @@ func TestGetLibrarySeriesByID(t *testing.T) {
 	handler := handleGetLibrarySeriesByID(db, "lib1", "series1")
 	req := httptest.NewRequest("GET", "/api/libraries/lib1/series/series1", nil)
 
-	user := &UserSession{
+	user := &core.UserSession{
 		ID:                 "user1",
 		Username:           "admin",
 		Type:               "admin",
 		IsActive:           true,
 		AccessAllLibraries: true,
 	}
-	req = req.WithContext(context.WithValue(req.Context(), UserContextKey, user))
+	req = req.WithContext(context.WithValue(req.Context(), core.UserContextKey, user))
 
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
@@ -344,14 +345,14 @@ func TestGetAuthorByID(t *testing.T) {
 	handler := handleGetAuthorByID(db, "author1")
 	req := httptest.NewRequest("GET", "/api/authors/author1?include=items,series", nil)
 
-	user := &UserSession{
+	user := &core.UserSession{
 		ID:                 "user1",
 		Username:           "admin",
 		Type:               "admin",
 		IsActive:           true,
 		AccessAllLibraries: true,
 	}
-	req = req.WithContext(context.WithValue(req.Context(), UserContextKey, user))
+	req = req.WithContext(context.WithValue(req.Context(), core.UserContextKey, user))
 
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
@@ -420,14 +421,14 @@ func TestGetLibraryItemByID(t *testing.T) {
 	handler := handleGetLibraryItemByID(db, "item1")
 	req := httptest.NewRequest("GET", "/api/items/item1", nil)
 
-	user := &UserSession{
+	user := &core.UserSession{
 		ID:                 "user1",
 		Username:           "admin",
 		Type:               "admin",
 		IsActive:           true,
 		AccessAllLibraries: true,
 	}
-	req = req.WithContext(context.WithValue(req.Context(), UserContextKey, user))
+	req = req.WithContext(context.WithValue(req.Context(), core.UserContextKey, user))
 
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
@@ -499,14 +500,14 @@ func TestServeEbook(t *testing.T) {
 	handler := handleServeEbook(db, "item1", "some-file-id")
 	req := httptest.NewRequest("GET", "/api/items/item1/ebook", nil)
 
-	user := &UserSession{
+	user := &core.UserSession{
 		ID:                 "user1",
 		Username:           "admin",
 		Type:               "admin",
 		IsActive:           true,
 		AccessAllLibraries: true,
 	}
-	req = req.WithContext(context.WithValue(req.Context(), UserContextKey, user))
+	req = req.WithContext(context.WithValue(req.Context(), core.UserContextKey, user))
 
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
@@ -582,14 +583,14 @@ func TestUpdateLibraryItem(t *testing.T) {
 	handler := handleUpdateLibraryItemByID(db, "item1")
 	req := httptest.NewRequest("PATCH", "/api/items/item1", strings.NewReader(string(bodyBytes)))
 	
-	user := &UserSession{
+	user := &core.UserSession{
 		ID:                 "user1",
 		Username:           "admin",
 		Type:               "admin",
 		IsActive:           true,
 		AccessAllLibraries: true,
 	}
-	req = req.WithContext(context.WithValue(req.Context(), UserContextKey, user))
+	req = req.WithContext(context.WithValue(req.Context(), core.UserContextKey, user))
 
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
@@ -715,14 +716,14 @@ func TestUpdateCoverFromURL(t *testing.T) {
 	handler := handleUpdateCoverFromURL(db, cfg, "item1")
 	req := httptest.NewRequest("POST", "/api/items/item1/cover-from-url", strings.NewReader(string(bodyBytes)))
 
-	user := &UserSession{
+	user := &core.UserSession{
 		ID:                 "user1",
 		Username:           "admin",
 		Type:               "admin",
 		IsActive:           true,
 		AccessAllLibraries: true,
 	}
-	req = req.WithContext(context.WithValue(req.Context(), UserContextKey, user))
+	req = req.WithContext(context.WithValue(req.Context(), core.UserContextKey, user))
 
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
