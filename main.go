@@ -4,10 +4,12 @@ import (
 	"archive/zip"
 	"context"
 	"database/sql"
+	"embed"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
+	"io/fs"
 	"log"
 	"net/http"
 	"net/url"
@@ -30,6 +32,11 @@ import (
 	"golang.org/x/crypto/bcrypt"
 	_ "modernc.org/sqlite"
 )
+
+//go:embed frontend
+var frontendFS embed.FS
+
+var subFS fs.FS
 
 type Config struct {
 	ConfigPath     string
@@ -95,6 +102,12 @@ func getVersion(appRoot string) string {
 func main() {
 	log.SetOutput(&LogWriter{Stdout: os.Stdout})
 	cfg := parseConfig()
+
+	var err error
+	subFS, err = fs.Sub(frontendFS, "frontend")
+	if err != nil {
+		log.Fatalf("Failed to initialize embedded frontend filesystem: %v", err)
+	}
 
 	appRoot, err := os.Getwd()
 	if err != nil {
@@ -249,7 +262,8 @@ func setupHandler(db *sql.DB, cfg *Config, dbConnected bool, appRoot string, ver
 		if r.Method == http.MethodPost {
 			handleLogin(db)(w, r)
 		} else if r.Method == http.MethodGet {
-			http.ServeFile(w, r, filepath.Join(appRoot, "client", "dist", "index.html"))
+			r.URL.Path = cfg.RouterBasePath + "/index.html"
+			serveStaticOrSPA(subFS, cfg.RouterBasePath)(w, r)
 		} else {
 			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
 		}
@@ -258,7 +272,8 @@ func setupHandler(db *sql.DB, cfg *Config, dbConnected bool, appRoot string, ver
 		if r.Method == http.MethodPost {
 			handleLogout(db)(w, r)
 		} else if r.Method == http.MethodGet {
-			http.ServeFile(w, r, filepath.Join(appRoot, "client", "dist", "index.html"))
+			r.URL.Path = cfg.RouterBasePath + "/index.html"
+			serveStaticOrSPA(subFS, cfg.RouterBasePath)(w, r)
 		} else {
 			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
 		}
@@ -267,7 +282,8 @@ func setupHandler(db *sql.DB, cfg *Config, dbConnected bool, appRoot string, ver
 		if r.Method == http.MethodPost {
 			handleInit(db)(w, r)
 		} else if r.Method == http.MethodGet {
-			http.ServeFile(w, r, filepath.Join(appRoot, "client", "dist", "index.html"))
+			r.URL.Path = cfg.RouterBasePath + "/index.html"
+			serveStaticOrSPA(subFS, cfg.RouterBasePath)(w, r)
 		} else {
 			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
 		}
@@ -287,7 +303,7 @@ func setupHandler(db *sql.DB, cfg *Config, dbConnected bool, appRoot string, ver
 		}
 	})
 	mux.HandleFunc(cfg.RouterBasePath+"/api/authorize", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodPost {
+		if r.Method == http.MethodPost || r.Method == http.MethodGet {
 			AuthMiddleware(db, getTokenSecret(db), handleAuthorize(db)).ServeHTTP(w, r)
 		} else {
 			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
@@ -430,7 +446,7 @@ func setupHandler(db *sql.DB, cfg *Config, dbConnected bool, appRoot string, ver
 		}
 	})
 	mux.HandleFunc(cfg.RouterBasePath+"/api/backups/path", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodPost {
+		if r.Method == http.MethodPost || r.Method == http.MethodPatch {
 			AuthMiddleware(db, getTokenSecret(db), handleUpdateBackupPath(db, cfg.MetadataPath)).ServeHTTP(w, r)
 		} else {
 			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
@@ -640,6 +656,13 @@ func setupHandler(db *sql.DB, cfg *Config, dbConnected bool, appRoot string, ver
 	})
 
 	mux.HandleFunc(cfg.RouterBasePath+"/api/tasks/", func(w http.ResponseWriter, r *http.Request) {
+		subPath := strings.TrimPrefix(r.URL.Path, cfg.RouterBasePath+"/api/tasks/")
+		if subPath == "cancel-all" {
+			if r.Method == http.MethodPost {
+				AuthMiddleware(db, getTokenSecret(db), handleCancelAllTasks(db)).ServeHTTP(w, r)
+				return
+			}
+		}
 		if r.Method == http.MethodGet {
 			AuthMiddleware(db, getTokenSecret(db), handleGetTasks(db)).ServeHTTP(w, r)
 		} else {
@@ -899,7 +922,6 @@ func setupHandler(db *sql.DB, cfg *Config, dbConnected bool, appRoot string, ver
 		}
 	})
 
-
 	// RSS Feed API
 	mux.HandleFunc(cfg.RouterBasePath+"/feed/", func(w http.ResponseWriter, r *http.Request) {
 		initManagers(db)
@@ -971,6 +993,11 @@ func setupHandler(db *sql.DB, cfg *Config, dbConnected bool, appRoot string, ver
 				AuthMiddleware(db, getTokenSecret(db), http.HandlerFunc(handleServeEbook(db, itemID, fileID))).ServeHTTP(w, r)
 				return
 			}
+		} else if len(parts) == 2 && parts[1] == "play" {
+			if r.Method == http.MethodPost {
+				AuthMiddleware(db, getTokenSecret(db), http.HandlerFunc(handlePlayItem(db, streamManager))).ServeHTTP(w, r)
+				return
+			}
 		}
 
 		log.Printf("[Backend] 404 Not Found: %s %s", r.Method, r.URL.Path)
@@ -1018,15 +1045,14 @@ func setupHandler(db *sql.DB, cfg *Config, dbConnected bool, appRoot string, ver
 		}
 
 		// Serve static frontend assets directly in Go
-		distPath := filepath.Join(appRoot, "client", "dist")
-		serveStaticOrSPA(distPath, cfg.RouterBasePath)(w, r)
+		serveStaticOrSPA(subFS, cfg.RouterBasePath)(w, r)
 	})
 
 	return handler
 }
 
-func serveStaticOrSPA(distPath, routerBasePath string) http.HandlerFunc {
-	fileServer := http.FileServer(http.Dir(distPath))
+func serveStaticOrSPA(fSys fs.FS, routerBasePath string) http.HandlerFunc {
+	fileServer := http.FileServer(http.FS(fSys))
 	return func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Path
 		if strings.HasPrefix(path, routerBasePath) {
@@ -1036,18 +1062,65 @@ func serveStaticOrSPA(distPath, routerBasePath string) http.HandlerFunc {
 			path = "/"
 		}
 
-		// Check if file exists in distPath
-		fullPath := filepath.Join(distPath, filepath.Clean(path))
-		stat, err := os.Stat(fullPath)
-		if err == nil && !stat.IsDir() {
-			// Strip prefix and serve file
+		cleanedPath := path
+		if strings.HasPrefix(cleanedPath, "/") {
+			cleanedPath = cleanedPath[1:]
+		}
+		if cleanedPath == "" {
+			cleanedPath = "."
+		}
+
+		if cleanedPath == "index.html" {
+			indexFile, err := fSys.Open("index.html")
+			if err == nil {
+				defer indexFile.Close()
+				stat, statErr := indexFile.Stat()
+				if statErr == nil {
+					if seeker, ok := indexFile.(io.ReadSeeker); ok {
+						http.ServeContent(w, r, "index.html", stat.ModTime(), seeker)
+						return
+					}
+				}
+			}
+		}
+
+		file, err := fSys.Open(cleanedPath)
+		var isDir bool
+		if err == nil {
+			stat, statErr := file.Stat()
+			if statErr == nil && stat.IsDir() {
+				isDir = true
+			}
+			file.Close()
+		}
+
+		if err == nil && !isDir {
 			http.StripPrefix(routerBasePath, fileServer).ServeHTTP(w, r)
 			return
 		}
 
 		// Serve index.html as fallback for Client-side SPA routing
 		log.Printf("[SPA] Fallback for GET %s -> index.html", r.URL.Path)
-		http.ServeFile(w, r, filepath.Join(distPath, "index.html"))
+		indexFile, err := fSys.Open("index.html")
+		if err != nil {
+			w.Header().Set("Content-Type", "text/html")
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte("<html><body>Audiobookshelf Go Gateway</body></html>"))
+			return
+		}
+		defer indexFile.Close()
+
+		stat, statErr := indexFile.Stat()
+		if statErr == nil {
+			if seeker, ok := indexFile.(io.ReadSeeker); ok {
+				http.ServeContent(w, r, "index.html", stat.ModTime(), seeker)
+				return
+			}
+		}
+
+		w.Header().Set("Content-Type", "text/html")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("<html><body>Audiobookshelf Go Gateway</body></html>"))
 	}
 }
 
@@ -1260,8 +1333,8 @@ func parseConfig() *Config {
 		source = "debian"
 	}
 
-	routerBasePath := os.Getenv("ROUTER_BASE_PATH")
-	if routerBasePath == "" {
+	routerBasePath, exists := os.LookupEnv("ROUTER_BASE_PATH")
+	if !exists {
 		routerBasePath = "/audiobookshelf"
 	}
 
@@ -1279,8 +1352,10 @@ func parseConfig() *Config {
 }
 
 func initDB(dbPath string) (*sql.DB, error) {
+	isNew := false
 	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
-		return nil, fmt.Errorf("database file %s does not exist yet", dbPath)
+		isNew = true
+		log.Printf("[DB] Database file not found, creating new database at %s", dbPath)
 	}
 
 	dsn := fmt.Sprintf("file:%s?_pragma=journal_mode=WAL&_pragma=busy_timeout=5000", dbPath)
@@ -1294,8 +1369,60 @@ func initDB(dbPath string) (*sql.DB, error) {
 		return nil, err
 	}
 
+	if isNew {
+		if err := bootstrapSchema(db); err != nil {
+			db.Close()
+			return nil, fmt.Errorf("failed to bootstrap schema: %w", err)
+		}
+		log.Printf("[DB] Schema bootstrapped successfully")
+	}
+
 	return db, nil
 }
+
+func bootstrapSchema(db *sql.DB) error {
+	queries := []string{
+		`CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT, createdAt TEXT, updatedAt TEXT)`,
+		`CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, username TEXT, email TEXT, pash TEXT, type TEXT, token TEXT, isActive INTEGER, isLocked INTEGER, lastSeen INTEGER, permissions TEXT, bookmarks TEXT, extraData TEXT, createdAt TEXT, updatedAt TEXT)`,
+		`CREATE TABLE IF NOT EXISTS sessions (id TEXT PRIMARY KEY, userId TEXT, ipAddress TEXT, userAgent TEXT, refreshToken TEXT, expiresAt TEXT, lastRefreshToken TEXT, lastRefreshTokenExpiresAt TEXT, createdAt TEXT, updatedAt TEXT)`,
+		`CREATE TABLE IF NOT EXISTS apiKeys (id TEXT PRIMARY KEY, isActive INTEGER, expiresAt TEXT, userId TEXT)`,
+		`CREATE TABLE IF NOT EXISTS libraries (id TEXT PRIMARY KEY, name TEXT, displayOrder INTEGER, icon TEXT, mediaType TEXT, provider TEXT, lastScan TEXT, lastScanVersion TEXT, settings TEXT, createdAt TEXT, updatedAt TEXT)`,
+		`CREATE TABLE IF NOT EXISTS libraryFolders (id TEXT PRIMARY KEY, path TEXT, libraryId TEXT, createdAt TEXT, updatedAt TEXT)`,
+		`CREATE TABLE IF NOT EXISTS libraryItems (id TEXT PRIMARY KEY, ino TEXT, libraryId TEXT, path TEXT, relPath TEXT, isFile INTEGER, mtime TEXT, ctime TEXT, birthtime TEXT, createdAt TEXT, updatedAt TEXT, isMissing INTEGER, isInvalid INTEGER, mediaType TEXT, mediaId TEXT, size INTEGER, libraryFolderId TEXT, authorNamesFirstLast TEXT, authorNamesLastFirst TEXT, title TEXT, titleIgnorePrefix TEXT)`,
+		`CREATE TABLE IF NOT EXISTS books (id TEXT PRIMARY KEY, title TEXT, titleIgnorePrefix TEXT, subtitle TEXT, publishedYear TEXT, publishedDate TEXT, publisher TEXT, description TEXT, isbn TEXT, asin TEXT, language TEXT, explicit INTEGER, abridged INTEGER, coverPath TEXT, duration REAL, narrators BLOB, audioFiles BLOB, ebookFile BLOB, chapters BLOB, tags BLOB, genres BLOB)`,
+		`CREATE TABLE IF NOT EXISTS podcasts (id TEXT PRIMARY KEY, title TEXT, titleIgnorePrefix TEXT, author TEXT, releaseDate TEXT, feedURL TEXT, imageURL TEXT, description TEXT, itunesPageURL TEXT, itunesId TEXT, itunesArtistId TEXT, language TEXT, podcastType TEXT, explicit INTEGER, autoDownloadEpisodes INTEGER, autoDownloadSchedule TEXT, lastEpisodeCheck TEXT, maxEpisodesToKeep INTEGER, maxNewEpisodesToDownload INTEGER, coverPath TEXT, tags BLOB, genres BLOB, numEpisodes INTEGER)`,
+		`CREATE TABLE IF NOT EXISTS bookSeries (bookId TEXT, seriesId TEXT, sequence TEXT)`,
+		`CREATE TABLE IF NOT EXISTS series (id TEXT PRIMARY KEY, libraryId TEXT, name TEXT, nameIgnorePrefix TEXT, description TEXT, createdAt TEXT, updatedAt TEXT)`,
+		`CREATE TABLE IF NOT EXISTS mediaProgresses (id TEXT PRIMARY KEY, userId TEXT, mediaItemId TEXT, mediaItemType TEXT, duration REAL, currentTime REAL, isFinished INTEGER, hideFromContinueListening INTEGER, ebookLocation TEXT, ebookProgress REAL, finishedAt TEXT, extraData TEXT, podcastId TEXT, createdAt TEXT, updatedAt TEXT)`,
+		`CREATE TABLE IF NOT EXISTS playbackSessions (id TEXT PRIMARY KEY, userId TEXT, mediaItemId TEXT, mediaItemType TEXT, startTime REAL, libraryId TEXT, extraData TEXT)`,
+		`CREATE TABLE IF NOT EXISTS podcastEpisodes (id TEXT PRIMARY KEY, podcastId TEXT, title TEXT, audioFile TEXT)`,
+		`CREATE TABLE IF NOT EXISTS playlists (id TEXT PRIMARY KEY, name TEXT NOT NULL, description TEXT, createdAt TEXT, updatedAt TEXT, libraryId TEXT, userId TEXT)`,
+		`CREATE TABLE IF NOT EXISTS playlistMediaItems (id TEXT PRIMARY KEY, mediaItemId TEXT, mediaItemType TEXT, "order" INTEGER, createdAt TEXT, playlistId TEXT)`,
+		`CREATE TABLE IF NOT EXISTS collections (id TEXT PRIMARY KEY, libraryId TEXT, name TEXT, description TEXT, createdAt TEXT, updatedAt TEXT)`,
+		`CREATE TABLE IF NOT EXISTS collectionBooks (collectionId TEXT, bookId TEXT, "order" INTEGER)`,
+		`CREATE TABLE IF NOT EXISTS customMetadataProviders (id TEXT PRIMARY KEY, name TEXT, mediaType TEXT, url TEXT, authHeaderValue TEXT, extraData TEXT, createdAt INTEGER, updatedAt INTEGER)`,
+		`CREATE TABLE IF NOT EXISTS authors (id TEXT PRIMARY KEY, name TEXT, lastFirst TEXT, asin TEXT, description TEXT, imagePath TEXT, createdAt TEXT, updatedAt TEXT, libraryId TEXT)`,
+		`CREATE TABLE IF NOT EXISTS bookAuthors (bookId TEXT, authorId TEXT)`,
+		`CREATE TABLE IF NOT EXISTS shareLinks (id TEXT PRIMARY KEY, libraryItemId TEXT, userId TEXT, expiresAt TEXT, isDownloadable INTEGER, passwordHash TEXT, createdAt TEXT, updatedAt TEXT)`,
+		// Seed default server settings
+		`INSERT OR IGNORE INTO settings (key, value, createdAt, updatedAt) VALUES ('server-settings', '{"sortingIgnorePrefix":true,"sortingPrefixes":["the","a"],"chromecastEnabled":false,"dateFormat":"MM/DD/YYYY","timeFormat":"HH:mm","language":"en-us","logLevel":2,"version":"2.35.1","authActiveAuthMethods":["local"],"authLoginCustomMessage":""}', datetime('now'), datetime('now'))`,
+	}
+
+	for _, q := range queries {
+		if _, err := db.Exec(q); err != nil {
+			return fmt.Errorf("query failed (%s...): %w", q[:min(50, len(q))], err)
+		}
+	}
+	return nil
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
 
 func handleGetLibraries(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -1461,6 +1588,7 @@ func handleGetLibraryItems(db *sql.DB, libraryID string) http.HandlerFunc {
 			Include:        includeArray,
 			MediaType:      lib.MediaType,
 			Minified:       minified,
+			Search:         q.Get("search"),
 		}
 
 		results, total, err := GetFilteredLibraryItems(db, opts)
@@ -1521,26 +1649,26 @@ func handleGetLibraryPersonalized(db *sql.DB, libraryID string) http.HandlerFunc
 		}
 
 		type Shelf struct {
-			ID             string                      `json:"id"`
-			Label          string                      `json:"label"`
-			LabelStringKey string                      `json:"labelStringKey"`
-			Type           string                      `json:"type"`
-			Entities       []*LibraryItemMinifiedJSON  `json:"entities"`
+			ID             string                     `json:"id"`
+			Label          string                     `json:"label"`
+			LabelStringKey string                     `json:"labelStringKey"`
+			Type           string                     `json:"type"`
+			Entities       []*LibraryItemMinifiedJSON `json:"entities"`
 		}
 
 		var shelves []Shelf
 
 		// 1. Fetch in-progress items
 		optsProgress := GetFilteredLibraryItemsOptions{
-			LibraryID:      libraryID,
-			User:           user,
-			FilterBy:       "progress.in-progress",
-			SortBy:         "progress",
-			SortDesc:       true,
-			Limit:          limitVal,
-			Page:           0,
-			MediaType:      lib.MediaType,
-			Minified:       true,
+			LibraryID: libraryID,
+			User:      user,
+			FilterBy:  "progress.in-progress",
+			SortBy:    "progress",
+			SortDesc:  true,
+			Limit:     limitVal,
+			Page:      0,
+			MediaType: lib.MediaType,
+			Minified:  true,
 		}
 		progressItems, _, err := GetFilteredLibraryItems(db, optsProgress)
 		if err == nil && len(progressItems) > 0 {
@@ -1600,14 +1728,14 @@ func handleGetLibraryPersonalized(db *sql.DB, libraryID string) http.HandlerFunc
 
 		// 2. Fetch recently added items
 		optsRecent := GetFilteredLibraryItemsOptions{
-			LibraryID:      libraryID,
-			User:           user,
-			SortBy:         "addedAt",
-			SortDesc:       true,
-			Limit:          limitVal,
-			Page:           0,
-			MediaType:      lib.MediaType,
-			Minified:       true,
+			LibraryID: libraryID,
+			User:      user,
+			SortBy:    "addedAt",
+			SortDesc:  true,
+			Limit:     limitVal,
+			Page:      0,
+			MediaType: lib.MediaType,
+			Minified:  true,
 		}
 		recentItems, _, err := GetFilteredLibraryItems(db, optsRecent)
 		if err == nil && len(recentItems) > 0 {
@@ -2597,14 +2725,20 @@ func getString(val interface{}) string {
 
 func handleOIDCCallback(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		globalOIDCHandlerMu.RLock()
-		handler := globalOIDCHandler
-		globalOIDCHandlerMu.RUnlock()
-
-		if handler == nil {
-			http.Error(w, "No active OIDC session", http.StatusBadRequest)
+		s, err := getOIDCSettings(db)
+		if err != nil {
+			http.Error(w, "Failed to load OIDC settings", http.StatusInternalServerError)
 			return
 		}
+
+		globalOIDCHandlerMu.Lock()
+		if globalOIDCHandler == nil {
+			globalOIDCHandler = auth.NewOIDCHandler(s, nil)
+		} else {
+			globalOIDCHandler.UpdateSettings(s)
+		}
+		handler := globalOIDCHandler
+		globalOIDCHandlerMu.Unlock()
 
 		claims, err := handler.HandleCallback(w, r)
 		if err != nil {
@@ -2617,11 +2751,7 @@ func handleOIDCCallback(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		s, err := getOIDCSettings(db)
-		if err != nil {
-			http.Error(w, "Failed to load OIDC settings", http.StatusInternalServerError)
-			return
-		}
+		mappedRole, _ := claims["mapped_role"].(string)
 
 		u, err := findUserFromOpenIdUserInfo(r.Context(), db, claims, s.MatchExistingBy)
 		if err != nil {
@@ -2636,11 +2766,25 @@ func handleOIDCCallback(db *sql.DB) http.HandlerFunc {
 				return
 			}
 
-			u, err = createUserFromOpenIdUserInfo(r.Context(), db, claims, getTokenSecret(db))
+			u, err = createUserFromOpenIdUserInfo(r.Context(), db, claims, getTokenSecret(db), mappedRole)
 			if err != nil {
 				log.Printf("[OIDC Callback] User registration failed: %v", err)
 				http.Error(w, "Failed to register user", http.StatusInternalServerError)
 				return
+			}
+		} else {
+			if mappedRole != "" && u.Type != mappedRole {
+				u.Type = mappedRole
+				permsStr := getDefaultPermissionsForUserType(mappedRole)
+				u.Permissions = []byte(permsStr)
+
+				_, err = db.ExecContext(r.Context(), "UPDATE users SET type = ?, permissions = ?, updatedAt = ? WHERE id = ?",
+					u.Type, permsStr, timeToDBStr(time.Now()), u.ID)
+				if err != nil {
+					log.Printf("[OIDC Callback] Failed to update user role/permissions: %v", err)
+					http.Error(w, "Failed to update user role", http.StatusInternalServerError)
+					return
+				}
 			}
 		}
 

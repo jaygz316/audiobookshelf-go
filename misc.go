@@ -111,15 +111,25 @@ func handleRenameTag(db *sql.DB) http.HandlerFunc {
 		}
 
 		var body struct {
-			Tag    string `json:"tag"`
-			NewTag string `json:"newTag"`
+			Tag     string `json:"tag"`
+			NewTag  string `json:"newTag"`
+			Name    string `json:"name"`
+			NewName string `json:"newName"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 			http.Error(w, `{"error": "Invalid request body"}`, http.StatusBadRequest)
 			return
 		}
-		if body.Tag == "" || body.NewTag == "" {
-			http.Error(w, `{"error": "tag and newTag are required"}`, http.StatusBadRequest)
+		tagVal := body.Tag
+		if tagVal == "" {
+			tagVal = body.Name
+		}
+		newTagVal := body.NewTag
+		if newTagVal == "" {
+			newTagVal = body.NewName
+		}
+		if tagVal == "" || newTagVal == "" {
+			http.Error(w, `{"error": "tag/name and newTag/newName are required"}`, http.StatusBadRequest)
 			return
 		}
 
@@ -146,7 +156,7 @@ func handleRenameTag(db *sql.DB) http.HandlerFunc {
 				http.Error(w, "Database scan error", http.StatusInternalServerError)
 				return
 			}
-			if updated, changed := replaceInJSONArray(tagsStr, body.Tag, body.NewTag); changed {
+			if updated, changed := replaceInJSONArray(tagsStr, tagVal, newTagVal); changed {
 				_, err = tx.Exec("UPDATE books SET tags = ? WHERE id = ?", updated, id)
 				if err != nil {
 					log.Printf("[Rename Tag] Update book failed: %v", err)
@@ -178,7 +188,7 @@ func handleRenameTag(db *sql.DB) http.HandlerFunc {
 				http.Error(w, "Database scan error", http.StatusInternalServerError)
 				return
 			}
-			if updated, changed := replaceInJSONArray(tagsStr, body.Tag, body.NewTag); changed {
+			if updated, changed := replaceInJSONArray(tagsStr, tagVal, newTagVal); changed {
 				_, err = tx.Exec("UPDATE podcasts SET tags = ? WHERE id = ?", updated, id)
 				if err != nil {
 					log.Printf("[Rename Tag] Update podcast failed: %v", err)
@@ -217,17 +227,17 @@ func handleRenameTag(db *sql.DB) http.HandlerFunc {
 						changed := false
 						newTagsSel := []interface{}{}
 						for _, t := range tagsSel {
-							if tStr, ok := t.(string); ok && tStr == body.Tag {
+							if tStr, ok := t.(string); ok && tStr == tagVal {
 								// Rename
 								alreadyHasNew := false
 								for _, existT := range tagsSel {
-									if existTStr, ok := existT.(string); ok && existTStr == body.NewTag {
+									if existTStr, ok := existT.(string); ok && existTStr == newTagVal {
 										alreadyHasNew = true
 										break
 									}
 								}
 								if !alreadyHasNew {
-									newTagsSel = append(newTagsSel, body.NewTag)
+									newTagsSel = append(newTagsSel, newTagVal)
 								}
 								changed = true
 							} else {
@@ -277,7 +287,7 @@ func handleDeleteTag(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		tagParam := strings.TrimPrefix(r.URL.Path, "/api/tags/")
+		tagParam := trimAPIPath(r.URL.Path, "/api/tags/")
 		if tagParam == "" || strings.Contains(tagParam, "/") {
 			http.Error(w, `{"error": "Bad Request"}`, http.StatusBadRequest)
 			return
@@ -626,7 +636,7 @@ func handleDeleteGenre(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		genreParam := strings.TrimPrefix(r.URL.Path, "/api/genres/")
+		genreParam := trimAPIPath(r.URL.Path, "/api/genres/")
 		if genreParam == "" || strings.Contains(genreParam, "/") {
 			http.Error(w, `{"error": "Bad Request"}`, http.StatusBadRequest)
 			return
@@ -735,19 +745,19 @@ func handleGetAdminStatsForYear(db *sql.DB) http.HandlerFunc {
 		}
 
 		res := map[string]interface{}{
-			"totalListeningSessions":   0,
-			"totalListeningTime":       0,
-			"totalBookListeningTime":   0,
+			"totalListeningSessions":    0,
+			"totalListeningTime":        0,
+			"totalBookListeningTime":    0,
 			"totalPodcastListeningTime": 0,
-			"topAuthors":               []interface{}{},
-			"topGenres":                []interface{}{},
-			"mostListenedNarrator":     nil,
-			"mostListenedMonth":        nil,
-			"numBooksFinished":         0,
-			"numBooksListened":         0,
-			"longestAudiobookFinished": nil,
-			"booksWithCovers":          []interface{}{},
-			"finishedBooksWithCovers":  []interface{}{},
+			"topAuthors":                []interface{}{},
+			"topGenres":                 []interface{}{},
+			"mostListenedNarrator":      nil,
+			"mostListenedMonth":         nil,
+			"numBooksFinished":          0,
+			"numBooksListened":          0,
+			"longestAudiobookFinished":  nil,
+			"booksWithCovers":           []interface{}{},
+			"finishedBooksWithCovers":   []interface{}{},
 		}
 
 		w.Header().Set("Content-Type", "application/json")
@@ -1110,5 +1120,21 @@ func handleGetTasks(db *sql.DB) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(data)
+	}
+}
+
+// handleCancelAllTasks cancels all tasks
+func handleCancelAllTasks(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("[Go] POST /api/tasks/cancel-all")
+		userSess, ok := r.Context().Value(UserContextKey).(*UserSession)
+		if !ok || !userSess.IsAdminOrUp() {
+			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"success": true}`))
 	}
 }

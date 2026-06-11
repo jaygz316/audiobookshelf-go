@@ -104,10 +104,26 @@ func AuthMiddleware(db *sql.DB, tokenSecret string, next http.Handler) http.Hand
 				http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
 				return
 			}
+			// Verify user has at least one session in sessions table
+			var sessionExists int
+			err := db.QueryRow("SELECT COUNT(*) FROM sessions WHERE userId = ?", claims.UserID).Scan(&sessionExists)
+			if err != nil || sessionExists == 0 {
+				log.Printf("[Auth] Unauthorized: No active sessions for user ID %s", claims.UserID)
+				http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
+				return
+			}
 		}
 
 		// Inject user info into context
 		ctx := context.WithValue(r.Context(), UserContextKey, userSession)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
+}
+
+// trimAPIPath extracts the subpath after the specified API segment, in a router base path agnostic manner.
+func trimAPIPath(path, segment string) string {
+	if idx := strings.Index(path, segment); idx != -1 {
+		return path[idx+len(segment):]
+	}
+	return strings.TrimPrefix(path, segment)
 }
