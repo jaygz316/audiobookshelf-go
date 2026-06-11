@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       # Check out the repository
       - name: Checkout
@@ -23,9 +23,7 @@ jobs:
       - name: Set up node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: 'npm'
-          cache-dependency-path: 'client/package-lock.json'
+          node-version: 24
 
       # Install Redocly CLI
       - name: Install Redocly CLI
