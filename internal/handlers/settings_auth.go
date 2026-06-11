@@ -1,4 +1,4 @@
-package main
+package handlers
 
 import (
 	"database/sql"
@@ -6,7 +6,8 @@ import (
 	"log"
 	"net/http"
 
-	"audiobookshelf/internal/core")
+	"audiobookshelf/internal/core"
+)
 
 // handleGetAuthSettings maps to GET /api/auth-settings
 func handleGetAuthSettings(db *sql.DB) http.HandlerFunc {

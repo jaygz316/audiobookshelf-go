@@ -1,4 +1,4 @@
-package main
+package db
 
 import (
 	"database/sql"
@@ -14,46 +14,9 @@ import (
 	"github.com/google/uuid"
 
 	"audiobookshelf/internal/core"
-	idb "audiobookshelf/internal/db"
+	"audiobookshelf/internal/utils"
+	watcher "audiobookshelf/internal/watcher"
 )
-
-// ServerSettings is an alias for the type in internal/db.
-type ServerSettings = idb.ServerSettings
-
-// GetServerSettings reads the server settings from the settings table.
-func GetServerSettings(db *sql.DB) (*ServerSettings, error) {
-	return idb.GetServerSettings(db)
-}
-
-// GetSortingIgnorePrefix reads sortingIgnorePrefix from server-settings.
-func GetSortingIgnorePrefix(db *sql.DB) bool {
-	return idb.GetSortingIgnorePrefix(db)
-}
-
-// HasRootUser checks if any user of type 'root' exists in the users table.
-func HasRootUser(db *sql.DB) (bool, error) {
-	return idb.HasRootUser(db)
-}
-
-// parsePermissions is a local wrapper for the internal/db implementation.
-func parsePermissions(permsStr sql.NullString, user *core.UserSession) {
-	idb.ParsePermissions(permsStr, user)
-}
-
-// GetUserByID fetches minimum info needed for authentication for a user ID.
-func GetUserByID(db *sql.DB, userID string) (*core.UserSession, error) {
-	return idb.GetUserByID(db, userID)
-}
-
-// GetUserByIDOrOldID fetches minimum info needed for authentication for a user ID or old user ID.
-func GetUserByIDOrOldID(db *sql.DB, userID string) (*core.UserSession, error) {
-	return idb.GetUserByIDOrOldID(db, userID)
-}
-
-// CheckAPIKey verifies that an API key is active and not expired.
-func CheckAPIKey(db *sql.DB, keyID string) (*core.UserSession, error) {
-	return idb.CheckAPIKey(db, keyID)
-}
 
 type LibraryItemDownloadInfo struct {
 	Path    string
@@ -111,11 +74,6 @@ func GetCoverPath(db *sql.DB, itemID string) (string, error) {
 	return coverPath.String, nil
 }
 
-// parseSQLiteTime delegates to internal/db for SQLite timestamp parsing.
-func parseSQLiteTime(s string) (time.Time, error) {
-	return idb.ParseSQLiteTime(s)
-}
-
 
 type LibraryFolderJSON struct {
 	ID        string `json:"id"`
@@ -170,15 +128,15 @@ func GetLibraries(db *sql.DB) ([]*LibraryJSON, error) {
 
 		var lastScan *int64
 		if lastScanStr.Valid && lastScanStr.String != "" {
-			t, err := parseSQLiteTime(lastScanStr.String)
+			t, err := ParseSQLiteTime(lastScanStr.String)
 			if err == nil {
 				val := t.UnixNano() / int64(time.Millisecond)
 				lastScan = &val
 			}
 		}
 
-		createdAtTime, _ := parseSQLiteTime(createdAtStr)
-		updatedAtTime, _ := parseSQLiteTime(updatedAtStr)
+		createdAtTime, _ := ParseSQLiteTime(createdAtStr)
+		updatedAtTime, _ := ParseSQLiteTime(updatedAtStr)
 
 		var iconVal string
 		if icon.Valid {
@@ -229,7 +187,7 @@ func GetLibraries(db *sql.DB) ([]*LibraryJSON, error) {
 			return nil, err
 		}
 
-		createdAtTime, _ := parseSQLiteTime(createdAtStr)
+		createdAtTime, _ := ParseSQLiteTime(createdAtStr)
 		folder := &LibraryFolderJSON{
 			ID:        id,
 			FullPath:  path,
@@ -267,15 +225,15 @@ func GetLibraryByID(db *sql.DB, libraryID string) (*LibraryJSON, error) {
 
 	var lastScan *int64
 	if lastScanStr.Valid && lastScanStr.String != "" {
-		t, err := parseSQLiteTime(lastScanStr.String)
+		t, err := ParseSQLiteTime(lastScanStr.String)
 		if err == nil {
 			val := t.UnixNano() / int64(time.Millisecond)
 			lastScan = &val
 		}
 	}
 
-	createdAtTime, _ := parseSQLiteTime(createdAtStr)
-	updatedAtTime, _ := parseSQLiteTime(updatedAtStr)
+	createdAtTime, _ := ParseSQLiteTime(createdAtStr)
+	updatedAtTime, _ := ParseSQLiteTime(updatedAtStr)
 
 	var iconVal string
 	if icon.Valid {
@@ -321,7 +279,7 @@ func GetLibraryByID(db *sql.DB, libraryID string) (*LibraryJSON, error) {
 		if err != nil {
 			return nil, err
 		}
-		fCreatedAt, _ := parseSQLiteTime(folderCreatedAtStr)
+		fCreatedAt, _ := ParseSQLiteTime(folderCreatedAtStr)
 		lib.Folders = append(lib.Folders, &LibraryFolderJSON{
 			ID:        folderID,
 			FullPath:  path,
@@ -759,7 +717,7 @@ func GetLibraryItemMinifiedByID(db *sql.DB, itemID string) (*LibraryItemMinified
 					TitleIgnorePrefix: bTitleIgnorePrefix,
 					Subtitle:          nullIfEmpty(bSubtitle),
 					AuthorName:        authorName,
-					AuthorNameLF:      nameToLastFirst(authorName),
+					AuthorNameLF:      utils.NameToLastFirst(authorName),
 					NarratorName:      narratorName,
 					SeriesName:        seriesName,
 					Genres:            genres,
@@ -1178,7 +1136,7 @@ func GetFilteredLibraryItems(db *sql.DB, options GetFilteredLibraryItemsOptions)
 
 			var lastEpisodeCheckVal *int64
 			if pLastEpisodeCheck.Valid && pLastEpisodeCheck.String != "" {
-				t, err := parseSQLiteTime(pLastEpisodeCheck.String)
+				t, err := ParseSQLiteTime(pLastEpisodeCheck.String)
 				if err == nil {
 					val := t.UnixNano() / int64(time.Millisecond)
 					lastEpisodeCheckVal = &val
@@ -1286,12 +1244,12 @@ func GetFilteredLibraryItems(db *sql.DB, options GetFilteredLibraryItemsOptions)
 
 // parseEpochMillis delegates to internal/db.
 func parseEpochMillis(s string) int64 {
-	return idb.ParseEpochMillis(s)
+	return ParseEpochMillis(s)
 }
 
 // jsonArrayToCommaString delegates to internal/db.
 func jsonArrayToCommaString(jsonBytes []byte) string {
-	return idb.JsonArrayToCommaString(jsonBytes)
+	return JsonArrayToCommaString(jsonBytes)
 }
 
 type CreateFolderPayload struct {
@@ -1421,10 +1379,14 @@ func mergeSettings(mediaType string, inputSettings map[string]interface{}) (map[
 	return settings, nil
 }
 
-func tableExistsTx(tx *sql.Tx, tableName string) bool {
+func TableExistsTx(tx *sql.Tx, tableName string) bool {
 	var name string
 	err := tx.QueryRow("SELECT name FROM sqlite_master WHERE type='table' AND name=?", tableName).Scan(&name)
 	return err == nil && name == tableName
+}
+
+func tableExistsTx(tx *sql.Tx, tableName string) bool {
+	return TableExistsTx(tx, tableName)
 }
 
 func CreateLibrary(db *sql.DB, payload *CreateLibraryPayload) (*LibraryJSON, error) {
@@ -1486,8 +1448,8 @@ func CreateLibrary(db *sql.DB, payload *CreateLibraryPayload) (*LibraryJSON, err
 		return nil, err
 	}
 
-	if GlobalWatcher != nil {
-		GlobalWatcher.Reload()
+	if watcher.GlobalWatcher != nil {
+		watcher.GlobalWatcher.Reload()
 	}
 
 	return GetLibraryByID(db, libraryID)
@@ -1654,8 +1616,8 @@ func UpdateLibrary(db *sql.DB, libraryID string, payload *UpdateLibraryPayload) 
 		return nil, err
 	}
 
-	if GlobalWatcher != nil {
-		GlobalWatcher.Reload()
+	if watcher.GlobalWatcher != nil {
+		watcher.GlobalWatcher.Reload()
 	}
 
 	return GetLibraryByID(db, libraryID)
@@ -1768,8 +1730,8 @@ func DeleteLibrary(db *sql.DB, libraryID string) (*LibraryJSON, error) {
 		return nil, err
 	}
 
-	if GlobalWatcher != nil {
-		GlobalWatcher.Reload()
+	if watcher.GlobalWatcher != nil {
+		watcher.GlobalWatcher.Reload()
 	}
 
 	return lib, nil
@@ -1791,7 +1753,7 @@ type LibraryFilterData struct {
 	NumIssues        int                 `json:"numIssues"`
 }
 
-func getLibraryFilterDataGo(db *sql.DB, libraryID string) (*LibraryFilterData, error) {
+func GetLibraryFilterDataGo(db *sql.DB, libraryID string) (*LibraryFilterData, error) {
 	var mediaType string
 	err := db.QueryRow("SELECT mediaType FROM libraries WHERE id = ?", libraryID).Scan(&mediaType)
 	if err != nil {

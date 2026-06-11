@@ -1,4 +1,4 @@
-package main
+package handlers
 
 import (
 	"database/sql"
@@ -13,7 +13,11 @@ import (
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 
-	"audiobookshelf/internal/core")
+	"audiobookshelf/internal/core"
+	idb "audiobookshelf/internal/db"
+	isocket "audiobookshelf/internal/socket"
+	"audiobookshelf/internal/utils"
+)
 
 // handleGetMe returns the logged-in user details
 func handleGetMe(db *sql.DB) http.HandlerFunc {
@@ -25,15 +29,15 @@ func handleGetMe(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		user, err := getUserByID(r.Context(), db, userSess.ID)
+		user, err := idb.GetUserFullByID(r.Context(), db, userSess.ID)
 		if err != nil || user == nil {
-			log.Printf("[Me] User lookup failed: %v", err)
+			log.Printf("[Me] idb.User lookup failed: %v", err)
 			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
 			return
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(user.toOldJSONForBrowser(user.Type != "root"))
+		json.NewEncoder(w).Encode(user.ToOldJSONForBrowser(user.Type != "root"))
 	}
 }
 
@@ -61,9 +65,9 @@ func handleUpdateMePassword(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		user, err := getUserByID(r.Context(), db, userSess.ID)
+		user, err := idb.GetUserFullByID(r.Context(), db, userSess.ID)
 		if err != nil || user == nil {
-			http.Error(w, `{"error": "User not found"}`, http.StatusNotFound)
+			http.Error(w, `{"error": "idb.User not found"}`, http.StatusNotFound)
 			return
 		}
 
@@ -80,7 +84,7 @@ func handleUpdateMePassword(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		_, err = db.ExecContext(r.Context(), "UPDATE users SET pash = ?, updatedAt = ? WHERE id = ?", string(hashed), timeToDBStr(time.Now()), user.ID)
+		_, err = db.ExecContext(r.Context(), "UPDATE users SET pash = ?, updatedAt = ? WHERE id = ?", string(hashed), idb.TimeToDBStr(time.Now()), user.ID)
 		if err != nil {
 			log.Printf("[Me] Password update DB error: %v", err)
 			http.Error(w, `{"error": "Internal Server Error"}`, http.StatusInternalServerError)
@@ -110,7 +114,7 @@ func handleGetMeProgress(db *sql.DB) http.HandlerFunc {
 		}
 
 		// Path format: /api/me/progress/:id/:episodeId?
-		subPath := trimAPIPath(r.URL.Path, "/api/me/progress/")
+		subPath := utils.TrimAPIPath(r.URL.Path, "/api/me/progress/")
 		parts := strings.Split(subPath, "/")
 		if len(parts) == 0 || parts[0] == "" {
 			http.Error(w, `{"error": "Bad Request"}`, http.StatusBadRequest)
@@ -158,7 +162,7 @@ func handleCreateUpdateMeProgress(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		subPath := trimAPIPath(r.URL.Path, "/api/me/progress/")
+		subPath := utils.TrimAPIPath(r.URL.Path, "/api/me/progress/")
 		parts := strings.Split(subPath, "/")
 		if len(parts) == 0 || parts[0] == "" {
 			http.Error(w, `{"error": "Bad Request"}`, http.StatusBadRequest)
@@ -241,7 +245,7 @@ func handleCreateUpdateMeProgress(db *sql.DB) http.HandlerFunc {
 		}
 
 		now := time.Now()
-		nowStr := timeToDBStr(now)
+		nowStr := idb.TimeToDBStr(now)
 
 		// Defaults/updates
 		durationVal := currDuration
@@ -269,7 +273,7 @@ func handleCreateUpdateMeProgress(db *sql.DB) http.HandlerFunc {
 			isFinishedVal = *payload.IsFinished
 			if isFinishedVal && (currIsFinished == 0) {
 				if payload.FinishedAt != nil {
-					finishedAtVal = timeToDBStr(time.UnixMilli(*payload.FinishedAt))
+					finishedAtVal = idb.TimeToDBStr(time.UnixMilli(*payload.FinishedAt))
 				} else {
 					finishedAtVal = nowStr
 				}
@@ -336,7 +340,7 @@ func handleCreateUpdateMeProgress(db *sql.DB) http.HandlerFunc {
 		extraBytes, _ := json.Marshal(extra)
 		updatedAtStr := nowStr
 		if payload.LastUpdate != nil {
-			updatedAtStr = timeToDBStr(time.UnixMilli(*payload.LastUpdate))
+			updatedAtStr = idb.TimeToDBStr(time.UnixMilli(*payload.LastUpdate))
 		}
 
 		var finishedAtNullable interface{} = nil
@@ -386,11 +390,11 @@ func handleCreateUpdateMeProgress(db *sql.DB) http.HandlerFunc {
 		}
 
 		// Broadcast update
-		user, err := getUserByID(r.Context(), db, userSess.ID)
+		user, err := idb.GetUserFullByID(r.Context(), db, userSess.ID)
 		if err == nil && user != nil {
-			userJSON := user.toOldJSONForBrowser(user.Type != "root")
-			if SocketAuth != nil {
-				SocketAuth.BroadcastToUser(userSess.ID, "user_updated", userJSON)
+			userJSON := user.ToOldJSONForBrowser(user.Type != "root")
+			if isocket.GlobalAuth != nil {
+				isocket.GlobalAuth.BroadcastToUser(userSess.ID, "user_updated", userJSON)
 			}
 		}
 
@@ -408,7 +412,7 @@ func handleRemoveMeProgress(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		progressID := trimAPIPath(r.URL.Path, "/api/me/progress/")
+		progressID := utils.TrimAPIPath(r.URL.Path, "/api/me/progress/")
 		if progressID == "" || strings.Contains(progressID, "/") {
 			http.Error(w, `{"error": "Bad Request"}`, http.StatusBadRequest)
 			return
@@ -430,11 +434,11 @@ func handleRemoveMeProgress(db *sql.DB) http.HandlerFunc {
 		}
 
 		// Broadcast update
-		user, err := getUserByID(r.Context(), db, userSess.ID)
+		user, err := idb.GetUserFullByID(r.Context(), db, userSess.ID)
 		if err == nil && user != nil {
-			userJSON := user.toOldJSONForBrowser(user.Type != "root")
-			if SocketAuth != nil {
-				SocketAuth.BroadcastToUser(userSess.ID, "user_updated", userJSON)
+			userJSON := user.ToOldJSONForBrowser(user.Type != "root")
+			if isocket.GlobalAuth != nil {
+				isocket.GlobalAuth.BroadcastToUser(userSess.ID, "user_updated", userJSON)
 			}
 		}
 
@@ -504,7 +508,7 @@ func handleGetAllLibraryItemsInProgress(db *sql.DB) http.HandlerFunc {
 				libraryItemIDs = append(libraryItemIDs, libItemID)
 				progressList = append(progressList, localProgress{
 					libraryItemID: libItemID,
-					updatedAtMs:   parseTimeStr(updatedAt.String),
+					updatedAtMs:   idb.ParseTimeStr(updatedAt.String),
 				})
 			}
 		}
@@ -579,7 +583,7 @@ func handleRemoveSeriesFromContinueListening(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		sub := trimAPIPath(r.URL.Path, "/api/me/series/")
+		sub := utils.TrimAPIPath(r.URL.Path, "/api/me/series/")
 		seriesID := strings.TrimSuffix(sub, "/remove-from-continue-listening")
 		if seriesID == "" || strings.Contains(seriesID, "/") {
 			http.Error(w, `{"error": "Bad Request"}`, http.StatusBadRequest)
@@ -594,9 +598,9 @@ func handleRemoveSeriesFromContinueListening(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		user, err := getUserByID(r.Context(), db, userSess.ID)
+		user, err := idb.GetUserFullByID(r.Context(), db, userSess.ID)
 		if err != nil || user == nil {
-			http.Error(w, "User not found", http.StatusNotFound)
+			http.Error(w, "idb.User not found", http.StatusNotFound)
 			return
 		}
 
@@ -620,18 +624,18 @@ func handleRemoveSeriesFromContinueListening(db *sql.DB) http.HandlerFunc {
 			seriesArr = append(seriesArr, seriesID)
 			extra["seriesHideFromContinueListening"] = seriesArr
 			extraBytes, _ := json.Marshal(extra)
-			_, err = db.ExecContext(r.Context(), "UPDATE users SET extraData = ?, updatedAt = ? WHERE id = ?", string(extraBytes), timeToDBStr(time.Now()), user.ID)
+			_, err = db.ExecContext(r.Context(), "UPDATE users SET extraData = ?, updatedAt = ? WHERE id = ?", string(extraBytes), idb.TimeToDBStr(time.Now()), user.ID)
 			if err != nil {
 				log.Printf("[Me Series] DB error: %v", err)
 				http.Error(w, "Database error", http.StatusInternalServerError)
 				return
 			}
-			user, _ = getUserByID(r.Context(), db, userSess.ID)
+			user, _ = idb.GetUserFullByID(r.Context(), db, userSess.ID)
 		}
 
-		userJSON := user.toOldJSONForBrowser(user.Type != "root")
-		if SocketAuth != nil {
-			SocketAuth.BroadcastToUser(userSess.ID, "user_updated", userJSON)
+		userJSON := user.ToOldJSONForBrowser(user.Type != "root")
+		if isocket.GlobalAuth != nil {
+			isocket.GlobalAuth.BroadcastToUser(userSess.ID, "user_updated", userJSON)
 		}
 
 		w.Header().Set("Content-Type", "application/json")
@@ -649,16 +653,16 @@ func handleReaddSeriesFromContinueListening(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		sub := trimAPIPath(r.URL.Path, "/api/me/series/")
+		sub := utils.TrimAPIPath(r.URL.Path, "/api/me/series/")
 		seriesID := strings.TrimSuffix(sub, "/readd-to-continue-listening")
 		if seriesID == "" || strings.Contains(seriesID, "/") {
 			http.Error(w, `{"error": "Bad Request"}`, http.StatusBadRequest)
 			return
 		}
 
-		user, err := getUserByID(r.Context(), db, userSess.ID)
+		user, err := idb.GetUserFullByID(r.Context(), db, userSess.ID)
 		if err != nil || user == nil {
-			http.Error(w, "User not found", http.StatusNotFound)
+			http.Error(w, "idb.User not found", http.StatusNotFound)
 			return
 		}
 
@@ -684,18 +688,18 @@ func handleReaddSeriesFromContinueListening(db *sql.DB) http.HandlerFunc {
 		if changed {
 			extra["seriesHideFromContinueListening"] = newSeriesArr
 			extraBytes, _ := json.Marshal(extra)
-			_, err = db.ExecContext(r.Context(), "UPDATE users SET extraData = ?, updatedAt = ? WHERE id = ?", string(extraBytes), timeToDBStr(time.Now()), user.ID)
+			_, err = db.ExecContext(r.Context(), "UPDATE users SET extraData = ?, updatedAt = ? WHERE id = ?", string(extraBytes), idb.TimeToDBStr(time.Now()), user.ID)
 			if err != nil {
 				log.Printf("[Me Series] DB error: %v", err)
 				http.Error(w, "Database error", http.StatusInternalServerError)
 				return
 			}
-			user, _ = getUserByID(r.Context(), db, userSess.ID)
+			user, _ = idb.GetUserFullByID(r.Context(), db, userSess.ID)
 		}
 
-		userJSON := user.toOldJSONForBrowser(user.Type != "root")
-		if SocketAuth != nil {
-			SocketAuth.BroadcastToUser(userSess.ID, "user_updated", userJSON)
+		userJSON := user.ToOldJSONForBrowser(user.Type != "root")
+		if isocket.GlobalAuth != nil {
+			isocket.GlobalAuth.BroadcastToUser(userSess.ID, "user_updated", userJSON)
 		}
 
 		w.Header().Set("Content-Type", "application/json")
@@ -713,7 +717,7 @@ func handleHideMeProgressFromContinueListening(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		sub := trimAPIPath(r.URL.Path, "/api/me/progress/")
+		sub := utils.TrimAPIPath(r.URL.Path, "/api/me/progress/")
 		progressID := strings.TrimSuffix(sub, "/remove-from-continue-listening")
 		progressID = strings.TrimSuffix(progressID, "/hide-from-continue-listening")
 		if progressID == "" || strings.Contains(progressID, "/") {
@@ -722,25 +726,25 @@ func handleHideMeProgressFromContinueListening(db *sql.DB) http.HandlerFunc {
 		}
 
 		_, err := db.ExecContext(r.Context(), "UPDATE mediaProgresses SET hideFromContinueListening = 1, updatedAt = ? WHERE id = ? AND userId = ?",
-			timeToDBStr(time.Now()), progressID, userSess.ID)
+			idb.TimeToDBStr(time.Now()), progressID, userSess.ID)
 		if err != nil {
 			log.Printf("[Me Progress] Hide progress error: %v", err)
 			http.Error(w, "Database error", http.StatusInternalServerError)
 			return
 		}
 
-		user, err := getUserByID(r.Context(), db, userSess.ID)
+		user, err := idb.GetUserFullByID(r.Context(), db, userSess.ID)
 		if err == nil && user != nil {
-			userJSON := user.toOldJSONForBrowser(user.Type != "root")
-			if SocketAuth != nil {
-				SocketAuth.BroadcastToUser(userSess.ID, "user_updated", userJSON)
+			userJSON := user.ToOldJSONForBrowser(user.Type != "root")
+			if isocket.GlobalAuth != nil {
+				isocket.GlobalAuth.BroadcastToUser(userSess.ID, "user_updated", userJSON)
 			}
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(userJSON)
 			return
 		}
 
-		http.Error(w, "User not found", http.StatusNotFound)
+		http.Error(w, "idb.User not found", http.StatusNotFound)
 	}
 }
 
@@ -765,7 +769,7 @@ func handleMeCreateBookmark(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		sub := trimAPIPath(r.URL.Path, "/api/me/item/")
+		sub := utils.TrimAPIPath(r.URL.Path, "/api/me/item/")
 		libraryItemID := strings.TrimSuffix(sub, "/bookmark")
 		if libraryItemID == "" || strings.Contains(libraryItemID, "/") {
 			http.Error(w, `{"error": "Bad Request"}`, http.StatusBadRequest)
@@ -787,9 +791,9 @@ func handleMeCreateBookmark(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		user, err := getUserByID(r.Context(), db, userSess.ID)
+		user, err := idb.GetUserFullByID(r.Context(), db, userSess.ID)
 		if err != nil || user == nil {
-			http.Error(w, "User not found", http.StatusNotFound)
+			http.Error(w, "idb.User not found", http.StatusNotFound)
 			return
 		}
 
@@ -808,17 +812,17 @@ func handleMeCreateBookmark(db *sql.DB) http.HandlerFunc {
 		bookmarks = append(bookmarks, newBookmark)
 
 		bookmarksBytes, _ := json.Marshal(bookmarks)
-		_, err = db.ExecContext(r.Context(), "UPDATE users SET bookmarks = ?, updatedAt = ? WHERE id = ?", string(bookmarksBytes), timeToDBStr(time.Now()), user.ID)
+		_, err = db.ExecContext(r.Context(), "UPDATE users SET bookmarks = ?, updatedAt = ? WHERE id = ?", string(bookmarksBytes), idb.TimeToDBStr(time.Now()), user.ID)
 		if err != nil {
 			log.Printf("[Me Bookmark] DB error: %v", err)
 			http.Error(w, "Database error", http.StatusInternalServerError)
 			return
 		}
 
-		user, _ = getUserByID(r.Context(), db, userSess.ID)
-		userJSON := user.toOldJSONForBrowser(user.Type != "root")
-		if SocketAuth != nil {
-			SocketAuth.BroadcastToUser(userSess.ID, "user_updated", userJSON)
+		user, _ = idb.GetUserFullByID(r.Context(), db, userSess.ID)
+		userJSON := user.ToOldJSONForBrowser(user.Type != "root")
+		if isocket.GlobalAuth != nil {
+			isocket.GlobalAuth.BroadcastToUser(userSess.ID, "user_updated", userJSON)
 		}
 
 		w.Header().Set("Content-Type", "application/json")
@@ -835,7 +839,7 @@ func handleMeUpdateBookmark(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		sub := trimAPIPath(r.URL.Path, "/api/me/item/")
+		sub := utils.TrimAPIPath(r.URL.Path, "/api/me/item/")
 		libraryItemID := strings.TrimSuffix(sub, "/bookmark")
 		if libraryItemID == "" || strings.Contains(libraryItemID, "/") {
 			http.Error(w, `{"error": "Bad Request"}`, http.StatusBadRequest)
@@ -852,9 +856,9 @@ func handleMeUpdateBookmark(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		user, err := getUserByID(r.Context(), db, userSess.ID)
+		user, err := idb.GetUserFullByID(r.Context(), db, userSess.ID)
 		if err != nil || user == nil {
-			http.Error(w, "User not found", http.StatusNotFound)
+			http.Error(w, "idb.User not found", http.StatusNotFound)
 			return
 		}
 
@@ -880,17 +884,17 @@ func handleMeUpdateBookmark(db *sql.DB) http.HandlerFunc {
 		}
 
 		bookmarksBytes, _ := json.Marshal(bookmarks)
-		_, err = db.ExecContext(r.Context(), "UPDATE users SET bookmarks = ?, updatedAt = ? WHERE id = ?", string(bookmarksBytes), timeToDBStr(time.Now()), user.ID)
+		_, err = db.ExecContext(r.Context(), "UPDATE users SET bookmarks = ?, updatedAt = ? WHERE id = ?", string(bookmarksBytes), idb.TimeToDBStr(time.Now()), user.ID)
 		if err != nil {
 			log.Printf("[Me Bookmark] DB error: %v", err)
 			http.Error(w, "Database error", http.StatusInternalServerError)
 			return
 		}
 
-		user, _ = getUserByID(r.Context(), db, userSess.ID)
-		userJSON := user.toOldJSONForBrowser(user.Type != "root")
-		if SocketAuth != nil {
-			SocketAuth.BroadcastToUser(userSess.ID, "user_updated", userJSON)
+		user, _ = idb.GetUserFullByID(r.Context(), db, userSess.ID)
+		userJSON := user.ToOldJSONForBrowser(user.Type != "root")
+		if isocket.GlobalAuth != nil {
+			isocket.GlobalAuth.BroadcastToUser(userSess.ID, "user_updated", userJSON)
 		}
 
 		w.Header().Set("Content-Type", "application/json")
@@ -908,7 +912,7 @@ func handleMeRemoveBookmark(db *sql.DB) http.HandlerFunc {
 		}
 
 		// Route format: /api/me/item/:id/bookmark/:time
-		sub := trimAPIPath(r.URL.Path, "/api/me/item/")
+		sub := utils.TrimAPIPath(r.URL.Path, "/api/me/item/")
 		parts := strings.Split(sub, "/bookmark/")
 		if len(parts) != 2 {
 			http.Error(w, `{"error": "Bad Request"}`, http.StatusBadRequest)
@@ -928,9 +932,9 @@ func handleMeRemoveBookmark(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		user, err := getUserByID(r.Context(), db, userSess.ID)
+		user, err := idb.GetUserFullByID(r.Context(), db, userSess.ID)
 		if err != nil || user == nil {
-			http.Error(w, "User not found", http.StatusNotFound)
+			http.Error(w, "idb.User not found", http.StatusNotFound)
 			return
 		}
 
@@ -955,17 +959,17 @@ func handleMeRemoveBookmark(db *sql.DB) http.HandlerFunc {
 		}
 
 		bookmarksBytes, _ := json.Marshal(newBookmarks)
-		_, err = db.ExecContext(r.Context(), "UPDATE users SET bookmarks = ?, updatedAt = ? WHERE id = ?", string(bookmarksBytes), timeToDBStr(time.Now()), user.ID)
+		_, err = db.ExecContext(r.Context(), "UPDATE users SET bookmarks = ?, updatedAt = ? WHERE id = ?", string(bookmarksBytes), idb.TimeToDBStr(time.Now()), user.ID)
 		if err != nil {
 			log.Printf("[Me Bookmark] DB error: %v", err)
 			http.Error(w, "Database error", http.StatusInternalServerError)
 			return
 		}
 
-		user, _ = getUserByID(r.Context(), db, userSess.ID)
-		userJSON := user.toOldJSONForBrowser(user.Type != "root")
-		if SocketAuth != nil {
-			SocketAuth.BroadcastToUser(userSess.ID, "user_updated", userJSON)
+		user, _ = idb.GetUserFullByID(r.Context(), db, userSess.ID)
+		userJSON := user.ToOldJSONForBrowser(user.Type != "root")
+		if isocket.GlobalAuth != nil {
+			isocket.GlobalAuth.BroadcastToUser(userSess.ID, "user_updated", userJSON)
 		}
 
 		w.WriteHeader(http.StatusOK)
@@ -1005,11 +1009,11 @@ func scanMediaProgress(row *sql.Row) (map[string]interface{}, error) {
 		}
 	}
 
-	updatedAtMs := parseTimeStr(updatedAt.String)
-	createdAtMs := parseTimeStr(createdAt.String)
+	updatedAtMs := idb.ParseTimeStr(updatedAt.String)
+	createdAtMs := idb.ParseTimeStr(createdAt.String)
 	var finishedAtMs *int64
 	if finishedAt.Valid && finishedAt.String != "" {
-		val := parseTimeStr(finishedAt.String)
+		val := idb.ParseTimeStr(finishedAt.String)
 		finishedAtMs = &val
 	}
 

@@ -14,7 +14,11 @@ import (
 
 	_ "modernc.org/sqlite"
 
-	"audiobookshelf/internal/core")
+	"audiobookshelf/internal/core"
+	idb "audiobookshelf/internal/db"
+	"audiobookshelf/internal/handlers"
+	ihls "audiobookshelf/internal/hls"
+)
 
 func setupTestDB(t *testing.T) *sql.DB {
 	db, err := sql.Open("sqlite", ":memory:")
@@ -72,7 +76,7 @@ func TestGetLibraries(t *testing.T) {
 		t.Fatalf("Failed to insert folder: %v", err)
 	}
 
-	handler := handleGetLibraries(db)
+	handler := handlers.HandleGetLibraries(db)
 	req := httptest.NewRequest("GET", "/api/libraries", nil)
 
 	// Inject admin user
@@ -94,7 +98,7 @@ func TestGetLibraries(t *testing.T) {
 		t.Errorf("Expected status 200, got %d", rr.Code)
 	}
 
-	var resp map[string][]*LibraryJSON
+	var resp map[string][]*idb.LibraryJSON
 	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
 		t.Fatalf("Failed to parse JSON response: %v", err)
 	}
@@ -134,7 +138,7 @@ func TestGetLibraryByID(t *testing.T) {
 
 	// Test case 1: Standard GET without filterdata
 	{
-		handler := handleGetLibraryByID(db, "lib1")
+		handler := handlers.HandleGetLibraryByID(db, "lib1")
 		req := httptest.NewRequest("GET", "/api/libraries/lib1", nil)
 		ctx := context.WithValue(req.Context(), core.UserContextKey, user)
 		req = req.WithContext(ctx)
@@ -146,7 +150,7 @@ func TestGetLibraryByID(t *testing.T) {
 			t.Errorf("Expected status 200, got %d", rr.Code)
 		}
 
-		var lib LibraryJSON
+		var lib idb.LibraryJSON
 		if err := json.Unmarshal(rr.Body.Bytes(), &lib); err != nil {
 			t.Fatalf("Failed to parse JSON response: %v", err)
 		}
@@ -164,7 +168,7 @@ func TestGetLibraryByID(t *testing.T) {
 			t.Fatalf("Failed to insert playlist: %v", err)
 		}
 
-		handler := handleGetLibraryByID(db, "lib1")
+		handler := handlers.HandleGetLibraryByID(db, "lib1")
 		req := httptest.NewRequest("GET", "/api/libraries/lib1?include=filterdata", nil)
 		ctx := context.WithValue(req.Context(), core.UserContextKey, user)
 		req = req.WithContext(ctx)
@@ -228,7 +232,7 @@ func TestGetLibraryItems(t *testing.T) {
 		t.Fatalf("Failed to insert library item: %v", err)
 	}
 
-	handler := handleGetLibraryItems(db, "lib1")
+	handler := handlers.HandleGetLibraryItems(db, "lib1")
 	req := httptest.NewRequest("GET", "/api/libraries/lib1/items?sort=media.metadata.title&desc=0&minified=1", nil)
 
 	user := &core.UserSession{
@@ -275,16 +279,16 @@ func TestCreateLibrary(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
 
-	payload := CreateLibraryPayload{
+	payload := idb.CreateLibraryPayload{
 		Name:      "New Books Library",
 		MediaType: "book",
-		Folders: []CreateFolderPayload{
+		Folders: []idb.CreateFolderPayload{
 			{Path: t.TempDir()},
 		},
 	}
 	body, _ := json.Marshal(payload)
 
-	handler := handleCreateLibrary(db)
+	handler := handlers.HandleCreateLibrary(db)
 	req := httptest.NewRequest("POST", "/api/libraries", bytes.NewBuffer(body))
 
 	user := &core.UserSession{
@@ -303,7 +307,7 @@ func TestCreateLibrary(t *testing.T) {
 		t.Errorf("Expected status 200, got %d. Body: %s", rr.Code, rr.Body.String())
 	}
 
-	var lib LibraryJSON
+	var lib idb.LibraryJSON
 	if err := json.Unmarshal(rr.Body.Bytes(), &lib); err != nil {
 		t.Fatalf("Failed to parse JSON response: %v", err)
 	}
@@ -328,12 +332,12 @@ func TestUpdateLibrary(t *testing.T) {
 	}
 
 	newName := "Updated Audiobooks"
-	payload := UpdateLibraryPayload{
+	payload := idb.UpdateLibraryPayload{
 		Name: &newName,
 	}
 	body, _ := json.Marshal(payload)
 
-	handler := handleUpdateLibrary(db, "lib1")
+	handler := handlers.HandleUpdateLibrary(db, "lib1")
 	req := httptest.NewRequest("PATCH", "/api/libraries/lib1", bytes.NewBuffer(body))
 
 	user := &core.UserSession{
@@ -352,7 +356,7 @@ func TestUpdateLibrary(t *testing.T) {
 		t.Errorf("Expected status 200, got %d. Body: %s", rr.Code, rr.Body.String())
 	}
 
-	var lib LibraryJSON
+	var lib idb.LibraryJSON
 	if err := json.Unmarshal(rr.Body.Bytes(), &lib); err != nil {
 		t.Fatalf("Failed to parse JSON response: %v", err)
 	}
@@ -384,7 +388,7 @@ func TestDeleteLibrary(t *testing.T) {
 		t.Fatalf("Failed to insert library item: %v", err)
 	}
 
-	handler := handleDeleteLibrary(db, "lib1")
+	handler := handlers.HandleDeleteLibrary(db, "lib1")
 	req := httptest.NewRequest("DELETE", "/api/libraries/lib1", nil)
 
 	user := &core.UserSession{
@@ -438,10 +442,10 @@ func TestHLSServing(t *testing.T) {
 	globalDB = db
 
 	tempDir := t.TempDir()
-	sm := NewStreamManager()
+	sm := ihls.NewStreamManager()
 
 	streamID := "test-session-123"
-	s := &Stream{
+	s := &ihls.Stream{
 		ID:                streamID,
 		UserID:            "user1",
 		LibraryItemID:     "item1",
@@ -450,11 +454,11 @@ func TestHLSServing(t *testing.T) {
 		ConcatFilesPath:   filepath.Join(tempDir, "files.txt"),
 		PlaylistPath:      filepath.Join(tempDir, "output.m3u8"),
 		FinalPlaylistPath: filepath.Join(tempDir, "final-output.m3u8"),
-		Tracks:            []Track{{Index: 0, Duration: 60.0, Path: "dummy.mp3"}},
+		Tracks:            []ihls.Track{{Index: 0, Duration: 60.0, Path: "dummy.mp3"}},
 		SegmentsCreated:   make(map[int]bool),
 	}
 
-	dummyPlaylist := getPlaylistStr("output", 60.0, 6.0, "mpegts")
+	dummyPlaylist := ihls.GetPlaylistStr("output", 60.0, 6.0, "mpegts")
 	err := os.WriteFile(s.PlaylistPath, []byte(dummyPlaylist), 0644)
 	if err != nil {
 		t.Fatalf("Failed to write dummy playlist: %v", err)
@@ -481,7 +485,7 @@ func TestHLSServing(t *testing.T) {
 	req = req.WithContext(context.WithValue(req.Context(), core.UserContextKey, user))
 	rr := httptest.NewRecorder()
 
-	handler := serveHLS(t.TempDir(), sm)
+	handler := ihls.ServeHLS(nil, t.TempDir(), sm, nil)
 	handler.ServeHTTP(rr, req)
 
 	if rr.Code != http.StatusOK {
@@ -525,7 +529,7 @@ func TestLoadOrCreateStream(t *testing.T) {
 		t.Fatalf("Failed to insert book: %v", err)
 	}
 
-	sm := NewStreamManager()
+	sm := ihls.NewStreamManager()
 	tempDir := t.TempDir()
 
 	s, err := sm.LoadOrCreateStream(db, "session-1", tempDir, nil)
@@ -566,7 +570,7 @@ func TestGetLibraryPersonalized(t *testing.T) {
 		t.Fatalf("Failed to insert library item: %v", err)
 	}
 
-	handler := handleGetLibraryPersonalized(db, "lib1")
+	handler := handlers.HandleGetLibraryPersonalized(db, "lib1")
 	req := httptest.NewRequest("GET", "/api/libraries/lib1/personalized?limit=10", nil)
 
 	user := &core.UserSession{
@@ -639,7 +643,7 @@ func TestPlayItemRoute(t *testing.T) {
 	}
 
 	// Setup Config
-	cfg := &Config{
+	cfg := &core.Config{
 		RouterBasePath: "/audiobookshelf",
 		MetadataPath:   t.TempDir(),
 	}
@@ -653,7 +657,7 @@ func TestPlayItemRoute(t *testing.T) {
 		AccessAllTags:      true,
 	}
 
-	handler := handleItemsDispatch(db, cfg)
+	handler := handlers.HandleItemsDispatch(db, cfg)
 
 	bodyBytes := []byte(`{"startTime": 0.0}`)
 	req := httptest.NewRequest("POST", "/audiobookshelf/api/items/item1/play", bytes.NewBuffer(bodyBytes))

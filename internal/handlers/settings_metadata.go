@@ -1,4 +1,4 @@
-package main
+package handlers
 
 import (
 	"database/sql"
@@ -6,6 +6,8 @@ import (
 	"log"
 	"net/http"
 	"time"
+
+	idb "audiobookshelf/internal/db"
 
 	"github.com/google/uuid"
 )
@@ -97,7 +99,7 @@ func handleCreateCustomMetadataProvider(db *sql.DB) http.HandlerFunc {
 		}
 
 		id := uuid.New().String()
-		nowStr := timeToDBStr(time.Now())
+		nowStr := idb.TimeToDBStr(time.Now())
 
 		var authVal interface{} = nil
 		if body.AuthHeaderValue != nil && *body.AuthHeaderValue != "" {

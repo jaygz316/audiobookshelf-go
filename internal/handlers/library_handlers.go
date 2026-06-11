@@ -1,4 +1,4 @@
-package main
+package handlers
 
 import (
 	"archive/zip"
@@ -18,7 +18,10 @@ import (
 
 	"github.com/doyensec/safeurl"
 
-	"audiobookshelf/internal/core")
+	"audiobookshelf/internal/core"
+	idb "audiobookshelf/internal/db"
+	isocket "audiobookshelf/internal/socket"
+)
 
 func serveStaticOrSPA(fSys fs.FS, routerBasePath string) http.HandlerFunc {
 	if fSys == nil {
@@ -143,7 +146,7 @@ func serveCover(db *sql.DB, metadataPath string) http.HandlerFunc {
 		raw := r.URL.Query().Get("raw") == "1"
 
 		if raw {
-			coverPath, err := GetCoverPath(db, itemID)
+			coverPath, err := idb.GetCoverPath(db, itemID)
 			if err != nil || coverPath == "" {
 				http.NotFound(w, r)
 				return
@@ -199,7 +202,7 @@ func serveCover(db *sql.DB, metadataPath string) http.HandlerFunc {
 		}
 
 		// Cache miss: generate the resized cover
-		coverPath, err := GetCoverPath(db, itemID)
+		coverPath, err := idb.GetCoverPath(db, itemID)
 		if err == nil && coverPath != "" {
 			cacheFilename := itemID + "_" + width
 			if height != "" {
@@ -277,7 +280,7 @@ func serveDownload(db *sql.DB) http.HandlerFunc {
 		user := userVal.(*core.UserSession)
 
 		if !user.CanDownload {
-			log.Printf("[Download] Forbidden: User %s does not have download permissions", user.Username)
+			log.Printf("[Download] Forbidden: idb.User %s does not have download permissions", user.Username)
 			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
 			return
 		}
@@ -296,14 +299,14 @@ func serveDownload(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		info, err := GetLibraryItemDownloadInfo(db, itemID)
+		info, err := idb.GetLibraryItemDownloadInfo(db, itemID)
 		if err != nil {
 			log.Printf("[Download] Failed to get library item info: %v", err)
 			http.Error(w, `{"error": "Library item not found"}`, http.StatusNotFound)
 			return
 		}
 
-		log.Printf("[Download] User %s requested download for item %s (isFile: %t)", user.Username, itemID, info.IsFile)
+		log.Printf("[Download] idb.User %s requested download for item %s (isFile: %t)", user.Username, itemID, info.IsFile)
 
 		if info.IsFile {
 			w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", filepath.Base(info.RelPath)))
@@ -320,7 +323,7 @@ func serveDownload(db *sql.DB) http.HandlerFunc {
 	}
 }
 
-func handleGetLibraries(db *sql.DB) http.HandlerFunc {
+func HandleGetLibraries(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		userVal := r.Context().Value(core.UserContextKey)
 		if userVal == nil {
@@ -329,25 +332,25 @@ func handleGetLibraries(db *sql.DB) http.HandlerFunc {
 		}
 		user := userVal.(*core.UserSession)
 
-		libs, err := GetLibraries(db)
+		libs, err := idb.GetLibraries(db)
 		if err != nil {
 			log.Printf("[Go] Failed to get libraries: %v", err)
 			http.Error(w, fmt.Sprintf(`{"error": "%s"}`, err.Error()), http.StatusInternalServerError)
 			return
 		}
 
-		var filteredLibs []*LibraryJSON = []*LibraryJSON{}
+		var filteredLibs []*idb.LibraryJSON = []*idb.LibraryJSON{}
 		includeStats := strings.Contains(r.URL.Query().Get("include"), "stats")
 
 		for _, lib := range libs {
 			if user.CanAccessLibrary(lib.ID) {
 				if includeStats {
-					var stats *LibraryStats
+					var stats *idb.LibraryStats
 					var err error
 					if lib.MediaType == "book" {
-						stats, err = GetBookLibraryStats(db, lib.ID)
+						stats, err = idb.GetBookLibraryStats(db, lib.ID)
 					} else if lib.MediaType == "podcast" {
-						stats, err = GetPodcastLibraryStats(db, lib.ID)
+						stats, err = idb.GetPodcastLibraryStats(db, lib.ID)
 					}
 					if err == nil {
 						lib.Stats = stats
@@ -364,7 +367,7 @@ func handleGetLibraries(db *sql.DB) http.HandlerFunc {
 	}
 }
 
-func handleGetLibraryByID(db *sql.DB, libraryID string) http.HandlerFunc {
+func HandleGetLibraryByID(db *sql.DB, libraryID string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		userVal := r.Context().Value(core.UserContextKey)
 		if userVal == nil {
@@ -379,13 +382,13 @@ func handleGetLibraryByID(db *sql.DB, libraryID string) http.HandlerFunc {
 		}
 
 		if strings.Contains(r.URL.RawQuery, "include=filterdata") {
-			fd, err := getLibraryFilterDataGo(db, libraryID)
+			fd, err := idb.GetLibraryFilterDataGo(db, libraryID)
 			if err != nil {
 				log.Printf("[Library getFilterData] Error: %v", err)
 				http.Error(w, `{"error": "Failed to load filter data"}`, http.StatusInternalServerError)
 				return
 			}
-			lib, err := GetLibraryByID(db, libraryID)
+			lib, err := idb.GetLibraryByID(db, libraryID)
 			if err != nil || lib == nil {
 				http.Error(w, `{"error": "Library not found"}`, http.StatusNotFound)
 				return
@@ -407,7 +410,7 @@ func handleGetLibraryByID(db *sql.DB, libraryID string) http.HandlerFunc {
 			return
 		}
 
-		lib, err := GetLibraryByID(db, libraryID)
+		lib, err := idb.GetLibraryByID(db, libraryID)
 		if err != nil {
 			log.Printf("[Go] Failed to get library %s: %v", libraryID, err)
 			http.Error(w, fmt.Sprintf(`{"error": "%s"}`, err.Error()), http.StatusInternalServerError)
@@ -423,7 +426,7 @@ func handleGetLibraryByID(db *sql.DB, libraryID string) http.HandlerFunc {
 	}
 }
 
-func handleGetLibraryItems(db *sql.DB, libraryID string) http.HandlerFunc {
+func HandleGetLibraryItems(db *sql.DB, libraryID string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		userVal := r.Context().Value(core.UserContextKey)
 		if userVal == nil {
@@ -437,7 +440,7 @@ func handleGetLibraryItems(db *sql.DB, libraryID string) http.HandlerFunc {
 			return
 		}
 
-		lib, err := GetLibraryByID(db, libraryID)
+		lib, err := idb.GetLibraryByID(db, libraryID)
 		if err != nil {
 			log.Printf("[Go] Failed to get library %s: %v", libraryID, err)
 			http.Error(w, fmt.Sprintf(`{"error": "%s"}`, err.Error()), http.StatusInternalServerError)
@@ -472,7 +475,7 @@ func handleGetLibraryItems(db *sql.DB, libraryID string) http.HandlerFunc {
 			}
 		}
 
-		opts := GetFilteredLibraryItemsOptions{
+		opts := idb.GetFilteredLibraryItemsOptions{
 			LibraryID:      libraryID,
 			User:           user,
 			FilterBy:       filterBy,
@@ -486,7 +489,7 @@ func handleGetLibraryItems(db *sql.DB, libraryID string) http.HandlerFunc {
 			Minified:       minified,
 		}
 
-		results, total, err := GetFilteredLibraryItems(db, opts)
+		results, total, err := idb.GetFilteredLibraryItems(db, opts)
 		if err != nil {
 			log.Printf("[Go] Failed to get filtered items for library %s: %v", libraryID, err)
 			http.Error(w, fmt.Sprintf(`{"error": "%s"}`, err.Error()), http.StatusInternalServerError)
@@ -513,41 +516,41 @@ func handleGetLibraryItems(db *sql.DB, libraryID string) http.HandlerFunc {
 }
 
 type Shelf struct {
-	ID             string                     `json:"id"`
-	Label          string                     `json:"label"`
-	LabelStringKey string                     `json:"labelStringKey"`
-	Type           string                     `json:"type"`
-	Entities       []*LibraryItemMinifiedJSON `json:"entities"`
+	ID             string                         `json:"id"`
+	Label          string                         `json:"label"`
+	LabelStringKey string                         `json:"labelStringKey"`
+	Type           string                         `json:"type"`
+	Entities       []*idb.LibraryItemMinifiedJSON `json:"entities"`
 }
 
 func fetchProgressShelves(db *sql.DB, libraryID string, user *core.UserSession, limitVal int, mediaType string) ([]Shelf, error) {
 	var shelves []Shelf
-	optsProgress := GetFilteredLibraryItemsOptions{
-		LibraryID:      libraryID,
-		User:           user,
-		FilterBy:       "progress.in-progress",
-		SortBy:         "progress",
-		SortDesc:       true,
-		Limit:          limitVal,
-		Page:           0,
-		MediaType:      mediaType,
-		Minified:       true,
+	optsProgress := idb.GetFilteredLibraryItemsOptions{
+		LibraryID: libraryID,
+		User:      user,
+		FilterBy:  "progress.in-progress",
+		SortBy:    "progress",
+		SortDesc:  true,
+		Limit:     limitVal,
+		Page:      0,
+		MediaType: mediaType,
+		Minified:  true,
 	}
-	progressItems, _, err := GetFilteredLibraryItems(db, optsProgress)
+	progressItems, _, err := idb.GetFilteredLibraryItems(db, optsProgress)
 	if err != nil {
 		return nil, err
 	}
 
 	if len(progressItems) > 0 {
 		if mediaType == "book" {
-			var listeningItems []*LibraryItemMinifiedJSON
-			var readingItems []*LibraryItemMinifiedJSON
+			var listeningItems []*idb.LibraryItemMinifiedJSON
+			var readingItems []*idb.LibraryItemMinifiedJSON
 
 			for _, item := range progressItems {
 				if item.IsMissing || item.IsInvalid {
 					continue
 				}
-				bookMin, ok := item.Media.(*BookMinifiedJSON)
+				bookMin, ok := item.Media.(*idb.BookMinifiedJSON)
 				if ok && bookMin.NumAudioFiles > 0 {
 					listeningItems = append(listeningItems, item)
 				} else {
@@ -574,7 +577,7 @@ func fetchProgressShelves(db *sql.DB, libraryID string, user *core.UserSession, 
 				})
 			}
 		} else if mediaType == "podcast" {
-			var filteredProgress []*LibraryItemMinifiedJSON
+			var filteredProgress []*idb.LibraryItemMinifiedJSON
 			for _, item := range progressItems {
 				if item.IsMissing || item.IsInvalid {
 					continue
@@ -596,23 +599,23 @@ func fetchProgressShelves(db *sql.DB, libraryID string, user *core.UserSession, 
 }
 
 func fetchRecentlyAddedShelf(db *sql.DB, libraryID string, user *core.UserSession, limitVal int, mediaType string) (*Shelf, error) {
-	optsRecent := GetFilteredLibraryItemsOptions{
-		LibraryID:      libraryID,
-		User:           user,
-		SortBy:         "addedAt",
-		SortDesc:       true,
-		Limit:          limitVal,
-		Page:           0,
-		MediaType:      mediaType,
-		Minified:       true,
+	optsRecent := idb.GetFilteredLibraryItemsOptions{
+		LibraryID: libraryID,
+		User:      user,
+		SortBy:    "addedAt",
+		SortDesc:  true,
+		Limit:     limitVal,
+		Page:      0,
+		MediaType: mediaType,
+		Minified:  true,
 	}
-	recentItems, _, err := GetFilteredLibraryItems(db, optsRecent)
+	recentItems, _, err := idb.GetFilteredLibraryItems(db, optsRecent)
 	if err != nil {
 		return nil, err
 	}
 
 	if len(recentItems) > 0 {
-		var filteredRecent []*LibraryItemMinifiedJSON
+		var filteredRecent []*idb.LibraryItemMinifiedJSON
 		for _, item := range recentItems {
 			if item.IsMissing || item.IsInvalid {
 				continue
@@ -632,7 +635,7 @@ func fetchRecentlyAddedShelf(db *sql.DB, libraryID string, user *core.UserSessio
 	return nil, nil
 }
 
-func handleGetLibraryPersonalized(db *sql.DB, libraryID string) http.HandlerFunc {
+func HandleGetLibraryPersonalized(db *sql.DB, libraryID string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		userVal := r.Context().Value(core.UserContextKey)
 		if userVal == nil {
@@ -646,7 +649,7 @@ func handleGetLibraryPersonalized(db *sql.DB, libraryID string) http.HandlerFunc
 			return
 		}
 
-		lib, err := GetLibraryByID(db, libraryID)
+		lib, err := idb.GetLibraryByID(db, libraryID)
 		if err != nil {
 			log.Printf("[Go] Failed to get library %s: %v", libraryID, err)
 			http.Error(w, fmt.Sprintf(`{"error": "%s"}`, err.Error()), http.StatusInternalServerError)
@@ -685,7 +688,7 @@ func handleGetLibraryPersonalized(db *sql.DB, libraryID string) http.HandlerFunc
 	}
 }
 
-func handleCreateLibrary(db *sql.DB) http.HandlerFunc {
+func HandleCreateLibrary(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		userVal := r.Context().Value(core.UserContextKey)
 		if userVal == nil {
@@ -699,7 +702,7 @@ func handleCreateLibrary(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		var payload CreateLibraryPayload
+		var payload idb.CreateLibraryPayload
 		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
 			http.Error(w, `{"error": "Invalid request body"}`, http.StatusBadRequest)
 			return
@@ -732,7 +735,7 @@ func handleCreateLibrary(db *sql.DB) http.HandlerFunc {
 			payload.Folders[i].Path = absPath
 		}
 
-		lib, err := CreateLibrary(db, &payload)
+		lib, err := idb.CreateLibrary(db, &payload)
 		if err != nil {
 			log.Printf("[Go] Failed to create library: %v", err)
 			http.Error(w, fmt.Sprintf(`{"error": "%s"}`, err.Error()), http.StatusInternalServerError)
@@ -744,7 +747,7 @@ func handleCreateLibrary(db *sql.DB) http.HandlerFunc {
 	}
 }
 
-func handleUpdateLibrary(db *sql.DB, libraryID string) http.HandlerFunc {
+func HandleUpdateLibrary(db *sql.DB, libraryID string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		userVal := r.Context().Value(core.UserContextKey)
 		if userVal == nil {
@@ -758,7 +761,7 @@ func handleUpdateLibrary(db *sql.DB, libraryID string) http.HandlerFunc {
 			return
 		}
 
-		var payload UpdateLibraryPayload
+		var payload idb.UpdateLibraryPayload
 		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
 			http.Error(w, `{"error": "Invalid request body"}`, http.StatusBadRequest)
 			return
@@ -790,7 +793,7 @@ func handleUpdateLibrary(db *sql.DB, libraryID string) http.HandlerFunc {
 			}
 		}
 
-		lib, err := UpdateLibrary(db, libraryID, &payload)
+		lib, err := idb.UpdateLibrary(db, libraryID, &payload)
 		if err != nil {
 			log.Printf("[Go] Failed to update library %s: %v", libraryID, err)
 			if err.Error() == "library not found" {
@@ -806,7 +809,7 @@ func handleUpdateLibrary(db *sql.DB, libraryID string) http.HandlerFunc {
 	}
 }
 
-func handleDeleteLibrary(db *sql.DB, libraryID string) http.HandlerFunc {
+func HandleDeleteLibrary(db *sql.DB, libraryID string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		userVal := r.Context().Value(core.UserContextKey)
 		if userVal == nil {
@@ -820,7 +823,7 @@ func handleDeleteLibrary(db *sql.DB, libraryID string) http.HandlerFunc {
 			return
 		}
 
-		lib, err := DeleteLibrary(db, libraryID)
+		lib, err := idb.DeleteLibrary(db, libraryID)
 		if err != nil {
 			log.Printf("[Go] Failed to delete library %s: %v", libraryID, err)
 			if err.Error() == "library not found" {
@@ -850,7 +853,7 @@ func handleGetLibraryFilterData(db *sql.DB, libraryID string) http.HandlerFunc {
 			return
 		}
 
-		fd, err := getLibraryFilterDataGo(db, libraryID)
+		fd, err := idb.GetLibraryFilterDataGo(db, libraryID)
 		if err != nil {
 			log.Printf("[Library getFilterData] Error: %v", err)
 			http.Error(w, `{"error": "Failed to load filter data"}`, http.StatusInternalServerError)
@@ -876,12 +879,12 @@ func handleGetLibraryStats(db *sql.DB, libraryID string) http.HandlerFunc {
 			return
 		}
 
-		lib, err := GetLibraryByID(db, libraryID)
+		lib, err := idb.GetLibraryByID(db, libraryID)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				http.Error(w, `{"error": "Library not found"}`, http.StatusNotFound)
 			} else {
-				log.Printf("[LibraryStats] Failed to get library %s: %v", libraryID, err)
+				log.Printf("[idb.LibraryStats] Failed to get library %s: %v", libraryID, err)
 				http.Error(w, fmt.Sprintf(`{"error": "%s"}`, err.Error()), http.StatusInternalServerError)
 			}
 			return
@@ -891,14 +894,14 @@ func handleGetLibraryStats(db *sql.DB, libraryID string) http.HandlerFunc {
 			return
 		}
 
-		var stats *LibraryStats
+		var stats *idb.LibraryStats
 		if lib.MediaType == "book" {
-			stats, err = GetBookLibraryStats(db, libraryID)
+			stats, err = idb.GetBookLibraryStats(db, libraryID)
 		} else {
-			stats, err = GetPodcastLibraryStats(db, libraryID)
+			stats, err = idb.GetPodcastLibraryStats(db, libraryID)
 		}
 		if err != nil {
-			log.Printf("[LibraryStats] Failed to get stats for library %s: %v", libraryID, err)
+			log.Printf("[idb.LibraryStats] Failed to get stats for library %s: %v", libraryID, err)
 			http.Error(w, `{"error": "Failed to load library stats"}`, http.StatusInternalServerError)
 			return
 		}
@@ -915,7 +918,7 @@ func init() {
 	coverHTTPClient = safeurl.Client(config)
 }
 
-func handleUpdateCoverFromURL(db *sql.DB, cfg *Config, itemID string) http.HandlerFunc {
+func handleUpdateCoverFromURL(db *sql.DB, cfg *core.Config, itemID string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[Go] POST /api/items/%s/cover-from-url", itemID)
 
@@ -950,8 +953,8 @@ func handleUpdateCoverFromURL(db *sql.DB, cfg *Config, itemID string) http.Handl
 			return
 		}
 
-		if SocketAuth != nil {
-			if minItem, err := GetLibraryItemMinifiedByID(db, itemID); err == nil {
+		if isocket.GlobalAuth != nil {
+			if minItem, err := idb.GetLibraryItemMinifiedByID(db, itemID); err == nil {
 				EmitLibraryItemEvent("item_updated", minItem)
 			}
 		}
@@ -1074,4 +1077,3 @@ func downloadCoverFromURL(ctx context.Context, db *sql.DB, itemID string, coverU
 
 	return destPath, nil
 }
-

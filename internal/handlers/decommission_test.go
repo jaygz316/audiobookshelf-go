@@ -1,4 +1,4 @@
-package main
+package handlers
 
 import (
 	"bytes"
@@ -11,7 +11,9 @@ import (
 
 	_ "modernc.org/sqlite"
 
-	"audiobookshelf/internal/core")
+	"audiobookshelf/internal/core"
+	idb "audiobookshelf/internal/db"
+)
 
 func prepareTestDB(t *testing.T) *sql.DB {
 	db := setupTestDB(t)
@@ -83,7 +85,7 @@ func TestInitEndpoint(t *testing.T) {
 	defer db.Close()
 
 	// Initial check: no root user exists, hasRootUser should be false
-	hasRoot, err := HasRootUser(db)
+	hasRoot, err := idb.HasRootUser(db)
 	if err != nil {
 		t.Fatalf("HasRootUser check failed: %v", err)
 	}
@@ -102,7 +104,7 @@ func TestInitEndpoint(t *testing.T) {
 			payload:        `{"newRoot": {"username": "admin-root", "password": "rootpassword"}}`,
 			expectedStatus: http.StatusOK,
 			checkDB: func(t *testing.T, db *sql.DB) {
-				hasRoot, err = HasRootUser(db)
+				hasRoot, err = idb.HasRootUser(db)
 				if err != nil || !hasRoot {
 					t.Errorf("Expected root user to be created, hasRoot = %t, err = %v", hasRoot, err)
 				}
@@ -250,7 +252,7 @@ func TestUsersCRUD(t *testing.T) {
 		}
 
 		// Verify change in DB
-		user, err := getUserByID(context.Background(), db, createdUserID)
+		user, err := idb.GetUserFullByID(context.Background(), db, createdUserID)
 		if err != nil || user == nil || user.Email == nil || *user.Email != "newuser@example.com" {
 			t.Errorf("Expected user email to be updated, got: %v", user)
 		}
@@ -270,7 +272,7 @@ func TestUsersCRUD(t *testing.T) {
 		}
 
 		// Verify deleted from DB
-		deletedUser, _ := getUserByID(context.Background(), db, createdUserID)
+		deletedUser, _ := idb.GetUserFullByID(context.Background(), db, createdUserID)
 		if deletedUser != nil {
 			t.Errorf("Expected user to be deleted from DB")
 		}
@@ -311,7 +313,7 @@ func TestServerSettingsCRUD(t *testing.T) {
 		}
 
 		// Verify changed
-		settings, err := GetServerSettings(db)
+		settings, err := idb.GetServerSettings(db)
 		if err != nil || settings.Language != "fr" {
 			t.Errorf("Expected language to be updated to fr, got: %s", settings.Language)
 		}
@@ -328,7 +330,7 @@ func TestAuthorize(t *testing.T) {
 	rr := httptest.NewRecorder()
 	handleInit(db).ServeHTTP(rr, req)
 
-	user, err := getUserByUsername(context.Background(), db, "testroot")
+	user, err := idb.GetUserFullByUsername(context.Background(), db, "testroot")
 	if err != nil || user == nil {
 		t.Fatalf("Failed to fetch root user: %v", err)
 	}

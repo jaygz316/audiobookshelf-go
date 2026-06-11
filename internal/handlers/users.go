@@ -1,14 +1,11 @@
-package main
+package handlers
 
 import (
-	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
-	"os"
-	"strconv"
 	"strings"
 	"time"
 
@@ -16,298 +13,11 @@ import (
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 
-	"audiobookshelf/internal/core")
-
-// User represents the full user structure matching the SQLite table
-type User struct {
-	ID          string          `json:"id"`
-	Username    string          `json:"username"`
-	Email       *string         `json:"email"`
-	Pash        string          `json:"-"`
-	Type        string          `json:"type"`
-	Token       string          `json:"token"`
-	IsActive    bool            `json:"isActive"`
-	IsLocked    bool            `json:"isLocked"`
-	LastSeen    *int64          `json:"lastSeen"`
-	Permissions json.RawMessage `json:"permissions"`
-	Bookmarks   json.RawMessage `json:"bookmarks"`
-	ExtraData   json.RawMessage `json:"extraData"`
-	CreatedAt   int64           `json:"createdAt"`
-	UpdatedAt   int64           `json:"updatedAt"`
-}
-
-// UserPermissionsDetailed corresponds to the parsed permissions object stored in the DB
-type UserPermissionsDetailed struct {
-	Download                  *bool    `json:"download,omitempty"`
-	AccessExplicitContent     *bool    `json:"accessExplicitContent,omitempty"`
-	AccessAllLibraries        *bool    `json:"accessAllLibraries,omitempty"`
-	LibrariesAccessible       []string `json:"librariesAccessible,omitempty"`
-	AccessAllTags             *bool    `json:"accessAllTags,omitempty"`
-	ItemTagsSelected          []string `json:"itemTagsSelected,omitempty"`
-	SelectedTagsNotAccessible *bool    `json:"selectedTagsNotAccessible,omitempty"`
-}
-
-// UserSessionDB matches the sessions table
-type UserSessionDB struct {
-	ID                        string `db:"id"`
-	IPAddress                 string `db:"ipAddress"`
-	UserAgent                 string `db:"userAgent"`
-	RefreshToken              string `db:"refreshToken"`
-	ExpiresAt                 int64  `db:"expiresAt"`
-	LastRefreshToken          string `db:"lastRefreshToken"`
-	LastRefreshTokenExpiresAt int64  `db:"lastRefreshTokenExpiresAt"`
-	UserID                    string `db:"userId"`
-	CreatedAt                 int64  `db:"createdAt"`
-	UpdatedAt                 int64  `db:"updatedAt"`
-}
-
-// toOldJSONForBrowser maps User to the format client expects
-func (u *User) toOldJSONForBrowser(hideRootToken bool) map[string]interface{} {
-	var perms map[string]interface{}
-	if len(u.Permissions) > 0 {
-		json.Unmarshal(u.Permissions, &perms)
-	}
-	if perms == nil {
-		perms = make(map[string]interface{})
-	}
-
-	librariesAccessible := []string{}
-	if libs, ok := perms["librariesAccessible"]; ok {
-		if libsArr, ok2 := libs.([]interface{}); ok2 {
-			for _, libVal := range libsArr {
-				if libStr, ok3 := libVal.(string); ok3 {
-					librariesAccessible = append(librariesAccessible, libStr)
-				}
-			}
-		}
-	}
-	itemTagsSelected := []string{}
-	if tags, ok := perms["itemTagsSelected"]; ok {
-		if tagsArr, ok2 := tags.([]interface{}); ok2 {
-			for _, tagVal := range tagsArr {
-				if tagStr, ok3 := tagVal.(string); ok3 {
-					itemTagsSelected = append(itemTagsSelected, tagStr)
-				}
-			}
-		}
-	}
-
-	delete(perms, "librariesAccessible")
-	delete(perms, "itemTagsSelected")
-
-	var extra map[string]interface{}
-	if len(u.ExtraData) > 0 {
-		json.Unmarshal(u.ExtraData, &extra)
-	}
-	if extra == nil {
-		extra = make(map[string]interface{})
-	}
-
-	seriesHideFromContinueListening := []string{}
-	if hfc, ok := extra["seriesHideFromContinueListening"]; ok {
-		if hfcArr, ok2 := hfc.([]interface{}); ok2 {
-			for _, hVal := range hfcArr {
-				if hStr, ok3 := hVal.(string); ok3 {
-					seriesHideFromContinueListening = append(seriesHideFromContinueListening, hStr)
-				}
-			}
-		}
-	}
-
-	var bookmarksArr []interface{}
-	if len(u.Bookmarks) > 0 {
-		json.Unmarshal(u.Bookmarks, &bookmarksArr)
-	}
-	if bookmarksArr == nil {
-		bookmarksArr = []interface{}{}
-	}
-
-	token := u.Token
-	if u.Type == "root" && hideRootToken {
-		token = ""
-	}
-
-	hasOpenIDLink := false
-	if oSub, ok := extra["authOpenIDSub"]; ok && oSub != nil && oSub != "" {
-		hasOpenIDLink = true
-	}
-
-	return map[string]interface{}{
-		"id":                              u.ID,
-		"username":                        u.Username,
-		"email":                           u.Email,
-		"type":                            u.Type,
-		"token":                           token,
-		"isOldToken":                      false,
-		"mediaProgress":                   []interface{}{}, // Loaded separately if requested
-		"seriesHideFromContinueListening": seriesHideFromContinueListening,
-		"bookmarks":                       bookmarksArr,
-		"isActive":                        u.IsActive,
-		"isLocked":                        u.IsLocked,
-		"lastSeen":                        u.LastSeen,
-		"createdAt":                       u.CreatedAt,
-		"permissions":                     perms,
-		"librariesAccessible":             librariesAccessible,
-		"itemTagsSelected":                itemTagsSelected,
-		"hasOpenIDLink":                   hasOpenIDLink,
-	}
-}
-
-// Database Helpers for Users
-
-func getUserByUsername(ctx context.Context, db *sql.DB, username string) (*User, error) {
-	row := db.QueryRowContext(ctx, "SELECT id, username, email, pash, type, token, isActive, isLocked, lastSeen, permissions, bookmarks, extraData, createdAt, updatedAt FROM users WHERE username = ?", username)
-	return scanUser(row)
-}
-
-func getUserByID(ctx context.Context, db *sql.DB, id string) (*User, error) {
-	row := db.QueryRowContext(ctx, "SELECT id, username, email, pash, type, token, isActive, isLocked, lastSeen, permissions, bookmarks, extraData, createdAt, updatedAt FROM users WHERE id = ?", id)
-	return scanUser(row)
-}
-
-func checkUserExistsWithUsername(ctx context.Context, db *sql.DB, username string) (bool, error) {
-	var count int
-	err := db.QueryRowContext(ctx, "SELECT count(*) FROM users WHERE username = ?", username).Scan(&count)
-	return count > 0, err
-}
-
-func scanUser(row *sql.Row) (*User, error) {
-	var u User
-	var email sql.NullString
-	var lastSeenStr sql.NullString
-	var isActiveInt, isLockedInt sql.NullInt64
-	var permsStr, bookmarksStr, extraDataStr sql.NullString
-	var createdAtStr, updatedAtStr sql.NullString
-	var pashStr, tokenStr, typeStr sql.NullString
-
-	err := row.Scan(&u.ID, &u.Username, &email, &pashStr, &typeStr, &tokenStr, &isActiveInt, &isLockedInt, &lastSeenStr, &permsStr, &bookmarksStr, &extraDataStr, &createdAtStr, &updatedAtStr)
-	if err == sql.ErrNoRows {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, err
-	}
-
-	if typeStr.Valid {
-		u.Type = typeStr.String
-	} else {
-		u.Type = "user"
-	}
-
-	if pashStr.Valid {
-		u.Pash = pashStr.String
-	}
-	if tokenStr.Valid {
-		u.Token = tokenStr.String
-	}
-	if email.Valid {
-		u.Email = &email.String
-	}
-	u.IsActive = isActiveInt.Valid && isActiveInt.Int64 != 0
-	u.IsLocked = isLockedInt.Valid && isLockedInt.Int64 != 0
-	if lastSeenStr.Valid && lastSeenStr.String != "" {
-		val := parseTimeStr(lastSeenStr.String)
-		u.LastSeen = &val
-	}
-
-	if permsStr.Valid {
-		u.Permissions = []byte(permsStr.String)
-	} else {
-		u.Permissions = []byte("{}")
-	}
-
-	if bookmarksStr.Valid {
-		u.Bookmarks = []byte(bookmarksStr.String)
-	} else {
-		u.Bookmarks = []byte("[]")
-	}
-
-	if extraDataStr.Valid {
-		u.ExtraData = []byte(extraDataStr.String)
-	} else {
-		u.ExtraData = []byte("{}")
-	}
-
-	u.CreatedAt = parseTimeStr(createdAtStr.String)
-	u.UpdatedAt = parseTimeStr(updatedAtStr.String)
-
-	return &u, nil
-}
-
-func parseTimeStr(s string) int64 {
-	if s == "" {
-		return 0
-	}
-	// Try parsing as raw integer first (milliseconds timestamp)
-	if val, err := strconv.ParseInt(s, 10, 64); err == nil {
-		return val
-	}
-	t, err := time.Parse(time.RFC3339, s)
-	if err == nil {
-		return t.UnixNano() / int64(time.Millisecond)
-	}
-	t2, err2 := time.Parse("2006-01-02 15:04:05.000 +00:00", s)
-	if err2 == nil {
-		return t2.UnixNano() / int64(time.Millisecond)
-	}
-	t3, err3 := time.Parse("2006-01-02 15:04:05", s)
-	if err3 == nil {
-		return t3.UnixNano() / int64(time.Millisecond)
-	}
-	return 0
-}
-
-func timeToDBStr(t time.Time) string {
-	return t.UTC().Format("2006-01-02 15:04:05.000 +00:00")
-}
-
-// getDefaultPermissionsForUserType maps type to default permissions JSON
-func getDefaultPermissionsForUserType(userType string) string {
-	isAccess := false
-	if userType == "root" || userType == "admin" {
-		isAccess = true
-	}
-	perms := map[string]interface{}{
-		"download":                  true,
-		"accessExplicitContent":     isAccess,
-		"accessAllLibraries":        true,
-		"librariesAccessible":       []string{},
-		"accessAllTags":             true,
-		"itemTagsSelected":          []string{},
-		"selectedTagsNotAccessible": false,
-	}
-	bytes, _ := json.Marshal(perms)
-	return string(bytes)
-}
-
-// Database Helpers for Sessions
-
-func createSession(ctx context.Context, db *sql.DB, userID, ipAddress, userAgent, refreshToken string, expiresAt time.Time) error {
-	sessionID := uuid.New().String()
-	nowStr := timeToDBStr(time.Now())
-	expiresStr := timeToDBStr(expiresAt)
-	_, err := db.ExecContext(ctx, `INSERT INTO sessions (id, userId, ipAddress, userAgent, refreshToken, expiresAt, lastRefreshToken, lastRefreshTokenExpiresAt, createdAt, updatedAt) 
-		VALUES (?, ?, ?, ?, ?, ?, NULL, NULL, ?, ?)`,
-		sessionID, userID, ipAddress, userAgent, refreshToken, expiresStr, nowStr, nowStr)
-	return err
-}
-
-func deleteSessionByRefreshToken(ctx context.Context, db *sql.DB, refreshToken string) (int64, error) {
-	res, err := db.ExecContext(ctx, "DELETE FROM sessions WHERE refreshToken = ?", refreshToken)
-	if err != nil {
-		return 0, err
-	}
-	return res.RowsAffected()
-}
-
-func cleanupExpiredSessions(ctx context.Context, db *sql.DB) (int64, error) {
-	nowStr := timeToDBStr(time.Now())
-	res, err := db.ExecContext(ctx, "DELETE FROM sessions WHERE expiresAt < ?", nowStr)
-	if err != nil {
-		return 0, err
-	}
-	return res.RowsAffected()
-}
+	"audiobookshelf/internal/core"
+	idb "audiobookshelf/internal/db"
+	isocket "audiobookshelf/internal/socket"
+	"audiobookshelf/internal/utils"
+)
 
 // Auth Handlers (Native Go)
 
@@ -323,7 +33,7 @@ func handleInit(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		hasRoot, err := HasRootUser(db)
+		hasRoot, err := idb.HasRootUser(db)
 		if err != nil {
 			log.Printf("[Init] Error checking root user: %v", err)
 			http.Error(w, `{"error": "Internal Server Error"}`, http.StatusInternalServerError)
@@ -375,8 +85,8 @@ func handleInit(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		nowStr := timeToDBStr(time.Now())
-		defaultPerms := getDefaultPermissionsForUserType("root")
+		nowStr := idb.TimeToDBStr(time.Now())
+		defaultPerms := idb.GetDefaultPermissionsForUserType("root")
 
 		_, err = db.ExecContext(r.Context(), `INSERT INTO users (id, username, type, pash, token, isActive, permissions, extraData, bookmarks, createdAt, updatedAt) 
 			VALUES (?, ?, 'root', ?, ?, 1, ?, '{}', '[]', ?, ?)`,
@@ -420,7 +130,7 @@ func handleLogin(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		user, err := getUserByUsername(r.Context(), db, credentials.Username)
+		user, err := idb.GetUserFullByUsername(r.Context(), db, credentials.Username)
 		if err != nil {
 			log.Printf("[Login] DB lookup failed: %v", err)
 			http.Error(w, `{"error": "Internal Server Error"}`, http.StatusInternalServerError)
@@ -428,14 +138,14 @@ func handleLogin(db *sql.DB) http.HandlerFunc {
 		}
 
 		if user == nil {
-			log.Printf("[Login] User not found: %s", credentials.Username)
+			log.Printf("[Login] idb.User not found: %s", credentials.Username)
 			http.Error(w, `{"error": "Invalid username or password"}`, http.StatusUnauthorized)
 			return
 		}
 
 		if !user.IsActive {
-			log.Printf("[Login] User %s is inactive", user.Username)
-			http.Error(w, `{"error": "User is inactive"}`, http.StatusUnauthorized)
+			log.Printf("[Login] idb.User %s is inactive", user.Username)
+			http.Error(w, `{"error": "idb.User is inactive"}`, http.StatusUnauthorized)
 			return
 		}
 
@@ -489,7 +199,7 @@ func handleLogin(db *sql.DB) http.HandlerFunc {
 		userAgent := r.Header.Get("User-Agent")
 		expiresAt := time.Now().Add(30 * 24 * time.Hour)
 
-		if err := createSession(r.Context(), db, user.ID, ipAddress, userAgent, refreshToken, expiresAt); err != nil {
+		if err := idb.CreateSession(r.Context(), db, user.ID, ipAddress, userAgent, refreshToken, expiresAt); err != nil {
 			log.Printf("[Login] Failed to create session: %v", err)
 			http.Error(w, `{"error": "Failed to login"}`, http.StatusInternalServerError)
 			return
@@ -505,7 +215,7 @@ func handleLogin(db *sql.DB) http.HandlerFunc {
 		})
 
 		// Return login response payload
-		payload, err := getUserLoginPayload(r.Context(), db, user)
+		payload, err := idb.GetUserLoginPayload(r.Context(), db, user)
 		if err != nil {
 			log.Printf("[Login] Failed to build response payload: %v", err)
 			http.Error(w, `{"error": "Failed to login"}`, http.StatusInternalServerError)
@@ -513,7 +223,7 @@ func handleLogin(db *sql.DB) http.HandlerFunc {
 		}
 
 		// Include access token in response user object or payload
-		userJSON := user.toOldJSONForBrowser(false)
+		userJSON := user.ToOldJSONForBrowser(false)
 		userJSON["accessToken"] = accessToken
 		payload["user"] = userJSON
 
@@ -537,26 +247,26 @@ func handleAuthorize(db *sql.DB) http.HandlerFunc {
 		}
 		userSess := userVal.(*core.UserSession)
 
-		user, err := getUserByID(r.Context(), db, userSess.ID)
+		user, err := idb.GetUserFullByID(r.Context(), db, userSess.ID)
 		if err != nil {
 			log.Printf("[Authorize] DB lookup failed for user ID %s: %v", userSess.ID, err)
 			http.Error(w, `{"error": "Internal Server Error"}`, http.StatusInternalServerError)
 			return
 		}
 		if user == nil {
-			log.Printf("[Authorize] User not found: %s", userSess.ID)
+			log.Printf("[Authorize] idb.User not found: %s", userSess.ID)
 			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
 			return
 		}
 
-		payload, err := getUserLoginPayload(r.Context(), db, user)
+		payload, err := idb.GetUserLoginPayload(r.Context(), db, user)
 		if err != nil {
 			log.Printf("[Authorize] Failed to build response payload: %v", err)
 			http.Error(w, `{"error": "Failed to authorize"}`, http.StatusInternalServerError)
 			return
 		}
 
-		userJSON := user.toOldJSONForBrowser(false)
+		userJSON := user.ToOldJSONForBrowser(false)
 		payload["user"] = userJSON
 
 		w.Header().Set("Content-Type", "application/json")
@@ -578,7 +288,7 @@ func handleLogout(db *sql.DB) http.HandlerFunc {
 
 		cookie, err := r.Cookie("refresh_token")
 		if err == nil && cookie.Value != "" {
-			_, _ = deleteSessionByRefreshToken(r.Context(), db, cookie.Value)
+			_, _ = idb.DeleteSessionByRefreshToken(r.Context(), db, cookie.Value)
 		}
 
 		// Clear Cookie
@@ -633,7 +343,7 @@ func handleRefresh(db *sql.DB) http.HandlerFunc {
 		}
 
 		// Find session in DB
-		var session UserSessionDB
+		var session idb.UserSessionDB
 		var expiresAtStr string
 		var lastExpiresAtStr sql.NullString
 		var lastRefreshToken sql.NullString
@@ -650,18 +360,18 @@ func handleRefresh(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		session.ExpiresAt = parseTimeStr(expiresAtStr)
+		session.ExpiresAt = idb.ParseTimeStr(expiresAtStr)
 		if lastRefreshToken.Valid {
 			session.LastRefreshToken = lastRefreshToken.String
 		}
 		if lastExpiresAtStr.Valid {
-			session.LastRefreshTokenExpiresAt = parseTimeStr(lastExpiresAtStr.String)
+			session.LastRefreshTokenExpiresAt = idb.ParseTimeStr(lastExpiresAtStr.String)
 		}
 
-		user, err := getUserByID(r.Context(), db, session.UserID)
+		user, err := idb.GetUserFullByID(r.Context(), db, session.UserID)
 		if err != nil || user == nil || !user.IsActive {
-			log.Printf("[Refresh] User inactive or not found")
-			http.Error(w, `{"error": "User inactive"}`, http.StatusUnauthorized)
+			log.Printf("[Refresh] idb.User inactive or not found")
+			http.Error(w, `{"error": "idb.User inactive"}`, http.StatusUnauthorized)
 			return
 		}
 
@@ -721,9 +431,9 @@ func handleRefresh(db *sql.DB) http.HandlerFunc {
 			}
 
 			// Rotate tokens in DB
-			nowStr := timeToDBStr(time.Now())
-			expiresStr := timeToDBStr(time.Now().Add(30 * 24 * time.Hour))
-			graceExpiresStr := timeToDBStr(time.Now().Add(60 * time.Second))
+			nowStr := idb.TimeToDBStr(time.Now())
+			expiresStr := idb.TimeToDBStr(time.Now().Add(30 * 24 * time.Hour))
+			graceExpiresStr := idb.TimeToDBStr(time.Now().Add(60 * time.Second))
 
 			_, err = db.ExecContext(r.Context(), "UPDATE sessions SET refreshToken = ?, expiresAt = ?, lastRefreshToken = ?, lastRefreshTokenExpiresAt = ?, updatedAt = ? WHERE id = ? AND refreshToken = ?",
 				newRefreshToken, expiresStr, refreshToken, graceExpiresStr, nowStr, session.ID, refreshToken)
@@ -743,14 +453,14 @@ func handleRefresh(db *sql.DB) http.HandlerFunc {
 			})
 		}
 
-		payload, err := getUserLoginPayload(r.Context(), db, user)
+		payload, err := idb.GetUserLoginPayload(r.Context(), db, user)
 		if err != nil {
 			log.Printf("[Refresh] Failed to get response payload: %v", err)
 			http.Error(w, `{"error": "Refresh failed"}`, http.StatusInternalServerError)
 			return
 		}
 
-		userJSON := user.toOldJSONForBrowser(false)
+		userJSON := user.ToOldJSONForBrowser(false)
 		userJSON["accessToken"] = newAccessToken
 		payload["user"] = userJSON
 
@@ -759,7 +469,7 @@ func handleRefresh(db *sql.DB) http.HandlerFunc {
 	}
 }
 
-// User CRUD Handlers
+// idb.User CRUD Handlers
 
 func handleGetUsers(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -782,7 +492,7 @@ func handleGetUsers(db *sql.DB) http.HandlerFunc {
 
 		var usersJSON []map[string]interface{}
 		for rows.Next() {
-			var u User
+			var u idb.User
 			var email sql.NullString
 			var lastSeenStr sql.NullString
 			var isActiveInt, isLockedInt sql.NullInt64
@@ -814,7 +524,7 @@ func handleGetUsers(db *sql.DB) http.HandlerFunc {
 			u.IsActive = isActiveInt.Valid && isActiveInt.Int64 != 0
 			u.IsLocked = isLockedInt.Valid && isLockedInt.Int64 != 0
 			if lastSeenStr.Valid && lastSeenStr.String != "" {
-				val := parseTimeStr(lastSeenStr.String)
+				val := idb.ParseTimeStr(lastSeenStr.String)
 				u.LastSeen = &val
 			}
 			if permsStr.Valid {
@@ -826,10 +536,10 @@ func handleGetUsers(db *sql.DB) http.HandlerFunc {
 			if extraDataStr.Valid {
 				u.ExtraData = []byte(extraDataStr.String)
 			}
-			u.CreatedAt = parseTimeStr(createdAtStr.String)
-			u.UpdatedAt = parseTimeStr(updatedAtStr.String)
+			u.CreatedAt = idb.ParseTimeStr(createdAtStr.String)
+			u.UpdatedAt = idb.ParseTimeStr(updatedAtStr.String)
 
-			usersJSON = append(usersJSON, u.toOldJSONForBrowser(hideRootToken))
+			usersJSON = append(usersJSON, u.ToOldJSONForBrowser(hideRootToken))
 		}
 		if err := rows.Err(); err != nil {
 			log.Printf("[Users] Users query iteration error: %v", err)
@@ -853,12 +563,12 @@ func handleGetOnlineUsers(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		var online []OnlineUser
-		if SocketAuth != nil {
-			online = SocketAuth.GetUsersOnline()
+		var online []isocket.OnlineUser
+		if isocket.GlobalAuth != nil {
+			online = isocket.GlobalAuth.GetUsersOnline()
 		}
 		if online == nil {
-			online = []OnlineUser{}
+			online = []isocket.OnlineUser{}
 		}
 
 		w.Header().Set("Content-Type", "application/json")
@@ -870,7 +580,7 @@ func handleUserCRUD(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		userSess := r.Context().Value(core.UserContextKey).(*core.UserSession)
 
-		pathWithoutPrefix := trimAPIPath(r.URL.Path, "/api/users")
+		pathWithoutPrefix := utils.TrimAPIPath(r.URL.Path, "/api/users")
 		if r.Method == http.MethodPost && (pathWithoutPrefix == "" || pathWithoutPrefix == "/") {
 			log.Printf("[Go] POST /api/users")
 			if userSess.Type != "root" && userSess.Type != "admin" {
@@ -879,14 +589,14 @@ func handleUserCRUD(db *sql.DB) http.HandlerFunc {
 			}
 
 			var body struct {
-				Username            string                  `json:"username"`
-				Password            string                  `json:"password"`
-				Email               string                  `json:"email"`
-				Type                string                  `json:"type"`
-				IsActive            *bool                   `json:"isActive"`
-				Permissions         UserPermissionsDetailed `json:"permissions"`
-				LibrariesAccessible []string                `json:"librariesAccessible"`
-				ItemTagsSelected    []string                `json:"itemTagsSelected"`
+				Username            string                      `json:"username"`
+				Password            string                      `json:"password"`
+				Email               string                      `json:"email"`
+				Type                string                      `json:"type"`
+				IsActive            *bool                       `json:"isActive"`
+				Permissions         idb.UserPermissionsDetailed `json:"permissions"`
+				LibrariesAccessible []string                    `json:"librariesAccessible"`
+				ItemTagsSelected    []string                    `json:"itemTagsSelected"`
 			}
 			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 				http.Error(w, `{"error": "Invalid request body"}`, http.StatusBadRequest)
@@ -898,7 +608,7 @@ func handleUserCRUD(db *sql.DB) http.HandlerFunc {
 				return
 			}
 
-			exists, err := checkUserExistsWithUsername(r.Context(), db, body.Username)
+			exists, err := idb.CheckUserExistsWithUsername(r.Context(), db, body.Username)
 			if err != nil || exists {
 				http.Error(w, `{"error": "Username already taken"}`, http.StatusBadRequest)
 				return
@@ -963,7 +673,7 @@ func handleUserCRUD(db *sql.DB) http.HandlerFunc {
 			}
 
 			permsBytes, _ := json.Marshal(perms)
-			nowStr := timeToDBStr(time.Now())
+			nowStr := idb.TimeToDBStr(time.Now())
 
 			var emailVal interface{} = nil
 			if body.Email != "" {
@@ -980,21 +690,21 @@ func handleUserCRUD(db *sql.DB) http.HandlerFunc {
 				}(), string(permsBytes), nowStr, nowStr)
 
 			if err != nil {
-				log.Printf("[User Create] DB Error: %v", err)
+				log.Printf("[idb.User Create] DB Error: %v", err)
 				http.Error(w, `{"error": "Failed to save user"}`, http.StatusInternalServerError)
 				return
 			}
 
-			savedUser, err := getUserByID(r.Context(), db, userID)
+			savedUser, err := idb.GetUserFullByID(r.Context(), db, userID)
 			if err != nil || savedUser == nil {
 				http.Error(w, `{"error": "Internal Error"}`, http.StatusInternalServerError)
 				return
 			}
 
-			userJSON := savedUser.toOldJSONForBrowser(userSess.Type != "root")
+			userJSON := savedUser.ToOldJSONForBrowser(userSess.Type != "root")
 
-			if SocketAuth != nil {
-				SocketAuth.BroadcastToAdmins("user_added", userJSON)
+			if isocket.GlobalAuth != nil {
+				isocket.GlobalAuth.BroadcastToAdmins("user_added", userJSON)
 			}
 
 			w.Header().Set("Content-Type", "application/json")
@@ -1024,9 +734,9 @@ func handleUserCRUD(db *sql.DB) http.HandlerFunc {
 				return
 			}
 
-			targetUser, err := getUserByID(r.Context(), db, targetUserID)
+			targetUser, err := idb.GetUserFullByID(r.Context(), db, targetUserID)
 			if err != nil || targetUser == nil {
-				http.Error(w, `{"error": "User not found"}`, http.StatusNotFound)
+				http.Error(w, `{"error": "idb.User not found"}`, http.StatusNotFound)
 				return
 			}
 
@@ -1040,16 +750,16 @@ func handleUserCRUD(db *sql.DB) http.HandlerFunc {
 			delete(extra, "authOpenIDSub")
 			newExtraBytes, _ := json.Marshal(extra)
 
-			_, err = db.ExecContext(r.Context(), "UPDATE users SET extraData = ?, updatedAt = ? WHERE id = ?", string(newExtraBytes), timeToDBStr(time.Now()), targetUserID)
+			_, err = db.ExecContext(r.Context(), "UPDATE users SET extraData = ?, updatedAt = ? WHERE id = ?", string(newExtraBytes), idb.TimeToDBStr(time.Now()), targetUserID)
 			if err != nil {
 				http.Error(w, `{"error": "Failed to update user"}`, http.StatusInternalServerError)
 				return
 			}
 
 			targetUser.ExtraData = newExtraBytes
-			userJSON := targetUser.toOldJSONForBrowser(userSess.Type != "root")
-			if SocketAuth != nil {
-				SocketAuth.BroadcastToUser(targetUserID, "user_updated", userJSON)
+			userJSON := targetUser.ToOldJSONForBrowser(userSess.Type != "root")
+			if isocket.GlobalAuth != nil {
+				isocket.GlobalAuth.BroadcastToUser(targetUserID, "user_updated", userJSON)
 			}
 
 			w.WriteHeader(http.StatusOK)
@@ -1063,13 +773,13 @@ func handleUserCRUD(db *sql.DB) http.HandlerFunc {
 				return
 			}
 
-			targetUser, err := getUserByID(r.Context(), db, targetUserID)
+			targetUser, err := idb.GetUserFullByID(r.Context(), db, targetUserID)
 			if err != nil || targetUser == nil {
-				http.Error(w, `{"error": "User not found"}`, http.StatusNotFound)
+				http.Error(w, `{"error": "idb.User not found"}`, http.StatusNotFound)
 				return
 			}
 
-			userJSON := targetUser.toOldJSONForBrowser(userSess.Type != "root")
+			userJSON := targetUser.ToOldJSONForBrowser(userSess.Type != "root")
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(userJSON)
 			return
@@ -1082,9 +792,9 @@ func handleUserCRUD(db *sql.DB) http.HandlerFunc {
 				return
 			}
 
-			targetUser, err := getUserByID(r.Context(), db, targetUserID)
+			targetUser, err := idb.GetUserFullByID(r.Context(), db, targetUserID)
 			if err != nil || targetUser == nil {
-				http.Error(w, `{"error": "User not found"}`, http.StatusNotFound)
+				http.Error(w, `{"error": "idb.User not found"}`, http.StatusNotFound)
 				return
 			}
 
@@ -1112,7 +822,7 @@ func handleUserCRUD(db *sql.DB) http.HandlerFunc {
 			shouldUpdateToken := false
 
 			if body.Username != nil && *body.Username != targetUser.Username {
-				exists, err := checkUserExistsWithUsername(r.Context(), db, *body.Username)
+				exists, err := idb.CheckUserExistsWithUsername(r.Context(), db, *body.Username)
 				if err != nil || exists {
 					http.Error(w, `{"error": "Username already taken"}`, http.StatusBadRequest)
 					return
@@ -1197,7 +907,7 @@ func handleUserCRUD(db *sql.DB) http.HandlerFunc {
 					db.ExecContext(r.Context(), "DELETE FROM sessions WHERE userId = ?", targetUser.ID)
 				}
 
-				nowStr := timeToDBStr(time.Now())
+				nowStr := idb.TimeToDBStr(time.Now())
 				var emailVal interface{} = nil
 				if targetUser.Email != nil {
 					emailVal = *targetUser.Email
@@ -1211,17 +921,17 @@ func handleUserCRUD(db *sql.DB) http.HandlerFunc {
 					}(), string(targetUser.Permissions), nowStr, targetUser.ID)
 
 				if err != nil {
-					log.Printf("[User Update] DB Error: %v", err)
+					log.Printf("[idb.User Update] DB Error: %v", err)
 					http.Error(w, `{"error": "Failed to update user"}`, http.StatusInternalServerError)
 					return
 				}
 			}
 
-			updatedUser, _ := getUserByID(r.Context(), db, targetUserID)
-			userJSON := updatedUser.toOldJSONForBrowser(userSess.Type != "root")
+			updatedUser, _ := idb.GetUserFullByID(r.Context(), db, targetUserID)
+			userJSON := updatedUser.ToOldJSONForBrowser(userSess.Type != "root")
 
-			if SocketAuth != nil {
-				SocketAuth.BroadcastToUser(targetUserID, "user_updated", userJSON)
+			if isocket.GlobalAuth != nil {
+				isocket.GlobalAuth.BroadcastToUser(targetUserID, "user_updated", userJSON)
 			}
 
 			w.Header().Set("Content-Type", "application/json")
@@ -1247,13 +957,13 @@ func handleUserCRUD(db *sql.DB) http.HandlerFunc {
 				return
 			}
 
-			targetUser, err := getUserByID(r.Context(), db, targetUserID)
+			targetUser, err := idb.GetUserFullByID(r.Context(), db, targetUserID)
 			if err != nil || targetUser == nil {
-				http.Error(w, `{"error": "User not found"}`, http.StatusNotFound)
+				http.Error(w, `{"error": "idb.User not found"}`, http.StatusNotFound)
 				return
 			}
 
-			userJSON := targetUser.toOldJSONForBrowser(userSess.Type != "root")
+			userJSON := targetUser.ToOldJSONForBrowser(userSess.Type != "root")
 
 			tx, err := db.BeginTx(r.Context(), nil)
 			if err != nil {
@@ -1272,8 +982,8 @@ func handleUserCRUD(db *sql.DB) http.HandlerFunc {
 				return
 			}
 
-			if SocketAuth != nil {
-				SocketAuth.BroadcastToAdmins("user_removed", userJSON)
+			if isocket.GlobalAuth != nil {
+				isocket.GlobalAuth.BroadcastToAdmins("user_removed", userJSON)
 			}
 
 			w.Header().Set("Content-Type", "application/json")
@@ -1285,308 +995,4 @@ func handleUserCRUD(db *sql.DB) http.HandlerFunc {
 
 		http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
 	}
-}
-
-func getUserLoginPayload(ctx context.Context, db *sql.DB, user *User) (map[string]interface{}, error) {
-	// 1. Get serverSettings
-	var valStr string
-	err := db.QueryRowContext(ctx, "SELECT value FROM settings WHERE key = 'server-settings'").Scan(&valStr)
-	currentSettings := make(map[string]interface{})
-	if err == nil && valStr != "" {
-		json.Unmarshal([]byte(valStr), &currentSettings)
-	}
-
-	browserSettings := make(map[string]interface{})
-	for k, v := range currentSettings {
-		if k != "tokenSecret" && k != "authOpenIDClientID" && k != "authOpenIDClientSecret" &&
-			k != "authOpenIDMobileRedirectURIs" && k != "authOpenIDGroupClaim" && k != "authOpenIDAdvancedPermsClaim" {
-			browserSettings[k] = v
-		}
-	}
-	browserSettings["id"] = "server-settings"
-	if browserSettings["language"] == nil || browserSettings["language"] == "" {
-		browserSettings["language"] = "en-us"
-	}
-	if browserSettings["authActiveAuthMethods"] == nil {
-		browserSettings["authActiveAuthMethods"] = []string{"local"}
-	}
-
-	// 2. Get libraries filtered by user's access
-	userSess := &core.UserSession{
-		ID:   user.ID,
-		Type: user.Type,
-	}
-	parsePermissions(sql.NullString{String: string(user.Permissions), Valid: len(user.Permissions) > 0}, userSess)
-
-	libs, err := GetLibraries(db)
-	var filteredLibs []*LibraryJSON
-	if err == nil {
-		for _, lib := range libs {
-			if userSess.CanAccessLibrary(lib.ID) {
-				filteredLibs = append(filteredLibs, lib)
-			}
-		}
-	} else {
-		filteredLibs = []*LibraryJSON{}
-	}
-
-	var defaultLibraryID string
-	if len(filteredLibs) > 0 {
-		defaultLibraryID = filteredLibs[0].ID
-	}
-
-	source := os.Getenv("SOURCE")
-	if source == "" {
-		source = "debian"
-	}
-
-	payload := map[string]interface{}{
-		"serverSettings":       browserSettings,
-		"libraries":            filteredLibs,
-		"userDefaultLibraryId": defaultLibraryID,
-		"Source":               source,
-		"ereaderDevices":       []interface{}{},
-	}
-
-	// 3. If root/admin, return all users
-	if user.Type == "root" || user.Type == "admin" {
-		hideRootToken := user.Type != "root"
-		rows, err := db.QueryContext(ctx, "SELECT id, username, email, pash, type, token, isActive, isLocked, lastSeen, permissions, bookmarks, extraData, createdAt, updatedAt FROM users ORDER BY username ASC")
-		if err != nil {
-			return nil, err
-		}
-		defer rows.Close()
-		var usersJSON []map[string]interface{}
-		for rows.Next() {
-			var u User
-			var email sql.NullString
-			var lastSeenStr sql.NullString
-			var isActiveInt, isLockedInt sql.NullInt64
-			var permsStr, bookmarksStr, extraDataStr sql.NullString
-			var createdAtStr, updatedAtStr sql.NullString
-			var pashStr, tokenStr, typeStr sql.NullString
-
-			err := rows.Scan(&u.ID, &u.Username, &email, &pashStr, &typeStr, &tokenStr, &isActiveInt, &isLockedInt, &lastSeenStr, &permsStr, &bookmarksStr, &extraDataStr, &createdAtStr, &updatedAtStr)
-			if err != nil {
-				log.Printf("[Users] Failed to scan user for login payload: %v", err)
-				continue
-			}
-
-			if typeStr.Valid {
-				u.Type = typeStr.String
-			} else {
-				u.Type = "user"
-			}
-
-			if pashStr.Valid {
-				u.Pash = pashStr.String
-			}
-			if tokenStr.Valid {
-				u.Token = tokenStr.String
-			}
-			if email.Valid {
-				u.Email = &email.String
-			}
-			u.IsActive = isActiveInt.Valid && isActiveInt.Int64 != 0
-			u.IsLocked = isLockedInt.Valid && isLockedInt.Int64 != 0
-			if lastSeenStr.Valid && lastSeenStr.String != "" {
-				val := parseTimeStr(lastSeenStr.String)
-				u.LastSeen = &val
-			}
-			if permsStr.Valid {
-				u.Permissions = []byte(permsStr.String)
-			}
-			if bookmarksStr.Valid {
-				u.Bookmarks = []byte(bookmarksStr.String)
-			}
-			if extraDataStr.Valid {
-				u.ExtraData = []byte(extraDataStr.String)
-			}
-			u.CreatedAt = parseTimeStr(createdAtStr.String)
-			u.UpdatedAt = parseTimeStr(updatedAtStr.String)
-
-			usersJSON = append(usersJSON, u.toOldJSONForBrowser(hideRootToken))
-		}
-		if err := rows.Err(); err != nil {
-			return nil, err
-		}
-		payload["users"] = usersJSON
-	}
-
-	return payload, nil
-}
-
-func findUserFromOpenIdUserInfo(ctx context.Context, db *sql.DB, userinfo map[string]interface{}, matchBy string) (*User, error) {
-	sub, _ := userinfo["sub"].(string)
-	if sub == "" {
-		return nil, fmt.Errorf("invalid userinfo, no sub")
-	}
-
-	var u *User
-	row := db.QueryRowContext(ctx, "SELECT id, username, email, pash, type, token, isActive, isLocked, lastSeen, permissions, bookmarks, extraData, createdAt, updatedAt FROM users WHERE json_extract(extraData, '$.authOpenIDSub') = ?", sub)
-	u, err := scanUser(row)
-	if err == nil && u != nil {
-		log.Printf("[User] openid: User found by sub %s", sub)
-		return u, nil
-	}
-
-	if matchBy == "email" {
-		email, _ := userinfo["email"].(string)
-		if email != "" {
-			if verified, ok := userinfo["email_verified"].(bool); ok && !verified {
-				return nil, fmt.Errorf("email not verified")
-			}
-			row = db.QueryRowContext(ctx, "SELECT id, username, email, pash, type, token, isActive, isLocked, lastSeen, permissions, bookmarks, extraData, createdAt, updatedAt FROM users WHERE lower(email) = ?", strings.ToLower(email))
-			u, err = scanUser(row)
-			if err == nil && u != nil {
-				var extra map[string]interface{}
-				json.Unmarshal(u.ExtraData, &extra)
-				if oSub, ok := extra["authOpenIDSub"]; ok && oSub != nil && oSub != "" && oSub != sub {
-					return nil, fmt.Errorf("user already linked to a different OpenID subject")
-				}
-				if extra == nil {
-					extra = make(map[string]interface{})
-				}
-				extra["authOpenIDSub"] = sub
-				extraBytes, _ := json.Marshal(extra)
-				_, err = db.ExecContext(ctx, "UPDATE users SET extraData = ? WHERE id = ?", string(extraBytes), u.ID)
-				if err != nil {
-					return nil, err
-				}
-				u.ExtraData = extraBytes
-				return u, nil
-			}
-		} else {
-			return nil, fmt.Errorf("no email in userinfo")
-		}
-	} else if matchBy == "username" {
-		var username string
-		if pu, ok := userinfo["preferred_username"].(string); ok && pu != "" {
-			username = pu
-		} else if un, ok := userinfo["username"].(string); ok && un != "" {
-			username = un
-		} else if name, ok := userinfo["name"].(string); ok && name != "" {
-			username = name
-		}
-		if username != "" {
-			row = db.QueryRowContext(ctx, "SELECT id, username, email, pash, type, token, isActive, isLocked, lastSeen, permissions, bookmarks, extraData, createdAt, updatedAt FROM users WHERE lower(username) = ?", strings.ToLower(username))
-			u, err = scanUser(row)
-			if err == nil && u != nil {
-				var extra map[string]interface{}
-				json.Unmarshal(u.ExtraData, &extra)
-				if oSub, ok := extra["authOpenIDSub"]; ok && oSub != nil && oSub != "" && oSub != sub {
-					return nil, fmt.Errorf("user already linked to a different OpenID subject")
-				}
-				if extra == nil {
-					extra = make(map[string]interface{})
-				}
-				extra["authOpenIDSub"] = sub
-				extraBytes, _ := json.Marshal(extra)
-				_, err = db.ExecContext(ctx, "UPDATE users SET extraData = ? WHERE id = ?", string(extraBytes), u.ID)
-				if err != nil {
-					return nil, err
-				}
-				u.ExtraData = extraBytes
-				return u, nil
-			}
-		} else {
-			return nil, fmt.Errorf("no username in userinfo")
-		}
-	}
-
-	return nil, nil
-}
-
-func createUserFromOpenIdUserInfo(ctx context.Context, db *sql.DB, userinfo map[string]interface{}, tokenSecret string, userType string) (*User, error) {
-	userId := uuid.New().String()
-	username, _ := userinfo["preferred_username"].(string)
-	if username == "" {
-		username, _ = userinfo["name"].(string)
-	}
-	if username == "" {
-		username, _ = userinfo["sub"].(string)
-	}
-
-	var emailVal *string
-	if email, ok := userinfo["email"].(string); ok && email != "" {
-		if ev, ok2 := userinfo["email_verified"].(bool); !ok2 || ev {
-			emailVal = &email
-		}
-	}
-
-	claims := jwt.MapClaims{
-		"id":       userId,
-		"username": username,
-		"exp":      time.Now().Add(30 * 24 * time.Hour).Unix(),
-	}
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	tokenString, err := token.SignedString([]byte(tokenSecret))
-	if err != nil {
-		return nil, err
-	}
-
-	extra := map[string]interface{}{
-		"authOpenIDSub":                   userinfo["sub"],
-		"seriesHideFromContinueListening": []string{},
-	}
-	extraBytes, _ := json.Marshal(extra)
-	if userType == "" {
-		userType = "user"
-	}
-	perms := getDefaultPermissionsForUserType(userType)
-	nowStr := timeToDBStr(time.Now())
-
-	var emailStr sql.NullString
-	if emailVal != nil {
-		emailStr.String = *emailVal
-		emailStr.Valid = true
-	}
-
-	_, err = db.ExecContext(ctx, `
-		INSERT INTO users (id, username, email, pash, type, token, isActive, isLocked, permissions, bookmarks, extraData, createdAt, updatedAt)
-		VALUES (?, ?, ?, NULL, ?, ?, 1, 0, ?, '[]', ?, ?, ?)`,
-		userId, username, emailStr, userType, tokenString, perms, string(extraBytes), nowStr, nowStr)
-	if err != nil {
-		return nil, err
-	}
-
-	return &User{
-		ID:          userId,
-		Username:    username,
-		Email:       emailVal,
-		Type:        userType,
-		Token:       tokenString,
-		IsActive:    true,
-		IsLocked:    false,
-		Permissions: []byte(perms),
-		Bookmarks:   []byte("[]"),
-		ExtraData:   extraBytes,
-		CreatedAt:   time.Now().UnixNano() / int64(time.Millisecond),
-		UpdatedAt:   time.Now().UnixNano() / int64(time.Millisecond),
-	}, nil
-}
-
-func updateUserTypeAndToken(ctx context.Context, db *sql.DB, u *User, newType string, tokenSecret string) error {
-	claims := jwt.MapClaims{
-		"id":       u.ID,
-		"username": u.Username,
-		"exp":      time.Now().Add(30 * 24 * time.Hour).Unix(),
-	}
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	tokenString, err := token.SignedString([]byte(tokenSecret))
-	if err != nil {
-		return err
-	}
-
-	perms := getDefaultPermissionsForUserType(newType)
-	_, err = db.ExecContext(ctx, "UPDATE users SET type = ?, token = ?, permissions = ?, updatedAt = ? WHERE id = ?",
-		newType, tokenString, perms, timeToDBStr(time.Now()), u.ID)
-	if err != nil {
-		return err
-	}
-
-	u.Type = newType
-	u.Token = tokenString
-	u.Permissions = []byte(perms)
-	return nil
 }

@@ -2238,6 +2238,7 @@ func InsertAuthor(tx *sql.Tx, id, name, lastFirst, libraryID string) error {
 	return insertAuthor(tx, id, name, lastFirst, libraryID)
 }
 
+
 func insertAuthor(tx *sql.Tx, id, name, lastFirst, libraryID string) error {
 	cols := getTableColumnsTx(tx, "authors")
 	if len(cols) == 0 {

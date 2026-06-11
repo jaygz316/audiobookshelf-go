@@ -140,3 +140,17 @@ type LogMessage struct {
 	LevelName string `json:"levelName"`
 	Message   string `json:"message"`
 }
+
+// Config holds the application configuration parameters.
+type Config struct {
+	ConfigPath     string
+	MetadataPath   string
+	Port           string
+	Host           string
+	Source         string
+	Dev            bool
+	ProdWithDevEnv bool
+	LegacyURL      string
+	RouterBasePath string
+}
+
