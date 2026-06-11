@@ -109,7 +109,7 @@ func handleGetMeProgress(db *sql.DB) http.HandlerFunc {
 		}
 
 		// Path format: /api/me/progress/:id/:episodeId?
-		subPath := trimPathPrefix(r.URL.Path, "/api/me/progress/")
+		subPath := trimAPIPath(r.URL.Path, "/api/me/progress/")
 		parts := strings.Split(subPath, "/")
 		if len(parts) == 0 || parts[0] == "" {
 			http.Error(w, `{"error": "Bad Request"}`, http.StatusBadRequest)
@@ -157,7 +157,7 @@ func handleCreateUpdateMeProgress(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		subPath := trimPathPrefix(r.URL.Path, "/api/me/progress/")
+		subPath := trimAPIPath(r.URL.Path, "/api/me/progress/")
 		parts := strings.Split(subPath, "/")
 		if len(parts) == 0 || parts[0] == "" {
 			http.Error(w, `{"error": "Bad Request"}`, http.StatusBadRequest)
@@ -185,7 +185,7 @@ func handleCreateUpdateMeProgress(db *sql.DB) http.HandlerFunc {
 			mediaItemType = "podcastEpisode"
 		} else {
 			var mediaType string
-			err := db.QueryRowContext(r.Context(), "SELECT mediaId, mediaType FROM libraryItems WHERE id = ?", libraryItemID).Scan(&mediaItemID, &mediaType)
+			err := db.QueryRowContext(r.Context(), "SELECT mediaId, mediaType FROM libraryItems WHERE id = ? OR mediaId = ?", libraryItemID, libraryItemID).Scan(&mediaItemID, &mediaType)
 			if err == sql.ErrNoRows {
 				http.Error(w, "Library item not found", http.StatusNotFound)
 				return
@@ -407,7 +407,7 @@ func handleRemoveMeProgress(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		progressID := trimPathPrefix(r.URL.Path, "/api/me/progress/")
+		progressID := trimAPIPath(r.URL.Path, "/api/me/progress/")
 		if progressID == "" || strings.Contains(progressID, "/") {
 			http.Error(w, `{"error": "Bad Request"}`, http.StatusBadRequest)
 			return
@@ -578,7 +578,7 @@ func handleRemoveSeriesFromContinueListening(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		sub := trimPathPrefix(r.URL.Path, "/api/me/series/")
+		sub := trimAPIPath(r.URL.Path, "/api/me/series/")
 		seriesID := strings.TrimSuffix(sub, "/remove-from-continue-listening")
 		if seriesID == "" || strings.Contains(seriesID, "/") {
 			http.Error(w, `{"error": "Bad Request"}`, http.StatusBadRequest)
@@ -648,7 +648,7 @@ func handleReaddSeriesFromContinueListening(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		sub := trimPathPrefix(r.URL.Path, "/api/me/series/")
+		sub := trimAPIPath(r.URL.Path, "/api/me/series/")
 		seriesID := strings.TrimSuffix(sub, "/readd-to-continue-listening")
 		if seriesID == "" || strings.Contains(seriesID, "/") {
 			http.Error(w, `{"error": "Bad Request"}`, http.StatusBadRequest)
@@ -712,7 +712,7 @@ func handleHideMeProgressFromContinueListening(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		sub := trimPathPrefix(r.URL.Path, "/api/me/progress/")
+		sub := trimAPIPath(r.URL.Path, "/api/me/progress/")
 		progressID := strings.TrimSuffix(sub, "/remove-from-continue-listening")
 		progressID = strings.TrimSuffix(progressID, "/hide-from-continue-listening")
 		if progressID == "" || strings.Contains(progressID, "/") {
@@ -764,7 +764,7 @@ func handleMeCreateBookmark(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		sub := trimPathPrefix(r.URL.Path, "/api/me/item/")
+		sub := trimAPIPath(r.URL.Path, "/api/me/item/")
 		libraryItemID := strings.TrimSuffix(sub, "/bookmark")
 		if libraryItemID == "" || strings.Contains(libraryItemID, "/") {
 			http.Error(w, `{"error": "Bad Request"}`, http.StatusBadRequest)
@@ -834,7 +834,7 @@ func handleMeUpdateBookmark(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		sub := trimPathPrefix(r.URL.Path, "/api/me/item/")
+		sub := trimAPIPath(r.URL.Path, "/api/me/item/")
 		libraryItemID := strings.TrimSuffix(sub, "/bookmark")
 		if libraryItemID == "" || strings.Contains(libraryItemID, "/") {
 			http.Error(w, `{"error": "Bad Request"}`, http.StatusBadRequest)
@@ -907,7 +907,7 @@ func handleMeRemoveBookmark(db *sql.DB) http.HandlerFunc {
 		}
 
 		// Route format: /api/me/item/:id/bookmark/:time
-		sub := trimPathPrefix(r.URL.Path, "/api/me/item/")
+		sub := trimAPIPath(r.URL.Path, "/api/me/item/")
 		parts := strings.Split(sub, "/bookmark/")
 		if len(parts) != 2 {
 			http.Error(w, `{"error": "Bad Request"}`, http.StatusBadRequest)

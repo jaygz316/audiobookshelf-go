@@ -73,7 +73,7 @@ func TestGetLibraries(t *testing.T) {
 
 	handler := handleGetLibraries(db)
 	req := httptest.NewRequest("GET", "/api/libraries", nil)
-	
+
 	// Inject admin user
 	user := &UserSession{
 		ID:                 "user1",
@@ -441,16 +441,16 @@ func TestHLSServing(t *testing.T) {
 
 	streamID := "test-session-123"
 	s := &Stream{
-		ID:                 streamID,
-		UserID:             "user1",
-		LibraryItemID:      "item1",
-		SegmentLength:      6.0,
-		StreamPath:         tempDir,
-		ConcatFilesPath:    filepath.Join(tempDir, "files.txt"),
-		PlaylistPath:       filepath.Join(tempDir, "output.m3u8"),
-		FinalPlaylistPath:  filepath.Join(tempDir, "final-output.m3u8"),
-		Tracks:             []Track{{Index: 0, Duration: 60.0, Path: "dummy.mp3"}},
-		segmentsCreated:    make(map[int]bool),
+		ID:                streamID,
+		UserID:            "user1",
+		LibraryItemID:     "item1",
+		SegmentLength:     6.0,
+		StreamPath:        tempDir,
+		ConcatFilesPath:   filepath.Join(tempDir, "files.txt"),
+		PlaylistPath:      filepath.Join(tempDir, "output.m3u8"),
+		FinalPlaylistPath: filepath.Join(tempDir, "final-output.m3u8"),
+		Tracks:            []Track{{Index: 0, Duration: 60.0, Path: "dummy.mp3"}},
+		segmentsCreated:   make(map[int]bool),
 	}
 
 	dummyPlaylist := getPlaylistStr("output", 60.0, 6.0, "mpegts")
@@ -610,5 +610,3 @@ func TestGetLibraryPersonalized(t *testing.T) {
 		t.Errorf("Expected entity item1, got %v", entity["id"])
 	}
 }
-
-
