@@ -1,4 +1,5 @@
 .env
+*.md
 /dev.js
 **/node_modules/
 /config/
@@ -8,8 +9,6 @@
 /media/
 /metadata/
 /plugins/
-/client/.nuxt/
-/client/dist/
 /dist/
 /deploy/
 /coverage/
@@ -25,4 +24,19 @@ sw.*
 tailwind.compiled.css
 tailwind.config.js
 /legacy-archive/
+.agents/
+/ORIGINAL_REQUEST.md
+/test_output.log
+/test-bin
+/abs-gateway-bin
+/audiobookshelf-go-bin
+/e2e.test
+/abs-gateway-test
+/audiobookshelf-go
+/audiobookshelf
+*.tmp
+/test_output_full.log
+/coverage.out
+/e2e_run.log
+
 

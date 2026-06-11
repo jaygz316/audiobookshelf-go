@@ -48,6 +48,12 @@ func AuthMiddleware(db *sql.DB, tokenSecret string, next http.Handler) http.Hand
 			return
 		}
 
+		if db == nil {
+			log.Printf("[Auth] Database is not connected")
+			http.Error(w, `{"error": "Database not connected"}`, http.StatusInternalServerError)
+			return
+		}
+
 		// Extract token
 		var tokenStr string
 		authHeader := r.Header.Get("Authorization")
@@ -59,7 +65,7 @@ func AuthMiddleware(db *sql.DB, tokenSecret string, next http.Handler) http.Hand
 
 		if tokenStr == "" {
 			// Check cookie (refresh token or session token, though Audiobookshelf relies on Bearer/Query)
-			log.Printf("[Auth] Unauthorized: No token found")
+			log.Printf("[Auth] Unauthorized: No token found for %s %s", r.Method, r.URL.Path)
 			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
 			return
 		}
@@ -74,7 +80,7 @@ func AuthMiddleware(db *sql.DB, tokenSecret string, next http.Handler) http.Hand
 		})
 
 		if err != nil || !token.Valid {
-			log.Printf("[Auth] Unauthorized: Invalid JWT signature or expired: %v", err)
+			log.Printf("[Auth] Unauthorized: Invalid JWT signature or expired for %s %s: %v", r.Method, r.URL.Path, err)
 			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
 			return
 		}
@@ -104,10 +110,26 @@ func AuthMiddleware(db *sql.DB, tokenSecret string, next http.Handler) http.Hand
 				http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
 				return
 			}
+			// Verify user has at least one session in sessions table
+			var sessionExists int
+			err := db.QueryRow("SELECT COUNT(*) FROM sessions WHERE userId = ?", claims.UserID).Scan(&sessionExists)
+			if err != nil || sessionExists == 0 {
+				log.Printf("[Auth] Unauthorized: No active sessions for user ID %s", claims.UserID)
+				http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
+				return
+			}
 		}
 
 		// Inject user info into context
 		ctx := context.WithValue(r.Context(), UserContextKey, userSession)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
+}
+
+// trimAPIPath extracts the subpath after the specified API segment, in a router base path agnostic manner.
+func trimAPIPath(path, segment string) string {
+	if idx := strings.Index(path, segment); idx != -1 {
+		return path[idx+len(segment):]
+	}
+	return strings.TrimPrefix(path, segment)
 }

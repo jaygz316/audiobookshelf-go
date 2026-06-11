@@ -73,7 +73,7 @@ func TestGetLibraries(t *testing.T) {
 
 	handler := handleGetLibraries(db)
 	req := httptest.NewRequest("GET", "/api/libraries", nil)
-	
+
 	// Inject admin user
 	user := &UserSession{
 		ID:                 "user1",
@@ -441,16 +441,16 @@ func TestHLSServing(t *testing.T) {
 
 	streamID := "test-session-123"
 	s := &Stream{
-		ID:                 streamID,
-		UserID:             "user1",
-		LibraryItemID:      "item1",
-		SegmentLength:      6.0,
-		StreamPath:         tempDir,
-		ConcatFilesPath:    filepath.Join(tempDir, "files.txt"),
-		PlaylistPath:       filepath.Join(tempDir, "output.m3u8"),
-		FinalPlaylistPath:  filepath.Join(tempDir, "final-output.m3u8"),
-		Tracks:             []Track{{Index: 0, Duration: 60.0, Path: "dummy.mp3"}},
-		segmentsCreated:    make(map[int]bool),
+		ID:                streamID,
+		UserID:            "user1",
+		LibraryItemID:     "item1",
+		SegmentLength:     6.0,
+		StreamPath:        tempDir,
+		ConcatFilesPath:   filepath.Join(tempDir, "files.txt"),
+		PlaylistPath:      filepath.Join(tempDir, "output.m3u8"),
+		FinalPlaylistPath: filepath.Join(tempDir, "final-output.m3u8"),
+		Tracks:            []Track{{Index: 0, Duration: 60.0, Path: "dummy.mp3"}},
+		segmentsCreated:   make(map[int]bool),
 	}
 
 	dummyPlaylist := getPlaylistStr("output", 60.0, 6.0, "mpegts")
@@ -467,7 +467,17 @@ func TestHLSServing(t *testing.T) {
 
 	sm.AddStream(s)
 
+	user := &UserSession{
+		ID:                 "user1",
+		Username:           "admin",
+		Type:               "admin",
+		IsActive:           true,
+		AccessAllLibraries: true,
+		AccessAllTags:      true,
+	}
+
 	req := httptest.NewRequest("GET", "/hls/"+streamID+"/output.m3u8", nil)
+	req = req.WithContext(context.WithValue(req.Context(), UserContextKey, user))
 	rr := httptest.NewRecorder()
 
 	handler := serveHLS(t.TempDir(), sm)
@@ -481,6 +491,7 @@ func TestHLSServing(t *testing.T) {
 	}
 
 	req = httptest.NewRequest("GET", "/hls/"+streamID+"/output-0.ts", nil)
+	req = req.WithContext(context.WithValue(req.Context(), UserContextKey, user))
 	rr = httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 
@@ -600,4 +611,58 @@ func TestGetLibraryPersonalized(t *testing.T) {
 	}
 }
 
+func TestPlayItemRoute(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	globalDB = db
+
+	// Insert library
+	_, err := db.Exec(`INSERT INTO libraries (id, name, displayOrder, icon, mediaType, provider, settings, createdAt, updatedAt) VALUES ('lib1', 'Audiobooks', 1, 'book', 'book', 'local', '{}', '2026-06-08 12:00:00.000', '2026-06-08 12:00:00.000')`)
+	if err != nil {
+		t.Fatalf("Failed to insert library: %v", err)
+	}
+
+	// Insert book with valid audioFiles
+	audioFilesJSON := `[
+		{"index":0, "exclude":false, "duration":100.0, "codec":"mp3", "mimeType":"audio/mpeg", "metadata":{"path":"/fake/path.mp3"}}
+	]`
+	_, err = db.Exec(`INSERT INTO books (id, title, audioFiles, duration) VALUES ('book1', 'The Great Book', ?, 100.0)`, audioFilesJSON)
+	if err != nil {
+		t.Fatalf("Failed to insert book: %v", err)
+	}
+
+	// Insert library item
+	_, err = db.Exec(`INSERT INTO libraryItems (id, ino, libraryId, path, relPath, isFile, mtime, ctime, birthtime, createdAt, updatedAt, isMissing, isInvalid, mediaType, mediaId, size, libraryFolderId, authorNamesFirstLast, authorNamesLastFirst, title, titleIgnorePrefix) VALUES ('item1', '12345', 'lib1', '/audiobooks/book1', 'book1', 0, '2026-06-08 12:00:00.000', '2026-06-08 12:00:00.000', '2026-06-08 12:00:00.000', '2026-06-08 12:00:00.000', '2026-06-08 12:00:00.000', 0, 0, 'book', 'book1', 5000, 'folder1', 'Author X', 'Author, X', 'The Great Book', 'Great Book')`)
+	if err != nil {
+		t.Fatalf("Failed to insert library item: %v", err)
+	}
+
+	// Setup Config
+	cfg := &Config{
+		RouterBasePath: "/audiobookshelf",
+		MetadataPath:   t.TempDir(),
+	}
+
+	user := &UserSession{
+		ID:                 "user1",
+		Username:           "admin",
+		Type:               "admin",
+		IsActive:           true,
+		AccessAllLibraries: true,
+		AccessAllTags:      true,
+	}
+
+	handler := handleItemsDispatch(db, cfg)
+
+	bodyBytes := []byte(`{"startTime": 0.0}`)
+	req := httptest.NewRequest("POST", "/audiobookshelf/api/items/item1/play", bytes.NewBuffer(bodyBytes))
+	req = req.WithContext(context.WithValue(req.Context(), UserContextKey, user))
+
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code == http.StatusNotFound {
+		t.Errorf("Expected route to be found, but got 404. Body: %s", rr.Body.String())
+	}
+}
 

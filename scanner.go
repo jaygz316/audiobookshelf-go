@@ -259,7 +259,7 @@ type FFProbeOutput struct {
 		BitRate    string            `json:"bit_rate"`
 		Channels   int               `json:"channels"`
 		SampleRate string            `json:"sample_rate"`
-		Tags      map[string]string `json:"tags"`
+		Tags       map[string]string `json:"tags"`
 	} `json:"streams"`
 	Chapters []struct {
 		ID        int               `json:"id"`
@@ -343,8 +343,8 @@ func probeAudioFile(path string) (*AudioMetadata, error) {
 type OPFPackage struct {
 	XMLName  xml.Name `xml:"package"`
 	Metadata struct {
-		Title       []string `xml:"title"`
-		Creator     []struct {
+		Title   []string `xml:"title"`
+		Creator []struct {
 			Value string `xml:",chardata"`
 			Role  string `xml:"role,attr"`
 		} `xml:"creator"`
@@ -355,9 +355,9 @@ type OPFPackage struct {
 			Value  string `xml:",chardata"`
 			Scheme string `xml:"scheme,attr"`
 		} `xml:"identifier"`
-		Language    []string `xml:"language"`
-		Subject     []string `xml:"subject"`
-		Meta        []struct {
+		Language []string `xml:"language"`
+		Subject  []string `xml:"subject"`
+		Meta     []struct {
 			Name    string `xml:"name,attr"`
 			Content string `xml:"content,attr"`
 		} `xml:"meta"`
@@ -2036,6 +2036,18 @@ func handleScanLibrary(db *sql.DB, libraryID string) http.HandlerFunc {
 		userSess := r.Context().Value(UserContextKey).(*UserSession)
 		if userSess.Type != "root" && userSess.Type != "admin" {
 			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
+			return
+		}
+
+		var count int
+		err := db.QueryRowContext(r.Context(), "SELECT COUNT(*) FROM libraries WHERE id = ?", libraryID).Scan(&count)
+		if err != nil {
+			log.Printf("[Scanner] Database error: %v", err)
+			http.Error(w, `{"error": "Internal Server Error"}`, http.StatusInternalServerError)
+			return
+		}
+		if count == 0 {
+			http.Error(w, `{"error": "Library not found"}`, http.StatusNotFound)
 			return
 		}
 
