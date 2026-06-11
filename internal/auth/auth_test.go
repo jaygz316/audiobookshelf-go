@@ -992,3 +992,198 @@ func TestOIDCHandler_UpdateSettings(t *testing.T) {
 		t.Errorf("expected ClientID client-2, got %s", h.getSettings().ClientID)
 	}
 }
+
+func TestIsValidRedirectURI_Vulnerability(t *testing.T) {
+	h := NewOIDCHandler(OIDCSettings{}, http.DefaultClient)
+
+	// Valid cases
+	validURIs := []string{
+		"http://localhost",
+		"http://localhost:8080",
+		"http://localhost:8080/callback",
+		"http://127.0.0.1",
+		"http://127.0.0.1:8080",
+		"http://127.0.0.1:8080/callback",
+	}
+
+	for _, uri := range validURIs {
+		if !h.isValidRedirectURI(uri) {
+			t.Errorf("expected valid for %s", uri)
+		}
+	}
+
+	// Vulnerability bypass attempts (must be invalid)
+	invalidURIs := []string{
+		"http://localhost.attacker.com",
+		"http://localhost-evil.com/callback",
+		"http://127.0.0.1.attacker.com",
+		"http://127.0.0.1-evil.com/callback",
+		"http://localhost.evil:8080",
+	}
+
+	for _, uri := range invalidURIs {
+		if h.isValidRedirectURI(uri) {
+			t.Errorf("expected invalid for %s", uri)
+		}
+	}
+}
+
+func TestOIDCHandler_SessionCleanup(t *testing.T) {
+	h := NewOIDCHandler(OIDCSettings{}, http.DefaultClient)
+
+	// Add an expired session
+	expiredSess := &oidcSession{
+		State:     "expired-state",
+		CreatedAt: time.Now().Add(-15 * time.Minute),
+	}
+	h.sessions.Store(expiredSess.State, expiredSess)
+
+	// Add a valid session
+	validSess := &oidcSession{
+		State:     "valid-state",
+		CreatedAt: time.Now().Add(-2 * time.Minute),
+	}
+	h.sessions.Store(validSess.State, validSess)
+
+	// Manually run cleanup
+	h.sessions.Range(func(key, value interface{}) bool {
+		sess, ok := value.(*oidcSession)
+		if ok && time.Since(sess.CreatedAt) > 10*time.Minute {
+			h.sessions.Delete(key)
+		}
+		return true
+	})
+
+	if _, ok := h.sessions.Load("expired-state"); ok {
+		t.Error("expected expired-state to be deleted")
+	}
+
+	if _, ok := h.sessions.Load("valid-state"); !ok {
+		t.Error("expected valid-state to remain in sessions map")
+	}
+}
+
+func TestHandleCallback_GroupClaimMapping(t *testing.T) {
+	tests := []struct {
+		name          string
+		userGroups    interface{} // string, []string, or []interface{}
+		expectedRole  string
+		expectFailure bool
+	}{
+		{
+			name:         "admin group mapping",
+			userGroups:   []string{"admin"},
+			expectedRole: "admin",
+		},
+		{
+			name:         "multiple groups, admin highest",
+			userGroups:   []string{"guest", "user", "admin"},
+			expectedRole: "admin",
+		},
+		{
+			name:         "multiple groups, user highest",
+			userGroups:   []string{"guest", "user"},
+			expectedRole: "user",
+		},
+		{
+			name:         "case insensitive mapping",
+			userGroups:   []string{"GueSt", "UsEr"},
+			expectedRole: "user",
+		},
+		{
+			name:         "comma separated string",
+			userGroups:   "guest, user",
+			expectedRole: "user",
+		},
+		{
+			name:          "no matching group",
+			userGroups:    []string{"other-group"},
+			expectFailure: true,
+		},
+		{
+			name:          "no matching group comma separated",
+			userGroups:    "other-group, another",
+			expectFailure: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			server := startMockOIDCServer(t, func(w http.ResponseWriter, r *http.Request, serverURL string) {
+				w.Header().Set("Content-Type", "application/json")
+				token := jwt.NewWithClaims(jwt.SigningMethodRS256, jwt.MapClaims{
+					"iss":    serverURL,
+					"sub":    "user-groups-123",
+					"aud":    "test-client-id",
+					"exp":    time.Now().Add(time.Hour).Unix(),
+					"iat":    time.Now().Unix(),
+					"email":  "user@example.com",
+					"groups": tc.userGroups,
+				})
+				token.Header["kid"] = "mock-key-id"
+				signedToken, err := token.SignedString(testPrivKey)
+				if err != nil {
+					http.Error(w, err.Error(), 500)
+					return
+				}
+				resp := map[string]interface{}{
+					"access_token": "mock-access-token",
+					"token_type":   "Bearer",
+					"expires_in":   3600,
+					"id_token":     signedToken,
+				}
+				json.NewEncoder(w).Encode(resp)
+			}, func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				resp := map[string]interface{}{
+					"sub":    "user-groups-123",
+					"email":  "user@example.com",
+					"groups": tc.userGroups,
+				}
+				json.NewEncoder(w).Encode(resp)
+			})
+			defer server.Close()
+
+			settings := OIDCSettings{
+				IssuerURL:    server.URL,
+				ClientID:     "test-client-id",
+				ClientSecret: "test-client-secret",
+				GroupClaim:   "groups",
+			}
+			h := NewOIDCHandler(settings, http.DefaultClient)
+
+			state := "state-123"
+			sess := &oidcSession{
+				State:          state,
+				CodeVerifier:   "verifier",
+				SSORedirectURI: "http://example.com/auth/openid/callback",
+			}
+			h.sessions.Store(state, sess)
+
+			req := httptest.NewRequest("GET", "/auth/openid/callback?state=state-123&code=code", nil)
+			req.Host = "example.com"
+			rec := httptest.NewRecorder()
+
+			claims, err := h.HandleCallback(rec, req)
+			if tc.expectFailure {
+				if err == nil {
+					t.Fatal("expected failure but got no error")
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("expected success but got error: %v", err)
+				}
+				if claims == nil {
+					t.Fatal("expected claims to be returned")
+				}
+				mappedRole, ok := claims["mapped_role"].(string)
+				if !ok {
+					t.Fatal("expected mapped_role in claims")
+				}
+				if mappedRole != tc.expectedRole {
+					t.Errorf("expected mapped role to be %s, got %s", tc.expectedRole, mappedRole)
+				}
+			}
+		})
+	}
+}

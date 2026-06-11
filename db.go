@@ -101,6 +101,7 @@ type userPermissions struct {
 	AccessExplicitContent     *bool    `json:"accessExplicitContent"`
 	AccessAllLibraries        *bool    `json:"accessAllLibraries"`
 	LibrariesAccessible       []string `json:"librariesAccessible"`
+	Libraries                 []string `json:"libraries"`
 	AccessAllTags             *bool    `json:"accessAllTags"`
 	ItemTagsSelected          []string `json:"itemTagsSelected"`
 	SelectedTagsNotAccessible *bool    `json:"selectedTagsNotAccessible"`
@@ -143,6 +144,14 @@ func parsePermissions(permsStr sql.NullString, user *UserSession) {
 	}
 	if perms.LibrariesAccessible != nil {
 		user.LibrariesAccessible = perms.LibrariesAccessible
+		if perms.AccessAllLibraries == nil {
+			user.AccessAllLibraries = false
+		}
+	} else if perms.Libraries != nil {
+		user.LibrariesAccessible = perms.Libraries
+		if perms.AccessAllLibraries == nil {
+			user.AccessAllLibraries = false
+		}
 	}
 	if perms.AccessAllTags != nil {
 		user.AccessAllTags = *perms.AccessAllTags
@@ -186,7 +195,7 @@ func GetUserByIDOrOldID(db *sql.DB, userID string) (*UserSession, error) {
 	// First query matching id
 	err := db.QueryRow("SELECT id, username, type, isActive, extraData, permissions FROM users WHERE id = ?", userID).
 		Scan(&user.ID, &user.Username, &user.Type, &isActiveInt, &extraDataStr, &permsStr)
-	
+
 	if err == sql.ErrNoRows {
 		// Fallback: check extraData->>'oldUserId' if it exists. SQLite JSON extraction: json_extract(extraData, '$.oldUserId')
 		err = db.QueryRow("SELECT id, username, type, isActive, extraData, permissions FROM users WHERE json_extract(extraData, '$.oldUserId') = ?", userID).
@@ -267,13 +276,16 @@ func GetLibraryItemDownloadInfo(db *sql.DB, itemID string) (*LibraryItemDownload
 		return nil, fmt.Errorf("database not initialized")
 	}
 	var info LibraryItemDownloadInfo
-	var isFileVal int
+	var isFileVal sql.NullInt64
+	var pathStr, relPathStr sql.NullString
 	err := db.QueryRow("SELECT path, relPath, isFile FROM libraryItems WHERE id = ?", itemID).
-		Scan(&info.Path, &info.RelPath, &isFileVal)
+		Scan(&pathStr, &relPathStr, &isFileVal)
 	if err != nil {
 		return nil, err
 	}
-	info.IsFile = isFileVal != 0
+	info.Path = pathStr.String
+	info.RelPath = relPathStr.String
+	info.IsFile = isFileVal.Valid && isFileVal.Int64 != 0
 	return &info, nil
 }
 
@@ -648,7 +660,7 @@ func getUserPermissionWhere(user *UserSession, tableAlias string) (string, []int
 	if len(conds) == 0 {
 		return "", nil
 	}
-	
+
 	return strings.Join(conds, " AND "), args
 }
 
@@ -784,6 +796,7 @@ type GetFilteredLibraryItemsOptions struct {
 	Include        []string
 	MediaType      string
 	Minified       bool
+	Search         string
 }
 
 type LibraryItemMinifiedJSON struct {
@@ -900,6 +913,17 @@ func GetFilteredLibraryItems(db *sql.DB, options GetFilteredLibraryItemsOptions)
 		args = append(args, filterArgs...)
 	}
 
+	if options.Search != "" {
+		searchTerm := "%" + options.Search + "%"
+		if options.MediaType == "book" {
+			conds = append(conds, "(b.title LIKE ? OR li.authorNamesFirstLast LIKE ? OR b.subtitle LIKE ? OR b.description LIKE ?)")
+			args = append(args, searchTerm, searchTerm, searchTerm, searchTerm)
+		} else {
+			conds = append(conds, "(p.title LIKE ? OR p.author LIKE ? OR p.description LIKE ?)")
+			args = append(args, searchTerm, searchTerm, searchTerm)
+		}
+	}
+
 	whereClause := "WHERE " + strings.Join(conds, " AND ")
 
 	// Count query
@@ -960,17 +984,19 @@ func GetFilteredLibraryItems(db *sql.DB, options GetFilteredLibraryItemsOptions)
 	bookMap := make(map[string]*BookMinifiedJSON)
 
 	for rows.Next() {
-		var id, ino, path, relPath, mediaType, mediaID, libraryFolderID string
-		var isFileVal, isMissingVal, isInvalidVal int
-		var mtimeStr, ctimeStr, birthtimeStr, createdAtStr, updatedAtStr string
-		var size int64
+		var id string
+		var ino, path, relPath, mediaType, mediaID, libraryFolderID sql.NullString
+		var isFileVal, isMissingVal, isInvalidVal sql.NullInt64
+		var mtimeStr, ctimeStr, birthtimeStr, createdAtStr, updatedAtStr sql.NullString
+		var size sql.NullInt64
 
 		if options.MediaType == "book" {
 			var authorNamesFirstLast, authorNamesLastFirst sql.NullString
-			var bID, bTitle, bTitleIgnorePrefix string
+			var bID, bTitle string
+			var bTitleIgnorePrefix sql.NullString
 			var bSubtitle, bPublishedYear, bPublishedDate, bPublisher, bDescription, bIsbn, bAsin, bLanguage, bCoverPath sql.NullString
-			var bExplicit, bAbridged int
-			var bDuration float64
+			var bExplicit, bAbridged sql.NullInt64
+			var bDuration sql.NullFloat64
 			var bNarrators, bAudioFiles, bEbookFile, bChapters, bTags, bGenres []byte
 
 			err = rows.Scan(
@@ -991,7 +1017,7 @@ func GetFilteredLibraryItems(db *sql.DB, options GetFilteredLibraryItemsOptions)
 				json.Unmarshal(bGenres, &genres)
 			}
 			var audioFiles []struct {
-				Exclude  bool  `json:"exclude"`
+				Exclude  bool `json:"exclude"`
 				Metadata struct {
 					Size int64 `json:"size"`
 				} `json:"metadata"`
@@ -1070,22 +1096,22 @@ func GetFilteredLibraryItems(db *sql.DB, options GetFilteredLibraryItemsOptions)
 			}
 			calculatedSize += ebook.Metadata.Size
 			if calculatedSize == 0 {
-				calculatedSize = size
+				calculatedSize = size.Int64
 			}
 
 			bookMin := &BookMinifiedJSON{
-				ID:        bID,
-				CoverPath: cover,
-				Tags:      tags,
-				NumTracks: numTracks,
+				ID:            bID,
+				CoverPath:     cover,
+				Tags:          tags,
+				NumTracks:     numTracks,
 				NumAudioFiles: len(audioFiles),
 				NumChapters:   len(chapters),
-				Duration:      bDuration,
+				Duration:      bDuration.Float64,
 				Size:          calculatedSize,
 				EbookFormat:   ebookFormat,
 				Metadata: &BookMetadataMinified{
 					Title:             bTitle,
-					TitleIgnorePrefix: bTitleIgnorePrefix,
+					TitleIgnorePrefix: bTitleIgnorePrefix.String,
 					Subtitle:          subtitleVal,
 					AuthorName:        authorNamesFirstLast.String,
 					AuthorNameLF:      authorNamesLastFirst.String,
@@ -1099,8 +1125,8 @@ func GetFilteredLibraryItems(db *sql.DB, options GetFilteredLibraryItemsOptions)
 					Isbn:              isbnVal,
 					Asin:              asinVal,
 					Language:          languageVal,
-					Explicit:          bExplicit != 0,
-					Abridged:          bAbridged != 0,
+					Explicit:          bExplicit.Valid && bExplicit.Int64 != 0,
+					Abridged:          bAbridged.Valid && bAbridged.Int64 != 0,
 				},
 			}
 
@@ -1109,20 +1135,20 @@ func GetFilteredLibraryItems(db *sql.DB, options GetFilteredLibraryItemsOptions)
 
 			liMin := &LibraryItemMinifiedJSON{
 				ID:          id,
-				Ino:         ino,
+				Ino:         ino.String,
 				LibraryID:   options.LibraryID,
-				FolderID:    libraryFolderID,
-				Path:        path,
-				RelPath:     relPath,
-				IsFile:      isFileVal != 0,
-				MtimeMs:     parseEpochMillis(mtimeStr),
-				CtimeMs:     parseEpochMillis(ctimeStr),
-				BirthtimeMs: parseEpochMillis(birthtimeStr),
-				AddedAt:     parseEpochMillis(createdAtStr),
-				UpdatedAt:   parseEpochMillis(updatedAtStr),
-				IsMissing:   isMissingVal != 0,
-				IsInvalid:   isInvalidVal != 0,
-				MediaType:   mediaType,
+				FolderID:    libraryFolderID.String,
+				Path:        path.String,
+				RelPath:     relPath.String,
+				IsFile:      isFileVal.Valid && isFileVal.Int64 != 0,
+				MtimeMs:     parseEpochMillis(mtimeStr.String),
+				CtimeMs:     parseEpochMillis(ctimeStr.String),
+				BirthtimeMs: parseEpochMillis(birthtimeStr.String),
+				AddedAt:     parseEpochMillis(createdAtStr.String),
+				UpdatedAt:   parseEpochMillis(updatedAtStr.String),
+				IsMissing:   isMissingVal.Valid && isMissingVal.Int64 != 0,
+				IsInvalid:   isInvalidVal.Valid && isInvalidVal.Int64 != 0,
+				MediaType:   mediaType.String,
 				Media:       bookMin,
 				NumFiles:    len(audioFiles) + len(chapters), // fallback files count
 				Size:        calculatedSize,
@@ -1130,9 +1156,10 @@ func GetFilteredLibraryItems(db *sql.DB, options GetFilteredLibraryItemsOptions)
 
 			results = append(results, liMin)
 		} else {
-			var pID, pTitle, pTitleIgnorePrefix string
+			var pID, pTitle string
+			var pTitleIgnorePrefix sql.NullString
 			var pAuthor, pReleaseDate, pFeedURL, pImageURL, pDescription, pItunesPageURL, pItunesID, pItunesArtistID, pLanguage, pPodcastType, pAutoDownloadSchedule, pCoverPath sql.NullString
-			var pExplicit, pAutoDownloadEpisodes, pMaxEpisodesToKeep, pMaxNewEpisodesToDownload, pNumEpisodes int
+			var pExplicit, pAutoDownloadEpisodes, pMaxEpisodesToKeep, pMaxNewEpisodesToDownload, pNumEpisodes sql.NullInt64
 			var pLastEpisodeCheck sql.NullString
 			var pTags, pGenres []byte
 
@@ -1213,19 +1240,19 @@ func GetFilteredLibraryItems(db *sql.DB, options GetFilteredLibraryItemsOptions)
 			}
 
 			podcastMin := &PodcastMinifiedJSON{
-				ID:        pID,
-				CoverPath: cover,
-				Tags:      tags,
-				NumEpisodes: pNumEpisodes,
-				AutoDownloadEpisodes: pAutoDownloadEpisodes != 0,
-				AutoDownloadSchedule: autoDownloadScheduleVal,
-				LastEpisodeCheck:     lastEpisodeCheckVal,
-				MaxEpisodesToKeep:        pMaxEpisodesToKeep,
-				MaxNewEpisodesToDownload: pMaxNewEpisodesToDownload,
-				Size:                     size,
+				ID:                       pID,
+				CoverPath:                cover,
+				Tags:                     tags,
+				NumEpisodes:              int(pNumEpisodes.Int64),
+				AutoDownloadEpisodes:     pAutoDownloadEpisodes.Valid && pAutoDownloadEpisodes.Int64 != 0,
+				AutoDownloadSchedule:     autoDownloadScheduleVal,
+				LastEpisodeCheck:         lastEpisodeCheckVal,
+				MaxEpisodesToKeep:        int(pMaxEpisodesToKeep.Int64),
+				MaxNewEpisodesToDownload: int(pMaxNewEpisodesToDownload.Int64),
+				Size:                     size.Int64,
 				Metadata: &PodcastMetadataMin{
 					Title:             pTitle,
-					TitleIgnorePrefix: pTitleIgnorePrefix,
+					TitleIgnorePrefix: pTitleIgnorePrefix.String,
 					Author:            authorVal,
 					Description:       descriptionVal,
 					ReleaseDate:       releaseDateVal,
@@ -1235,7 +1262,7 @@ func GetFilteredLibraryItems(db *sql.DB, options GetFilteredLibraryItemsOptions)
 					ItunesPageURL:     itunesPageURLVal,
 					ItunesID:          itunesIDVal,
 					ItunesArtistID:    itunesArtistIDVal,
-					Explicit:          pExplicit != 0,
+					Explicit:          pExplicit.Valid && pExplicit.Int64 != 0,
 					Language:          languageVal,
 					Type:              podcastTypeVal,
 				},
@@ -1243,23 +1270,23 @@ func GetFilteredLibraryItems(db *sql.DB, options GetFilteredLibraryItemsOptions)
 
 			liMin := &LibraryItemMinifiedJSON{
 				ID:          id,
-				Ino:         ino,
+				Ino:         ino.String,
 				LibraryID:   options.LibraryID,
-				FolderID:    libraryFolderID,
-				Path:        path,
-				RelPath:     relPath,
-				IsFile:      isFileVal != 0,
-				MtimeMs:     parseEpochMillis(mtimeStr),
-				CtimeMs:     parseEpochMillis(ctimeStr),
-				BirthtimeMs: parseEpochMillis(birthtimeStr),
-				AddedAt:     parseEpochMillis(createdAtStr),
-				UpdatedAt:   parseEpochMillis(updatedAtStr),
-				IsMissing:   isMissingVal != 0,
-				IsInvalid:   isInvalidVal != 0,
-				MediaType:   mediaType,
+				FolderID:    libraryFolderID.String,
+				Path:        path.String,
+				RelPath:     relPath.String,
+				IsFile:      isFileVal.Valid && isFileVal.Int64 != 0,
+				MtimeMs:     parseEpochMillis(mtimeStr.String),
+				CtimeMs:     parseEpochMillis(ctimeStr.String),
+				BirthtimeMs: parseEpochMillis(birthtimeStr.String),
+				AddedAt:     parseEpochMillis(createdAtStr.String),
+				UpdatedAt:   parseEpochMillis(updatedAtStr.String),
+				IsMissing:   isMissingVal.Valid && isMissingVal.Int64 != 0,
+				IsInvalid:   isInvalidVal.Valid && isInvalidVal.Int64 != 0,
+				MediaType:   mediaType.String,
 				Media:       podcastMin,
-				NumFiles:    pNumEpisodes,
-				Size:        size,
+				NumFiles:    int(pNumEpisodes.Int64),
+				Size:        size.Int64,
 			}
 
 			results = append(results, liMin)
@@ -1351,11 +1378,11 @@ type UpdateFolderPayload struct {
 }
 
 type UpdateLibraryPayload struct {
-	Name         *string                 `json:"name"`
-	Provider     *string                 `json:"provider"`
-	MediaType    *string                 `json:"mediaType"`
-	Icon         *string                 `json:"icon"`
-	DisplayOrder *int                    `json:"displayOrder"`
+	Name         *string                `json:"name"`
+	Provider     *string                `json:"provider"`
+	MediaType    *string                `json:"mediaType"`
+	Icon         *string                `json:"icon"`
+	DisplayOrder *int                   `json:"displayOrder"`
 	Settings     map[string]interface{} `json:"settings"`
 	Folders      []UpdateFolderPayload  `json:"folders"`
 }
@@ -2013,5 +2040,3 @@ func getLibraryFilterDataGo(db *sql.DB, libraryID string) (*LibraryFilterData, e
 
 	return fd, nil
 }
-
-
