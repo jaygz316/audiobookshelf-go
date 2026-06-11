@@ -111,7 +111,7 @@ func handleOIDCCallback(db *sql.DB) http.HandlerFunc {
 				return
 			}
 
-			u, err = createUserFromOpenIdUserInfo(r.Context(), db, claims, getTokenSecret(db))
+			u, err = createUserFromOpenIdUserInfo(r.Context(), db, claims, getTokenSecret(db), "user")
 			if err != nil {
 				log.Printf("[OIDC Callback] User registration failed: %v", err)
 				http.Error(w, "Failed to register user", http.StatusInternalServerError)
