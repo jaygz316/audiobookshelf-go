@@ -12,13 +12,14 @@ import (
 
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
-)
+
+	"audiobookshelf/internal/core")
 
 // handleGetMe returns the logged-in user details
 func handleGetMe(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[Go] GET /api/me")
-		userSess, ok := r.Context().Value(UserContextKey).(*UserSession)
+		userSess, ok := r.Context().Value(core.UserContextKey).(*core.UserSession)
 		if !ok {
 			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
 			return
@@ -40,7 +41,7 @@ func handleGetMe(db *sql.DB) http.HandlerFunc {
 func handleUpdateMePassword(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[Go] PATCH /api/me/password")
-		userSess, ok := r.Context().Value(UserContextKey).(*UserSession)
+		userSess, ok := r.Context().Value(core.UserContextKey).(*core.UserSession)
 		if !ok {
 			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
 			return
@@ -102,7 +103,7 @@ func trimPathPrefix(path, prefix string) string {
 func handleGetMeProgress(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[Go] GET %s", r.URL.Path)
-		userSess, ok := r.Context().Value(UserContextKey).(*UserSession)
+		userSess, ok := r.Context().Value(core.UserContextKey).(*core.UserSession)
 		if !ok {
 			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
 			return
@@ -151,7 +152,7 @@ func handleGetMeProgress(db *sql.DB) http.HandlerFunc {
 func handleCreateUpdateMeProgress(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[Go] PATCH %s", r.URL.Path)
-		userSess, ok := r.Context().Value(UserContextKey).(*UserSession)
+		userSess, ok := r.Context().Value(core.UserContextKey).(*core.UserSession)
 		if !ok {
 			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
 			return
@@ -401,7 +402,7 @@ func handleCreateUpdateMeProgress(db *sql.DB) http.HandlerFunc {
 func handleRemoveMeProgress(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[Go] DELETE %s", r.URL.Path)
-		userSess, ok := r.Context().Value(UserContextKey).(*UserSession)
+		userSess, ok := r.Context().Value(core.UserContextKey).(*core.UserSession)
 		if !ok {
 			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
 			return
@@ -445,7 +446,7 @@ func handleRemoveMeProgress(db *sql.DB) http.HandlerFunc {
 func handleGetAllLibraryItemsInProgress(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[Go] GET /api/me/items-in-progress")
-		userSess, ok := r.Context().Value(UserContextKey).(*UserSession)
+		userSess, ok := r.Context().Value(core.UserContextKey).(*core.UserSession)
 		if !ok {
 			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
 			return
@@ -572,7 +573,7 @@ func handleGetAllLibraryItemsInProgress(db *sql.DB) http.HandlerFunc {
 func handleRemoveSeriesFromContinueListening(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[Go] GET %s", r.URL.Path)
-		userSess, ok := r.Context().Value(UserContextKey).(*UserSession)
+		userSess, ok := r.Context().Value(core.UserContextKey).(*core.UserSession)
 		if !ok {
 			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
 			return
@@ -642,7 +643,7 @@ func handleRemoveSeriesFromContinueListening(db *sql.DB) http.HandlerFunc {
 func handleReaddSeriesFromContinueListening(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[Go] GET %s", r.URL.Path)
-		userSess, ok := r.Context().Value(UserContextKey).(*UserSession)
+		userSess, ok := r.Context().Value(core.UserContextKey).(*core.UserSession)
 		if !ok {
 			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
 			return
@@ -706,7 +707,7 @@ func handleReaddSeriesFromContinueListening(db *sql.DB) http.HandlerFunc {
 func handleHideMeProgressFromContinueListening(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[Go] GET %s", r.URL.Path)
-		userSess, ok := r.Context().Value(UserContextKey).(*UserSession)
+		userSess, ok := r.Context().Value(core.UserContextKey).(*core.UserSession)
 		if !ok {
 			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
 			return
@@ -758,7 +759,7 @@ type Bookmark struct {
 func handleMeCreateBookmark(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[Go] POST %s", r.URL.Path)
-		userSess, ok := r.Context().Value(UserContextKey).(*UserSession)
+		userSess, ok := r.Context().Value(core.UserContextKey).(*core.UserSession)
 		if !ok {
 			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
 			return
@@ -828,7 +829,7 @@ func handleMeCreateBookmark(db *sql.DB) http.HandlerFunc {
 func handleMeUpdateBookmark(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[Go] PATCH %s", r.URL.Path)
-		userSess, ok := r.Context().Value(UserContextKey).(*UserSession)
+		userSess, ok := r.Context().Value(core.UserContextKey).(*core.UserSession)
 		if !ok {
 			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
 			return
@@ -900,7 +901,7 @@ func handleMeUpdateBookmark(db *sql.DB) http.HandlerFunc {
 func handleMeRemoveBookmark(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[Go] DELETE %s", r.URL.Path)
-		userSess, ok := r.Context().Value(UserContextKey).(*UserSession)
+		userSess, ok := r.Context().Value(core.UserContextKey).(*core.UserSession)
 		if !ok {
 			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
 			return

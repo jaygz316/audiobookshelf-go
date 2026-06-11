@@ -80,7 +80,7 @@ func registerBaseRoutes(mux *http.ServeMux, cfg *Config, db *sql.DB, dbConnected
 				dbConnected = true
 				globalDB = db
 				if SocketAuth != nil {
-					SocketAuth.db = db
+					SocketAuth.SetDB(db)
 				}
 				log.Printf("Connected to SQLite database on-demand: %s", dbPath)
 				reinitManagers(db)

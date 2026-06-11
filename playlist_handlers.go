@@ -13,7 +13,8 @@ import (
 	"audiobookshelf/internal/playlist"
 
 	"github.com/google/uuid"
-)
+
+	"audiobookshelf/internal/core")
 
 func parseMsFromDBStr(s string) int64 {
 	if s == "" {
@@ -212,7 +213,7 @@ func queryCollectionsForLibrary(ctx context.Context, db *sql.DB, libraryID strin
 
 func handleGetLibraryPlaylists(db *sql.DB, libraryID string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		userSess := r.Context().Value(UserContextKey).(*UserSession)
+		userSess := r.Context().Value(core.UserContextKey).(*core.UserSession)
 		initManagers(db)
 
 		playlists, err := queryPlaylistsForUserAndLibrary(r.Context(), db, userSess.ID, libraryID)
@@ -259,7 +260,7 @@ func handleGetLibraryCollections(db *sql.DB, libraryID string) http.HandlerFunc 
 
 func handleGetLibraryOPML(db *sql.DB, libraryID string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		userSess := r.Context().Value(UserContextKey).(*UserSession)
+		userSess := r.Context().Value(core.UserContextKey).(*core.UserSession)
 		initManagers(db)
 
 		opmlText, err := globalFeedManager.GenerateOPML(r.Context(), userSess.ID, libraryID)
@@ -276,7 +277,7 @@ func handleGetLibraryOPML(db *sql.DB, libraryID string) http.HandlerFunc {
 
 func handleGetPlaylists(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		userSess := r.Context().Value(UserContextKey).(*UserSession)
+		userSess := r.Context().Value(core.UserContextKey).(*core.UserSession)
 		initManagers(db)
 
 		playlists, err := queryPlaylistsForUserAndLibrary(r.Context(), db, userSess.ID, "")
@@ -297,7 +298,7 @@ func handleGetPlaylists(db *sql.DB) http.HandlerFunc {
 
 func handleGetPlaylist(db *sql.DB, id string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		userSess := r.Context().Value(UserContextKey).(*UserSession)
+		userSess := r.Context().Value(core.UserContextKey).(*core.UserSession)
 		initManagers(db)
 
 		p, err := globalPlaylistManager.GetPlaylist(r.Context(), id)
@@ -323,7 +324,7 @@ func handleGetPlaylist(db *sql.DB, id string) http.HandlerFunc {
 
 func handleCreatePlaylist(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		userSess := r.Context().Value(UserContextKey).(*UserSession)
+		userSess := r.Context().Value(core.UserContextKey).(*core.UserSession)
 		initManagers(db)
 
 		var req struct {
@@ -356,7 +357,7 @@ func handleCreatePlaylist(db *sql.DB) http.HandlerFunc {
 
 func handleUpdatePlaylist(db *sql.DB, id string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		userSess := r.Context().Value(UserContextKey).(*UserSession)
+		userSess := r.Context().Value(core.UserContextKey).(*core.UserSession)
 		initManagers(db)
 
 		p, err := globalPlaylistManager.GetPlaylist(r.Context(), id)
@@ -403,7 +404,7 @@ func handleUpdatePlaylist(db *sql.DB, id string) http.HandlerFunc {
 
 func handleDeletePlaylist(db *sql.DB, id string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		userSess := r.Context().Value(UserContextKey).(*UserSession)
+		userSess := r.Context().Value(core.UserContextKey).(*core.UserSession)
 		initManagers(db)
 
 		p, err := globalPlaylistManager.GetPlaylist(r.Context(), id)
@@ -474,7 +475,7 @@ func handleGetCollection(db *sql.DB, id string) http.HandlerFunc {
 
 func handleCreateCollection(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		userSess := r.Context().Value(UserContextKey).(*UserSession)
+		userSess := r.Context().Value(core.UserContextKey).(*core.UserSession)
 		if userSess.Type != "root" && userSess.Type != "admin" {
 			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
 			return
@@ -514,7 +515,7 @@ func handleCreateCollection(db *sql.DB) http.HandlerFunc {
 
 func handleUpdateCollection(db *sql.DB, id string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		userSess := r.Context().Value(UserContextKey).(*UserSession)
+		userSess := r.Context().Value(core.UserContextKey).(*core.UserSession)
 		if userSess.Type != "root" && userSess.Type != "admin" {
 			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
 			return
@@ -568,7 +569,7 @@ func handleUpdateCollection(db *sql.DB, id string) http.HandlerFunc {
 
 func handleDeleteCollection(db *sql.DB, id string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		userSess := r.Context().Value(UserContextKey).(*UserSession)
+		userSess := r.Context().Value(core.UserContextKey).(*core.UserSession)
 		if userSess.Type != "root" && userSess.Type != "admin" {
 			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
 			return

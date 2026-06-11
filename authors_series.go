@@ -11,7 +11,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
-)
+
+	"audiobookshelf/internal/core")
 
 // AuthorExpandedJSON represents the expanded author object with book count
 type AuthorExpandedJSON struct {
@@ -366,10 +367,10 @@ func handleGetLibrarySeriesByID(db *sql.DB, libraryID string, seriesID string) h
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[Go] GET /api/libraries/%s/series/%s", libraryID, seriesID)
 
-		userVal := r.Context().Value(UserContextKey)
+		userVal := r.Context().Value(core.UserContextKey)
 		var userID string
 		if userVal != nil {
-			if u, ok := userVal.(*UserSession); ok {
+			if u, ok := userVal.(*core.UserSession); ok {
 				userID = u.ID
 			}
 		}
@@ -1134,12 +1135,12 @@ func handleUpdateLibraryItemByID(db *sql.DB, itemID string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[Go] PATCH /api/items/%s", itemID)
 
-		userVal := r.Context().Value(UserContextKey)
+		userVal := r.Context().Value(core.UserContextKey)
 		if userVal == nil {
 			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
 			return
 		}
-		user := userVal.(*UserSession)
+		user := userVal.(*core.UserSession)
 
 		if user.Type != "root" && user.Type != "admin" {
 			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)

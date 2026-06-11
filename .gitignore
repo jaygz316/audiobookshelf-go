@@ -1,5 +1,4 @@
 .env
-*.md
 /dev.js
 **/node_modules/
 /config/
@@ -29,8 +28,10 @@ tailwind.config.js
 /test_output.log
 /test-bin
 /abs-gateway-bin
+/abs-gateway
 /audiobookshelf-go-bin
 /e2e.test
+/e2e_tests.test
 /abs-gateway-test
 /audiobookshelf-go
 /audiobookshelf
@@ -38,5 +39,5 @@ tailwind.config.js
 /test_output_full.log
 /coverage.out
 /e2e_run.log
-
-
+.prettierrc
+/scratch/
