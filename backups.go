@@ -332,7 +332,7 @@ func addDirToZip(zw *zip.Writer, srcDir string, zipDirName string) {
 // handleDeleteBackup maps to DELETE /api/backups/:id
 func handleDeleteBackup(db *sql.DB, metadataPath string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		id := strings.TrimPrefix(r.URL.Path, "/api/backups/")
+		id := trimAPIPath(r.URL.Path, "/api/backups/")
 		log.Printf("[Go] DELETE /api/backups/%s", id)
 
 		userSess := r.Context().Value(UserContextKey).(*UserSession)
@@ -362,7 +362,7 @@ func handleDeleteBackup(db *sql.DB, metadataPath string) http.HandlerFunc {
 // handleDownloadBackup maps to GET /api/backups/:id/download
 func handleDownloadBackup(db *sql.DB, metadataPath string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		id := strings.TrimPrefix(r.URL.Path, "/api/backups/")
+		id := trimAPIPath(r.URL.Path, "/api/backups/")
 		id = strings.TrimSuffix(id, "/download")
 		log.Printf("[Go] GET /api/backups/%s/download", id)
 
@@ -487,7 +487,7 @@ func handleUploadBackup(db *sql.DB, metadataPath string) http.HandlerFunc {
 // handleApplyBackup maps to GET /api/backups/:id/apply
 func handleApplyBackup(db *sql.DB, configPath string, metadataPath string, triggerReload func()) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		id := strings.TrimPrefix(r.URL.Path, "/api/backups/")
+		id := trimAPIPath(r.URL.Path, "/api/backups/")
 		id = strings.TrimSuffix(id, "/apply")
 		log.Printf("[Go] GET /api/backups/%s/apply", id)
 

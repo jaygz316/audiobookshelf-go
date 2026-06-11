@@ -177,14 +177,20 @@ func scanUser(row *sql.Row) (*User, error) {
 	var isActiveInt, isLockedInt sql.NullInt64
 	var permsStr, bookmarksStr, extraDataStr sql.NullString
 	var createdAtStr, updatedAtStr sql.NullString
-	var pashStr, tokenStr sql.NullString
+	var pashStr, tokenStr, typeStr sql.NullString
 
-	err := row.Scan(&u.ID, &u.Username, &email, &pashStr, &u.Type, &tokenStr, &isActiveInt, &isLockedInt, &lastSeenStr, &permsStr, &bookmarksStr, &extraDataStr, &createdAtStr, &updatedAtStr)
+	err := row.Scan(&u.ID, &u.Username, &email, &pashStr, &typeStr, &tokenStr, &isActiveInt, &isLockedInt, &lastSeenStr, &permsStr, &bookmarksStr, &extraDataStr, &createdAtStr, &updatedAtStr)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, err
+	}
+
+	if typeStr.Valid {
+		u.Type = typeStr.String
+	} else {
+		u.Type = "user"
 	}
 
 	if pashStr.Valid {
@@ -320,7 +326,7 @@ func handleInit(db *sql.DB) http.HandlerFunc {
 		}
 		if hasRoot {
 			log.Printf("[Init] Attempt to init server when root user already exists")
-			http.Error(w, `{"error": "Root user already exists"}`, http.StatusInternalServerError)
+			http.Error(w, `{"error": "Root user already exists"}`, http.StatusForbidden)
 			return
 		}
 
@@ -386,6 +392,13 @@ func handleLogin(db *sql.DB) http.HandlerFunc {
 		log.Printf("[Go] POST /login")
 		if r.Method != http.MethodPost {
 			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
+			return
+		}
+
+		if db == nil {
+			log.Printf("[Login] Database not available")
+			w.Header().Set("Content-Type", "application/json")
+			http.Error(w, `{"error": "Server is not initialized yet. Please wait for the database to be ready."}`, http.StatusServiceUnavailable)
 			return
 		}
 
@@ -502,8 +515,8 @@ func handleLogin(db *sql.DB) http.HandlerFunc {
 
 func handleAuthorize(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[Go] POST /api/authorize")
-		if r.Method != http.MethodPost {
+		log.Printf("[Go] /api/authorize")
+		if r.Method != http.MethodPost && r.Method != http.MethodGet {
 			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
 			return
 		}
@@ -758,12 +771,18 @@ func handleGetUsers(db *sql.DB) http.HandlerFunc {
 			var isActiveInt, isLockedInt sql.NullInt64
 			var permsStr, bookmarksStr, extraDataStr sql.NullString
 			var createdAtStr, updatedAtStr sql.NullString
-			var pashStr, tokenStr sql.NullString
+			var pashStr, tokenStr, typeStr sql.NullString
 
-			err := rows.Scan(&u.ID, &u.Username, &email, &pashStr, &u.Type, &tokenStr, &isActiveInt, &isLockedInt, &lastSeenStr, &permsStr, &bookmarksStr, &extraDataStr, &createdAtStr, &updatedAtStr)
+			err := rows.Scan(&u.ID, &u.Username, &email, &pashStr, &typeStr, &tokenStr, &isActiveInt, &isLockedInt, &lastSeenStr, &permsStr, &bookmarksStr, &extraDataStr, &createdAtStr, &updatedAtStr)
 			if err != nil {
 				log.Printf("[Users] Failed to scan user: %v", err)
 				continue
+			}
+
+			if typeStr.Valid {
+				u.Type = typeStr.String
+			} else {
+				u.Type = "user"
 			}
 
 			if pashStr.Valid {
@@ -820,15 +839,13 @@ func handleGetOnlineUsers(db *sql.DB) http.HandlerFunc {
 		var online []OnlineUser
 		if SocketAuth != nil {
 			online = SocketAuth.GetUsersOnline()
-		} else {
+		}
+		if online == nil {
 			online = []OnlineUser{}
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"usersOnline":  online,
-			"openSessions": []interface{}{},
-		})
+		json.NewEncoder(w).Encode(online)
 	}
 }
 
@@ -836,7 +853,8 @@ func handleUserCRUD(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		userSess := r.Context().Value(UserContextKey).(*UserSession)
 
-		if r.Method == http.MethodPost && r.URL.Path == "/api/users" {
+		pathWithoutPrefix := trimAPIPath(r.URL.Path, "/api/users")
+		if r.Method == http.MethodPost && (pathWithoutPrefix == "" || pathWithoutPrefix == "/") {
 			log.Printf("[Go] POST /api/users")
 			if userSess.Type != "root" && userSess.Type != "admin" {
 				http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
@@ -848,7 +866,7 @@ func handleUserCRUD(db *sql.DB) http.HandlerFunc {
 				Password            string                  `json:"password"`
 				Email               string                  `json:"email"`
 				Type                string                  `json:"type"`
-				IsActive            bool                    `json:"isActive"`
+				IsActive            *bool                   `json:"isActive"`
 				Permissions         UserPermissionsDetailed `json:"permissions"`
 				LibrariesAccessible []string                `json:"librariesAccessible"`
 				ItemTagsSelected    []string                `json:"itemTagsSelected"`
@@ -938,7 +956,7 @@ func handleUserCRUD(db *sql.DB) http.HandlerFunc {
 			_, err = db.ExecContext(r.Context(), `INSERT INTO users (id, username, email, type, pash, token, isActive, permissions, extraData, bookmarks, createdAt, updatedAt) 
 				VALUES (?, ?, ?, ?, ?, ?, ?, ?, '{}', '[]', ?, ?)`,
 				userID, body.Username, emailVal, userType, string(hashed), tokenStr, func() int {
-					if body.IsActive {
+					if body.IsActive == nil || *body.IsActive {
 						return 1
 					}
 					return 0
@@ -969,8 +987,8 @@ func handleUserCRUD(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		subPath := strings.TrimPrefix(r.URL.Path, "/api/users/")
-		if subPath == "" || strings.Contains(subPath, "/") {
+		subPath := strings.TrimPrefix(pathWithoutPrefix, "/")
+		if subPath == "" {
 			http.NotFound(w, r)
 			return
 		}
@@ -1329,12 +1347,18 @@ func getUserLoginPayload(ctx context.Context, db *sql.DB, user *User) (map[strin
 			var isActiveInt, isLockedInt sql.NullInt64
 			var permsStr, bookmarksStr, extraDataStr sql.NullString
 			var createdAtStr, updatedAtStr sql.NullString
-			var pashStr, tokenStr sql.NullString
+			var pashStr, tokenStr, typeStr sql.NullString
 
-			err := rows.Scan(&u.ID, &u.Username, &email, &pashStr, &u.Type, &tokenStr, &isActiveInt, &isLockedInt, &lastSeenStr, &permsStr, &bookmarksStr, &extraDataStr, &createdAtStr, &updatedAtStr)
+			err := rows.Scan(&u.ID, &u.Username, &email, &pashStr, &typeStr, &tokenStr, &isActiveInt, &isLockedInt, &lastSeenStr, &permsStr, &bookmarksStr, &extraDataStr, &createdAtStr, &updatedAtStr)
 			if err != nil {
 				log.Printf("[Users] Failed to scan user for login payload: %v", err)
 				continue
+			}
+
+			if typeStr.Valid {
+				u.Type = typeStr.String
+			} else {
+				u.Type = "user"
 			}
 
 			if pashStr.Valid {
@@ -1456,7 +1480,7 @@ func findUserFromOpenIdUserInfo(ctx context.Context, db *sql.DB, userinfo map[st
 	return nil, nil
 }
 
-func createUserFromOpenIdUserInfo(ctx context.Context, db *sql.DB, userinfo map[string]interface{}, tokenSecret string) (*User, error) {
+func createUserFromOpenIdUserInfo(ctx context.Context, db *sql.DB, userinfo map[string]interface{}, tokenSecret string, userType string) (*User, error) {
 	userId := uuid.New().String()
 	username, _ := userinfo["preferred_username"].(string)
 	if username == "" {
@@ -1489,7 +1513,10 @@ func createUserFromOpenIdUserInfo(ctx context.Context, db *sql.DB, userinfo map[
 		"seriesHideFromContinueListening": []string{},
 	}
 	extraBytes, _ := json.Marshal(extra)
-	perms := getDefaultPermissionsForUserType("user")
+	if userType == "" {
+		userType = "user"
+	}
+	perms := getDefaultPermissionsForUserType(userType)
 	nowStr := timeToDBStr(time.Now())
 
 	var emailStr sql.NullString
@@ -1500,8 +1527,8 @@ func createUserFromOpenIdUserInfo(ctx context.Context, db *sql.DB, userinfo map[
 
 	_, err = db.ExecContext(ctx, `
 		INSERT INTO users (id, username, email, pash, type, token, isActive, isLocked, permissions, bookmarks, extraData, createdAt, updatedAt)
-		VALUES (?, ?, ?, NULL, 'user', ?, 1, 0, ?, '[]', ?, ?, ?)`,
-		userId, username, emailStr, tokenString, perms, string(extraBytes), nowStr, nowStr)
+		VALUES (?, ?, ?, NULL, ?, ?, 1, 0, ?, '[]', ?, ?, ?)`,
+		userId, username, emailStr, userType, tokenString, perms, string(extraBytes), nowStr, nowStr)
 	if err != nil {
 		return nil, err
 	}
@@ -1510,7 +1537,7 @@ func createUserFromOpenIdUserInfo(ctx context.Context, db *sql.DB, userinfo map[
 		ID:          userId,
 		Username:    username,
 		Email:       emailVal,
-		Type:        "user",
+		Type:        userType,
 		Token:       tokenString,
 		IsActive:    true,
 		IsLocked:    false,

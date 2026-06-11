@@ -17,6 +17,8 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 // Track represents an audio track inside the audiobook.
@@ -758,5 +760,111 @@ func serveHLS(metadataPath string, sm *StreamManager) http.HandlerFunc {
 			w.Header().Set("Content-Type", "video/MP2T")
 		}
 		http.ServeFile(w, r, fullFilePath)
+	}
+}
+
+func handlePlayItem(db *sql.DB, sm *StreamManager) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		userVal := r.Context().Value(UserContextKey)
+		if userVal == nil {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusUnauthorized)
+			w.Write([]byte(`{"error": "Unauthorized"}`))
+			return
+		}
+		user := userVal.(*UserSession)
+
+		// Get item ID from request path.
+		parts := strings.Split(r.URL.Path, "/")
+		var itemID string
+		for i, part := range parts {
+			if part == "items" && i+1 < len(parts) {
+				itemID = parts[i+1]
+				break
+			}
+		}
+
+		if itemID == "" {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte(`{"error": "Invalid Item ID"}`))
+			return
+		}
+
+		type PlayRequest struct {
+			StartTime float64 `json:"startTime"`
+		}
+		var playReq PlayRequest
+		if r.Body != nil {
+			_ = json.NewDecoder(r.Body).Decode(&playReq)
+		}
+
+		var mediaItemID string = itemID
+		var mediaItemType string = "book"
+		var resolvedLibraryID sql.NullString
+
+		// Check if itemID exists in libraryItems
+		var liMediaID, liMediaType, liLibraryID string
+		err := db.QueryRowContext(r.Context(), "SELECT mediaId, mediaType, libraryId FROM libraryItems WHERE id = ?", itemID).Scan(&liMediaID, &liMediaType, &liLibraryID)
+		if err == nil {
+			resolvedLibraryID.Valid = true
+			resolvedLibraryID.String = liLibraryID
+			if liMediaType == "book" {
+				mediaItemID = liMediaID
+				mediaItemType = "book"
+			} else if liMediaType == "podcast" {
+				// If a podcast, get the first episode
+				var epID string
+				errEp := db.QueryRowContext(r.Context(), "SELECT id FROM podcastEpisodes WHERE podcastId = ? LIMIT 1", liMediaID).Scan(&epID)
+				if errEp == nil {
+					mediaItemID = epID
+					mediaItemType = "podcastEpisode"
+				} else {
+					mediaItemID = liMediaID
+					mediaItemType = "podcast"
+				}
+			}
+		} else {
+			// Not in libraryItems directly. Check if it's a book ID in books
+			var bookExists int
+			errBook := db.QueryRowContext(r.Context(), "SELECT 1 FROM books WHERE id = ?", itemID).Scan(&bookExists)
+			if errBook == nil && bookExists == 1 {
+				mediaItemID = itemID
+				mediaItemType = "book"
+				_ = db.QueryRowContext(r.Context(), "SELECT libraryId FROM libraryItems WHERE mediaId = ? AND mediaType = 'book'", itemID).Scan(&resolvedLibraryID)
+			} else {
+				// Check if it's a podcastEpisode ID in podcastEpisodes
+				var podcastID string
+				errEp := db.QueryRowContext(r.Context(), "SELECT podcastId FROM podcastEpisodes WHERE id = ?", itemID).Scan(&podcastID)
+				if errEp == nil {
+					mediaItemID = itemID
+					mediaItemType = "podcastEpisode"
+					_ = db.QueryRowContext(r.Context(), "SELECT libraryId FROM libraryItems WHERE mediaId = ? AND mediaType = 'podcast'", podcastID).Scan(&resolvedLibraryID)
+				}
+			}
+		}
+
+		sessionID := uuid.New().String()
+		_, _ = db.ExecContext(r.Context(), "DELETE FROM playbackSessions WHERE userId = ? AND mediaItemId = ?", user.ID, mediaItemID)
+
+		extraData := fmt.Sprintf(`{"libraryItemId": %q}`, itemID)
+		query := `INSERT INTO playbackSessions (id, userId, mediaItemId, mediaItemType, startTime, libraryId, extraData) VALUES (?, ?, ?, ?, ?, ?, ?)`
+		_, err = db.ExecContext(r.Context(), query, sessionID, user.ID, mediaItemID, mediaItemType, playReq.StartTime, resolvedLibraryID, extraData)
+		if err != nil {
+			log.Printf("[handlePlayItem] Failed to insert session: %v", err)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte(fmt.Sprintf(`{"error": "Failed to create playback session: %v"}`, err)))
+			return
+		}
+
+		resp := map[string]interface{}{
+			"id":                sessionID,
+			"clientPlaylistUri": fmt.Sprintf("/hls/%s/output.m3u8", sessionID),
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(resp)
 	}
 }

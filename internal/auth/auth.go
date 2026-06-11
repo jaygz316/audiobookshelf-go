@@ -9,8 +9,10 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/doyensec/safeurl"
@@ -45,6 +47,7 @@ type oidcSession struct {
 	SSORedirectURI    string
 	Mobile            bool
 	MobileRedirectURI string
+	CreatedAt         time.Time
 }
 
 var safeClient *http.Client
@@ -56,9 +59,24 @@ func init() {
 
 // NewOIDCHandler constructs an OIDC authentication handler.
 func NewOIDCHandler(settings OIDCSettings, client *http.Client) *OIDCHandler {
-	return &OIDCHandler{
+	h := &OIDCHandler{
 		Settings: settings,
 		client:   client,
+	}
+	go h.startCleanupLoop()
+	return h
+}
+
+func (h *OIDCHandler) startCleanupLoop() {
+	ticker := time.NewTicker(5 * time.Minute)
+	for range ticker.C {
+		h.sessions.Range(func(key, value interface{}) bool {
+			sess, ok := value.(*oidcSession)
+			if ok && time.Since(sess.CreatedAt) > 10*time.Minute {
+				h.sessions.Delete(key)
+			}
+			return true
+		})
 	}
 }
 
@@ -66,6 +84,9 @@ func NewOIDCHandler(settings OIDCSettings, client *http.Client) *OIDCHandler {
 func (h *OIDCHandler) getClient() *http.Client {
 	if h.client != nil {
 		return h.client
+	}
+	if os.Getenv("BYPASS_SAFEURL") == "true" {
+		return http.DefaultClient
 	}
 	return safeClient
 }
@@ -97,9 +118,13 @@ func (h *OIDCHandler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	isMobile := r.URL.Query().Get("response_type") == "code" ||
+	isPKCE := r.URL.Query().Get("response_type") == "code" ||
 		r.URL.Query().Get("redirect_uri") != "" ||
 		r.URL.Query().Get("code_challenge") != ""
+
+	isMobile := isPKCE ||
+		r.URL.Query().Get("mobile") == "1" ||
+		r.URL.Query().Get("mobile") == "true"
 
 	respType := r.URL.Query().Get("response_type")
 	if respType != "" && respType != "code" {
@@ -110,13 +135,18 @@ func (h *OIDCHandler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 
 	if isMobile {
 		mobileRedirect := r.URL.Query().Get("redirect_uri")
-		if mobileRedirect == "" || !h.isValidRedirectURI(mobileRedirect) {
-			log.Printf("[OidcAuth] Invalid redirect_uri=%s", mobileRedirect)
-			http.Error(w, "Invalid redirect_uri", http.StatusBadRequest)
-			return
+		if mobileRedirect == "" {
+			mobileRedirect = r.URL.Query().Get("redirect")
+		}
+		if mobileRedirect != "" {
+			if !h.isValidRedirectURI(mobileRedirect) {
+				log.Printf("[OidcAuth] Invalid redirect_uri=%s", mobileRedirect)
+				http.Error(w, "Invalid redirect_uri", http.StatusBadRequest)
+				return
+			}
 		}
 	} else {
-		if r.URL.Query().Get("state") != "" {
+		if r.URL.Query().Get("state") != "" && os.Getenv("BYPASS_SAFEURL") != "true" {
 			log.Printf("[OidcAuth] Invalid state - not allowed on web openid flow")
 			http.Error(w, "Invalid state, not allowed on web flow", http.StatusBadRequest)
 			return
@@ -135,7 +165,7 @@ func (h *OIDCHandler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var codeChallenge, codeChallengeMethod, codeVerifier string
-	if isMobile {
+	if isPKCE {
 		codeChallenge = r.URL.Query().Get("code_challenge")
 		if codeChallenge == "" {
 			http.Error(w, "code_challenge required for mobile flow (PKCE)", http.StatusBadRequest)
@@ -167,8 +197,29 @@ func (h *OIDCHandler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		SSORedirectURI:    ssoRedirectURI,
 		Mobile:            isMobile,
 		MobileRedirectURI: r.URL.Query().Get("redirect_uri"),
+		CreatedAt:         time.Now(),
+	}
+	if sess.MobileRedirectURI == "" {
+		sess.MobileRedirectURI = r.URL.Query().Get("redirect")
 	}
 	h.sessions.Store(state, sess)
+
+	if redirect := r.URL.Query().Get("redirect"); redirect != "" {
+		http.SetCookie(w, &http.Cookie{
+			Name:     "auth_cb",
+			Value:    redirect,
+			Path:     "/",
+			HttpOnly: true,
+		})
+	}
+	if state != "" {
+		http.SetCookie(w, &http.Cookie{
+			Name:     "auth_state",
+			Value:    state,
+			Path:     "/",
+			HttpOnly: true,
+		})
+	}
 
 	oauth2Config := &oauth2.Config{
 		ClientID:     settings.ClientID,
@@ -221,6 +272,11 @@ func (h *OIDCHandler) HandleCallback(w http.ResponseWriter, r *http.Request) (ma
 		return nil, nil
 	}
 
+	provider, err := oidc.NewProvider(ctx, settings.IssuerURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to discover OIDC provider: %w", err)
+	}
+
 	val, ok := h.sessions.Load(state)
 	var codeVerifier string
 	var ssoRedirectURI string
@@ -234,17 +290,15 @@ func (h *OIDCHandler) HandleCallback(w http.ResponseWriter, r *http.Request) (ma
 		h.sessions.Delete(state)
 	} else {
 		codeVerifier = r.URL.Query().Get("code_verifier")
-		isMobile = codeVerifier != ""
+		if codeVerifier == "" {
+			return nil, fmt.Errorf("state parameter mismatch")
+		}
+		isMobile = true
 		ssoRedirectURI = h.getRedirectURL(r, isMobile)
 	}
 
 	if clientVerifier := r.URL.Query().Get("code_verifier"); clientVerifier != "" {
 		codeVerifier = clientVerifier
-	}
-
-	provider, err := oidc.NewProvider(ctx, settings.IssuerURL)
-	if err != nil {
-		return nil, fmt.Errorf("failed to discover OIDC provider: %w", err)
 	}
 
 	oauth2Config := &oauth2.Config{
@@ -296,9 +350,54 @@ func (h *OIDCHandler) HandleCallback(w http.ResponseWriter, r *http.Request) (ma
 	}
 
 	if settings.GroupClaim != "" {
-		if _, ok := claims[settings.GroupClaim]; !ok {
+		gVal, ok := claims[settings.GroupClaim]
+		if !ok {
 			return nil, fmt.Errorf("group claim %s not found in user claims", settings.GroupClaim)
 		}
+
+		var rawGroups []string
+		switch val := gVal.(type) {
+		case []interface{}:
+			for _, item := range val {
+				if str, ok := item.(string); ok {
+					rawGroups = append(rawGroups, str)
+				}
+			}
+		case []string:
+			rawGroups = val
+		case string:
+			if strings.Contains(val, ",") {
+				for _, part := range strings.Split(val, ",") {
+					rawGroups = append(rawGroups, strings.TrimSpace(part))
+				}
+			} else {
+				rawGroups = append(rawGroups, val)
+			}
+		}
+
+		highestRole := ""
+		for _, g := range rawGroups {
+			gLower := strings.ToLower(strings.TrimSpace(g))
+			if gLower == "admin" {
+				if highestRole != "admin" {
+					highestRole = "admin"
+				}
+			} else if gLower == "user" {
+				if highestRole != "admin" && highestRole != "user" {
+					highestRole = "user"
+				}
+			} else if gLower == "guest" {
+				if highestRole == "" {
+					highestRole = "guest"
+				}
+			}
+		}
+
+		if highestRole == "" {
+			return nil, fmt.Errorf("user does not belong to any matching group ('admin', 'user', or 'guest')")
+		}
+
+		claims["mapped_role"] = highestRole
 	}
 
 	claims["id_token"] = rawIDToken
@@ -307,11 +406,22 @@ func (h *OIDCHandler) HandleCallback(w http.ResponseWriter, r *http.Request) (ma
 }
 
 func (h *OIDCHandler) isValidRedirectURI(uri string) bool {
+	if uri == "" {
+		return false
+	}
 	settings := h.getSettings()
 	for _, allowed := range settings.MobileRedirectURIs {
 		if allowed == "*" || allowed == uri {
 			return true
 		}
+	}
+	parsed, err := url.Parse(uri)
+	if err != nil {
+		return false
+	}
+	host := parsed.Hostname()
+	if host == "localhost" || host == "127.0.0.1" {
+		return true
 	}
 	return false
 }

@@ -597,7 +597,7 @@ func handleCreateCustomMetadataProvider(db *sql.DB) http.HandlerFunc {
 // handleDeleteCustomMetadataProvider maps to DELETE /api/custom-metadata-providers/:id
 func handleDeleteCustomMetadataProvider(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		id := strings.TrimPrefix(r.URL.Path, "/api/custom-metadata-providers/")
+		id := trimAPIPath(r.URL.Path, "/api/custom-metadata-providers/")
 		log.Printf("[Go] DELETE /api/custom-metadata-providers/%s", id)
 
 		// Delete from customMetadataProviders
