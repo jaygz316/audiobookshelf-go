@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io/fs"
 	"log"
+	"mime"
 	"net/http"
 	"os"
 	"os/signal"
@@ -137,6 +138,13 @@ func getVersion(appRoot string) string {
 		return "2.35.1"
 	}
 	return pkg.Version
+}
+
+func init() {
+	// Register font MIME types to ensure proper browser rendering of icons.
+	_ = mime.AddExtensionType(".woff", "font/woff")
+	_ = mime.AddExtensionType(".woff2", "font/woff2")
+	_ = mime.AddExtensionType(".ttf", "font/ttf")
 }
 
 func main() {

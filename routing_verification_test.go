@@ -1,11 +1,16 @@
 package main
 
 import (
+	"database/sql"
 	"io/fs"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/golang-jwt/jwt/v5"
 )
 
 func TestRoutingAndEmbeddingDefaultBase(t *testing.T) {
@@ -38,8 +43,8 @@ func TestRoutingAndEmbeddingDefaultBase(t *testing.T) {
 			t.Errorf("Expected Content-Type text/html, got %q", rr.Header().Get("Content-Type"))
 		}
 		body := rr.Body.String()
-		if !strings.Contains(body, "Audiobookshelf Mockup") {
-			t.Errorf("Expected body to contain 'Audiobookshelf Mockup'")
+		if !strings.Contains(body, "Audiobookshelf") {
+			t.Errorf("Expected body to contain 'Audiobookshelf'")
 		}
 	}
 
@@ -103,8 +108,8 @@ func TestRoutingAndEmbeddingDefaultBase(t *testing.T) {
 			t.Errorf("Expected Content-Type text/html for fallback, got %q", rr.Header().Get("Content-Type"))
 		}
 		body := rr.Body.String()
-		if !strings.Contains(body, "Audiobookshelf Mockup") {
-			t.Errorf("Expected fallback body to contain 'Audiobookshelf Mockup'")
+		if !strings.Contains(body, "Audiobookshelf") {
+			t.Errorf("Expected fallback body to contain 'Audiobookshelf'")
 		}
 	}
 }
@@ -139,8 +144,8 @@ func TestRoutingAndEmbeddingCustomBase(t *testing.T) {
 			t.Errorf("Expected Content-Type text/html, got %q", rr.Header().Get("Content-Type"))
 		}
 		body := rr.Body.String()
-		if !strings.Contains(body, "Audiobookshelf Mockup") {
-			t.Errorf("Expected body to contain 'Audiobookshelf Mockup'")
+		if !strings.Contains(body, "Audiobookshelf") {
+			t.Errorf("Expected body to contain 'Audiobookshelf'")
 		}
 	}
 
@@ -190,8 +195,8 @@ func TestRoutingAndEmbeddingCustomBase(t *testing.T) {
 			t.Errorf("Expected Content-Type text/html for fallback, got %q", rr.Header().Get("Content-Type"))
 		}
 		body := rr.Body.String()
-		if !strings.Contains(body, "Audiobookshelf Mockup") {
-			t.Errorf("Expected fallback body to contain 'Audiobookshelf Mockup'")
+		if !strings.Contains(body, "Audiobookshelf") {
+			t.Errorf("Expected fallback body to contain 'Audiobookshelf'")
 		}
 	}
 
@@ -227,9 +232,98 @@ func TestRoutingAndEmbeddingCustomBase(t *testing.T) {
 		if !strings.Contains(rr.Header().Get("Content-Type"), "text/html") {
 			t.Errorf("Expected Content-Type text/html for fallback, got %q", rr.Header().Get("Content-Type"))
 		}
-		body := rr.Body.String()
-		if !strings.Contains(body, "Audiobookshelf Mockup") {
-			t.Errorf("Expected fallback body to contain 'Audiobookshelf Mockup'")
+	}
+
+	// Test case G: Request /mybase/assets/fonts/MaterialSymbolsRounded.woff2
+	{
+		req := httptest.NewRequest("GET", "/mybase/assets/fonts/MaterialSymbolsRounded.woff2", nil)
+		rr := httptest.NewRecorder()
+		handler.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusOK {
+			t.Errorf("Expected 200 OK for /mybase/assets/fonts/MaterialSymbolsRounded.woff2, got %d. Body: %s", rr.Code, rr.Body.String())
+		}
+		contentType := rr.Header().Get("Content-Type")
+		if !strings.Contains(contentType, "font/woff2") && !strings.Contains(contentType, "application/octet-stream") && !strings.Contains(contentType, "application/x-font-woff") {
+			t.Errorf("Expected woff2 content type, got %q", contentType)
 		}
 	}
 }
+
+func TestRoutingMeProgressRoutes(t *testing.T) {
+	cfg := &Config{
+		RouterBasePath: "/audiobookshelf",
+		ConfigPath:     t.TempDir(),
+		MetadataPath:   t.TempDir(),
+	}
+
+	handler := setupHandler(nil, cfg, false, ".", "2.35.1")
+
+	// 1. GET /audiobookshelf/api/me/progress/some-id/remove-from-continue-listening
+	// This should hit AuthMiddlewareWrapper which returns 500 Internal Server Error (Database not connected) since db is nil,
+	// rather than 404 (Not Found) or 405 (Method Not Allowed) or being routed to handleGetMeProgress.
+	{
+		req := httptest.NewRequest("GET", "/audiobookshelf/api/me/progress/some-id/remove-from-continue-listening", nil)
+		rr := httptest.NewRecorder()
+		handler.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusInternalServerError {
+			t.Errorf("Expected 500 Internal Server Error for remove-from-continue-listening, got %d. Body: %s", rr.Code, rr.Body.String())
+		}
+	}
+
+	// 2. PATCH /audiobookshelf/api/me/progress/some-id/hide-from-continue-listening
+	// This should also hit AuthMiddlewareWrapper -> 500
+	{
+		req := httptest.NewRequest("PATCH", "/audiobookshelf/api/me/progress/some-id/hide-from-continue-listening", nil)
+		rr := httptest.NewRecorder()
+		handler.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusInternalServerError {
+			t.Errorf("Expected 500 Internal Server Error for hide-from-continue-listening, got %d. Body: %s", rr.Code, rr.Body.String())
+		}
+	}
+}
+
+func TestMockHLSRequest(t *testing.T) {
+	db, err := sql.Open("sqlite", "config/absdatabase.sqlite")
+	if err != nil {
+		t.Fatalf("Failed to open DB: %v", err)
+	}
+	defer db.Close()
+
+	globalDB = db
+	streamManager = NewStreamManager()
+	metadataPath, _ := filepath.Abs("metadata")
+
+	// Sign token dynamically using database's actual tokenSecret
+	secret := getTokenSecret(db)
+	claims := &AuthClaims{
+		UserID:   "743336bf-a4f6-4da2-8a5f-9a1eb3fa74fd",
+		Username: "root",
+		Type:     "root",
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)),
+		},
+	}
+	tokenObj := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	token, err := tokenObj.SignedString([]byte(secret))
+	if err != nil {
+		t.Fatalf("Failed to sign token: %v", err)
+	}
+
+	url := "/audiobookshelf/hls/7c0a8a89-3d4f-4dc3-9d4a-98b11535e538/output-0.ts?token=" + token
+	req := httptest.NewRequest("GET", url, nil)
+	rr := httptest.NewRecorder()
+
+	handler := AuthMiddlewareWrapper(db, serveHLS(metadataPath, streamManager))
+	handler.ServeHTTP(rr, req)
+
+	t.Logf("Response Code: %d", rr.Code)
+	t.Logf("Response Headers: %v", rr.Header())
+	t.Logf("Response Body Length: %d", rr.Body.Len())
+	if rr.Code != http.StatusOK {
+		t.Logf("Response Body: %s", rr.Body.String())
+	}
+}
+

@@ -105,17 +105,40 @@ func handleOIDCCallback(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		if u == nil {
-			if !s.AutoRegister {
-				http.Error(w, "Auto-registration is disabled and no matching user was found", http.StatusUnauthorized)
-				return
+		if mapped, ok := claims["mapped_role"].(string); ok && mapped != "" {
+			if u == nil {
+				if !s.AutoRegister {
+					http.Error(w, "Auto-registration is disabled and no matching user was found", http.StatusUnauthorized)
+					return
+				}
+				u, err = createUserFromOpenIdUserInfo(r.Context(), db, claims, getTokenSecret(db), mapped)
+				if err != nil {
+					log.Printf("[OIDC Callback] User registration failed: %v", err)
+					http.Error(w, "Failed to register user", http.StatusInternalServerError)
+					return
+				}
+			} else {
+				if u.Type != mapped {
+					err = updateUserTypeAndToken(r.Context(), db, u, mapped, getTokenSecret(db))
+					if err != nil {
+						log.Printf("[OIDC Callback] Failed to update user type and token: %v", err)
+						http.Error(w, "Failed to update user type", http.StatusInternalServerError)
+						return
+					}
+				}
 			}
-
-			u, err = createUserFromOpenIdUserInfo(r.Context(), db, claims, getTokenSecret(db), "user")
-			if err != nil {
-				log.Printf("[OIDC Callback] User registration failed: %v", err)
-				http.Error(w, "Failed to register user", http.StatusInternalServerError)
-				return
+		} else {
+			if u == nil {
+				if !s.AutoRegister {
+					http.Error(w, "Auto-registration is disabled and no matching user was found", http.StatusUnauthorized)
+					return
+				}
+				u, err = createUserFromOpenIdUserInfo(r.Context(), db, claims, getTokenSecret(db), "user")
+				if err != nil {
+					log.Printf("[OIDC Callback] User registration failed: %v", err)
+					http.Error(w, "Failed to register user", http.StatusInternalServerError)
+					return
+				}
 			}
 		}
 

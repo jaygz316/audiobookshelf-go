@@ -2,6 +2,7 @@
 
 import { request, resolvePath } from './api.js';
 import { playItem } from './player.js';
+import { loadItemDetails } from './itemDetails.js';
 
 export async function loadDashboard(libraryId) {
   const bookshelfContainer = document.getElementById('bookshelf');
@@ -51,7 +52,7 @@ export async function loadDashboard(libraryId) {
     // Render personalized shelves
     shelves.forEach(shelf => {
       if (shelf.entities && shelf.entities.length > 0) {
-        const section = createShelfSection(shelf.id, shelf.label, shelf.entities);
+        const section = createShelfSection(shelf.id, shelf.label, shelf.entities, libraryId);
         bookshelfContainer.appendChild(section);
       }
     });
@@ -59,7 +60,7 @@ export async function loadDashboard(libraryId) {
     // Render "All Books" / "All Podcasts" shelf
     if (allItemsPayload.results && allItemsPayload.results.length > 0) {
       const allLabel = lib.mediaType === 'podcast' ? 'All Podcasts' : 'All Books';
-      const section = createShelfSection('all-books', allLabel, allItemsPayload.results);
+      const section = createShelfSection('all-books', allLabel, allItemsPayload.results, libraryId);
       bookshelfContainer.appendChild(section);
     }
 
@@ -74,7 +75,7 @@ export async function loadDashboard(libraryId) {
   }
 }
 
-function createShelfSection(shelfId, label, entities) {
+function createShelfSection(shelfId, label, entities, libraryId) {
   const shelfWrapper = document.createElement('div');
   shelfWrapper.className = 'relative w-full';
   
@@ -86,7 +87,7 @@ function createShelfSection(shelfId, label, entities) {
   itemsContainer.className = 'w-max h-full pt-4e flex items-center pl-8e pr-8e';
   
   entities.forEach(item => {
-    const card = createCard(item, shelfId.startsWith('continue'));
+    const card = createCard(item, shelfId.startsWith('continue'), libraryId);
     itemsContainer.appendChild(card);
   });
   
@@ -108,7 +109,7 @@ function createShelfSection(shelfId, label, entities) {
   return shelfWrapper;
 }
 
-function createCard(item, isContinue) {
+function createCard(item, isContinue, libraryId) {
   const card = document.createElement('div');
   card.className = 'w-28e h-40e mr-8e relative cursor-pointer select-none box-shadow-book rounded-sm overflow-hidden flex-shrink-0 transition-transform hover:scale-105 group';
   
@@ -177,22 +178,9 @@ function createCard(item, isContinue) {
       });
   }
 
-  // Click handler to trigger playback
-  card.addEventListener('click', async () => {
-    try {
-      let startTime = 0;
-      try {
-        const progressObj = await request('GET', `/api/me/progress/${item.id}`);
-        if (progressObj && progressObj.currentTime !== undefined) {
-          startTime = progressObj.currentTime;
-        }
-      } catch (err) {
-        // Safe to ignore, starts at 0
-      }
-      playItem(item, startTime);
-    } catch (err) {
-      console.error('Failed to start playback:', err);
-    }
+  // Click handler to view item details
+  card.addEventListener('click', () => {
+    loadItemDetails(item.id, libraryId, () => loadDashboard(libraryId));
   });
 
   return card;

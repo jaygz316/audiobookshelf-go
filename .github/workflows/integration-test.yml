@@ -4,52 +4,30 @@ on:
   pull_request:
   push:
     branches-ignore:
-      - 'dependabot/**' # Don't run dependabot branches, as they are already covered by pull requests
-    # Only build when files in these directories have been changed
+      - 'dependabot/**'
     paths:
-      - client/**
-      - server/**
-      - test/**
-      - index.js
-      - package.json
+      - '**.go'
+      - 'frontend/**'
+      - 'go.mod'
+      - 'go.sum'
+      - '.github/workflows/integration-test.yml'
 
 jobs:
-  build:
-    name: build and test
+  build-and-test:
+    name: Build and Test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version: '1.22'
+          cache: true
 
-      - name: setup node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: 'npm'
-          cache-dependency-path: 'client/package-lock.json'
-
-      - name: get client dependencies
-        working-directory: client
-        run: npm ci
-
-      - name: build client
-        working-directory: client
-        run: npm run generate
-
-      - name: install dependencies
+      - name: Install Dependencies
         run: go mod download
 
-      - name: build binary
-        run: go build -o audiobookshelf .
-
-      - name: run audiobookshelf
-        run: |
-          ./audiobookshelf &
-          sleep 5
-
-      - name: test if server is available
-        run: curl -sf http://127.0.0.1:3333 | grep Audiobookshelf
+      - name: Run Tests
+        run: go test -v ./...

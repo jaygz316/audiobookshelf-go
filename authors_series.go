@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // AuthorExpandedJSON represents the expanded author object with book count
@@ -744,25 +745,34 @@ func handleGetLibraryItemByID(db *sql.DB, itemID string) http.HandlerFunc {
 				var narratorNames []string
 				_ = json.Unmarshal(bNarrators, &narratorNames)
 
-				// Query authors
-				rows, err := db.Query("SELECT name FROM authors WHERE id IN (SELECT authorId FROM bookAuthors WHERE bookId = ?)", mediaID)
+				var authorsList []map[string]interface{} = []map[string]interface{}{}
+				rows, err := db.Query("SELECT id, name FROM authors WHERE id IN (SELECT authorId FROM bookAuthors WHERE bookId = ?)", mediaID)
 				if err == nil {
 					defer rows.Close()
 					for rows.Next() {
-						var name string
-						if err := rows.Scan(&name); err == nil {
+						var authorID, name string
+						if err := rows.Scan(&authorID, &name); err == nil {
+							authorsList = append(authorsList, map[string]interface{}{
+								"id":   authorID,
+								"name": name,
+							})
 							authorNames = append(authorNames, name)
 						}
 					}
 				}
 
-				// Query series
-				srows, err := db.Query("SELECT name FROM series WHERE id IN (SELECT seriesId FROM bookSeries WHERE bookId = ?)", mediaID)
+				var seriesList []map[string]interface{} = []map[string]interface{}{}
+				srows, err := db.Query("SELECT s.id, s.name, bs.sequence FROM series s JOIN bookSeries bs ON s.id = bs.seriesId WHERE bs.bookId = ?", mediaID)
 				if err == nil {
 					defer srows.Close()
 					for srows.Next() {
-						var name string
-						if err := srows.Scan(&name); err == nil {
+						var seriesID, name, sequence string
+						if err := srows.Scan(&seriesID, &name, &sequence); err == nil {
+							seriesList = append(seriesList, map[string]interface{}{
+								"id":       seriesID,
+								"name":     name,
+								"sequence": sequence,
+							})
 							seriesNames = append(seriesNames, name)
 						}
 					}
@@ -782,26 +792,73 @@ func handleGetLibraryItemByID(db *sql.DB, itemID string) http.HandlerFunc {
 					}
 				}
 
+				type AudiobookTrack struct {
+					Index       int     `json:"index"`
+					Exclude     bool    `json:"exclude"`
+					Duration    float64 `json:"duration"`
+					Codec       string  `json:"codec"`
+					MimeType    string  `json:"mimeType"`
+					StartOffset float64 `json:"startOffset"`
+					Title       string  `json:"title"`
+					Metadata    struct {
+						Path     string `json:"path"`
+						Filename string `json:"filename"`
+						Size     int64  `json:"size"`
+					} `json:"metadata"`
+				}
+
+				var rawTracks []AudiobookTrack
+				_ = json.Unmarshal(bAudioFiles, &rawTracks)
+
+				var tracks []map[string]interface{}
+				var currentOffset float64 = 0.0
+				for _, rt := range rawTracks {
+					if rt.Exclude {
+						continue
+					}
+					title := rt.Title
+					if title == "" {
+						title = rt.Metadata.Filename
+					}
+					tracks = append(tracks, map[string]interface{}{
+						"index":       rt.Index,
+						"startOffset": currentOffset,
+						"duration":    rt.Duration,
+						"title":       title,
+						"mimeType":    rt.MimeType,
+						"metadata": map[string]interface{}{
+							"path":     rt.Metadata.Path,
+							"filename": rt.Metadata.Filename,
+							"size":     rt.Metadata.Size,
+						},
+					})
+					currentOffset += rt.Duration
+				}
+
 				payload["media"] = map[string]interface{}{
 					"id":            mediaID,
 					"coverPath":     nullIfEmpty(bCoverPath.String),
 					"tags":          tags,
-					"numTracks":     len(audioFiles),
+					"numTracks":     len(tracks),
 					"numAudioFiles": len(audioFiles),
 					"numChapters":   len(chapters),
 					"duration":      bDuration,
 					"size":          size,
 					"ebookFormat":   ebookFormat,
 					"audioFiles":    audioFiles,
+					"tracks":        tracks,
 					"ebookFile":     ebook,
 					"chapters":      chapters,
 					"metadata": map[string]interface{}{
 						"title":             bTitle,
 						"titleIgnorePrefix": bTitleIgnorePrefix.String,
 						"subtitle":          nullIfEmpty(bSubtitle.String),
+						"authors":           authorsList,
 						"authorName":        authorName,
 						"authorNameLF":      nameToLastFirst(authorName),
+						"narrators":         narratorNames,
 						"narratorName":      narratorName,
+						"series":            seriesList,
 						"seriesName":        seriesName,
 						"genres":            genres,
 						"publishedYear":     nullIfEmpty(bPublishedYear.String),
@@ -885,6 +942,131 @@ func handleGetLibraryItemByID(db *sql.DB, itemID string) http.HandlerFunc {
 			} else {
 				log.Printf("[Go Warning] Failed to scan book with id %s: %v", mediaID, err)
 			}
+		} else if mediaType == "podcast" {
+			var pTitle, pAuthor, pDescription, pLanguage, pPodcastType, pCoverPath sql.NullString
+			var pExplicit sql.NullInt64
+			var pTags, pGenres []byte
+
+			err = db.QueryRow(`
+				SELECT title, author, description, language, podcastType, explicit, coverPath, tags, genres
+				FROM podcasts WHERE id = ?
+			`, mediaID).Scan(
+				&pTitle, &pAuthor, &pDescription, &pLanguage, &pPodcastType, &pExplicit, &pCoverPath, &pTags, &pGenres,
+			)
+			if err == nil {
+				var tags []string
+				_ = json.Unmarshal(pTags, &tags)
+				var genres []string
+				_ = json.Unmarshal(pGenres, &genres)
+
+				hasPubDate := hasColumn(r.Context(), db, "podcastEpisodes", "pubDate")
+				hasDesc := hasColumn(r.Context(), db, "podcastEpisodes", "description")
+				hasSeason := hasColumn(r.Context(), db, "podcastEpisodes", "season")
+				hasEp := hasColumn(r.Context(), db, "podcastEpisodes", "episode")
+				hasEpType := hasColumn(r.Context(), db, "podcastEpisodes", "episodeType")
+
+				epQuery := "SELECT id, title, audioFile"
+				if hasPubDate {
+					epQuery += ", pubDate"
+				}
+				if hasDesc {
+					epQuery += ", description"
+				}
+				if hasSeason {
+					epQuery += ", season"
+				}
+				if hasEp {
+					epQuery += ", episode"
+				}
+				if hasEpType {
+					epQuery += ", episodeType"
+				}
+				epQuery += " FROM podcastEpisodes WHERE podcastId = ?"
+
+				rows, err := db.Query(epQuery, mediaID)
+				var episodes []map[string]interface{}
+				if err == nil {
+					defer rows.Close()
+					for rows.Next() {
+						var epID, epTitle, audioFileStr string
+						var pubDateVal, descVal, seasonVal, epVal, epTypeVal sql.NullString
+
+						dest := []interface{}{&epID, &epTitle, &audioFileStr}
+						if hasPubDate {
+							dest = append(dest, &pubDateVal)
+						}
+						if hasDesc {
+							dest = append(dest, &descVal)
+						}
+						if hasSeason {
+							dest = append(dest, &seasonVal)
+						}
+						if hasEp {
+							dest = append(dest, &epVal)
+						}
+						if hasEpType {
+							dest = append(dest, &epTypeVal)
+						}
+
+						if err := rows.Scan(dest...); err == nil {
+							var af map[string]interface{}
+							_ = json.Unmarshal([]byte(audioFileStr), &af)
+
+							epMap := map[string]interface{}{
+								"id":        epID,
+								"title":     epTitle,
+								"audioFile": af,
+							}
+							if hasPubDate && pubDateVal.Valid {
+								epMap["pubDate"] = pubDateVal.String
+							}
+							if hasDesc && descVal.Valid {
+								epMap["description"] = descVal.String
+							}
+							if hasSeason && seasonVal.Valid {
+								epMap["season"] = seasonVal.String
+							}
+							if hasEp && epVal.Valid {
+								epMap["episode"] = epVal.String
+							}
+							if hasEpType && epTypeVal.Valid {
+								epMap["episodeType"] = epTypeVal.String
+							}
+
+							if af != nil {
+								if dur, ok := af["duration"]; ok {
+									epMap["duration"] = dur
+								}
+								if meta, ok := af["metadata"].(map[string]interface{}); ok {
+									if sz, ok := meta["size"]; ok {
+										epMap["size"] = sz
+									}
+								}
+							}
+
+							episodes = append(episodes, epMap)
+						}
+					}
+				}
+
+				payload["media"] = map[string]interface{}{
+					"id":        mediaID,
+					"coverPath": nullIfEmpty(pCoverPath.String),
+					"tags":      tags,
+					"episodes":  episodes,
+					"metadata": map[string]interface{}{
+						"title":       pTitle.String,
+						"author":      pAuthor.String,
+						"description": nullIfEmpty(pDescription.String),
+						"language":    nullIfEmpty(pLanguage.String),
+						"podcastType": nullIfEmpty(pPodcastType.String),
+						"explicit":    pExplicit.Valid && pExplicit.Int64 != 0,
+						"genres":      genres,
+					},
+				}
+			} else {
+				log.Printf("[Go Warning] Failed to scan podcast with id %s: %v", mediaID, err)
+			}
 		}
 
 		w.Header().Set("Content-Type", "application/json")
@@ -945,4 +1127,203 @@ func handleServeEbook(db *sql.DB, itemID string, fileID string) http.HandlerFunc
 
 		http.ServeFile(w, r, filePath)
 	}
+}
+
+// handleUpdateLibraryItemByID resolves PATCH /api/items/{id}
+func handleUpdateLibraryItemByID(db *sql.DB, itemID string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("[Go] PATCH /api/items/%s", itemID)
+
+		userVal := r.Context().Value(UserContextKey)
+		if userVal == nil {
+			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
+			return
+		}
+		user := userVal.(*UserSession)
+
+		if user.Type != "root" && user.Type != "admin" {
+			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
+			return
+		}
+
+		var mediaID, mediaType, libraryID string
+		err := db.QueryRow("SELECT mediaId, mediaType, libraryId FROM libraryItems WHERE id = ?", itemID).Scan(&mediaID, &mediaType, &libraryID)
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+
+		var payload struct {
+			Title             string   `json:"title"`
+			Subtitle          string   `json:"subtitle"`
+			Authors           []string `json:"authors"`
+			Narrators         []string `json:"narrators"`
+			SeriesName        string   `json:"seriesName"`
+			SeriesSequence    string   `json:"seriesSequence"`
+			Publisher         string   `json:"publisher"`
+			PublishedYear     string   `json:"publishedYear"`
+			PublishedDate     string   `json:"publishedDate"`
+			Description       string   `json:"description"`
+			Isbn              string   `json:"isbn"`
+			Asin              string   `json:"asin"`
+			Language          string   `json:"language"`
+			Explicit          bool     `json:"explicit"`
+			Abridged          bool     `json:"abridged"`
+			Tags              []string `json:"tags"`
+			Genres            []string `json:"genres"`
+		}
+
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			http.Error(w, `{"error": "Invalid request body"}`, http.StatusBadRequest)
+			return
+		}
+
+		tx, err := db.Begin()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		defer tx.Rollback()
+
+		nowStr := time.Now().Format("2006-01-02 15:04:05.000")
+
+		if mediaType == "book" {
+			authorNamesFirstLast := strings.Join(payload.Authors, ", ")
+			var lfs []string
+			for _, a := range payload.Authors {
+				lfs = append(lfs, nameToLastFirst(a))
+			}
+			authorNamesLastFirst := strings.Join(lfs, ", ")
+
+			narratorsJSON, _ := json.Marshal(payload.Narrators)
+			tagsJSON, _ := json.Marshal(payload.Tags)
+			genresJSON, _ := json.Marshal(payload.Genres)
+
+			prefixes := getSortingPrefixes(db)
+			titleIgnorePrefix := getTitleIgnorePrefixGo(payload.Title, prefixes)
+
+			_, err = tx.Exec(`
+				UPDATE books
+				SET title = ?, titleIgnorePrefix = ?, subtitle = ?, publishedYear = ?, publishedDate = ?, publisher = ?, description = ?, isbn = ?, asin = ?, language = ?, explicit = ?, abridged = ?, narrators = ?, tags = ?, genres = ?
+				WHERE id = ?
+			`, payload.Title, titleIgnorePrefix, payload.Subtitle, payload.PublishedYear, payload.PublishedDate, payload.Publisher, payload.Description, payload.Isbn, payload.Asin, payload.Language, boolToInt(payload.Explicit), boolToInt(payload.Abridged), narratorsJSON, tagsJSON, genresJSON, mediaID)
+			if err != nil {
+				http.Error(w, "failed to update book: "+err.Error(), http.StatusInternalServerError)
+				return
+			}
+
+			if tableExistsTx(tx, "bookAuthors") {
+				_, _ = tx.Exec("DELETE FROM bookAuthors WHERE bookId = ?", mediaID)
+			}
+			for _, author := range payload.Authors {
+				trimmed := strings.TrimSpace(author)
+				if trimmed == "" {
+					continue
+				}
+				authorID := uuidStr()
+				lastFirst := nameToLastFirst(trimmed)
+				_ = insertAuthor(tx, authorID, trimmed, lastFirst, libraryID)
+
+				var existingAuthorID string
+				_ = tx.QueryRow("SELECT id FROM authors WHERE name = ? AND libraryId = ?", trimmed, libraryID).Scan(&existingAuthorID)
+				if existingAuthorID != "" {
+					authorID = existingAuthorID
+				}
+				_ = insertBookAuthor(tx, mediaID, authorID)
+			}
+
+			if tableExistsTx(tx, "bookSeries") {
+				_, _ = tx.Exec("DELETE FROM bookSeries WHERE bookId = ?", mediaID)
+			}
+			if payload.SeriesName != "" {
+				seriesID := uuidStr()
+				_ = insertSeries(tx, seriesID, payload.SeriesName, libraryID)
+
+				var existingSeriesID string
+				_ = tx.QueryRow("SELECT id FROM series WHERE name = ? AND libraryId = ?", payload.SeriesName, libraryID).Scan(&existingSeriesID)
+				if existingSeriesID != "" {
+					seriesID = existingSeriesID
+				}
+				_ = insertBookSeries(tx, mediaID, seriesID, payload.SeriesSequence)
+			}
+
+			_, err = tx.Exec(`
+				UPDATE libraryItems
+				SET title = ?, titleIgnorePrefix = ?, authorNamesFirstLast = ?, authorNamesLastFirst = ?, updatedAt = ?
+				WHERE id = ?
+			`, payload.Title, titleIgnorePrefix, authorNamesFirstLast, authorNamesLastFirst, nowStr, itemID)
+			if err != nil {
+				http.Error(w, "failed to update library item: "+err.Error(), http.StatusInternalServerError)
+				return
+			}
+
+		} else if mediaType == "podcast" {
+			tagsJSON, _ := json.Marshal(payload.Tags)
+			genresJSON, _ := json.Marshal(payload.Genres)
+			var author string
+			if len(payload.Authors) > 0 {
+				author = payload.Authors[0]
+			}
+
+			prefixes := getSortingPrefixes(db)
+			titleIgnorePrefix := getTitleIgnorePrefixGo(payload.Title, prefixes)
+
+			_, err = tx.Exec(`
+				UPDATE podcasts
+				SET title = ?, titleIgnorePrefix = ?, author = ?, description = ?, language = ?, explicit = ?, tags = ?, genres = ?
+				WHERE id = ?
+			`, payload.Title, titleIgnorePrefix, author, payload.Description, payload.Language, boolToInt(payload.Explicit), tagsJSON, genresJSON, mediaID)
+			if err != nil {
+				http.Error(w, "failed to update podcast: "+err.Error(), http.StatusInternalServerError)
+				return
+			}
+
+			_, err = tx.Exec(`
+				UPDATE libraryItems
+				SET title = ?, titleIgnorePrefix = ?, authorNamesFirstLast = ?, authorNamesLastFirst = ?, updatedAt = ?
+				WHERE id = ?
+			`, payload.Title, titleIgnorePrefix, author, author, nowStr, itemID)
+			if err != nil {
+				http.Error(w, "failed to update library item: "+err.Error(), http.StatusInternalServerError)
+				return
+			}
+		}
+
+		err = tx.Commit()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		if SocketAuth != nil {
+			if minItem, err := GetLibraryItemMinifiedByID(db, itemID); err == nil {
+				EmitLibraryItemEvent("item_updated", minItem)
+			}
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"success": true}`))
+	}
+}
+
+func getSortingPrefixes(db *sql.DB) []string {
+	var valStr string
+	err := db.QueryRow("SELECT value FROM settings WHERE key = 'server-settings'").Scan(&valStr)
+	if err != nil {
+		return []string{"the", "a"}
+	}
+	var settings struct {
+		SortingPrefixes []string `json:"sortingPrefixes"`
+	}
+	if err := json.Unmarshal([]byte(valStr), &settings); err == nil {
+		return settings.SortingPrefixes
+	}
+	return []string{"the", "a"}
+}
+
+func boolToInt(b bool) int {
+	if b {
+		return 1
+	}
+	return 0
 }

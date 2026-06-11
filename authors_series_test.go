@@ -7,10 +7,14 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"testing"
 
+	"github.com/doyensec/safeurl"
 	_ "modernc.org/sqlite"
 )
 
@@ -517,5 +521,234 @@ func TestServeEbook(t *testing.T) {
 
 	if rr.Body.String() != "epub content" {
 		t.Errorf("Expected file body 'epub content', got %q", rr.Body.String())
+	}
+}
+
+func TestUpdateLibraryItem(t *testing.T) {
+	db := setupTestDBShared(t)
+	defer db.Close()
+
+	// 1. Insert test library, book, and libraryItem
+	_, err := db.Exec(`INSERT INTO libraries (id, name, displayOrder, icon, mediaType, provider, settings, createdAt, updatedAt) VALUES ('lib1', 'Audiobooks', 1, 'book', 'book', 'local', '{}', '2026-06-08 12:00:00.000', '2026-06-08 12:00:00.000')`)
+	if err != nil {
+		t.Fatalf("Failed to insert library: %v", err)
+	}
+
+	_, err = db.Exec(`INSERT INTO books (id, title, duration, coverPath, narrators, audioFiles, ebookFile, chapters, tags, genres) VALUES 
+		('book1', 'Old Title', 3600, '', '[]', '[]', 'null', '[]', '[]', '[]')`)
+	if err != nil {
+		t.Fatalf("Failed to insert book: %v", err)
+	}
+
+	_, err = db.Exec(`INSERT INTO libraryItems (
+		id, ino, libraryId, libraryFolderId, path, relPath, isFile, 
+		mtime, ctime, birthtime, createdAt, updatedAt, 
+		isMissing, isInvalid, mediaType, mediaId, size,
+		authorNamesFirstLast, authorNamesLastFirst, title, titleIgnorePrefix
+	) VALUES (
+		'item1', 'inode-item', 'lib1', 'folder1', '/path1', 'rel1', 1, 
+		'2026-06-08 12:00:00.000', '2026-06-08 12:00:00.000', '2026-06-08 12:00:00.000', '2026-06-08 12:00:00.000', '2026-06-08 12:00:00.000', 
+		0, 0, 'book', 'book1', 5000,
+		'Old Author', 'Author, Old', 'Old Title', 'Old Title'
+	)`)
+	if err != nil {
+		t.Fatalf("Failed to insert libraryItem: %v", err)
+	}
+
+	// 2. Prepare payload
+	payload := map[string]interface{}{
+		"title":          "New Title",
+		"subtitle":       "New Subtitle",
+		"authors":        []string{"New Author"},
+		"narrators":      []string{"Narrator A"},
+		"seriesName":     "New Series",
+		"seriesSequence": "2",
+		"publisher":      "New Publisher",
+		"publishedYear":  "2024",
+		"publishedDate":  "2024-01-01",
+		"description":    "New Description",
+		"isbn":           "1234567890",
+		"asin":           "ASIN123",
+		"language":       "en",
+		"explicit":       true,
+		"abridged":       false,
+		"tags":           []string{"Tag1"},
+		"genres":         []string{"Genre1"},
+	}
+
+	bodyBytes, _ := json.Marshal(payload)
+	
+	// 3. Make request
+	handler := handleUpdateLibraryItemByID(db, "item1")
+	req := httptest.NewRequest("PATCH", "/api/items/item1", strings.NewReader(string(bodyBytes)))
+	
+	user := &UserSession{
+		ID:                 "user1",
+		Username:           "admin",
+		Type:               "admin",
+		IsActive:           true,
+		AccessAllLibraries: true,
+	}
+	req = req.WithContext(context.WithValue(req.Context(), UserContextKey, user))
+
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("Expected status 200, got %d. Body: %s", rr.Code, rr.Body.String())
+	}
+
+	// 4. Verify DB changes
+	var bTitle, bSubtitle, bPublisher, bDescription, bIsbn, bAsin, bLanguage string
+	var bExplicit, bAbridged int
+	var bNarratorsBytes, bTagsBytes, bGenresBytes []byte
+	err = db.QueryRow(`
+		SELECT title, COALESCE(subtitle, ''), COALESCE(publisher, ''), COALESCE(description, ''), COALESCE(isbn, ''), COALESCE(asin, ''), COALESCE(language, ''), explicit, abridged, narrators, tags, genres
+		FROM books WHERE id = 'book1'
+	`).Scan(&bTitle, &bSubtitle, &bPublisher, &bDescription, &bIsbn, &bAsin, &bLanguage, &bExplicit, &bAbridged, &bNarratorsBytes, &bTagsBytes, &bGenresBytes)
+	if err != nil {
+		t.Fatalf("Failed to query updated book: %v", err)
+	}
+
+	if bTitle != "New Title" || bSubtitle != "New Subtitle" || bPublisher != "New Publisher" || bDescription != "New Description" || bIsbn != "1234567890" || bAsin != "ASIN123" || bLanguage != "en" {
+		t.Errorf("Unexpected book details after update: title=%q subtitle=%q publisher=%q desc=%q isbn=%q asin=%q lang=%q", bTitle, bSubtitle, bPublisher, bDescription, bIsbn, bAsin, bLanguage)
+	}
+	if bExplicit != 1 || bAbridged != 0 {
+		t.Errorf("Unexpected explicit/abridged after update: explicit=%d abridged=%d", bExplicit, bAbridged)
+	}
+
+	var narrators []string
+	json.Unmarshal(bNarratorsBytes, &narrators)
+	if len(narrators) != 1 || narrators[0] != "Narrator A" {
+		t.Errorf("Unexpected narrators: %v", narrators)
+	}
+
+	var tags []string
+	json.Unmarshal(bTagsBytes, &tags)
+	if len(tags) != 1 || tags[0] != "Tag1" {
+		t.Errorf("Unexpected tags: %v", tags)
+	}
+
+	// Verify libraryItem table is updated
+	var liTitle, liAuthorNamesFirstLast, liAuthorNamesLastFirst string
+	err = db.QueryRow(`
+		SELECT title, authorNamesFirstLast, authorNamesLastFirst
+		FROM libraryItems WHERE id = 'item1'
+	`).Scan(&liTitle, &liAuthorNamesFirstLast, &liAuthorNamesLastFirst)
+	if err != nil {
+		t.Fatalf("Failed to query library item: %v", err)
+	}
+
+	if liTitle != "New Title" || liAuthorNamesFirstLast != "New Author" || liAuthorNamesLastFirst != "Author, New" {
+		t.Errorf("Library item table fields were not mirrored: title=%q authorNamesFirstLast=%q authorNamesLastFirst=%q", liTitle, liAuthorNamesFirstLast, liAuthorNamesLastFirst)
+	}
+}
+
+func TestUpdateCoverFromURL(t *testing.T) {
+	// Start local mock server to serve fake cover image
+	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "image/jpeg")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("fake cover image data"))
+	}))
+	defer mockServer.Close()
+
+	u, err := url.Parse(mockServer.URL)
+	if err != nil {
+		t.Fatalf("failed to parse mock server url: %v", err)
+	}
+	port, _ := strconv.Atoi(u.Port())
+
+	// Override coverHTTPClient to allow local connection for test
+	origClient := coverHTTPClient
+	config := safeurl.GetConfigBuilder().
+		SetAllowedIPs("127.0.0.1", "::1").
+		SetAllowedPorts(port).
+		Build()
+	coverHTTPClient = safeurl.Client(config)
+	defer func() {
+		coverHTTPClient = origClient
+	}()
+
+	db := setupTestDBShared(t)
+	defer db.Close()
+
+	tempDir := t.TempDir()
+	cfg := &Config{
+		MetadataPath: tempDir,
+	}
+
+	// 1. Insert test library, book, and libraryItem
+	_, err = db.Exec(`INSERT INTO libraries (id, name, displayOrder, icon, mediaType, provider, settings, createdAt, updatedAt) VALUES ('lib1', 'Audiobooks', 1, 'book', 'book', 'local', '{}', '2026-06-08 12:00:00.000', '2026-06-08 12:00:00.000')`)
+	if err != nil {
+		t.Fatalf("Failed to insert library: %v", err)
+	}
+
+	_, err = db.Exec(`INSERT INTO books (id, title, duration, coverPath, narrators, audioFiles, ebookFile, chapters, tags, genres) VALUES 
+		('book1', 'Old Title', 3600, '', '[]', '[]', 'null', '[]', '[]', '[]')`)
+	if err != nil {
+		t.Fatalf("Failed to insert book: %v", err)
+	}
+
+	_, err = db.Exec(`INSERT INTO libraryItems (
+		id, ino, libraryId, libraryFolderId, path, relPath, isFile, 
+		mtime, ctime, birthtime, createdAt, updatedAt, 
+		isMissing, isInvalid, mediaType, mediaId, size,
+		authorNamesFirstLast, authorNamesLastFirst, title, titleIgnorePrefix
+	) VALUES (
+		'item1', 'inode-item', 'lib1', 'folder1', '/path1', 'rel1', 1, 
+		'2026-06-08 12:00:00.000', '2026-06-08 12:00:00.000', '2026-06-08 12:00:00.000', '2026-06-08 12:00:00.000', '2026-06-08 12:00:00.000', 
+		0, 0, 'book', 'book1', 5000,
+		'Old Author', 'Author, Old', 'Old Title', 'Old Title'
+	)`)
+	if err != nil {
+		t.Fatalf("Failed to insert libraryItem: %v", err)
+	}
+
+	// 2. Prepare payload
+	payload := map[string]interface{}{
+		"coverUrl": mockServer.URL,
+	}
+	bodyBytes, _ := json.Marshal(payload)
+
+	// 3. Make request
+	handler := handleUpdateCoverFromURL(db, cfg, "item1")
+	req := httptest.NewRequest("POST", "/api/items/item1/cover-from-url", strings.NewReader(string(bodyBytes)))
+
+	user := &UserSession{
+		ID:                 "user1",
+		Username:           "admin",
+		Type:               "admin",
+		IsActive:           true,
+		AccessAllLibraries: true,
+	}
+	req = req.WithContext(context.WithValue(req.Context(), UserContextKey, user))
+
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("Expected status 200, got %d. Body: %s", rr.Code, rr.Body.String())
+	}
+
+	// 4. Verify DB changes
+	var coverPath string
+	err = db.QueryRow("SELECT coverPath FROM books WHERE id = 'book1'").Scan(&coverPath)
+	if err != nil {
+		t.Fatalf("Failed to query cover path: %v", err)
+	}
+
+	if coverPath == "" {
+		t.Fatalf("Expected coverPath to be non-empty")
+	}
+
+	// Verify that the file was created and contains the correct data
+	data, err := os.ReadFile(coverPath)
+	if err != nil {
+		t.Fatalf("Failed to read downloaded cover file at %s: %v", coverPath, err)
+	}
+
+	if string(data) != "fake cover image data" {
+		t.Errorf("Expected file content 'fake cover image data', got %q", string(data))
 	}
 }

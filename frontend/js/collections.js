@@ -1,6 +1,6 @@
-// frontend/js/collections.js (Proposed Implementation)
 import { request, resolvePath } from './api.js';
 import { playItem } from './player.js';
+import { loadItemDetails } from './itemDetails.js';
 
 export async function loadCollections(libraryId) {
   const container = document.getElementById('bookshelf');
@@ -314,9 +314,9 @@ function renderCollectionBooksRows(collection, booksDetails, libraryId) {
       </div>
     `;
 
-    // Click cover/title plays item
+    // Click cover/title views item details
     li.querySelector('.play-trigger').onclick = () => {
-      playItem(item, 0);
+      loadItemDetails(item.id, libraryId, () => loadCollectionDetails(collection.id, libraryId));
     };
 
     // Reorder actions

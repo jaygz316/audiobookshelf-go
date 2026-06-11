@@ -35,7 +35,15 @@ export async function playItem(item, startTime = 0) {
     // 1. Create playback session
     const playResponse = await request('POST', `/api/items/${item.id}/play`, { startTime });
     const sessionId = playResponse.id;
-    const clientPlaylistUri = playResponse.clientPlaylistUri;
+    let clientPlaylistUri = playResponse.clientPlaylistUri;
+    const token = localStorage.getItem('token');
+    if (token && clientPlaylistUri) {
+      if (clientPlaylistUri.includes('?')) {
+        clientPlaylistUri += `&token=${token}`;
+      } else {
+        clientPlaylistUri += `?token=${token}`;
+      }
+    }
     
     currentItem = item;
     

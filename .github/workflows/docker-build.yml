@@ -15,10 +15,11 @@ on:
       - 'v*.*.*'
     # Only build when files in these directories have been changed
     paths:
-      - client/**
-      - server/**
-      - index.js
-      - package.json
+      - '**.go'
+      - 'frontend/**'
+      - 'go.mod'
+      - 'go.sum'
+      - 'Dockerfile'
 
 jobs:
   build:

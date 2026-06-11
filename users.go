@@ -1564,3 +1564,28 @@ func createUserFromOpenIdUserInfo(ctx context.Context, db *sql.DB, userinfo map[
 		UpdatedAt:   time.Now().UnixNano() / int64(time.Millisecond),
 	}, nil
 }
+
+func updateUserTypeAndToken(ctx context.Context, db *sql.DB, u *User, newType string, tokenSecret string) error {
+	claims := jwt.MapClaims{
+		"id":       u.ID,
+		"username": u.Username,
+		"exp":      time.Now().Add(30 * 24 * time.Hour).Unix(),
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	tokenString, err := token.SignedString([]byte(tokenSecret))
+	if err != nil {
+		return err
+	}
+
+	perms := getDefaultPermissionsForUserType(newType)
+	_, err = db.ExecContext(ctx, "UPDATE users SET type = ?, token = ?, permissions = ?, updatedAt = ? WHERE id = ?",
+		newType, tokenString, perms, timeToDBStr(time.Now()), u.ID)
+	if err != nil {
+		return err
+	}
+
+	u.Type = newType
+	u.Token = tokenString
+	u.Permissions = []byte(perms)
+	return nil
+}

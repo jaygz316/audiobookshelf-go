@@ -5,21 +5,19 @@ on:
     branches: ['master']
     # Only build when files in these directories have been changed
     paths:
-      - client/**
-      - server/**
-      - test/**
-      - index.js
-      - package.json
+      - '**.go'
+      - 'frontend/**'
+      - 'go.mod'
+      - 'go.sum'
   pull_request:
     # The branches below must be a subset of the branches above
     branches: ['master']
     # Only build when files in these directories have been changed
     paths:
-      - client/**
-      - server/**
-      - test/**
-      - index.js
-      - package.json
+      - '**.go'
+      - 'frontend/**'
+      - 'go.mod'
+      - 'go.sum'
   schedule:
     - cron: '16 5 * * 4'
 
@@ -35,7 +33,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        language: ['javascript']
+        language: ['go', 'javascript']
         # CodeQL supports [ 'cpp', 'csharp', 'go', 'java', 'javascript', 'python', 'ruby' ]
         # Use only 'java' to analyze code written in Java, Kotlin or both
         # Use only 'javascript' to analyze code written in JavaScript, TypeScript or both
