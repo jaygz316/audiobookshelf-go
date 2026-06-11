@@ -58,7 +58,7 @@ func TestF7TagsGenres(t *testing.T) {
 	adminToken := adminResp["user"].(map[string]interface{})["accessToken"].(string)
 
 	// 2. Setup Normal User (Non-Admin)
-	hashedPash, err := bcrypt.GenerateFromPassword([]byte("normalpassword123"), 8)
+	hashedPash, err := bcrypt.GenerateFromPassword([]byte("normalpassword123"), bcrypt.DefaultCost)
 	if err != nil {
 		t.Fatalf("Failed to hash password: %v", err)
 	}

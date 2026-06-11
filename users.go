@@ -351,7 +351,7 @@ func handleInit(db *sql.DB) http.HandlerFunc {
 		}
 		password := reqBody.NewRoot.Password
 
-		hashed, err := bcrypt.GenerateFromPassword([]byte(password), 8)
+		hashed, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 		if err != nil {
 			log.Printf("[Init] Hashing failed: %v", err)
 			http.Error(w, `{"error": "Internal Server Error"}`, http.StatusInternalServerError)
@@ -903,7 +903,7 @@ func handleUserCRUD(db *sql.DB) http.HandlerFunc {
 				return
 			}
 
-			hashed, err := bcrypt.GenerateFromPassword([]byte(body.Password), 8)
+			hashed, err := bcrypt.GenerateFromPassword([]byte(body.Password), bcrypt.DefaultCost)
 			if err != nil {
 				http.Error(w, `{"error": "Failed to create user"}`, http.StatusInternalServerError)
 				return
@@ -1122,7 +1122,7 @@ func handleUserCRUD(db *sql.DB) http.HandlerFunc {
 			}
 
 			if body.Password != nil && *body.Password != "" {
-				hashed, err := bcrypt.GenerateFromPassword([]byte(*body.Password), 8)
+				hashed, err := bcrypt.GenerateFromPassword([]byte(*body.Password), bcrypt.DefaultCost)
 				if err != nil {
 					http.Error(w, `{"error": "Failed to update password"}`, http.StatusInternalServerError)
 					return

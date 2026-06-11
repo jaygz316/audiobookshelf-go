@@ -108,7 +108,7 @@ func Test91RestrictedUserAccess(t *testing.T) {
 	libB_ID := createdLibB["id"].(string)
 
 	// 2. Insert restricted user directly into DB (since POST /api/users is broken with RouterBasePath prefix)
-	hashedPash, err := bcrypt.GenerateFromPassword([]byte("restricted_password123"), 8)
+	hashedPash, err := bcrypt.GenerateFromPassword([]byte("restricted_password123"), bcrypt.DefaultCost)
 	if err != nil {
 		t.Fatalf("Failed to hash password: %v", err)
 	}
@@ -485,7 +485,7 @@ func Test93PlaybackAccessControl(t *testing.T) {
 	defer db.Close()
 
 	userA_ID := uuid.New().String()
-	hashedPashA, _ := bcrypt.GenerateFromPassword([]byte("passwordA123"), 8)
+	hashedPashA, _ := bcrypt.GenerateFromPassword([]byte("passwordA123"), bcrypt.DefaultCost)
 	permsJSON := `{"download":true,"accessExplicitContent":false,"accessAllLibraries":true,"librariesAccessible":[],"accessAllTags":true,"itemTagsSelected":[],"selectedTagsNotAccessible":false}`
 	_, err = db.Exec(`INSERT INTO users (id, username, email, type, pash, token, isActive, permissions, extraData, bookmarks, createdAt, updatedAt)
 		VALUES (?, ?, NULL, 'user', ?, 'tokenA', 1, ?, '{}', '[]', datetime('now'), datetime('now'))`,
@@ -496,7 +496,7 @@ func Test93PlaybackAccessControl(t *testing.T) {
 
 	// Setup normal user B
 	userB_ID := uuid.New().String()
-	hashedPashB, _ := bcrypt.GenerateFromPassword([]byte("passwordB123"), 8)
+	hashedPashB, _ := bcrypt.GenerateFromPassword([]byte("passwordB123"), bcrypt.DefaultCost)
 	_, err = db.Exec(`INSERT INTO users (id, username, email, type, pash, token, isActive, permissions, extraData, bookmarks, createdAt, updatedAt)
 		VALUES (?, ?, NULL, 'user', ?, 'tokenB', 1, ?, '{}', '[]', datetime('now'), datetime('now'))`,
 		userB_ID, "userB", string(hashedPashB), permsJSON)
@@ -1123,7 +1123,7 @@ func Test98PlaylistAccessControl(t *testing.T) {
 	defer db.Close()
 
 	userA_ID := uuid.New().String()
-	hashedPashA, _ := bcrypt.GenerateFromPassword([]byte("passwordA123"), 8)
+	hashedPashA, _ := bcrypt.GenerateFromPassword([]byte("passwordA123"), bcrypt.DefaultCost)
 	permsJSON := `{"download":true,"accessExplicitContent":false,"accessAllLibraries":true,"librariesAccessible":[],"accessAllTags":true,"itemTagsSelected":[],"selectedTagsNotAccessible":false}`
 	_, err = db.Exec(`INSERT INTO users (id, username, email, type, pash, token, isActive, permissions, extraData, bookmarks, createdAt, updatedAt)
 		VALUES (?, ?, NULL, 'user', ?, 'tokenA', 1, ?, '{}', '[]', datetime('now'), datetime('now'))`,
@@ -1134,7 +1134,7 @@ func Test98PlaylistAccessControl(t *testing.T) {
 
 	// Create normal user B
 	userB_ID := uuid.New().String()
-	hashedPashB, _ := bcrypt.GenerateFromPassword([]byte("passwordB123"), 8)
+	hashedPashB, _ := bcrypt.GenerateFromPassword([]byte("passwordB123"), bcrypt.DefaultCost)
 	_, err = db.Exec(`INSERT INTO users (id, username, email, type, pash, token, isActive, permissions, extraData, bookmarks, createdAt, updatedAt)
 		VALUES (?, ?, NULL, 'user', ?, 'tokenB', 1, ?, '{}', '[]', datetime('now'), datetime('now'))`,
 		userB_ID, "userB", string(hashedPashB), permsJSON)

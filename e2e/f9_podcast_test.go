@@ -154,7 +154,7 @@ func TestF9PodcastFeedAndEpisodes(t *testing.T) {
 	}
 
 	// Create a restricted user for access control check
-	hashedPash, err := bcrypt.GenerateFromPassword([]byte("restricted_password123"), 8)
+	hashedPash, err := bcrypt.GenerateFromPassword([]byte("restricted_password123"), bcrypt.DefaultCost)
 	if err != nil {
 		t.Fatalf("Failed to hash password: %v", err)
 	}

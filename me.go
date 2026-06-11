@@ -73,7 +73,7 @@ func handleUpdateMePassword(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		hashed, err := bcrypt.GenerateFromPassword([]byte(body.NewPassword), 8)
+		hashed, err := bcrypt.GenerateFromPassword([]byte(body.NewPassword), bcrypt.DefaultCost)
 		if err != nil {
 			http.Error(w, `{"error": "Failed to hash password"}`, http.StatusInternalServerError)
 			return
