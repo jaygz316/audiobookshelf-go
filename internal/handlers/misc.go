@@ -166,6 +166,11 @@ func handleRenameTag(db *sql.DB) http.HandlerFunc {
 		}
 		defer tx.Rollback()
 
+		type stringUpdate struct {
+			id  string
+			val string
+		}
+
 		// 1. Update books
 		rows, err := tx.Query("SELECT id, tags FROM books WHERE tags IS NOT NULL")
 		if err != nil {
@@ -173,30 +178,46 @@ func handleRenameTag(db *sql.DB) http.HandlerFunc {
 			http.Error(w, "Database query error", http.StatusInternalServerError)
 			return
 		}
-		defer rows.Close()
+
+		var bookUpdates []stringUpdate
 		for rows.Next() {
 			var id string
 			var tagsStr sql.NullString
 			if err := rows.Scan(&id, &tagsStr); err != nil {
+				rows.Close()
 				log.Printf("[Rename Tag] Scan book failed: %v", err)
 				http.Error(w, "Database scan error", http.StatusInternalServerError)
 				return
 			}
 			if updated, changed := utils.ReplaceInJSONArray(tagsStr, tagVal, newTagVal); changed {
-				_, err = tx.Exec("UPDATE books SET tags = ? WHERE id = ?", updated, id)
-				if err != nil {
-					log.Printf("[Rename Tag] Update book failed: %v", err)
-					http.Error(w, "Database update error", http.StatusInternalServerError)
-					return
-				}
+				bookUpdates = append(bookUpdates, stringUpdate{id: id, val: updated})
 			}
 		}
 		if err := rows.Err(); err != nil {
+			rows.Close()
 			log.Printf("[Rename Tag] Books iteration failed: %v", err)
 			http.Error(w, "Database iteration error", http.StatusInternalServerError)
 			return
 		}
 		rows.Close()
+
+		if len(bookUpdates) > 0 {
+			stmt, err := tx.Prepare("UPDATE books SET tags = ? WHERE id = ?")
+			if err != nil {
+				log.Printf("[Rename Tag] Prepare book update failed: %v", err)
+				http.Error(w, "Database prepare error", http.StatusInternalServerError)
+				return
+			}
+			for _, u := range bookUpdates {
+				if _, err := stmt.Exec(u.val, u.id); err != nil {
+					stmt.Close()
+					log.Printf("[Rename Tag] Update book failed: %v", err)
+					http.Error(w, "Database update error", http.StatusInternalServerError)
+					return
+				}
+			}
+			stmt.Close()
+		}
 
 		// 2. Update podcasts
 		rows2, err := tx.Query("SELECT id, tags FROM podcasts WHERE tags IS NOT NULL")
@@ -205,30 +226,46 @@ func handleRenameTag(db *sql.DB) http.HandlerFunc {
 			http.Error(w, "Database query error", http.StatusInternalServerError)
 			return
 		}
-		defer rows2.Close()
+
+		var podcastUpdates []stringUpdate
 		for rows2.Next() {
 			var id string
 			var tagsStr sql.NullString
 			if err := rows2.Scan(&id, &tagsStr); err != nil {
+				rows2.Close()
 				log.Printf("[Rename Tag] Scan podcast failed: %v", err)
 				http.Error(w, "Database scan error", http.StatusInternalServerError)
 				return
 			}
 			if updated, changed := utils.ReplaceInJSONArray(tagsStr, tagVal, newTagVal); changed {
-				_, err = tx.Exec("UPDATE podcasts SET tags = ? WHERE id = ?", updated, id)
-				if err != nil {
-					log.Printf("[Rename Tag] Update podcast failed: %v", err)
-					http.Error(w, "Database update error", http.StatusInternalServerError)
-					return
-				}
+				podcastUpdates = append(podcastUpdates, stringUpdate{id: id, val: updated})
 			}
 		}
 		if err := rows2.Err(); err != nil {
+			rows2.Close()
 			log.Printf("[Rename Tag] Podcasts iteration failed: %v", err)
 			http.Error(w, "Database iteration error", http.StatusInternalServerError)
 			return
 		}
 		rows2.Close()
+
+		if len(podcastUpdates) > 0 {
+			stmt, err := tx.Prepare("UPDATE podcasts SET tags = ? WHERE id = ?")
+			if err != nil {
+				log.Printf("[Rename Tag] Prepare podcast update failed: %v", err)
+				http.Error(w, "Database prepare error", http.StatusInternalServerError)
+				return
+			}
+			for _, u := range podcastUpdates {
+				if _, err := stmt.Exec(u.val, u.id); err != nil {
+					stmt.Close()
+					log.Printf("[Rename Tag] Update podcast failed: %v", err)
+					http.Error(w, "Database update error", http.StatusInternalServerError)
+					return
+				}
+			}
+			stmt.Close()
+		}
 
 		// 3. Update users permissions (itemTagsSelected)
 		rows3, err := tx.Query("SELECT id, permissions FROM users WHERE permissions IS NOT NULL")
@@ -237,11 +274,13 @@ func handleRenameTag(db *sql.DB) http.HandlerFunc {
 			http.Error(w, "Database query error", http.StatusInternalServerError)
 			return
 		}
-		defer rows3.Close()
+
+		var userUpdates []stringUpdate
 		for rows3.Next() {
 			var id string
 			var permsStr sql.NullString
 			if err := rows3.Scan(&id, &permsStr); err != nil {
+				rows3.Close()
 				log.Printf("[Rename Tag] Scan user failed: %v", err)
 				http.Error(w, "Database scan error", http.StatusInternalServerError)
 				return
@@ -273,21 +312,36 @@ func handleRenameTag(db *sql.DB) http.HandlerFunc {
 						if changed {
 							perms["itemTagsSelected"] = newTagsSel
 							newPermsBytes, _ := json.Marshal(perms)
-							_, err = tx.Exec("UPDATE users SET permissions = ? WHERE id = ?", string(newPermsBytes), id)
-							if err != nil {
-								log.Printf("[Rename Tag] Update user failed: %v", err)
-								http.Error(w, "Database update error", http.StatusInternalServerError)
-								return
-							}
+							userUpdates = append(userUpdates, stringUpdate{id: id, val: string(newPermsBytes)})
 						}
 					}
 				}
 			}
 		}
 		if err := rows3.Err(); err != nil {
+			rows3.Close()
 			log.Printf("[Rename Tag] Users iteration failed: %v", err)
 			http.Error(w, "Database iteration error", http.StatusInternalServerError)
 			return
+		}
+		rows3.Close()
+
+		if len(userUpdates) > 0 {
+			stmt, err := tx.Prepare("UPDATE users SET permissions = ? WHERE id = ?")
+			if err != nil {
+				log.Printf("[Rename Tag] Prepare user update failed: %v", err)
+				http.Error(w, "Database prepare error", http.StatusInternalServerError)
+				return
+			}
+			for _, u := range userUpdates {
+				if _, err := stmt.Exec(u.val, u.id); err != nil {
+					stmt.Close()
+					log.Printf("[Rename Tag] Update user failed: %v", err)
+					http.Error(w, "Database update error", http.StatusInternalServerError)
+					return
+				}
+			}
+			stmt.Close()
 		}
 
 		if err := tx.Commit(); err != nil {
