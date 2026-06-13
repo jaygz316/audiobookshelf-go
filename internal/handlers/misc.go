@@ -205,7 +205,7 @@ func handleRenameTag(db *sql.DB) http.HandlerFunc {
 					end = len(bookUpdateIds)
 				}
 				chunkIds := bookUpdateIds[i:end]
-				chunkArgs := bookUpdateArgs[i*2 : end*2]
+				chunkArgs := bookUpdateArgs[i*2:end*2]
 				chunkCases := bookUpdateCases[i:end]
 
 				query := "UPDATE books SET tags = CASE id " + strings.Join(chunkCases, " ") + " END WHERE id IN (?" + strings.Repeat(",?", len(chunkIds)-1) + ")"
@@ -261,7 +261,7 @@ func handleRenameTag(db *sql.DB) http.HandlerFunc {
 					end = len(podcastUpdateIds)
 				}
 				chunkIds := podcastUpdateIds[i:end]
-				chunkArgs := podcastUpdateArgs[i*2 : end*2]
+				chunkArgs := podcastUpdateArgs[i*2:end*2]
 				chunkCases := podcastUpdateCases[i:end]
 
 				query := "UPDATE podcasts SET tags = CASE id " + strings.Join(chunkCases, " ") + " END WHERE id IN (?" + strings.Repeat(",?", len(chunkIds)-1) + ")"
@@ -346,7 +346,7 @@ func handleRenameTag(db *sql.DB) http.HandlerFunc {
 					end = len(userUpdateIds)
 				}
 				chunkIds := userUpdateIds[i:end]
-				chunkArgs := userUpdateArgs[i*2 : end*2]
+				chunkArgs := userUpdateArgs[i*2:end*2]
 				chunkCases := userUpdateCases[i:end]
 
 				query := "UPDATE users SET permissions = CASE id " + strings.Join(chunkCases, " ") + " END WHERE id IN (?" + strings.Repeat(",?", len(chunkIds)-1) + ")"
