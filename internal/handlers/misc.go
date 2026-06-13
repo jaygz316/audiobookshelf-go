@@ -611,65 +611,56 @@ func handleRenameGenre(db *sql.DB) http.HandlerFunc {
 		defer tx.Rollback()
 
 		// 1. Update books
-		rows, err := tx.Query("SELECT id, genres FROM books WHERE genres IS NOT NULL")
+		_, err = tx.Exec(`
+			UPDATE books
+			SET genres = IFNULL(
+				(
+					SELECT json_group_array(
+						CASE
+							WHEN value = ? THEN ?
+							ELSE value
+						END
+					)
+					FROM json_each(genres)
+				),
+				json_array()
+			)
+			WHERE genres IS NOT NULL
+			AND EXISTS (
+				SELECT 1 FROM json_each(genres)
+				WHERE value = ?
+			)
+		`, body.Genre, body.NewGenre, body.Genre)
 		if err != nil {
-			log.Printf("[Rename Genre] Query books failed: %v", err)
-			http.Error(w, "Database query error", http.StatusInternalServerError)
+			log.Printf("[Rename Genre] Update books failed: %v", err)
+			http.Error(w, "Database update error", http.StatusInternalServerError)
 			return
 		}
-		defer rows.Close()
-		for rows.Next() {
-			var id string
-			var gStr sql.NullString
-			if err := rows.Scan(&id, &gStr); err != nil {
-				log.Printf("[Rename Genre] Scan book failed: %v", err)
-				http.Error(w, "Database scan error", http.StatusInternalServerError)
-				return
-			}
-			if updated, changed := utils.ReplaceInJSONArray(gStr, body.Genre, body.NewGenre); changed {
-				_, err = tx.Exec("UPDATE books SET genres = ? WHERE id = ?", updated, id)
-				if err != nil {
-					log.Printf("[Rename Genre] Update book failed: %v", err)
-					http.Error(w, "Database update error", http.StatusInternalServerError)
-					return
-				}
-			}
-		}
-		if err := rows.Err(); err != nil {
-			log.Printf("[Rename Genre] Books iteration failed: %v", err)
-			http.Error(w, "Database iteration error", http.StatusInternalServerError)
-			return
-		}
-		rows.Close()
 
 		// 2. Update podcasts
-		rows2, err := tx.Query("SELECT id, genres FROM podcasts WHERE genres IS NOT NULL")
+		_, err = tx.Exec(`
+			UPDATE podcasts
+			SET genres = IFNULL(
+				(
+					SELECT json_group_array(
+						CASE
+							WHEN value = ? THEN ?
+							ELSE value
+						END
+					)
+					FROM json_each(genres)
+				),
+				json_array()
+			)
+			WHERE genres IS NOT NULL
+			AND EXISTS (
+				SELECT 1 FROM json_each(genres)
+				WHERE value = ?
+			)
+		`, body.Genre, body.NewGenre, body.Genre)
 		if err != nil {
-			log.Printf("[Rename Genre] Query podcasts failed: %v", err)
-			http.Error(w, "Database query error", http.StatusInternalServerError)
-			return
-		}
-		defer rows2.Close()
-		for rows2.Next() {
-			var id string
-			var gStr sql.NullString
-			if err := rows2.Scan(&id, &gStr); err != nil {
-				log.Printf("[Rename Genre] Scan podcast failed: %v", err)
-				http.Error(w, "Database scan error", http.StatusInternalServerError)
-				return
-			}
-			if updated, changed := utils.ReplaceInJSONArray(gStr, body.Genre, body.NewGenre); changed {
-				_, err = tx.Exec("UPDATE podcasts SET genres = ? WHERE id = ?", updated, id)
-				if err != nil {
-					log.Printf("[Rename Genre] Update podcast failed: %v", err)
-					http.Error(w, "Database update error", http.StatusInternalServerError)
-					return
-				}
-			}
-		}
-		if err := rows2.Err(); err != nil {
-			log.Printf("[Rename Genre] Podcasts iteration failed: %v", err)
-			http.Error(w, "Database iteration error", http.StatusInternalServerError)
+			log.Printf("[Rename Genre] Update podcasts failed: %v", err)
+			http.Error(w, "Database update error", http.StatusInternalServerError)
 			return
 		}
 
@@ -722,65 +713,48 @@ func handleDeleteGenre(db *sql.DB) http.HandlerFunc {
 		defer tx.Rollback()
 
 		// 1. Update books
-		rows, err := tx.Query("SELECT id, genres FROM books WHERE genres IS NOT NULL")
+		_, err = tx.Exec(`
+			UPDATE books
+			SET genres = IFNULL(
+				(
+					SELECT json_group_array(value)
+					FROM json_each(genres)
+					WHERE value != ?
+				),
+				json_array()
+			)
+			WHERE genres IS NOT NULL
+			AND EXISTS (
+				SELECT 1 FROM json_each(genres)
+				WHERE value = ?
+			)
+		`, targetGenre, targetGenre)
 		if err != nil {
-			log.Printf("[Delete Genre] Query books failed: %v", err)
-			http.Error(w, "Database query error", http.StatusInternalServerError)
+			log.Printf("[Delete Genre] Update books failed: %v", err)
+			http.Error(w, "Database update error", http.StatusInternalServerError)
 			return
 		}
-		defer rows.Close()
-		for rows.Next() {
-			var id string
-			var gStr sql.NullString
-			if err := rows.Scan(&id, &gStr); err != nil {
-				log.Printf("[Delete Genre] Scan book failed: %v", err)
-				http.Error(w, "Database scan error", http.StatusInternalServerError)
-				return
-			}
-			if updated, changed := utils.RemoveFromJSONArray(gStr, targetGenre); changed {
-				_, err = tx.Exec("UPDATE books SET genres = ? WHERE id = ?", updated, id)
-				if err != nil {
-					log.Printf("[Delete Genre] Update book failed: %v", err)
-					http.Error(w, "Database update error", http.StatusInternalServerError)
-					return
-				}
-			}
-		}
-		if err := rows.Err(); err != nil {
-			log.Printf("[Delete Genre] Books iteration failed: %v", err)
-			http.Error(w, "Database iteration error", http.StatusInternalServerError)
-			return
-		}
-		rows.Close()
 
 		// 2. Update podcasts
-		rows2, err := tx.Query("SELECT id, genres FROM podcasts WHERE genres IS NOT NULL")
+		_, err = tx.Exec(`
+			UPDATE podcasts
+			SET genres = IFNULL(
+				(
+					SELECT json_group_array(value)
+					FROM json_each(genres)
+					WHERE value != ?
+				),
+				json_array()
+			)
+			WHERE genres IS NOT NULL
+			AND EXISTS (
+				SELECT 1 FROM json_each(genres)
+				WHERE value = ?
+			)
+		`, targetGenre, targetGenre)
 		if err != nil {
-			log.Printf("[Delete Genre] Query podcasts failed: %v", err)
-			http.Error(w, "Database query error", http.StatusInternalServerError)
-			return
-		}
-		defer rows2.Close()
-		for rows2.Next() {
-			var id string
-			var gStr sql.NullString
-			if err := rows2.Scan(&id, &gStr); err != nil {
-				log.Printf("[Delete Genre] Scan podcast failed: %v", err)
-				http.Error(w, "Database scan error", http.StatusInternalServerError)
-				return
-			}
-			if updated, changed := utils.RemoveFromJSONArray(gStr, targetGenre); changed {
-				_, err = tx.Exec("UPDATE podcasts SET genres = ? WHERE id = ?", updated, id)
-				if err != nil {
-					log.Printf("[Delete Genre] Update podcast failed: %v", err)
-					http.Error(w, "Database update error", http.StatusInternalServerError)
-					return
-				}
-			}
-		}
-		if err := rows2.Err(); err != nil {
-			log.Printf("[Delete Genre] Podcasts iteration failed: %v", err)
-			http.Error(w, "Database iteration error", http.StatusInternalServerError)
+			log.Printf("[Delete Genre] Update podcasts failed: %v", err)
+			http.Error(w, "Database update error", http.StatusInternalServerError)
 			return
 		}
 
