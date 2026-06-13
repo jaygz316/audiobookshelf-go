@@ -174,6 +174,9 @@ func handleRenameTag(db *sql.DB) http.HandlerFunc {
 			return
 		}
 		defer rows.Close()
+		var bookUpdateIds []string
+		var bookUpdateArgs []interface{}
+		var bookUpdateCases []string
 		for rows.Next() {
 			var id string
 			var tagsStr sql.NullString
@@ -183,12 +186,9 @@ func handleRenameTag(db *sql.DB) http.HandlerFunc {
 				return
 			}
 			if updated, changed := utils.ReplaceInJSONArray(tagsStr, tagVal, newTagVal); changed {
-				_, err = tx.Exec("UPDATE books SET tags = ? WHERE id = ?", updated, id)
-				if err != nil {
-					log.Printf("[Rename Tag] Update book failed: %v", err)
-					http.Error(w, "Database update error", http.StatusInternalServerError)
-					return
-				}
+				bookUpdateIds = append(bookUpdateIds, id)
+				bookUpdateArgs = append(bookUpdateArgs, id, updated)
+				bookUpdateCases = append(bookUpdateCases, "WHEN ? THEN ?")
 			}
 		}
 		if err := rows.Err(); err != nil {
@@ -196,7 +196,31 @@ func handleRenameTag(db *sql.DB) http.HandlerFunc {
 			http.Error(w, "Database iteration error", http.StatusInternalServerError)
 			return
 		}
-		rows.Close()
+		rows.Close() // Explicitly close before exec
+		if len(bookUpdateIds) > 0 {
+			chunkSize := 1000
+			for i := 0; i < len(bookUpdateIds); i += chunkSize {
+				end := i + chunkSize
+				if end > len(bookUpdateIds) {
+					end = len(bookUpdateIds)
+				}
+				chunkIds := bookUpdateIds[i:end]
+				chunkArgs := bookUpdateArgs[i*2:end*2]
+				chunkCases := bookUpdateCases[i:end]
+
+				query := "UPDATE books SET tags = CASE id " + strings.Join(chunkCases, " ") + " END WHERE id IN (?" + strings.Repeat(",?", len(chunkIds)-1) + ")"
+				args := append(chunkArgs, make([]interface{}, len(chunkIds))...)
+				for j, id := range chunkIds {
+					args[len(chunkArgs)+j] = id
+				}
+				_, err = tx.Exec(query, args...)
+				if err != nil {
+					log.Printf("[Rename Tag] Update book failed: %v", err)
+					http.Error(w, "Database update error", http.StatusInternalServerError)
+					return
+				}
+			}
+		}
 
 		// 2. Update podcasts
 		rows2, err := tx.Query("SELECT id, tags FROM podcasts WHERE tags IS NOT NULL")
@@ -206,6 +230,9 @@ func handleRenameTag(db *sql.DB) http.HandlerFunc {
 			return
 		}
 		defer rows2.Close()
+		var podcastUpdateIds []string
+		var podcastUpdateArgs []interface{}
+		var podcastUpdateCases []string
 		for rows2.Next() {
 			var id string
 			var tagsStr sql.NullString
@@ -215,12 +242,9 @@ func handleRenameTag(db *sql.DB) http.HandlerFunc {
 				return
 			}
 			if updated, changed := utils.ReplaceInJSONArray(tagsStr, tagVal, newTagVal); changed {
-				_, err = tx.Exec("UPDATE podcasts SET tags = ? WHERE id = ?", updated, id)
-				if err != nil {
-					log.Printf("[Rename Tag] Update podcast failed: %v", err)
-					http.Error(w, "Database update error", http.StatusInternalServerError)
-					return
-				}
+				podcastUpdateIds = append(podcastUpdateIds, id)
+				podcastUpdateArgs = append(podcastUpdateArgs, id, updated)
+				podcastUpdateCases = append(podcastUpdateCases, "WHEN ? THEN ?")
 			}
 		}
 		if err := rows2.Err(); err != nil {
@@ -228,7 +252,31 @@ func handleRenameTag(db *sql.DB) http.HandlerFunc {
 			http.Error(w, "Database iteration error", http.StatusInternalServerError)
 			return
 		}
-		rows2.Close()
+		rows2.Close() // Explicitly close before exec
+		if len(podcastUpdateIds) > 0 {
+			chunkSize := 1000
+			for i := 0; i < len(podcastUpdateIds); i += chunkSize {
+				end := i + chunkSize
+				if end > len(podcastUpdateIds) {
+					end = len(podcastUpdateIds)
+				}
+				chunkIds := podcastUpdateIds[i:end]
+				chunkArgs := podcastUpdateArgs[i*2:end*2]
+				chunkCases := podcastUpdateCases[i:end]
+
+				query := "UPDATE podcasts SET tags = CASE id " + strings.Join(chunkCases, " ") + " END WHERE id IN (?" + strings.Repeat(",?", len(chunkIds)-1) + ")"
+				args := append(chunkArgs, make([]interface{}, len(chunkIds))...)
+				for j, id := range chunkIds {
+					args[len(chunkArgs)+j] = id
+				}
+				_, err = tx.Exec(query, args...)
+				if err != nil {
+					log.Printf("[Rename Tag] Update podcast failed: %v", err)
+					http.Error(w, "Database update error", http.StatusInternalServerError)
+					return
+				}
+			}
+		}
 
 		// 3. Update users permissions (itemTagsSelected)
 		rows3, err := tx.Query("SELECT id, permissions FROM users WHERE permissions IS NOT NULL")
@@ -238,6 +286,9 @@ func handleRenameTag(db *sql.DB) http.HandlerFunc {
 			return
 		}
 		defer rows3.Close()
+		var userUpdateIds []string
+		var userUpdateArgs []interface{}
+		var userUpdateCases []string
 		for rows3.Next() {
 			var id string
 			var permsStr sql.NullString
@@ -273,12 +324,9 @@ func handleRenameTag(db *sql.DB) http.HandlerFunc {
 						if changed {
 							perms["itemTagsSelected"] = newTagsSel
 							newPermsBytes, _ := json.Marshal(perms)
-							_, err = tx.Exec("UPDATE users SET permissions = ? WHERE id = ?", string(newPermsBytes), id)
-							if err != nil {
-								log.Printf("[Rename Tag] Update user failed: %v", err)
-								http.Error(w, "Database update error", http.StatusInternalServerError)
-								return
-							}
+							userUpdateIds = append(userUpdateIds, id)
+							userUpdateArgs = append(userUpdateArgs, id, string(newPermsBytes))
+							userUpdateCases = append(userUpdateCases, "WHEN ? THEN ?")
 						}
 					}
 				}
@@ -288,6 +336,31 @@ func handleRenameTag(db *sql.DB) http.HandlerFunc {
 			log.Printf("[Rename Tag] Users iteration failed: %v", err)
 			http.Error(w, "Database iteration error", http.StatusInternalServerError)
 			return
+		}
+		rows3.Close() // Explicitly close before exec
+		if len(userUpdateIds) > 0 {
+			chunkSize := 1000
+			for i := 0; i < len(userUpdateIds); i += chunkSize {
+				end := i + chunkSize
+				if end > len(userUpdateIds) {
+					end = len(userUpdateIds)
+				}
+				chunkIds := userUpdateIds[i:end]
+				chunkArgs := userUpdateArgs[i*2:end*2]
+				chunkCases := userUpdateCases[i:end]
+
+				query := "UPDATE users SET permissions = CASE id " + strings.Join(chunkCases, " ") + " END WHERE id IN (?" + strings.Repeat(",?", len(chunkIds)-1) + ")"
+				args := append(chunkArgs, make([]interface{}, len(chunkIds))...)
+				for j, id := range chunkIds {
+					args[len(chunkArgs)+j] = id
+				}
+				_, err = tx.Exec(query, args...)
+				if err != nil {
+					log.Printf("[Rename Tag] Update user failed: %v", err)
+					http.Error(w, "Database update error", http.StatusInternalServerError)
+					return
+				}
+			}
 		}
 
 		if err := tx.Commit(); err != nil {
