@@ -389,168 +389,78 @@ func handleDeleteTag(db *sql.DB) http.HandlerFunc {
 		}
 		defer tx.Rollback()
 
-		type updateReq struct {
-			id  string
-			val string
-		}
-
 		// 1. Update books
-		rows, err := tx.Query("SELECT id, tags FROM books WHERE tags IS NOT NULL")
+		_, err = tx.Exec(`
+			UPDATE books
+			SET tags = IFNULL(
+				(
+					SELECT json_group_array(value)
+					FROM json_each(tags)
+					WHERE value != ?
+				),
+				json_array()
+			)
+			WHERE tags IS NOT NULL
+			AND EXISTS (
+				SELECT 1 FROM json_each(tags)
+				WHERE value = ?
+			)
+		`, targetTag, targetTag)
 		if err != nil {
-			log.Printf("[Delete Tag] Query books failed: %v", err)
-			http.Error(w, "Database query error", http.StatusInternalServerError)
+			log.Printf("[Delete Tag] Update books failed: %v", err)
+			http.Error(w, "Database update error", http.StatusInternalServerError)
 			return
-		}
-		var booksUpdates []updateReq
-		for rows.Next() {
-			var id string
-			var tagsStr sql.NullString
-			if err := rows.Scan(&id, &tagsStr); err != nil {
-				log.Printf("[Delete Tag] Scan book failed: %v", err)
-				rows.Close()
-				http.Error(w, "Database scan error", http.StatusInternalServerError)
-				return
-			}
-			if updated, changed := utils.RemoveFromJSONArray(tagsStr, targetTag); changed {
-				booksUpdates = append(booksUpdates, updateReq{id: id, val: updated})
-			}
-		}
-		if err := rows.Err(); err != nil {
-			log.Printf("[Delete Tag] Books iteration failed: %v", err)
-			rows.Close()
-			http.Error(w, "Database iteration error", http.StatusInternalServerError)
-			return
-		}
-		rows.Close()
-
-		if len(booksUpdates) > 0 {
-			stmt, err := tx.Prepare("UPDATE books SET tags = ? WHERE id = ?")
-			if err != nil {
-				log.Printf("[Delete Tag] Prepare book statement failed: %v", err)
-				http.Error(w, "Database prepare error", http.StatusInternalServerError)
-				return
-			}
-			for _, req := range booksUpdates {
-				if _, err := stmt.Exec(req.val, req.id); err != nil {
-					log.Printf("[Delete Tag] Update book failed: %v", err)
-					stmt.Close()
-					http.Error(w, "Database update error", http.StatusInternalServerError)
-					return
-				}
-			}
-			stmt.Close()
 		}
 
 		// 2. Update podcasts
-		rows2, err := tx.Query("SELECT id, tags FROM podcasts WHERE tags IS NOT NULL")
+		_, err = tx.Exec(`
+			UPDATE podcasts
+			SET tags = IFNULL(
+				(
+					SELECT json_group_array(value)
+					FROM json_each(tags)
+					WHERE value != ?
+				),
+				json_array()
+			)
+			WHERE tags IS NOT NULL
+			AND EXISTS (
+				SELECT 1 FROM json_each(tags)
+				WHERE value = ?
+			)
+		`, targetTag, targetTag)
 		if err != nil {
-			log.Printf("[Delete Tag] Query podcasts failed: %v", err)
-			http.Error(w, "Database query error", http.StatusInternalServerError)
+			log.Printf("[Delete Tag] Update podcasts failed: %v", err)
+			http.Error(w, "Database update error", http.StatusInternalServerError)
 			return
-		}
-		var podcastsUpdates []updateReq
-		for rows2.Next() {
-			var id string
-			var tagsStr sql.NullString
-			if err := rows2.Scan(&id, &tagsStr); err != nil {
-				log.Printf("[Delete Tag] Scan podcast failed: %v", err)
-				rows2.Close()
-				http.Error(w, "Database scan error", http.StatusInternalServerError)
-				return
-			}
-			if updated, changed := utils.RemoveFromJSONArray(tagsStr, targetTag); changed {
-				podcastsUpdates = append(podcastsUpdates, updateReq{id: id, val: updated})
-			}
-		}
-		if err := rows2.Err(); err != nil {
-			log.Printf("[Delete Tag] Podcasts iteration failed: %v", err)
-			rows2.Close()
-			http.Error(w, "Database iteration error", http.StatusInternalServerError)
-			return
-		}
-		rows2.Close()
-
-		if len(podcastsUpdates) > 0 {
-			stmt2, err := tx.Prepare("UPDATE podcasts SET tags = ? WHERE id = ?")
-			if err != nil {
-				log.Printf("[Delete Tag] Prepare podcast statement failed: %v", err)
-				http.Error(w, "Database prepare error", http.StatusInternalServerError)
-				return
-			}
-			for _, req := range podcastsUpdates {
-				if _, err := stmt2.Exec(req.val, req.id); err != nil {
-					log.Printf("[Delete Tag] Update podcast failed: %v", err)
-					stmt2.Close()
-					http.Error(w, "Database update error", http.StatusInternalServerError)
-					return
-				}
-			}
-			stmt2.Close()
 		}
 
 		// 3. Update users permissions
-		rows3, err := tx.Query("SELECT id, permissions FROM users WHERE permissions IS NOT NULL")
+		_, err = tx.Exec(`
+			UPDATE users
+			SET permissions = json_set(
+				permissions,
+				'$.itemTagsSelected',
+				IFNULL(
+					(
+						SELECT json_group_array(value)
+						FROM json_each(permissions, '$.itemTagsSelected')
+						WHERE value != ?
+					),
+					json_array()
+				)
+			)
+			WHERE permissions IS NOT NULL
+			AND json_extract(permissions, '$.itemTagsSelected') IS NOT NULL
+			AND EXISTS (
+				SELECT 1 FROM json_each(permissions, '$.itemTagsSelected')
+				WHERE value = ?
+			)
+		`, targetTag, targetTag)
 		if err != nil {
-			log.Printf("[Delete Tag] Query users failed: %v", err)
-			http.Error(w, "Database query error", http.StatusInternalServerError)
+			log.Printf("[Delete Tag] Update users failed: %v", err)
+			http.Error(w, "Database update error", http.StatusInternalServerError)
 			return
-		}
-		var usersUpdates []updateReq
-		for rows3.Next() {
-			var id string
-			var permsStr sql.NullString
-			if err := rows3.Scan(&id, &permsStr); err != nil {
-				log.Printf("[Delete Tag] Scan user failed: %v", err)
-				rows3.Close()
-				http.Error(w, "Database scan error", http.StatusInternalServerError)
-				return
-			}
-			if permsStr.Valid && permsStr.String != "" {
-				var perms map[string]interface{}
-				if json.Unmarshal([]byte(permsStr.String), &perms) == nil {
-					if tagsSel, ok := perms["itemTagsSelected"].([]interface{}); ok {
-						changed := false
-						newTagsSel := []interface{}{}
-						for _, t := range tagsSel {
-							if tStr, ok := t.(string); ok && tStr == targetTag {
-								changed = true
-							} else {
-								newTagsSel = append(newTagsSel, t)
-							}
-						}
-						if changed {
-							perms["itemTagsSelected"] = newTagsSel
-							newPermsBytes, _ := json.Marshal(perms)
-							usersUpdates = append(usersUpdates, updateReq{id: id, val: string(newPermsBytes)})
-						}
-					}
-				}
-			}
-		}
-		if err := rows3.Err(); err != nil {
-			log.Printf("[Delete Tag] Users iteration failed: %v", err)
-			rows3.Close()
-			http.Error(w, "Database iteration error", http.StatusInternalServerError)
-			return
-		}
-		rows3.Close()
-
-		if len(usersUpdates) > 0 {
-			stmt3, err := tx.Prepare("UPDATE users SET permissions = ? WHERE id = ?")
-			if err != nil {
-				log.Printf("[Delete Tag] Prepare user statement failed: %v", err)
-				http.Error(w, "Database prepare error", http.StatusInternalServerError)
-				return
-			}
-			for _, req := range usersUpdates {
-				if _, err := stmt3.Exec(req.val, req.id); err != nil {
-					log.Printf("[Delete Tag] Update user failed: %v", err)
-					stmt3.Close()
-					http.Error(w, "Database update error", http.StatusInternalServerError)
-					return
-				}
-			}
-			stmt3.Close()
 		}
 
 		if err := tx.Commit(); err != nil {
