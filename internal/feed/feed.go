@@ -515,131 +515,201 @@ func (m *FeedManager) serveFeedXML(w http.ResponseWriter, r *http.Request, itemI
 			ORDER BY "order" ASC
 		`, itemID)
 		if err == nil {
+			type playlistItem struct {
+				mediaItemID   string
+				mediaItemType string
+			}
+			var items []playlistItem
+			var bookIDs []interface{}
+			var epIDs []interface{}
+
 			defer rows.Close()
 			for rows.Next() {
-				var mediaItemID, mediaItemType string
-				if err := rows.Scan(&mediaItemID, &mediaItemType); err == nil {
-					if mediaItemType == "podcastEpisode" {
-						ep, err := queryPodcastEpisode(ctx, m.db, mediaItemID)
-						if err == nil {
-							var af audioFile
-							_ = json.Unmarshal([]byte(ep.AudioFile), &af)
+				var it playlistItem
+				if err := rows.Scan(&it.mediaItemID, &it.mediaItemType); err == nil {
+					items = append(items, it)
+					if it.mediaItemType == "book" {
+						bookIDs = append(bookIDs, it.mediaItemID)
+					} else if it.mediaItemType == "podcastEpisode" {
+						epIDs = append(epIDs, it.mediaItemID)
+					}
+				}
+			}
+			_ = rows.Err()
 
-							var podcastAuthor sql.NullString
-							var podcastExplicit int
-							_ = m.db.QueryRowContext(ctx, `
-								SELECT author, explicit FROM podcasts 
-								WHERE id = (SELECT podcastId FROM podcastEpisodes WHERE id = ?)
-							`, mediaItemID).Scan(&podcastAuthor, &podcastExplicit)
+			type bookData struct {
+				title       sql.NullString
+				desc        sql.NullString
+				explicit    int
+				audioFiles  string
+				chapters    string
+				liCreatedAt string
+			}
+			bookMap := make(map[string]bookData)
 
-							itemVal := item{
-								Title:        ep.Title,
-								Description:  ep.Description,
-								URL:          hostPrefix + "/item/" + ep.ID,
-								GUID:         feedBaseURL + "/item/" + ep.ID + "/media",
-								Author:       podcastAuthor.String,
-								ITunesAuthor: podcastAuthor.String,
-								PubDate:      formatPubDate(ep.PubDate),
-								Enclosure: enclosure{
-									URL:    feedBaseURL + "/item/" + ep.ID + "/media" + af.Metadata.Ext,
-									Length: af.Metadata.Size,
-									Type:   af.MimeType,
-								},
-								ITunesDuration: int(math.Round(af.Duration)),
-							}
-							if podcastExplicit != 0 {
-								itemVal.ITunesExplicit = "yes"
-							} else {
-								itemVal.ITunesExplicit = "no"
-							}
-							if ep.Season != "" {
-								itemVal.ITunesSeason = ep.Season
-							}
-							if ep.Episode != "" {
-								itemVal.ITunesEpisode = ep.Episode
-							}
-							if ep.EpisodeType != "" {
-								itemVal.ITunesEpisodeType = ep.EpisodeType
-							}
-							if ep.Description != "" {
-								itemVal.ITunesSummary = &cdata{Value: ep.Description}
-							}
-							feedChannel.Items = append(feedChannel.Items, itemVal)
+			if len(bookIDs) > 0 {
+				query := `
+					SELECT b.id, b.title, b.description, b.explicit, b.audioFiles, b.chapters, li.createdAt
+					FROM books b
+					JOIN libraryItems li ON li.mediaId = b.id AND li.mediaType = 'book'
+					WHERE b.id IN (?` + strings.Repeat(",?", len(bookIDs)-1) + `)
+				`
+				if bookRows, err := m.db.QueryContext(ctx, query, bookIDs...); err == nil {
+					defer bookRows.Close()
+					for bookRows.Next() {
+						var id string
+						var bd bookData
+						if err := bookRows.Scan(&id, &bd.title, &bd.desc, &bd.explicit, &bd.audioFiles, &bd.chapters, &bd.liCreatedAt); err == nil {
+							bookMap[id] = bd
 						}
-					} else if mediaItemType == "book" {
-						var bookTitle, bookDesc sql.NullString
-						var bookExplicit int
-						var audioFilesJSON, chaptersJSON string
-						var liCreatedAtStr string
-						err := m.db.QueryRowContext(ctx, `
-							SELECT b.title, b.description, b.explicit, b.audioFiles, b.chapters, li.createdAt
-							FROM books b
-							JOIN libraryItems li ON li.mediaId = b.id AND li.mediaType = 'book'
-							WHERE b.id = ?
-						`, mediaItemID).Scan(&bookTitle, &bookDesc, &bookExplicit, &audioFilesJSON, &chaptersJSON, &liCreatedAtStr)
-						if err == nil {
-							var tracks []audiobookTrack
-							_ = json.Unmarshal([]byte(audioFilesJSON), &tracks)
-							var chapters []audiobookChapter
-							_ = json.Unmarshal([]byte(chaptersJSON), &chapters)
+					}
+				}
+			}
 
-							liCreatedAt, _ := time.Parse(time.RFC3339, liCreatedAtStr)
-							if liCreatedAt.IsZero() {
-								liCreatedAt = time.Now()
-							}
+			type epPodcastData struct {
+				ep       *podcastEpData
+				author   sql.NullString
+				explicit int
+			}
+			epMap := make(map[string]epPodcastData)
 
-							useChapterTitles := checkUseChapterTitles(tracks, chapters)
+			if len(epIDs) > 0 {
+				for _, epID := range epIDs {
+					idStr := epID.(string)
+					ep, err := queryPodcastEpisode(ctx, m.db, idStr)
+					if err == nil {
+						epMap[idStr] = epPodcastData{ep: ep}
+					}
+				}
 
-							for i, t := range tracks {
-								if t.Exclude {
-									continue
-								}
-								// PORT: Unique hash for book tracks within the context of a playlist
-								trackID := computeMD5(itemID + "_" + mediaItemID + "_" + t.Metadata.Path)
-								ext := filepath.Ext(t.Metadata.Filename)
-
-								title := strings.TrimSuffix(t.Metadata.Filename, ext)
-								if len(tracks) == 1 {
-									title = bookTitle.String
-								} else if useChapterTitles {
-									for _, ch := range chapters {
-										if math.Abs(ch.Start-t.StartOffset) < 1.0 {
-											title = ch.Title
-											break
-										}
-									}
-								}
-
-								pubDate := liCreatedAt.Add(time.Duration(i) * time.Minute).UTC().Format(time.RFC1123Z)
-
-								itemVal := item{
-									Title:       title,
-									Description: bookDesc.String,
-									URL:         hostPrefix + "/item/" + mediaItemID,
-									GUID:        feedBaseURL + "/item/" + trackID + "/media",
-									PubDate:     pubDate,
-									Enclosure: enclosure{
-										URL:    feedBaseURL + "/item/" + trackID + "/media" + ext,
-										Length: t.Metadata.Size,
-										Type:   t.MimeType,
-									},
-									ITunesDuration: int(math.Round(t.Duration)),
-								}
-								if bookExplicit != 0 {
-									itemVal.ITunesExplicit = "yes"
-								} else {
-									itemVal.ITunesExplicit = "no"
-								}
-								if bookDesc.String != "" {
-									itemVal.ITunesSummary = &cdata{Value: bookDesc.String}
-								}
-								feedChannel.Items = append(feedChannel.Items, itemVal)
+				query := `
+					SELECT pe.id, p.author, p.explicit
+					FROM podcasts p
+					JOIN podcastEpisodes pe ON pe.podcastId = p.id
+					WHERE pe.id IN (?` + strings.Repeat(",?", len(epIDs)-1) + `)
+				`
+				if pRows, err := m.db.QueryContext(ctx, query, epIDs...); err == nil {
+					defer pRows.Close()
+					for pRows.Next() {
+						var epID string
+						var author sql.NullString
+						var explicit int
+						if err := pRows.Scan(&epID, &author, &explicit); err == nil {
+							if data, ok := epMap[epID]; ok {
+								data.author = author
+								data.explicit = explicit
+								epMap[epID] = data
 							}
 						}
 					}
 				}
 			}
-			_ = rows.Err()
+
+			for _, it := range items {
+				mediaItemID := it.mediaItemID
+				mediaItemType := it.mediaItemType
+
+				if mediaItemType == "podcastEpisode" {
+					if epData, ok := epMap[mediaItemID]; ok {
+						ep := epData.ep
+						var af audioFile
+						_ = json.Unmarshal([]byte(ep.AudioFile), &af)
+
+						itemVal := item{
+							Title:        ep.Title,
+							Description:  ep.Description,
+							URL:          hostPrefix + "/item/" + ep.ID,
+							GUID:         feedBaseURL + "/item/" + ep.ID + "/media",
+							Author:       epData.author.String,
+							ITunesAuthor: epData.author.String,
+							PubDate:      formatPubDate(ep.PubDate),
+							Enclosure: enclosure{
+								URL:    feedBaseURL + "/item/" + ep.ID + "/media" + af.Metadata.Ext,
+								Length: af.Metadata.Size,
+								Type:   af.MimeType,
+							},
+							ITunesDuration: int(math.Round(af.Duration)),
+						}
+						if epData.explicit != 0 {
+							itemVal.ITunesExplicit = "yes"
+						} else {
+							itemVal.ITunesExplicit = "no"
+						}
+						if ep.Season != "" {
+							itemVal.ITunesSeason = ep.Season
+						}
+						if ep.Episode != "" {
+							itemVal.ITunesEpisode = ep.Episode
+						}
+						if ep.EpisodeType != "" {
+							itemVal.ITunesEpisodeType = ep.EpisodeType
+						}
+						if ep.Description != "" {
+							itemVal.ITunesSummary = &cdata{Value: ep.Description}
+						}
+						feedChannel.Items = append(feedChannel.Items, itemVal)
+					}
+				} else if mediaItemType == "book" {
+					if bd, ok := bookMap[mediaItemID]; ok {
+						var tracks []audiobookTrack
+						_ = json.Unmarshal([]byte(bd.audioFiles), &tracks)
+						var chapters []audiobookChapter
+						_ = json.Unmarshal([]byte(bd.chapters), &chapters)
+
+						liCreatedAt, _ := time.Parse(time.RFC3339, bd.liCreatedAt)
+						if liCreatedAt.IsZero() {
+							liCreatedAt = time.Now()
+						}
+
+						useChapterTitles := checkUseChapterTitles(tracks, chapters)
+
+						for i, t := range tracks {
+							if t.Exclude {
+								continue
+							}
+							trackID := computeMD5(itemID + "_" + mediaItemID + "_" + t.Metadata.Path)
+							ext := filepath.Ext(t.Metadata.Filename)
+
+							title := strings.TrimSuffix(t.Metadata.Filename, ext)
+							if len(tracks) == 1 {
+								title = bd.title.String
+							} else if useChapterTitles {
+								for _, ch := range chapters {
+									if math.Abs(ch.Start-t.StartOffset) < 1.0 {
+										title = ch.Title
+										break
+									}
+								}
+							}
+
+							pubDate := liCreatedAt.Add(time.Duration(i) * time.Minute).UTC().Format(time.RFC1123Z)
+
+							itemVal := item{
+								Title:       title,
+								Description: bd.desc.String,
+								URL:         hostPrefix + "/item/" + mediaItemID,
+								GUID:        feedBaseURL + "/item/" + trackID + "/media",
+								PubDate:     pubDate,
+								Enclosure: enclosure{
+									URL:    feedBaseURL + "/item/" + trackID + "/media" + ext,
+									Length: t.Metadata.Size,
+									Type:   t.MimeType,
+								},
+								ITunesDuration: int(math.Round(t.Duration)),
+							}
+							if bd.explicit != 0 {
+								itemVal.ITunesExplicit = "yes"
+							} else {
+								itemVal.ITunesExplicit = "no"
+							}
+							if bd.desc.String != "" {
+								itemVal.ITunesSummary = &cdata{Value: bd.desc.String}
+							}
+							feedChannel.Items = append(feedChannel.Items, itemVal)
+						}
+					}
+				}
+			}
 		}
 	} else {
 		var mediaType, mediaID, liCreatedAtStr string
