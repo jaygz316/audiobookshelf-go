@@ -339,64 +339,74 @@ func handleDeleteTag(db *sql.DB) http.HandlerFunc {
 		defer tx.Rollback()
 
 		// 1. Update books
-		bookQuery := `
+		_, err = tx.Exec(`
 			UPDATE books
-			SET tags = json(COALESCE((
-				SELECT json_group_array(value)
-				FROM json_each(books.tags)
-				WHERE value != ?
-			), '[]'))
-			WHERE EXISTS (
-				SELECT 1
-				FROM json_each(books.tags)
+			SET tags = IFNULL(
+				(
+					SELECT json_group_array(value)
+					FROM json_each(tags)
+					WHERE value != ?
+				),
+				json_array()
+			)
+			WHERE tags IS NOT NULL
+			AND EXISTS (
+				SELECT 1 FROM json_each(tags)
 				WHERE value = ?
 			)
-		`
-		if _, err := tx.Exec(bookQuery, targetTag, targetTag); err != nil {
+		`, targetTag, targetTag)
+		if err != nil {
 			log.Printf("[Delete Tag] Update books failed: %v", err)
 			http.Error(w, "Database update error", http.StatusInternalServerError)
 			return
 		}
 
 		// 2. Update podcasts
-		podcastQuery := `
+		_, err = tx.Exec(`
 			UPDATE podcasts
-			SET tags = json(COALESCE((
-				SELECT json_group_array(value)
-				FROM json_each(podcasts.tags)
-				WHERE value != ?
-			), '[]'))
-			WHERE EXISTS (
-				SELECT 1
-				FROM json_each(podcasts.tags)
+			SET tags = IFNULL(
+				(
+					SELECT json_group_array(value)
+					FROM json_each(tags)
+					WHERE value != ?
+				),
+				json_array()
+			)
+			WHERE tags IS NOT NULL
+			AND EXISTS (
+				SELECT 1 FROM json_each(tags)
 				WHERE value = ?
 			)
-		`
-		if _, err := tx.Exec(podcastQuery, targetTag, targetTag); err != nil {
+		`, targetTag, targetTag)
+		if err != nil {
 			log.Printf("[Delete Tag] Update podcasts failed: %v", err)
 			http.Error(w, "Database update error", http.StatusInternalServerError)
 			return
 		}
 
 		// 3. Update users permissions
-		userQuery := `
+		_, err = tx.Exec(`
 			UPDATE users
 			SET permissions = json_set(
 				permissions,
 				'$.itemTagsSelected',
-				json(COALESCE((
-					SELECT json_group_array(value)
-					FROM json_each(json_extract(users.permissions, '$.itemTagsSelected'))
-					WHERE value != ?
-				), '[]'))
+				IFNULL(
+					(
+						SELECT json_group_array(value)
+						FROM json_each(permissions, '$.itemTagsSelected')
+						WHERE value != ?
+					),
+					json_array()
+				)
 			)
-			WHERE permissions IS NOT NULL AND EXISTS (
-				SELECT 1
-				FROM json_each(json_extract(users.permissions, '$.itemTagsSelected'))
+			WHERE permissions IS NOT NULL
+			AND json_extract(permissions, '$.itemTagsSelected') IS NOT NULL
+			AND EXISTS (
+				SELECT 1 FROM json_each(permissions, '$.itemTagsSelected')
 				WHERE value = ?
 			)
-		`
-		if _, err := tx.Exec(userQuery, targetTag, targetTag); err != nil {
+		`, targetTag, targetTag)
+		if err != nil {
 			log.Printf("[Delete Tag] Update users failed: %v", err)
 			http.Error(w, "Database update error", http.StatusInternalServerError)
 			return
