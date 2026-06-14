@@ -51,6 +51,7 @@ func handleInit(db *sql.DB) http.HandlerFunc {
 				Password string `json:"password"`
 			} `json:"newRoot"`
 		}
+		r.Body = http.MaxBytesReader(w, r.Body, 1048576)
 		if err := json.NewDecoder(r.Body).Decode(&reqBody); err != nil {
 			http.Error(w, `{"error": "Invalid request"}`, http.StatusBadRequest)
 			return
@@ -125,6 +126,7 @@ func handleLogin(db *sql.DB) http.HandlerFunc {
 			Username string `json:"username"`
 			Password string `json:"password"`
 		}
+		r.Body = http.MaxBytesReader(w, r.Body, 1048576)
 		if err := json.NewDecoder(r.Body).Decode(&credentials); err != nil {
 			http.Error(w, `{"error": "Invalid JSON body"}`, http.StatusBadRequest)
 			return
@@ -598,6 +600,7 @@ func handleUserCRUD(db *sql.DB) http.HandlerFunc {
 				LibrariesAccessible []string                    `json:"librariesAccessible"`
 				ItemTagsSelected    []string                    `json:"itemTagsSelected"`
 			}
+			r.Body = http.MaxBytesReader(w, r.Body, 1048576)
 			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 				http.Error(w, `{"error": "Invalid request body"}`, http.StatusBadRequest)
 				return
@@ -813,6 +816,7 @@ func handleUserCRUD(db *sql.DB) http.HandlerFunc {
 				LibrariesAccessible []string                `json:"librariesAccessible"`
 				ItemTagsSelected    []string                `json:"itemTagsSelected"`
 			}
+			r.Body = http.MaxBytesReader(w, r.Body, 1048576)
 			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 				http.Error(w, `{"error": "Invalid request body"}`, http.StatusBadRequest)
 				return
