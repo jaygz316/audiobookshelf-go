@@ -139,3 +139,39 @@ func TestGetBookLibraryStats(t *testing.T) {
 		t.Errorf("Expected NumAudioFiles=3, got %d", stats.NumAudioFiles)
 	}
 }
+
+func TestGetPodcastLibraryStats_Error(t *testing.T) {
+	db := setupTestDB(t)
+	db.Close() // Close DB to force an error
+
+	_, err := GetPodcastLibraryStats(db, "lib_error")
+	if err == nil {
+		t.Fatal("Expected error with closed db, got nil")
+	}
+}
+
+func TestGetBookLibraryStats_Error(t *testing.T) {
+	db := setupTestDB(t)
+	db.Close() // Close DB to force an error
+
+	_, err := GetBookLibraryStats(db, "lib_error")
+	if err == nil {
+		t.Fatal("Expected error with closed db, got nil")
+	}
+}
+
+func TestGetPodcastLibraryStats_ErrorQuery2(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	// drop the podcastEpisodes table to force an error on the second query
+	_, err := db.Exec("DROP TABLE podcastEpisodes")
+	if err != nil {
+		t.Fatalf("Failed to drop podcastEpisodes table: %v", err)
+	}
+
+	_, err = GetPodcastLibraryStats(db, "lib_error")
+	if err == nil {
+		t.Fatal("Expected error with dropped podcastEpisodes table, got nil")
+	}
+}
