@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"strings"
 	"time"
@@ -31,20 +32,19 @@ func serveStaticOrSPA(fSys fs.FS, routerBasePath string) http.HandlerFunc {
 
 	fileServer := http.FileServer(http.FS(fSys))
 	return func(w http.ResponseWriter, r *http.Request) {
-		path := r.URL.Path
-		if strings.HasPrefix(path, routerBasePath) {
-			path = strings.TrimPrefix(path, routerBasePath)
+		reqPath := r.URL.Path
+		if strings.HasPrefix(reqPath, routerBasePath) {
+			reqPath = strings.TrimPrefix(reqPath, routerBasePath)
 		}
-		if path == "" {
-			path = "/"
+		if reqPath == "" {
+			reqPath = "/"
 		}
 
-		cleanedPath := path
-		if strings.HasPrefix(cleanedPath, "/") {
-			cleanedPath = cleanedPath[1:]
-		}
-		if cleanedPath == "" {
+		cleanedPath := path.Clean("/" + reqPath)
+		if cleanedPath == "/" {
 			cleanedPath = "."
+		} else {
+			cleanedPath = cleanedPath[1:]
 		}
 
 		if cleanedPath == "index.html" {
