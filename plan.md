@@ -1,0 +1,6 @@
+1. **Fix `internal/handlers/users.go`**: Use the `replace_with_git_merge_diff` tool or `sed` to wrap `r.Body` with `http.MaxBytesReader(w, r.Body, 1048576)` before any call to `json.NewDecoder(r.Body).Decode` inside the `users.go` file. There are 4 occurrences in `handleInit`, `handleLogin`, and `handleUserCRUD` (POST and PATCH).
+2. **Verify modification**: Run `cat internal/handlers/users.go | grep -C 2 "MaxBytesReader"` to confirm the changes have been applied correctly in all 4 places.
+3. **Add unit test**: Use `write_file` to create a basic test case in `internal/handlers/users_test.go` (if it doesn't exist) to verify that an extremely large JSON request to `/init` or a mock handler fails early due to the size limit without crashing or consuming too much memory.
+4. **Run tests**: Execute `go test ./internal/handlers/` and `go vet ./...` to ensure no functionality is broken by the fix.
+5. **Complete pre commit steps**: Complete pre commit steps to ensure proper testing, verification, review, and reflection are done.
+6. **Submit PR**: Commit the changes using the `submit` tool with a descriptive title starting with "🔒" and explaining the risk and solution as requested in the prompt.
