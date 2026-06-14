@@ -130,12 +130,21 @@ function createAuthorCard(author) {
 
   card.innerHTML = `
     <div class="w-20 h-20 rounded-full overflow-hidden bg-black-400 mb-2 flex items-center justify-center flex-shrink-0">
-      <img src="${imageUrl}" alt="${escapeHtml(author.name)}" class="w-full h-full object-cover"
-        onerror="this.onerror=null; this.parentElement.innerHTML='<span class=\\'material-symbols text-4xl text-black-100\\'>person</span>'">
+      <img src="${imageUrl}" alt="${escapeHtml(author.name)}" class="w-full h-full object-cover">
     </div>
     <p class="text-sm font-semibold text-white text-center leading-tight truncate w-full text-center">${escapeHtml(author.name)}</p>
     <p class="text-xs text-black-100 mt-0.5">${numBooks} book${numBooks !== 1 ? 's' : ''}</p>
   `;
+
+  const img = card.querySelector('img');
+  if (img) {
+    img.addEventListener('error', function() {
+      const parent = this.parentElement;
+      if (parent) {
+        parent.innerHTML = '<span class="material-symbols text-4xl text-black-100">person</span>';
+      }
+    });
+  }
 
   return card;
 }
