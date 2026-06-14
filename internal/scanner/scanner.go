@@ -680,12 +680,12 @@ func UUIDStr() string {
 	return uuidStr()
 }
 
-// GetTitleIgnorePrefix returns the title with sorting prefixes removed.
-func GetTitleIgnorePrefix(db *sql.DB, title string) string {
+// getSortingPrefixes retrieves the sorting prefixes from the database settings.
+func getSortingPrefixes(db *sql.DB) []string {
 	var prefixes []string
 	var valStr string
-	err := db.QueryRow("SELECT value FROM settings WHERE key = 'server-settings'").Scan(&valStr)
-	if err == nil && valStr != "" {
+	_ = db.QueryRow("SELECT value FROM settings WHERE key = 'server-settings'").Scan(&valStr)
+	if valStr != "" {
 		var s struct {
 			SortingPrefixes []string `json:"sortingPrefixes"`
 		}
@@ -696,6 +696,12 @@ func GetTitleIgnorePrefix(db *sql.DB, title string) string {
 	if len(prefixes) == 0 {
 		prefixes = []string{"the", "a", "an"}
 	}
+	return prefixes
+}
+
+// GetTitleIgnorePrefix returns the title with sorting prefixes removed.
+func GetTitleIgnorePrefix(db *sql.DB, title string) string {
+	prefixes := getSortingPrefixes(db)
 	return getTitleIgnorePrefixGo(title, prefixes)
 }
 
@@ -1169,20 +1175,7 @@ func ScanLibrary(db *sql.DB, libraryID string, socketAuth *isocket.Authority) er
 		}
 	}()
 
-	var prefixes []string
-	var valStr string
-	_ = db.QueryRow("SELECT value FROM settings WHERE key = 'server-settings'").Scan(&valStr)
-	if valStr != "" {
-		var s struct {
-			SortingPrefixes []string `json:"sortingPrefixes"`
-		}
-		if json.Unmarshal([]byte(valStr), &s) == nil {
-			prefixes = s.SortingPrefixes
-		}
-	}
-	if len(prefixes) == 0 {
-		prefixes = []string{"the", "a", "an"}
-	}
+	prefixes := getSortingPrefixes(db)
 	log.Printf("[Scanner] Loaded %d sorting prefixes", len(prefixes))
 
 	rows, err := db.Query("SELECT id, path FROM libraryFolders WHERE libraryId = ?", libraryID)
@@ -2237,7 +2230,6 @@ func getTableColumnsTx(tx *sql.Tx, tableName string) map[string]bool {
 func InsertAuthor(tx *sql.Tx, id, name, lastFirst, libraryID string) error {
 	return insertAuthor(tx, id, name, lastFirst, libraryID)
 }
-
 
 func insertAuthor(tx *sql.Tx, id, name, lastFirst, libraryID string) error {
 	cols := getTableColumnsTx(tx, "authors")
