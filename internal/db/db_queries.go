@@ -1558,6 +1558,8 @@ func UpdateLibrary(db *sql.DB, libraryID string, payload *UpdateLibraryPayload) 
 			}
 		}
 
+		hasMediaProgresses := tableExistsTx(tx, "mediaProgresses")
+		hasPlaylistItems := tableExistsTx(tx, "playlistItems")
 		for fid, fpath := range existingFolders {
 			if !inputFolderIDs[fid] {
 				_, err = tx.Exec("DELETE FROM libraryFolders WHERE id = ?", fid)
@@ -1581,8 +1583,6 @@ func UpdateLibrary(db *sql.DB, libraryID string, payload *UpdateLibraryPayload) 
 					}
 					itemRows.Close()
 
-					hasMediaProgresses := tableExistsTx(tx, "mediaProgresses")
-					hasPlaylistItems := tableExistsTx(tx, "playlistItems")
 					for _, item := range itemsToClean {
 						if hasMediaProgresses {
 							_, _ = tx.Exec("DELETE FROM mediaProgresses WHERE mediaItemId = ?", item.mediaID)
