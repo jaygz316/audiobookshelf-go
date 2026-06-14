@@ -10,8 +10,8 @@ components:
       example: true
     filterBy:
       type: string
-      description: The field to filter by from the request. TODO
-      example: 'media.metadata.title'
+      description: The field to filter by from the request. Format is `<group>.<base64_encoded_value>`. Supported groups are `authors`, `series`, `genres`, `tags`, `narrators`, `languages`, `publishers`, `progress`, and `missing`.
+      example: 'genres.U2NpLUZp'
     collapseSeries:
       type: boolean
       description: Whether collapse series was set in the request.
@@ -45,9 +45,9 @@ components:
       type: string
       example: 'media.metadata.title'
     libraryFilter:
-      description: The filter for the library.
+      description: The filter for the library. Format is `<group>.<base64_encoded_value>`. Supported groups are `authors`, `series`, `genres`, `tags`, `narrators`, `languages`, `publishers`, `progress`, and `missing`.
       type: string
-      example: 'media.metadata.title'
+      example: 'genres.U2NpLUZp'
     libraryCollapseSeries:
       description: Whether to collapse series.
       type: boolean
@@ -270,8 +270,8 @@ paths:
         - $ref: '#/components/parameters/desc'
         - in: query
           name: filter
-          description: The filter for the library.
-          example: 'media.metadata.title'
+          description: The filter for the library. Format is `<group>.<base64_encoded_value>`. Supported groups are `authors`, `series`, `genres`, `tags`, `narrators`, `languages`, `publishers`, `progress`, and `missing`.
+          example: 'genres.U2NpLUZp'
           schema:
             type: string
         - in: query
@@ -378,8 +378,8 @@ paths:
         - $ref: '#/components/parameters/desc'
         - in: query
           name: filter
-          description: The filter for the library.
-          example: 'media.metadata.title'
+          description: The filter for the library. Format is `<group>.<base64_encoded_value>`. Supported groups are `authors`, `series`, `genres`, `tags`, `narrators`, `languages`, `publishers`, `progress`, and `missing`.
+          example: 'genres.U2NpLUZp'
           schema:
             type: string
         - in: query
@@ -456,8 +456,8 @@ paths:
         - $ref: '#/components/parameters/desc'
         - in: query
           name: filter
-          description: The filter for the library.
-          example: 'media.metadata.title'
+          description: The filter for the library. Format is `<group>.<base64_encoded_value>`. Supported groups are `authors`, `series`, `genres`, `tags`, `narrators`, `languages`, `publishers`, `progress`, and `missing`.
+          example: 'genres.U2NpLUZp'
           schema:
             type: string
         - $ref: '../schemas.yaml#/components/parameters/minified'
