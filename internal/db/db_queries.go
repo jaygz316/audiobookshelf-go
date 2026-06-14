@@ -74,7 +74,6 @@ func GetCoverPath(db *sql.DB, itemID string) (string, error) {
 	return coverPath.String, nil
 }
 
-
 type LibraryFolderJSON struct {
 	ID        string `json:"id"`
 	FullPath  string `json:"fullPath"`
@@ -1582,11 +1581,13 @@ func UpdateLibrary(db *sql.DB, libraryID string, payload *UpdateLibraryPayload) 
 					}
 					itemRows.Close()
 
+					hasMediaProgresses := tableExistsTx(tx, "mediaProgresses")
+					hasPlaylistItems := tableExistsTx(tx, "playlistItems")
 					for _, item := range itemsToClean {
-						if tableExistsTx(tx, "mediaProgresses") {
+						if hasMediaProgresses {
 							_, _ = tx.Exec("DELETE FROM mediaProgresses WHERE mediaItemId = ?", item.mediaID)
 						}
-						if tableExistsTx(tx, "playlistItems") {
+						if hasPlaylistItems {
 							_, _ = tx.Exec("DELETE FROM playlistItems WHERE libraryItemId = ?", item.id)
 						}
 						_, _ = tx.Exec("DELETE FROM libraryItems WHERE id = ?", item.id)
@@ -1668,11 +1669,13 @@ func DeleteLibrary(db *sql.DB, libraryID string) (*LibraryJSON, error) {
 		}
 		itemRows.Close()
 
+		hasMediaProgresses := tableExistsTx(tx, "mediaProgresses")
+		hasPlaylistItems := tableExistsTx(tx, "playlistItems")
 		for _, item := range itemsToClean {
-			if tableExistsTx(tx, "mediaProgresses") {
+			if hasMediaProgresses {
 				_, _ = tx.Exec("DELETE FROM mediaProgresses WHERE mediaItemId = ?", item.mediaID)
 			}
-			if tableExistsTx(tx, "playlistItems") {
+			if hasPlaylistItems {
 				_, _ = tx.Exec("DELETE FROM playlistItems WHERE libraryItemId = ?", item.id)
 			}
 			_, _ = tx.Exec("DELETE FROM libraryItems WHERE id = ?", item.id)
