@@ -293,11 +293,11 @@ func GetLibraryByID(db *sql.DB, libraryID string) (*LibraryJSON, error) {
 func GetBookLibraryStats(db *sql.DB, libraryID string) (*LibraryStats, error) {
 	var stats LibraryStats
 	query := `
-		SELECT 
-			COALESCE(SUM(li.size), 0) AS totalSize, 
-			COALESCE(SUM(b.duration), 0) AS totalDuration, 
-			COALESCE(SUM(json_array_length(b.audioFiles)), 0) AS numAudioFiles, 
-			COUNT(*) AS totalItems 
+		SELECT
+			COALESCE(SUM(li.size), 0) AS totalSize,
+			COALESCE(SUM(b.duration), 0) AS totalDuration,
+			COALESCE(SUM(json_array_length(b.audioFiles)), 0) AS numAudioFiles,
+			COUNT(*) AS totalItems
 		FROM libraryItems li
 		JOIN books b ON b.id = li.mediaId AND li.mediaType = 'book'
 		WHERE li.libraryId = ?
@@ -320,13 +320,13 @@ func GetPodcastLibraryStats(db *sql.DB, libraryID string) (*LibraryStats, error)
 	stats.TotalSize = totalSize
 
 	query := `
-		SELECT 
-			COALESCE(SUM(json_extract(pe.audioFile, '$.duration')), 0) AS totalDuration, 
-			COUNT(DISTINCT li.id) AS totalItems, 
-			COUNT(pe.id) AS numAudioFiles 
+		SELECT
+			COALESCE(SUM(json_extract(pe.audioFile, '$.duration')), 0) AS totalDuration,
+			COUNT(DISTINCT li.id) AS totalItems,
+			COUNT(pe.id) AS numAudioFiles
 		FROM libraryItems li
 		JOIN podcasts p ON p.id = li.mediaId AND li.mediaType = 'podcast'
-		LEFT JOIN podcastEpisodes pe ON pe.podcastId = p.id 
+		LEFT JOIN podcastEpisodes pe ON pe.podcastId = p.id
 		WHERE li.libraryId = ?
 	`
 	err = db.QueryRow(query, libraryID).Scan(&stats.TotalDuration, &stats.TotalItems, &stats.NumAudioFiles)
@@ -854,7 +854,7 @@ func GetFilteredLibraryItems(db *sql.DB, options GetFilteredLibraryItemsOptions)
 	var selectQuery string
 	if options.MediaType == "book" {
 		selectQuery = fmt.Sprintf(`
-			SELECT 
+			SELECT
 				li.id, li.ino, li.path, li.relPath, li.isFile, li.mtime, li.ctime, li.birthtime, li.createdAt, li.updatedAt, li.isMissing, li.isInvalid, li.mediaType, li.mediaId, li.size, li.libraryFolderId, li.authorNamesFirstLast, li.authorNamesLastFirst,
 				b.id, b.title, b.titleIgnorePrefix, b.subtitle, b.publishedYear, b.publishedDate, b.publisher, b.description, b.isbn, b.asin, b.language, b.explicit, b.abridged, b.coverPath, b.duration, b.narrators, b.audioFiles, b.ebookFile, b.chapters, b.tags, b.genres
 			FROM libraryItems li
@@ -865,7 +865,7 @@ func GetFilteredLibraryItems(db *sql.DB, options GetFilteredLibraryItemsOptions)
 		`, whereClause, orderClause, limitOffsetClause)
 	} else {
 		selectQuery = fmt.Sprintf(`
-			SELECT 
+			SELECT
 				li.id, li.ino, li.path, li.relPath, li.isFile, li.mtime, li.ctime, li.birthtime, li.createdAt, li.updatedAt, li.isMissing, li.isInvalid, li.mediaType, li.mediaId, li.size, li.libraryFolderId,
 				p.id, p.title, p.titleIgnorePrefix, p.author, p.releaseDate, p.feedURL, p.imageURL, p.description, p.itunesPageURL, p.itunesId, p.itunesArtistId, p.language, p.podcastType, p.explicit, p.autoDownloadEpisodes, p.autoDownloadSchedule, p.lastEpisodeCheck, p.maxEpisodesToKeep, p.maxNewEpisodesToDownload, p.coverPath, p.tags, p.genres, p.numEpisodes
 			FROM libraryItems li
@@ -1558,8 +1558,6 @@ func UpdateLibrary(db *sql.DB, libraryID string, payload *UpdateLibraryPayload) 
 			}
 		}
 
-		hasMediaProgresses := tableExistsTx(tx, "mediaProgresses")
-		hasPlaylistItems := tableExistsTx(tx, "playlistItems")
 		for fid, fpath := range existingFolders {
 			if !inputFolderIDs[fid] {
 				_, err = tx.Exec("DELETE FROM libraryFolders WHERE id = ?", fid)
@@ -1583,6 +1581,8 @@ func UpdateLibrary(db *sql.DB, libraryID string, payload *UpdateLibraryPayload) 
 					}
 					itemRows.Close()
 
+					hasMediaProgresses := tableExistsTx(tx, "mediaProgresses")
+					hasPlaylistItems := tableExistsTx(tx, "playlistItems")
 					for _, item := range itemsToClean {
 						if hasMediaProgresses {
 							_, _ = tx.Exec("DELETE FROM mediaProgresses WHERE mediaItemId = ?", item.mediaID)
@@ -1782,7 +1782,7 @@ func GetLibraryFilterDataGo(db *sql.DB, libraryID string) (*LibraryFilterData, e
 	decadesSet := make(map[string]bool)
 
 	if mediaType == "podcast" {
-		rows, err := db.Query(`SELECT p.tags, p.genres, p.language 
+		rows, err := db.Query(`SELECT p.tags, p.genres, p.language
 			FROM podcasts p JOIN libraryItems li ON li.mediaId = p.id WHERE li.libraryId = ?`, libraryID)
 		if err == nil {
 			defer rows.Close()
@@ -1819,7 +1819,7 @@ func GetLibraryFilterDataGo(db *sql.DB, libraryID string) (*LibraryFilterData, e
 		db.QueryRow("SELECT COUNT(*) FROM libraryItems WHERE libraryId = ?", libraryID).Scan(&fd.PodcastCount)
 
 	} else {
-		rows, err := db.Query(`SELECT b.tags, b.genres, b.narrators, b.publisher, b.publishedYear, b.language, li.isMissing, li.isInvalid 
+		rows, err := db.Query(`SELECT b.tags, b.genres, b.narrators, b.publisher, b.publishedYear, b.language, li.isMissing, li.isInvalid
 			FROM books b JOIN libraryItems li ON li.mediaId = b.id WHERE li.libraryId = ?`, libraryID)
 		if err == nil {
 			defer rows.Close()
