@@ -7,7 +7,7 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-func setupTestDB(t *testing.T) *sql.DB {
+func setupTestDB(t testing.TB) *sql.DB {
 	db, err := sql.Open("sqlite", ":memory:")
 	if err != nil {
 		t.Fatalf("Failed to open memory db: %v", err)
