@@ -129,7 +129,7 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
           <!-- Left Column: Cover & Core Actions -->
           <div class="flex flex-col items-center space-y-4">
             <div class="w-56 h-80 bg-black-500 rounded border border-black-400 overflow-hidden shadow-2xl flex-shrink-0 flex items-center justify-center relative group select-none">
-              <img src="${coverUrl}" alt="${escapeHtml(title)}" class="w-full h-full object-cover" onerror="this.onerror=null; this.src='assets/images/logo.png'">
+              <img src="${coverUrl}" alt="${escapeHtml(title)}" class="w-full h-full object-cover" id="item-details-cover-img">
             </div>
             
             <!-- Core Play/Read Buttons -->
@@ -321,6 +321,13 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
         matchCoverBtn.onclick = () => triggerMatchCoverModal(item, libraryId, () => loadItemDetails(itemId, libraryId, backCallback));
       }
       document.getElementById('details-edit-btn').onclick = () => triggerEditItemDetailsModal(item, libraryId, () => loadItemDetails(itemId, libraryId, backCallback));
+    }
+
+    const coverImg = document.getElementById('item-details-cover-img');
+    if (coverImg) {
+      coverImg.addEventListener('error', function() {
+        this.src = 'assets/images/logo.png';
+      }, { once: true });
     }
 
     if (hasAudio) {
