@@ -133,7 +133,7 @@ function createCard(item, isContinue, libraryId) {
   const coverUrl = resolvePath(`/api/items/${item.id}/cover?token=${token}&ts=${ts}`);
 
   card.innerHTML = `
-    <img class="w-full h-full object-cover" src="${coverUrl}" alt="${escapeHtml(title)}" onerror="this.onerror=null; this.src='assets/images/logo.png'">
+    <img class="w-full h-full object-cover" src="${coverUrl}" alt="${escapeHtml(title)}">
     
     <!-- Hover overlay details -->
     <div class="absolute inset-0 bg-black/85 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col justify-between p-3 select-none text-left z-30">
@@ -143,6 +143,13 @@ function createCard(item, isContinue, libraryId) {
       </div>
     </div>
   `;
+
+  const img = card.querySelector('img');
+  if (img) {
+    img.addEventListener('error', function() {
+      this.src = 'assets/images/logo.png';
+    }, { once: true });
+  }
 
   if (isContinue) {
     const progBarContainer = document.createElement('div');
