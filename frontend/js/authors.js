@@ -141,7 +141,11 @@ function createAuthorCard(author) {
     img.addEventListener('error', function() {
       const parent = this.parentElement;
       if (parent) {
-        parent.innerHTML = '<span class="material-symbols text-4xl text-black-100">person</span>';
+        parent.textContent = '';
+        const span = document.createElement('span');
+        span.className = 'material-symbols text-4xl text-black-100';
+        span.textContent = 'person';
+        parent.appendChild(span);
       }
     });
   }
