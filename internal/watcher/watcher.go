@@ -2,6 +2,7 @@ package watcher
 
 import (
 	"database/sql"
+	"encoding/json"
 	"log"
 	"os"
 	"path/filepath"
@@ -189,6 +190,24 @@ func (fw *FSWatcher) triggerDebouncedScan(libraryID string) {
 func (fw *FSWatcher) Reload() {
 	fw.mu.Lock()
 	defer fw.mu.Unlock()
+
+	var valStr string
+	err := fw.db.QueryRow("SELECT value FROM settings WHERE key = 'server-settings'").Scan(&valStr)
+	if err == nil && valStr != "" {
+		var s struct {
+			WatchLibraryChanges bool `json:"watchLibraryChanges"`
+		}
+		s.WatchLibraryChanges = true // Default is true
+		if err := json.Unmarshal([]byte(valStr), &s); err == nil {
+			if !s.WatchLibraryChanges {
+				for path := range fw.paths {
+					fw.watcher.Remove(path)
+				}
+				fw.paths = make(map[string]string)
+				return
+			}
+		}
+	}
 
 	for path := range fw.paths {
 		fw.watcher.Remove(path)

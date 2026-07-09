@@ -1288,6 +1288,42 @@ func handleUpdateLibraryItemByID(db *sql.DB, itemID string) http.HandlerFunc {
 			return
 		}
 
+		srvSettings, srvErr := idb.GetServerSettings(db)
+		if srvErr == nil && srvSettings != nil && srvSettings.MetadataMarkdownWithItem {
+			var itemPath string
+			var isFile int
+			dbErr := db.QueryRow("SELECT path, isFile FROM libraryItems WHERE id = ?", itemID).Scan(&itemPath, &isFile)
+			if dbErr == nil && itemPath != "" {
+				folder := itemPath
+				if isFile != 0 {
+					folder = filepath.Dir(itemPath)
+				}
+				metadataPath := filepath.Join(folder, "metadata.json")
+
+				metaData := map[string]interface{}{
+					"title":         payload.Title,
+					"subtitle":      payload.Subtitle,
+					"authors":       payload.Authors,
+					"narrators":     payload.Narrators,
+					"publisher":     payload.Publisher,
+					"publishedYear": payload.PublishedYear,
+					"publishedDate": payload.PublishedDate,
+					"description":   payload.Description,
+					"isbn":          payload.Isbn,
+					"asin":          payload.Asin,
+					"language":      payload.Language,
+					"explicit":      payload.Explicit,
+					"abridged":      payload.Abridged,
+					"tags":          payload.Tags,
+					"genres":        payload.Genres,
+				}
+				metaJSON, marshalErr := json.MarshalIndent(metaData, "", "  ")
+				if marshalErr == nil {
+					_ = os.WriteFile(metadataPath, metaJSON, 0644)
+				}
+			}
+		}
+
 		if isocket.GlobalAuth != nil {
 			if minItem, err := idb.GetLibraryItemMinifiedByID(db, itemID); err == nil {
 				EmitLibraryItemEvent("item_updated", minItem)

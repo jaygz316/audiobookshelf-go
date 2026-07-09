@@ -10,6 +10,7 @@ import (
 
 	"audiobookshelf/internal/core"
 	idb "audiobookshelf/internal/db"
+	"audiobookshelf/internal/watcher"
 )
 
 // handleGetServerSettings maps to GET /api/settings
@@ -57,9 +58,55 @@ func handleUpdateServerSettings(db *sql.DB) http.HandlerFunc {
 			json.Unmarshal([]byte(valStr), &currentSettings)
 		}
 
+		// Retrieve old values
+		oldWatch := true
+		if val, ok := currentSettings["watchLibraryChanges"].(bool); ok {
+			oldWatch = val
+		}
+		oldSortingIgnore := true
+		if val, ok := currentSettings["sortingIgnorePrefix"].(bool); ok {
+			oldSortingIgnore = val
+		}
+		oldPrefixesJSON := ""
+		if val, ok := currentSettings["sortingPrefixes"]; ok {
+			if b, err := json.Marshal(val); err == nil {
+				oldPrefixesJSON = string(b)
+			}
+		}
+
+		// Clean sortingPrefixes if provided in settingsUpdate
+		if rawPrefs, ok := settingsUpdate["sortingPrefixes"]; ok {
+			var rawSlice []string
+			if slice, ok := rawPrefs.([]interface{}); ok {
+				for _, v := range slice {
+					if s, ok := v.(string); ok {
+						rawSlice = append(rawSlice, s)
+					}
+				}
+			} else if slice, ok := rawPrefs.([]string); ok {
+				rawSlice = slice
+			}
+			settingsUpdate["sortingPrefixes"] = cleanSortingPrefixes(rawSlice)
+		}
+
 		// Merge updates
 		for k, v := range settingsUpdate {
 			currentSettings[k] = v
+		}
+
+		newWatch := true
+		if val, ok := currentSettings["watchLibraryChanges"].(bool); ok {
+			newWatch = val
+		}
+		newSortingIgnore := true
+		if val, ok := currentSettings["sortingIgnorePrefix"].(bool); ok {
+			newSortingIgnore = val
+		}
+		newPrefixesJSON := ""
+		if val, ok := currentSettings["sortingPrefixes"]; ok {
+			if b, err := json.Marshal(val); err == nil {
+				newPrefixesJSON = string(b)
+			}
 		}
 
 		// Save back
@@ -67,6 +114,28 @@ func handleUpdateServerSettings(db *sql.DB) http.HandlerFunc {
 			log.Printf("[Settings] Update failed: %v", err)
 			http.Error(w, `{"error": "Failed to update settings"}`, http.StatusInternalServerError)
 			return
+		}
+
+		if newWatch != oldWatch {
+			if watcher.GlobalWatcher != nil {
+				watcher.GlobalWatcher.Reload()
+			}
+		}
+
+		if newSortingIgnore != oldSortingIgnore || newPrefixesJSON != oldPrefixesJSON {
+			var prefixes []string
+			if prefVal, ok := currentSettings["sortingPrefixes"]; ok {
+				if slice, ok := prefVal.([]interface{}); ok {
+					for _, v := range slice {
+						if s, ok := v.(string); ok {
+							prefixes = append(prefixes, s)
+						}
+					}
+				} else if slice, ok := prefVal.([]string); ok {
+					prefixes = slice
+				}
+			}
+			go recomputeIgnorePrefixes(db, prefixes)
 		}
 
 		// Format output for browser (exclude secrets)
@@ -190,6 +259,13 @@ func recomputeBooksIgnorePrefixes(db *sql.DB, prefixes []string) {
 		return
 	}
 	defer rows.Close()
+
+	type bookUpdate struct {
+		id        string
+		newIgnore string
+	}
+	var updates []bookUpdate
+
 	for rows.Next() {
 		var id, title, currentIgnore string
 		if err := rows.Scan(&id, &title, &currentIgnore); err != nil {
@@ -198,11 +274,18 @@ func recomputeBooksIgnorePrefixes(db *sql.DB, prefixes []string) {
 		}
 		newIgnore := getTitleIgnorePrefixGo(title, prefixes)
 		if newIgnore != currentIgnore {
-			db.Exec("UPDATE books SET titleIgnorePrefix = ? WHERE id = ?", newIgnore, id)
+			updates = append(updates, bookUpdate{id: id, newIgnore: newIgnore})
 		}
 	}
 	if err := rows.Err(); err != nil {
 		log.Printf("[Prefix Recompute] Books query iteration error: %v", err)
+	}
+	rows.Close()
+
+	for _, up := range updates {
+		if _, err := db.Exec("UPDATE books SET titleIgnorePrefix = ? WHERE id = ?", up.newIgnore, up.id); err != nil {
+			log.Printf("[Prefix Recompute] Failed to update book %s: %v", up.id, err)
+		}
 	}
 }
 
@@ -213,6 +296,13 @@ func recomputePodcastsIgnorePrefixes(db *sql.DB, prefixes []string) {
 		return
 	}
 	defer rows.Close()
+
+	type podcastUpdate struct {
+		id        string
+		newIgnore string
+	}
+	var updates []podcastUpdate
+
 	for rows.Next() {
 		var id, title, currentIgnore string
 		if err := rows.Scan(&id, &title, &currentIgnore); err != nil {
@@ -221,11 +311,18 @@ func recomputePodcastsIgnorePrefixes(db *sql.DB, prefixes []string) {
 		}
 		newIgnore := getTitleIgnorePrefixGo(title, prefixes)
 		if newIgnore != currentIgnore {
-			db.Exec("UPDATE podcasts SET titleIgnorePrefix = ? WHERE id = ?", newIgnore, id)
+			updates = append(updates, podcastUpdate{id: id, newIgnore: newIgnore})
 		}
 	}
 	if err := rows.Err(); err != nil {
 		log.Printf("[Prefix Recompute] Podcasts query iteration error: %v", err)
+	}
+	rows.Close()
+
+	for _, up := range updates {
+		if _, err := db.Exec("UPDATE podcasts SET titleIgnorePrefix = ? WHERE id = ?", up.newIgnore, up.id); err != nil {
+			log.Printf("[Prefix Recompute] Failed to update podcast %s: %v", up.id, err)
+		}
 	}
 }
 
@@ -236,6 +333,13 @@ func recomputeSeriesIgnorePrefixes(db *sql.DB, prefixes []string) {
 		return
 	}
 	defer rows.Close()
+
+	type seriesUpdate struct {
+		id        string
+		newIgnore string
+	}
+	var updates []seriesUpdate
+
 	for rows.Next() {
 		var id, name, currentIgnore string
 		if err := rows.Scan(&id, &name, &currentIgnore); err != nil {
@@ -244,11 +348,18 @@ func recomputeSeriesIgnorePrefixes(db *sql.DB, prefixes []string) {
 		}
 		newIgnore := getTitleIgnorePrefixGo(name, prefixes)
 		if newIgnore != currentIgnore {
-			db.Exec("UPDATE series SET nameIgnorePrefix = ? WHERE id = ?", newIgnore, id)
+			updates = append(updates, seriesUpdate{id: id, newIgnore: newIgnore})
 		}
 	}
 	if err := rows.Err(); err != nil {
 		log.Printf("[Prefix Recompute] Series query iteration error: %v", err)
+	}
+	rows.Close()
+
+	for _, up := range updates {
+		if _, err := db.Exec("UPDATE series SET nameIgnorePrefix = ? WHERE id = ?", up.newIgnore, up.id); err != nil {
+			log.Printf("[Prefix Recompute] Failed to update series %s: %v", up.id, err)
+		}
 	}
 }
 

@@ -32,6 +32,17 @@ func serveStaticOrSPA(fSys fs.FS, routerBasePath string) http.HandlerFunc {
 
 	fileServer := http.FileServer(http.FS(fSys))
 	return func(w http.ResponseWriter, r *http.Request) {
+		allowIframe := false
+		if globalDB != nil {
+			if settings, err := idb.GetServerSettings(globalDB); err == nil && settings != nil {
+				allowIframe = settings.AllowIframe
+			}
+		}
+		if !allowIframe {
+			w.Header().Set("X-Frame-Options", "SAMEORIGIN")
+			w.Header().Set("Content-Security-Policy", "frame-ancestors 'self'")
+		}
+
 		reqPath := r.URL.Path
 		if strings.HasPrefix(reqPath, routerBasePath) {
 			reqPath = strings.TrimPrefix(reqPath, routerBasePath)
@@ -914,7 +925,16 @@ func handleGetLibraryStats(db *sql.DB, libraryID string) http.HandlerFunc {
 var coverHTTPClient *safeurl.WrappedClient
 
 func init() {
-	config := safeurl.GetConfigBuilder().Build()
+	builder := safeurl.GetConfigBuilder()
+	if os.Getenv("BYPASS_SAFEURL") == "true" {
+		builder = builder.SetAllowedIPs("127.0.0.1", "::1")
+		var ports []int
+		for p := 1; p <= 65535; p++ {
+			ports = append(ports, p)
+		}
+		builder = builder.SetAllowedPorts(ports...)
+	}
+	config := builder.Build()
 	coverHTTPClient = safeurl.Client(config)
 }
 
@@ -972,9 +992,11 @@ func downloadCoverFromURL(ctx context.Context, db *sql.DB, itemID string, coverU
 		return "", fmt.Errorf("empty cover URL")
 	}
 
-	// 1. Resolve media type and ID
+	// 1. Resolve media type and ID, path, and isFile
 	var mediaType, mediaID string
-	err := db.QueryRow("SELECT mediaType, mediaId FROM libraryItems WHERE id = ?", itemID).Scan(&mediaType, &mediaID)
+	var itemPath string
+	var isFile int
+	err := db.QueryRow("SELECT mediaType, mediaId, path, isFile FROM libraryItems WHERE id = ?", itemID).Scan(&mediaType, &mediaID, &itemPath, &isFile)
 	if err != nil {
 		return "", err
 	}
@@ -1006,23 +1028,32 @@ func downloadCoverFromURL(ctx context.Context, db *sql.DB, itemID string, coverU
 	}
 
 	// 3. Determine where to save the file
-	var existingCoverPath sql.NullString
-	if mediaType == "book" {
-		_ = db.QueryRow("SELECT coverPath FROM books WHERE id = ?", mediaID).Scan(&existingCoverPath)
-	} else if mediaType == "podcast" {
-		_ = db.QueryRow("SELECT coverPath FROM podcasts WHERE id = ?", mediaID).Scan(&existingCoverPath)
-	}
-
 	destPath := ""
-	if existingCoverPath.Valid && existingCoverPath.String != "" {
-		destPath = existingCoverPath.String
-	} else {
-		// Save inside metadata/items/{itemID}/cover{ext}
-		itemDir := filepath.Join(metadataPath, "items", itemID)
-		if err := os.MkdirAll(itemDir, 0755); err != nil {
-			return "", err
+	settings, err := idb.GetServerSettings(db)
+	if err == nil && settings != nil && settings.MetadataCoverWithItem {
+		folder := itemPath
+		if isFile != 0 {
+			folder = filepath.Dir(itemPath)
 		}
-		destPath = filepath.Join(itemDir, "cover"+ext)
+		destPath = filepath.Join(folder, "cover"+ext)
+	} else {
+		var existingCoverPath sql.NullString
+		if mediaType == "book" {
+			_ = db.QueryRow("SELECT coverPath FROM books WHERE id = ?", mediaID).Scan(&existingCoverPath)
+		} else if mediaType == "podcast" {
+			_ = db.QueryRow("SELECT coverPath FROM podcasts WHERE id = ?", mediaID).Scan(&existingCoverPath)
+		}
+
+		if existingCoverPath.Valid && existingCoverPath.String != "" {
+			destPath = existingCoverPath.String
+		} else {
+			// Save inside metadata/items/{itemID}/cover{ext}
+			itemDir := filepath.Join(metadataPath, "items", itemID)
+			if err := os.MkdirAll(itemDir, 0755); err != nil {
+				return "", err
+			}
+			destPath = filepath.Join(itemDir, "cover"+ext)
+		}
 	}
 
 	// Ensure parent directory exists

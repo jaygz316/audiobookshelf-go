@@ -60,12 +60,7 @@ func (p *GoogleBooksProvider) SearchBooks(ctx context.Context, query string) ([]
 	escapedQuery := url.QueryEscape(query)
 	urlStr := fmt.Sprintf("https://www.googleapis.com/books/v1/volumes?q=%s", escapedQuery)
 
-	req, err := http.NewRequestWithContext(ctx, "GET", urlStr, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-
-	resp, err := safeHTTPClient.Do(req)
+	resp, err := getWithRetry(ctx, safeHTTPClient, urlStr)
 	if err != nil {
 		return nil, fmt.Errorf("HTTP request failed: %w", err)
 	}

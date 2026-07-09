@@ -227,7 +227,7 @@ async function loadCollectionDetails(collectionId, libraryId) {
             <div>
               <h2 class="text-2xl font-bold text-white mb-1" id="coll-details-title">${escapeHtml(collection.name)}</h2>
               <p class="text-xs text-black-50 mb-2" id="coll-details-desc">${escapeHtml(collection.description) || 'No description provided.'}</p>
-              <p class="text-xs text-black-100">Created: ${new Date(collection.createdAt).toLocaleString()}</p>
+              <p class="text-xs text-black-100">Created: ${window.formatDateTime ? window.formatDateTime(collection.createdAt) : new Date(collection.createdAt).toLocaleString()}</p>
             </div>
             <div class="space-x-2 flex-shrink-0">
               <button id="edit-coll-btn" class="bg-black-400 hover:bg-black-300 border border-black-300 text-white font-semibold px-3 py-1.5 rounded text-xs">Edit Details</button>

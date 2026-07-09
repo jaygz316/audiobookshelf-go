@@ -66,12 +66,7 @@ func (p *AudibleProvider) SearchBooks(ctx context.Context, query string) ([]*Met
 	escapedQuery := url.QueryEscape(query)
 	urlStr := fmt.Sprintf("https://api.audible.com/1.0/catalog/products?num_results=10&products_sort_by=Relevance&title=%s", escapedQuery)
 
-	req, err := http.NewRequestWithContext(ctx, "GET", urlStr, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-
-	resp, err := safeHTTPClient.Do(req)
+	resp, err := getWithRetry(ctx, safeHTTPClient, urlStr)
 	if err != nil {
 		return nil, fmt.Errorf("HTTP request failed: %w", err)
 	}

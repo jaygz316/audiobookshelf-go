@@ -76,6 +76,15 @@ func AuthMiddleware(db *sql.DB, tokenSecret string, next http.Handler) http.Hand
 			return
 		}
 
+		// Check if tokenStr is a valid API key and authenticate directly
+		if !strings.Contains(tokenStr, ".") {
+			if userSession, err := idb.CheckAPIKey(db, tokenStr); err == nil && userSession != nil {
+				ctx := context.WithValue(r.Context(), core.UserContextKey, userSession)
+				next.ServeHTTP(w, r.WithContext(ctx))
+				return
+			}
+		}
+
 		// Parse and validate JWT
 		claims := &core.AuthClaims{}
 		token, err := jwt.ParseWithClaims(tokenStr, claims, func(token *jwt.Token) (interface{}, error) {

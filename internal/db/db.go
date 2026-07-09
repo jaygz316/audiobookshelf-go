@@ -13,12 +13,27 @@ import (
 
 // ServerSettings holds the settings stored in the database.
 type ServerSettings struct {
-	TokenSecret            string   `json:"tokenSecret"`
-	Language               string   `json:"language"`
-	AuthActiveAuthMethods  []string `json:"authActiveAuthMethods"`
-	AuthLoginCustomMessage *string  `json:"authLoginCustomMessage"`
-	BackupPath             string   `json:"backupPath"`
-	BackupsToKeep          int      `json:"backupsToKeep"`
+	TokenSecret                  string   `json:"tokenSecret"`
+	Language                     string   `json:"language"`
+	AuthActiveAuthMethods        []string `json:"authActiveAuthMethods"`
+	AuthLoginCustomMessage       *string  `json:"authLoginCustomMessage"`
+	BackupPath                   string   `json:"backupPath"`
+	BackupsToKeep                int      `json:"backupsToKeep"`
+	MetadataCoverWithItem        bool     `json:"metadataCoverWithItem"`
+	MetadataMarkdownWithItem     bool     `json:"metadataMarkdownWithItem"`
+	SortingIgnorePrefix          bool     `json:"sortingIgnorePrefix"`
+	ScannerParseSubtitles        bool     `json:"scannerParseSubtitles"`
+	ScannerFindCovers            bool     `json:"scannerFindCovers"`
+	ScannerCoverProvider         string   `json:"scannerCoverProvider"`
+	ScannerPreferMatchedMetadata bool     `json:"scannerPreferMatchedMetadata"`
+	WatchLibraryChanges          bool     `json:"watchLibraryChanges"`
+	ChromecastEnabled            bool     `json:"chromecastEnabled"`
+	AllowIframe                  bool     `json:"allowIframe"`
+	HomePageBookshelfView        bool     `json:"homePageBookshelfView"`
+	LibraryBookshelfView         bool     `json:"libraryBookshelfView"`
+	DateFormat                   string   `json:"dateFormat"`
+	TimeFormat                   string   `json:"timeFormat"`
+	AllowedCorsOrigins           string   `json:"allowedCorsOrigins"`
 }
 
 // GetServerSettings reads the server settings from the settings table.
@@ -33,6 +48,13 @@ func GetServerSettings(database *sql.DB) (*ServerSettings, error) {
 	}
 
 	var settings ServerSettings
+	settings.SortingIgnorePrefix = true
+	settings.ScannerParseSubtitles = true
+	settings.ScannerFindCovers = true
+	settings.WatchLibraryChanges = true
+	settings.DateFormat = "MM/DD/YYYY"
+	settings.TimeFormat = "HH:mm"
+
 	if err := json.Unmarshal([]byte(valStr), &settings); err != nil {
 		return nil, err
 	}
@@ -312,9 +334,123 @@ func InitDB(dbPath string) (*sql.DB, error) {
 			return nil, fmt.Errorf("failed to bootstrap schema: %w", err)
 		}
 		log.Printf("[DB] Schema bootstrapped successfully")
+	} else {
+		if err := migrateDatabase(db); err != nil {
+			db.Close()
+			return nil, fmt.Errorf("failed to migrate database: %w", err)
+		}
 	}
 
 	return db, nil
+}
+
+func migrateDatabase(db *sql.DB) error {
+	var exists int
+	err := db.QueryRow("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='apiKeys'").Scan(&exists)
+	if err != nil {
+		return fmt.Errorf("failed to check if apiKeys table exists: %w", err)
+	}
+
+	if exists == 0 {
+		log.Printf("[DB] Table apiKeys does not exist, creating table")
+		_, err = db.Exec("CREATE TABLE apiKeys (id TEXT PRIMARY KEY, isActive INTEGER, expiresAt TEXT, userId TEXT, name TEXT, createdAt TEXT)")
+		if err != nil {
+			return fmt.Errorf("failed to create apiKeys table: %w", err)
+		}
+	}
+
+	rows, err := db.Query("PRAGMA table_info(apiKeys)")
+	if err != nil {
+		return fmt.Errorf("failed to query table_info: %w", err)
+	}
+	defer rows.Close()
+
+	hasName := false
+	hasCreatedAt := false
+
+	for rows.Next() {
+		var cid int
+		var name string
+		var typeStr string
+		var notnull int
+		var dfltValue sql.NullString
+		var pk int
+		if err := rows.Scan(&cid, &name, &typeStr, &notnull, &dfltValue, &pk); err != nil {
+			return fmt.Errorf("failed to scan table_info row: %w", err)
+		}
+		if name == "name" {
+			hasName = true
+		}
+		if name == "createdAt" {
+			hasCreatedAt = true
+		}
+	}
+
+	if !hasName {
+		log.Printf("[DB] Migrating apiKeys table: adding name column")
+		if _, err := db.Exec("ALTER TABLE apiKeys ADD COLUMN name TEXT"); err != nil {
+			return fmt.Errorf("failed to add name column: %w", err)
+		}
+	}
+
+	if !hasCreatedAt {
+		log.Printf("[DB] Migrating apiKeys table: adding createdAt column")
+		if _, err := db.Exec("ALTER TABLE apiKeys ADD COLUMN createdAt TEXT"); err != nil {
+			return fmt.Errorf("failed to add createdAt column: %w", err)
+		}
+	}
+
+	// Migrate playbackSessions table to include createdAt and updatedAt if missing
+	var psExists int
+	err = db.QueryRow("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='playbackSessions'").Scan(&psExists)
+	if err != nil {
+		return fmt.Errorf("failed to check if playbackSessions table exists: %w", err)
+	}
+
+	if psExists > 0 {
+		psRows, err := db.Query("PRAGMA table_info(playbackSessions)")
+		if err != nil {
+			return fmt.Errorf("failed to query table_info for playbackSessions: %w", err)
+		}
+		defer psRows.Close()
+
+		hasPsCreatedAt := false
+		hasPsUpdatedAt := false
+
+		for psRows.Next() {
+			var cid int
+			var name string
+			var typeStr string
+			var notnull int
+			var dfltValue sql.NullString
+			var pk int
+			if err := psRows.Scan(&cid, &name, &typeStr, &notnull, &dfltValue, &pk); err != nil {
+				return fmt.Errorf("failed to scan playbackSessions table_info row: %w", err)
+			}
+			if name == "createdAt" {
+				hasPsCreatedAt = true
+			}
+			if name == "updatedAt" {
+				hasPsUpdatedAt = true
+			}
+		}
+
+		if !hasPsCreatedAt {
+			log.Printf("[DB] Migrating playbackSessions table: adding createdAt column")
+			if _, err := db.Exec("ALTER TABLE playbackSessions ADD COLUMN createdAt TEXT"); err != nil {
+				return fmt.Errorf("failed to add createdAt column to playbackSessions: %w", err)
+			}
+		}
+
+		if !hasPsUpdatedAt {
+			log.Printf("[DB] Migrating playbackSessions table: adding updatedAt column")
+			if _, err := db.Exec("ALTER TABLE playbackSessions ADD COLUMN updatedAt TEXT"); err != nil {
+				return fmt.Errorf("failed to add updatedAt column to playbackSessions: %w", err)
+			}
+		}
+	}
+
+	return nil
 }
 
 func bootstrapSchema(db *sql.DB) error {
@@ -322,7 +458,7 @@ func bootstrapSchema(db *sql.DB) error {
 		`CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT, createdAt TEXT, updatedAt TEXT)`,
 		`CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, username TEXT, email TEXT, pash TEXT, type TEXT, token TEXT, isActive INTEGER, isLocked INTEGER, lastSeen INTEGER, permissions TEXT, bookmarks TEXT, extraData TEXT, createdAt TEXT, updatedAt TEXT)`,
 		`CREATE TABLE IF NOT EXISTS sessions (id TEXT PRIMARY KEY, userId TEXT, ipAddress TEXT, userAgent TEXT, refreshToken TEXT, expiresAt TEXT, lastRefreshToken TEXT, lastRefreshTokenExpiresAt TEXT, createdAt TEXT, updatedAt TEXT)`,
-		`CREATE TABLE IF NOT EXISTS apiKeys (id TEXT PRIMARY KEY, isActive INTEGER, expiresAt TEXT, userId TEXT)`,
+		`CREATE TABLE IF NOT EXISTS apiKeys (id TEXT PRIMARY KEY, isActive INTEGER, expiresAt TEXT, userId TEXT, name TEXT, createdAt TEXT)`,
 		`CREATE TABLE IF NOT EXISTS libraries (id TEXT PRIMARY KEY, name TEXT, displayOrder INTEGER, icon TEXT, mediaType TEXT, provider TEXT, lastScan TEXT, lastScanVersion TEXT, settings TEXT, createdAt TEXT, updatedAt TEXT)`,
 		`CREATE TABLE IF NOT EXISTS libraryFolders (id TEXT PRIMARY KEY, path TEXT, libraryId TEXT, createdAt TEXT, updatedAt TEXT)`,
 		`CREATE TABLE IF NOT EXISTS libraryItems (id TEXT PRIMARY KEY, ino TEXT, libraryId TEXT, path TEXT, relPath TEXT, isFile INTEGER, mtime TEXT, ctime TEXT, birthtime TEXT, createdAt TEXT, updatedAt TEXT, isMissing INTEGER, isInvalid INTEGER, mediaType TEXT, mediaId TEXT, size INTEGER, libraryFolderId TEXT, authorNamesFirstLast TEXT, authorNamesLastFirst TEXT, title TEXT, titleIgnorePrefix TEXT)`,
@@ -331,16 +467,16 @@ func bootstrapSchema(db *sql.DB) error {
 		`CREATE TABLE IF NOT EXISTS bookSeries (bookId TEXT, seriesId TEXT, sequence TEXT)`,
 		`CREATE TABLE IF NOT EXISTS series (id TEXT PRIMARY KEY, libraryId TEXT, name TEXT, nameIgnorePrefix TEXT, description TEXT, createdAt TEXT, updatedAt TEXT)`,
 		`CREATE TABLE IF NOT EXISTS mediaProgresses (id TEXT PRIMARY KEY, userId TEXT, mediaItemId TEXT, mediaItemType TEXT, duration REAL, currentTime REAL, isFinished INTEGER, hideFromContinueListening INTEGER, ebookLocation TEXT, ebookProgress REAL, finishedAt TEXT, extraData TEXT, podcastId TEXT, createdAt TEXT, updatedAt TEXT)`,
-		`CREATE TABLE IF NOT EXISTS playbackSessions (id TEXT PRIMARY KEY, userId TEXT, mediaItemId TEXT, mediaItemType TEXT, startTime REAL, libraryId TEXT, extraData TEXT)`,
+		`CREATE TABLE IF NOT EXISTS playbackSessions (id TEXT PRIMARY KEY, userId TEXT, mediaItemId TEXT, mediaItemType TEXT, startTime REAL, libraryId TEXT, extraData TEXT, createdAt TEXT, updatedAt TEXT)`,
 		`CREATE TABLE IF NOT EXISTS podcastEpisodes (id TEXT PRIMARY KEY, podcastId TEXT, title TEXT, audioFile TEXT)`,
 		`CREATE TABLE IF NOT EXISTS playlists (id TEXT PRIMARY KEY, name TEXT NOT NULL, description TEXT, createdAt TEXT, updatedAt TEXT, libraryId TEXT, userId TEXT)`,
 		`CREATE TABLE IF NOT EXISTS playlistMediaItems (id TEXT PRIMARY KEY, mediaItemId TEXT, mediaItemType TEXT, "order" INTEGER, createdAt TEXT, playlistId TEXT)`,
 		`CREATE TABLE IF NOT EXISTS collections (id TEXT PRIMARY KEY, libraryId TEXT, name TEXT, description TEXT, createdAt TEXT, updatedAt TEXT)`,
-		`CREATE TABLE IF NOT EXISTS collectionBooks (collectionId TEXT, bookId TEXT, "order" INTEGER)`,
+		`CREATE TABLE IF NOT EXISTS collectionBooks (id TEXT PRIMARY KEY, "order" INTEGER, createdAt TEXT, bookId TEXT, collectionId TEXT)`,
 		`CREATE TABLE IF NOT EXISTS customMetadataProviders (id TEXT PRIMARY KEY, name TEXT, mediaType TEXT, url TEXT, authHeaderValue TEXT, extraData TEXT, createdAt INTEGER, updatedAt INTEGER)`,
 		`CREATE TABLE IF NOT EXISTS authors (id TEXT PRIMARY KEY, name TEXT, lastFirst TEXT, asin TEXT, description TEXT, imagePath TEXT, createdAt TEXT, updatedAt TEXT, libraryId TEXT)`,
 		`CREATE TABLE IF NOT EXISTS bookAuthors (bookId TEXT, authorId TEXT)`,
-		`CREATE TABLE IF NOT EXISTS shareLinks (id TEXT PRIMARY KEY, libraryItemId TEXT, userId TEXT, expiresAt TEXT, isDownloadable INTEGER, passwordHash TEXT, createdAt TEXT, updatedAt TEXT)`,
+		`CREATE TABLE IF NOT EXISTS shares (id TEXT PRIMARY KEY, libraryItemId TEXT, createdBy TEXT, expiresAt TEXT, isDownloadable INTEGER, pash TEXT, createdAt TEXT, updatedAt TEXT)`,
 		// Seed default server settings
 		`INSERT OR IGNORE INTO settings (key, value, createdAt, updatedAt) VALUES ('server-settings', '{"sortingIgnorePrefix":true,"sortingPrefixes":["the","a"],"chromecastEnabled":false,"dateFormat":"MM/DD/YYYY","timeFormat":"HH:mm","language":"en-us","logLevel":2,"version":"2.35.1","authActiveAuthMethods":["local"],"authLoginCustomMessage":""}', datetime('now'), datetime('now'))`,
 	}

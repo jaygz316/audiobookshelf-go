@@ -232,6 +232,48 @@ func mockHTTPHandler(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		}
+
+	case strings.Contains(origHost, "fantlab.ru"):
+		{
+			if strings.HasPrefix(path, "/search-works") {
+				q := r.URL.Query().Get("q")
+				if q == "error" {
+					w.WriteHeader(http.StatusInternalServerError)
+					return
+				}
+				w.Write([]byte(`[{"work_id": 999, "work_type_id": 1}]`))
+				return
+			}
+			if strings.HasPrefix(path, "/work/") {
+				w.Write([]byte(`{
+					"work_id": 999,
+					"work_name": "Roadside Picnic",
+					"work_name_alts": ["Piknik na obochine"],
+					"work_year": 1972,
+					"work_description": "Sci-Fi classic",
+					"image": "/picnic.jpg",
+					"authors": [{"name": "Arkady Strugatsky"}, {"name": "Boris Strugatsky"}],
+					"classificatory": {
+						"genre_group": [
+							{
+								"genre_group_id": 1,
+								"genre": [{"label": "Science Fiction"}]
+							}
+						]
+					},
+					"editions_blocks": {
+						"30": {
+							"list": [{"edition_id": 888, "isbn": "9785170904815"}]
+						}
+					}
+				}`))
+				return
+			}
+			if strings.HasPrefix(path, "/edition/") {
+				w.Write([]byte(`{"image": "/audio_picnic.jpg"}`))
+				return
+			}
+		}
 	}
 }
 
@@ -351,12 +393,16 @@ func TestAudnexusProvider(t *testing.T) {
 	})
 
 	t.Run("SearchBooks by query non-ASIN", func(t *testing.T) {
-		results, err := provider.SearchBooks(context.Background(), "not_an_asin")
+		results, err := provider.SearchBooks(context.Background(), "Stormlight")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if results != nil {
-			t.Errorf("expected nil results for non-ASIN search")
+		if len(results) != 1 {
+			t.Fatalf("expected 1 result, got %d", len(results))
+		}
+		res := results[0]
+		if res.Title != "The Way of Kings" {
+			t.Errorf("expected 'The Way of Kings', got '%s'", res.Title)
 		}
 	})
 
@@ -553,6 +599,57 @@ func TestOpenLibraryProvider(t *testing.T) {
 		}
 		if res == nil {
 			t.Fatal("expected non-nil response")
+		}
+	})
+}
+
+func TestFantLabProvider(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(mockHTTPHandler))
+	defer server.Close()
+
+	setupTestClient(t, &mockTransport{TargetURL: server.URL})
+
+	provider := &FantLabProvider{}
+
+	t.Run("Name", func(t *testing.T) {
+		if provider.Name() != "fantlab" {
+			t.Errorf("expected fantlab, got %s", provider.Name())
+		}
+	})
+
+	t.Run("SearchBooks", func(t *testing.T) {
+		results, err := provider.SearchBooks(context.Background(), "Picnic")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(results) != 1 {
+			t.Fatalf("expected 1 result, got %d", len(results))
+		}
+		res := results[0]
+		if res.Title != "Roadside Picnic" {
+			t.Errorf("expected 'Roadside Picnic', got '%s'", res.Title)
+		}
+		if res.Subtitle != "Piknik na obochine" {
+			t.Errorf("expected 'Piknik na obochine', got '%s'", res.Subtitle)
+		}
+		if len(res.Authors) != 2 || res.Authors[0] != "Arkady Strugatsky" || res.Authors[1] != "Boris Strugatsky" {
+			t.Errorf("expected Strugatsky brothers, got %v", res.Authors)
+		}
+		if res.ISBN != "9785170904815" {
+			t.Errorf("expected 9785170904815, got %s", res.ISBN)
+		}
+		if res.CoverURL != "https://fantlab.ru/audio_picnic.jpg" {
+			t.Errorf("expected audio cover URL, got %s", res.CoverURL)
+		}
+	})
+
+	t.Run("SearchPodcasts", func(t *testing.T) {
+		results, err := provider.SearchPodcasts(context.Background(), "test")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if results != nil {
+			t.Errorf("expected nil results for podcasts")
 		}
 	})
 }
