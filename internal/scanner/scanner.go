@@ -749,12 +749,33 @@ type PodcastEpisodeScanData struct {
 	AudioFile interface{}
 }
 
-func parseMetadataForGroup(db *sql.DB, groupFiles []FileItem, mediaType, itemPath, itemRelPath string, audiobooksOnly bool) *GroupMetadata {
+func parseMetadataForGroup(dbConn *sql.DB, groupFiles []FileItem, mediaType, itemPath, itemRelPath string, audiobooksOnly bool) *GroupMetadata {
 	meta := &GroupMetadata{}
+
+	scannerParseSubtitles := true
+	scannerFindCovers := true
+	if dbConn != nil {
+		var valStr string
+		err := dbConn.QueryRow("SELECT value FROM settings WHERE key = 'server-settings'").Scan(&valStr)
+		if err == nil && valStr != "" {
+			var s struct {
+				ScannerParseSubtitles bool `json:"scannerParseSubtitles"`
+				ScannerFindCovers     bool `json:"scannerFindCovers"`
+			}
+			s.ScannerParseSubtitles = true
+			s.ScannerFindCovers = true
+			if err := json.Unmarshal([]byte(valStr), &s); err == nil {
+				scannerParseSubtitles = s.ScannerParseSubtitles
+				scannerFindCovers = s.ScannerFindCovers
+			}
+		}
+	}
 
 	fnMeta := GetBookDataFromDir(itemRelPath)
 	meta.Title = fnMeta.Title
-	meta.Subtitle = fnMeta.Subtitle
+	if scannerParseSubtitles {
+		meta.Subtitle = fnMeta.Subtitle
+	}
 	meta.Authors = fnMeta.Authors
 	meta.Narrators = fnMeta.Narrators
 	meta.SeriesName = fnMeta.SeriesName
@@ -791,7 +812,7 @@ func parseMetadataForGroup(db *sql.DB, groupFiles []FileItem, mediaType, itemPat
 		}
 	}
 
-	if len(imageFiles) > 0 {
+	if scannerFindCovers && len(imageFiles) > 0 {
 		var bestCover string
 		for _, img := range imageFiles {
 			name := strings.ToLower(img.Name)
@@ -1001,7 +1022,7 @@ func parseMetadataForGroup(db *sql.DB, groupFiles []FileItem, mediaType, itemPat
 		}
 
 		// Extract cover from ebook if no cover image was found in the folder
-		if meta.CoverPath == "" {
+		if scannerFindCovers && meta.CoverPath == "" {
 			destCover := filepath.Join(filepath.Dir(eb.Path), "cover.jpg")
 			var extractErr error
 			log.Printf("[Scanner] [%s] Extracting ebook cover from: %s to %s", itemPath, eb.Path, destCover)
@@ -1078,7 +1099,7 @@ func parseMetadataForGroup(db *sql.DB, groupFiles []FileItem, mediaType, itemPat
 			if nfo.Title != "" {
 				meta.Title = nfo.Title
 			}
-			if nfo.Subtitle != "" {
+			if scannerParseSubtitles && nfo.Subtitle != "" {
 				meta.Subtitle = nfo.Subtitle
 			}
 			if len(nfo.Authors) > 0 {

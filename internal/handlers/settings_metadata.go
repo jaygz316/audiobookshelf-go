@@ -98,6 +98,11 @@ func handleCreateCustomMetadataProvider(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
+		if body.MediaType != "book" && body.MediaType != "podcast" {
+			http.Error(w, `{"error": "mediaType must be book or podcast"}`, http.StatusBadRequest)
+			return
+		}
+
 		id := uuid.New().String()
 		nowStr := idb.TimeToDBStr(time.Now())
 

@@ -258,7 +258,9 @@ func (h *TestHarness) preInitDB() error {
 			id TEXT PRIMARY KEY,
 			isActive INTEGER,
 			expiresAt TEXT,
-			userId TEXT
+			userId TEXT,
+			name TEXT,
+			createdAt TEXT
 		)`,
 		`CREATE TABLE IF NOT EXISTS libraries (
 			id TEXT PRIMARY KEY,
@@ -445,13 +447,11 @@ func (h *TestHarness) preInitDB() error {
 		)`,
 		`CREATE TABLE IF NOT EXISTS shares (
 			id TEXT PRIMARY KEY,
-			userId TEXT,
-			itemId TEXT,
-			itemType TEXT,
-			slug TEXT,
-			expiration TEXT,
-			maxDownloads INTEGER,
-			downloadsCount INTEGER,
+			libraryItemId TEXT,
+			createdBy TEXT,
+			expiresAt TEXT,
+			isDownloadable INTEGER,
+			pash TEXT,
 			createdAt TEXT,
 			updatedAt TEXT
 		)`,
@@ -497,6 +497,16 @@ func (h *TestHarness) preInitDB() error {
 		`CREATE TABLE IF NOT EXISTS bookAuthors (
 			bookId TEXT,
 			authorId TEXT
+		)`,
+		`CREATE TABLE IF NOT EXISTS customMetadataProviders (
+			id TEXT PRIMARY KEY,
+			name TEXT,
+			mediaType TEXT,
+			url TEXT,
+			authHeaderValue TEXT,
+			extraData TEXT,
+			createdAt INTEGER,
+			updatedAt INTEGER
 		)`,
 	}
 

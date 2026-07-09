@@ -61,6 +61,7 @@ func trimBasePath(p, base string) string {
 }
 
 func SetupHandler(db *sql.DB, cfg *core.Config, dbConnected bool, appRoot string, version string) http.Handler {
+	globalDB = db
 	mux := http.NewServeMux()
 
 	registerBaseRoutes(mux, cfg, db, dbConnected, version)
@@ -74,7 +75,81 @@ func SetupHandler(db *sql.DB, cfg *core.Config, dbConnected bool, appRoot string
 	registerDocsRoutes(mux, cfg)
 	registerFallbackRoutes(mux, cfg, db, appRoot)
 
-	return BasePathRewriteMiddleware(cfg.RouterBasePath, mux)
+	mainHandler := BasePathRewriteMiddleware(cfg.RouterBasePath, mux)
+	return CORSMiddleware(db, mainHandler)
+}
+
+type corsResponseWriter struct {
+	http.ResponseWriter
+	allowedOrigin string
+	headersSet    bool
+}
+
+func (w *corsResponseWriter) setCORSHeaders() {
+	if w.headersSet {
+		return
+	}
+	h := w.ResponseWriter.Header()
+	if w.allowedOrigin != "" {
+		h.Set("Access-Control-Allow-Origin", w.allowedOrigin)
+		h.Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
+		h.Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, Origin, Accept")
+		h.Set("Access-Control-Allow-Credentials", "true")
+	} else {
+		h.Del("Access-Control-Allow-Origin")
+		h.Del("Access-Control-Allow-Methods")
+		h.Del("Access-Control-Allow-Headers")
+		h.Del("Access-Control-Allow-Credentials")
+	}
+	w.headersSet = true
+}
+
+func (w *corsResponseWriter) WriteHeader(statusCode int) {
+	w.setCORSHeaders()
+	w.ResponseWriter.WriteHeader(statusCode)
+}
+
+func (w *corsResponseWriter) Write(b []byte) (int, error) {
+	w.setCORSHeaders()
+	return w.ResponseWriter.Write(b)
+}
+
+func CORSMiddleware(db *sql.DB, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		origin := r.Header.Get("Origin")
+		var allowedOrigin string
+
+		if origin != "" {
+			settings, err := idb.GetServerSettings(db)
+			if err == nil && settings != nil && settings.AllowedCorsOrigins != "" {
+				origins := strings.Split(settings.AllowedCorsOrigins, ",")
+				for _, o := range origins {
+					if strings.TrimSpace(o) == origin {
+						allowedOrigin = origin
+						break
+					}
+				}
+			}
+		}
+
+		if r.Method == "OPTIONS" {
+			if allowedOrigin != "" {
+				w.Header().Set("Access-Control-Allow-Origin", allowedOrigin)
+				w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
+				w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, Origin, Accept")
+				w.Header().Set("Access-Control-Allow-Credentials", "true")
+				w.WriteHeader(http.StatusNoContent)
+				return
+			}
+		}
+
+		writerWrapper := &corsResponseWriter{
+			ResponseWriter: w,
+			allowedOrigin:  allowedOrigin,
+		}
+
+		next.ServeHTTP(writerWrapper, r)
+	})
 }
 
 func registerBaseRoutes(mux *http.ServeMux, cfg *core.Config, db *sql.DB, dbConnected bool, version string) {
@@ -144,7 +219,10 @@ func registerBaseRoutes(mux *http.ServeMux, cfg *core.Config, db *sql.DB, dbConn
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		w.Header().Set("Content-Security-Policy", "frame-ancestors 'self'")
+		if !settings.AllowIframe {
+			w.Header().Set("X-Frame-Options", "SAMEORIGIN")
+			w.Header().Set("Content-Security-Policy", "frame-ancestors 'self'")
+		}
 		w.Header().Set("Referrer-Policy", "no-referrer")
 		_ = json.NewEncoder(w).Encode(payload)
 	})
@@ -356,6 +434,13 @@ func registerSettingsRoutes(mux *http.ServeMux, cfg *core.Config, db *sql.DB) {
 			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
 		}
 	})
+	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/playback-sessions"), func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			AuthMiddlewareWrapper(db, handleGetPlaybackSessions(db)).ServeHTTP(w, r)
+		} else {
+			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
+		}
+	})
 }
 
 func registerMetadataRoutes(mux *http.ServeMux, cfg *core.Config, db *sql.DB) {
@@ -388,6 +473,15 @@ func registerMockAndFeedRoutes(mux *http.ServeMux, cfg *core.Config, db *sql.DB)
 	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/api-keys"), func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
 			AuthMiddlewareWrapper(db, handleGetApiKeys(db)).ServeHTTP(w, r)
+		} else if r.Method == http.MethodPost {
+			AuthMiddlewareWrapper(db, handlePostApiKey(db)).ServeHTTP(w, r)
+		} else {
+			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
+		}
+	})
+	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/api-keys/"), func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodDelete {
+			AuthMiddlewareWrapper(db, handleDeleteApiKey(db)).ServeHTTP(w, r)
 		} else {
 			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
 		}
@@ -396,6 +490,8 @@ func registerMockAndFeedRoutes(mux *http.ServeMux, cfg *core.Config, db *sql.DB)
 	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/notifications"), func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
 			AuthMiddlewareWrapper(db, handleGetNotifications(db)).ServeHTTP(w, r)
+		} else if r.Method == http.MethodPost || r.Method == http.MethodPatch {
+			AuthMiddlewareWrapper(db, handleUpdateNotifications(db)).ServeHTTP(w, r)
 		} else {
 			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
 		}
@@ -1033,7 +1129,7 @@ func handleSharesDispatch(db *sql.DB, cfg *core.Config) http.HandlerFunc {
 
 func registerDocsRoutes(mux *http.ServeMux, cfg *core.Config) {
 	docsPath := joinPath(cfg.RouterBasePath, "/docs")
-	
+
 	// Redirect /docs to /docs/ for clean trailing slash
 	mux.HandleFunc(docsPath, func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, docsPath+"/", http.StatusMovedPermanently)

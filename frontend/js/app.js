@@ -164,6 +164,15 @@ function setupEventHandlers() {
 }
 
 function bootstrapApp(payload) {
+  // On bootstrap, fetch server settings (GET /api/settings) and save to window.serverSettings
+  request('GET', '/api/settings')
+    .then(settings => {
+      window.serverSettings = settings;
+    })
+    .catch(err => {
+      console.warn('Could not fetch server settings:', err);
+    });
+
   // Populate User Identity Details
   const user = payload.user || {};
   const userInitials = document.getElementById('user-initials');
@@ -301,3 +310,44 @@ function isDashboardActive() {
   const hasDetailsBtn = !!document.getElementById('details-back-btn');
   return (pageName === 'Home' || pageName === 'Library') && !hasDetailsBtn;
 }
+
+window.formatDateTime = function(dateStr) {
+  if (!dateStr) return '';
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return dateStr;
+
+  // Get format preferences with fallbacks
+  const dateFormat = (window.serverSettings && window.serverSettings.dateFormat) || 'MM/DD/YYYY';
+  const timeFormat = (window.serverSettings && window.serverSettings.timeFormat) || 'HH:mm';
+
+  // Format Date parts
+  const yyyy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const dd = String(date.getDate()).padStart(2, '0');
+
+  let datePart = '';
+  if (dateFormat === 'YYYY-MM-DD') {
+    datePart = `${yyyy}-${mm}-${dd}`;
+  } else if (dateFormat === 'DD/MM/YYYY') {
+    datePart = `${dd}/${mm}/${yyyy}`;
+  } else {
+    datePart = `${mm}/${dd}/${yyyy}`;
+  }
+
+  // Format Time parts
+  const hours = date.getHours();
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+
+  let timePart = '';
+  if (timeFormat === 'h:mm A') {
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    const displayHours = hours % 12 || 12;
+    timePart = `${displayHours}:${minutes} ${ampm}`;
+  } else {
+    const displayHours = String(hours).padStart(2, '0');
+    timePart = `${displayHours}:${minutes}`;
+  }
+
+  return `${datePart} ${timePart}`;
+};
+

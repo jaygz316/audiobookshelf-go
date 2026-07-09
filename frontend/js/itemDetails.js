@@ -850,7 +850,7 @@ function triggerMatchModal(item, libraryId, mode, onSaveSuccess) {
     // Hook selection click
     const resultItems = resultsContainer.querySelectorAll('.match-result-item');
     resultItems.forEach(itemEl => {
-      itemEl.onclick = () => {
+      itemEl.onclick = async () => {
         resultItems.forEach(el => el.classList.remove('bg-accent/10', 'border-accent'));
         itemEl.classList.add('bg-accent/10', 'border-accent');
         
@@ -858,15 +858,76 @@ function triggerMatchModal(item, libraryId, mode, onSaveSuccess) {
         selectedResult = results[idx];
         
         if (isCoverMode) {
-          // In cover-only mode, directly show save button
-          importBtn.classList.remove('hidden');
-          importBtn.textContent = 'Import Cover Art';
+          // In cover-only mode, directly perform the cover art import on click
+          await executeCoverImport(selectedResult, itemEl);
         } else {
           // Full metadata match mode: show checklist
           showImportCheckboxes(selectedResult);
         }
       };
     });
+  }
+
+  // Helper function to handle direct cover art import with spinner feedback
+  async function executeCoverImport(res, itemEl) {
+    if (!res.coverUrl) {
+      alert('Selected item does not have cover art.');
+      return;
+    }
+
+    // Disable all result items to prevent double clicks/clicks on other items
+    const resultItems = resultsContainer.querySelectorAll('.match-result-item');
+    resultItems.forEach(el => el.style.pointerEvents = 'none');
+
+    // Show loading spinner/styling
+    if (itemEl) {
+      itemEl.classList.add('opacity-60');
+      const imgEl = itemEl.querySelector('img');
+      if (imgEl) {
+        imgEl.style.filter = 'blur(1px)';
+      }
+    }
+
+    // Disable action buttons
+    const searchBtn = document.getElementById('match-search-btn');
+    if (searchBtn) searchBtn.disabled = true;
+    const cancelBtn = document.getElementById('cancel-match-btn');
+    if (cancelBtn) cancelBtn.disabled = true;
+    const closeBtn = document.getElementById('close-match-modal');
+    if (closeBtn) closeBtn.disabled = true;
+    
+    importBtn.classList.remove('hidden');
+    importBtn.disabled = true;
+    importBtn.innerHTML = `
+      <div class="animate-spin rounded-full h-3 w-3 border-b-2 border-primary mr-1 inline-block"></div>
+      <span>Importing...</span>
+    `;
+
+    try {
+      await request('POST', `/api/items/${item.id}/cover-from-url`, { coverUrl: res.coverUrl });
+      closeModal();
+      if (typeof onSaveSuccess === 'function') {
+        onSaveSuccess();
+      }
+    } catch (err) {
+      console.error('Import failed:', err);
+      alert('Import failed: ' + err.message);
+
+      // Re-enable everything
+      resultItems.forEach(el => el.style.pointerEvents = 'auto');
+      if (itemEl) {
+        itemEl.classList.remove('opacity-60');
+        const imgEl = itemEl.querySelector('img');
+        if (imgEl) {
+          imgEl.style.filter = 'none';
+        }
+      }
+      if (searchBtn) searchBtn.disabled = false;
+      if (cancelBtn) cancelBtn.disabled = false;
+      if (closeBtn) closeBtn.disabled = false;
+      importBtn.disabled = false;
+      importBtn.textContent = 'Import Cover Art';
+    }
   }
 
   // Populate checkboxes
@@ -904,23 +965,17 @@ function triggerMatchModal(item, libraryId, mode, onSaveSuccess) {
     e.preventDefault();
     if (!selectedResult) return;
 
-    importBtn.disabled = true;
-    importBtn.innerHTML = `
-      <div class="animate-spin rounded-full h-3 w-3 border-b-2 border-primary mr-1 inline-block"></div>
-      <span>Importing...</span>
-    `;
+    if (isCoverMode) {
+      const selectedEl = resultsContainer.querySelector('.match-result-item.border-accent');
+      await executeCoverImport(selectedResult, selectedEl);
+    } else {
+      importBtn.disabled = true;
+      importBtn.innerHTML = `
+        <div class="animate-spin rounded-full h-3 w-3 border-b-2 border-primary mr-1 inline-block"></div>
+        <span>Importing...</span>
+      `;
 
-    try {
-      if (isCoverMode) {
-        // Cover-only Mode
-        if (!selectedResult.coverUrl) {
-          alert('Selected item does not have cover art.');
-          importBtn.disabled = false;
-          importBtn.textContent = 'Import Cover Art';
-          return;
-        }
-        await request('POST', `/api/items/${item.id}/cover-from-url`, { coverUrl: selectedResult.coverUrl });
-      } else {
+      try {
         // Full Metadata Match Mode
         const cbChecked = (key) => {
           const el = document.getElementById(`match-cb-${key}`);
@@ -959,17 +1014,16 @@ function triggerMatchModal(item, libraryId, mode, onSaveSuccess) {
         };
 
         await request('PATCH', `/api/items/${item.id}`, payload);
+        closeModal();
+        if (typeof onSaveSuccess === 'function') {
+          onSaveSuccess();
+        }
+      } catch (err) {
+        console.error('Import failed:', err);
+        alert('Import failed: ' + err.message);
+        importBtn.disabled = false;
+        importBtn.textContent = 'Import Selected';
       }
-
-      closeModal();
-      if (typeof onSaveSuccess === 'function') {
-        onSaveSuccess();
-      }
-    } catch (err) {
-      console.error('Import failed:', err);
-      alert('Import failed: ' + err.message);
-      importBtn.disabled = false;
-      importBtn.textContent = isCoverMode ? 'Import Cover Art' : 'Import Selected';
     }
   };
 }

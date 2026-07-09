@@ -1,6 +1,7 @@
 package db
 
 import (
+	"database/sql"
 	_ "modernc.org/sqlite"
 	"os"
 	"path/filepath"
@@ -43,5 +44,69 @@ func TestGetServerSettings(t *testing.T) {
 		t.Error("Expected error with nil database, got nil")
 	} else if err.Error() != "database not initialized" {
 		t.Errorf("Expected 'database not initialized' error, got: %v", err)
+	}
+}
+
+func TestMigrateDatabase(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "testdb-migrate-dir")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	dbPath := filepath.Join(tmpDir, "test_migrate.db")
+
+	// 1. Create a legacy database manually
+	db, err := sql.Open("sqlite", dbPath)
+	if err != nil {
+		t.Fatalf("Failed to open DB: %v", err)
+	}
+
+	_, err = db.Exec("CREATE TABLE apiKeys (id TEXT PRIMARY KEY, isActive INTEGER, expiresAt TEXT, userId TEXT)")
+	if err != nil {
+		db.Close()
+		t.Fatalf("Failed to create legacy table: %v", err)
+	}
+	db.Close()
+
+	// 2. Open via InitDB, which should trigger migrateDatabase
+	database, err := InitDB(dbPath)
+	if err != nil {
+		t.Fatalf("InitDB failed on existing legacy DB: %v", err)
+	}
+	defer database.Close()
+
+	// 3. Verify columns name and createdAt exist now
+	rows, err := database.Query("PRAGMA table_info(apiKeys)")
+	if err != nil {
+		t.Fatalf("Failed to query table_info: %v", err)
+	}
+	defer rows.Close()
+
+	hasName := false
+	hasCreatedAt := false
+	for rows.Next() {
+		var cid int
+		var name string
+		var typeStr string
+		var notnull int
+		var dfltValue sql.NullString
+		var pk int
+		if err := rows.Scan(&cid, &name, &typeStr, &notnull, &dfltValue, &pk); err != nil {
+			t.Fatalf("Failed to scan table_info row: %v", err)
+		}
+		if name == "name" {
+			hasName = true
+		}
+		if name == "createdAt" {
+			hasCreatedAt = true
+		}
+	}
+
+	if !hasName {
+		t.Errorf("Expected column 'name' to be added by migration")
+	}
+	if !hasCreatedAt {
+		t.Errorf("Expected column 'createdAt' to be added by migration")
 	}
 }

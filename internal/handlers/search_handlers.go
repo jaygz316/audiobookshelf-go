@@ -68,6 +68,7 @@ func handleGetSearchProviders(w http.ResponseWriter, r *http.Request) {
 				{"value": "itunes", "text": "iTunes"},
 				{"value": "openlibrary", "text": "Open Library"},
 				{"value": "audible", "text": "Audible.com"},
+				{"value": "fantlab", "text": "FantLab.ru"},
 				{"value": "audnexus", "text": "Audnexus"}
 			],
 			"booksCovers": [
@@ -76,6 +77,7 @@ func handleGetSearchProviders(w http.ResponseWriter, r *http.Request) {
 				{"value": "itunes", "text": "iTunes"},
 				{"value": "openlibrary", "text": "Open Library"},
 				{"value": "audible", "text": "Audible.com"},
+				{"value": "fantlab", "text": "FantLab.ru"},
 				{"value": "audnexus", "text": "Audnexus"},
 				{"value": "all", "text": "All"}
 			],

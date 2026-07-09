@@ -218,7 +218,7 @@ async function loadPlaylistDetails(playlistId, libraryId) {
           <div class="flex justify-between items-start border-b border-black-400 pb-4">
             <div>
               <h2 class="text-2xl font-bold text-white mb-1" id="playlist-title">${escapeHtml(playlist.name)}</h2>
-              <p class="text-xs text-black-100">Created: ${new Date(playlist.createdAt).toLocaleString()}</p>
+              <p class="text-xs text-black-100">Created: ${window.formatDateTime ? window.formatDateTime(playlist.createdAt) : new Date(playlist.createdAt).toLocaleString()}</p>
             </div>
             <div class="space-x-2">
               <button id="edit-playlist-btn" class="bg-black-400 hover:bg-black-300 border border-black-300 text-white font-semibold px-3 py-1.5 rounded text-xs">Edit Name</button>

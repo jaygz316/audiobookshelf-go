@@ -76,12 +76,7 @@ func (p *ITunesProvider) search(ctx context.Context, term, media, entity string)
 
 	urlStr := fmt.Sprintf("https://itunes.apple.com/search?%s", params.Encode())
 
-	req, err := http.NewRequestWithContext(ctx, "GET", urlStr, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-
-	resp, err := safeHTTPClient.Do(req)
+	resp, err := getWithRetry(ctx, safeHTTPClient, urlStr)
 	if err != nil {
 		return nil, fmt.Errorf("HTTP request failed: %w", err)
 	}

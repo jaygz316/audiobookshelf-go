@@ -21,9 +21,13 @@ func (p *OpenLibraryProvider) Name() string {
 type openLibraryDoc struct {
 	Key              string   `json:"key"`
 	Title            string   `json:"title"`
+	Subtitle         string   `json:"subtitle"`
 	AuthorName       []string `json:"author_name"`
 	CoverEditionKey  string   `json:"cover_edition_key"`
 	FirstPublishYear int      `json:"first_publish_year"`
+	ISBN             []string `json:"isbn"`
+	Language         []string `json:"language"`
+	Publisher        []string `json:"publisher"`
 }
 
 type openLibraryResponse struct {
@@ -53,12 +57,7 @@ func parsePublishYear(firstPublishYear int, firstPublishDate string) string {
 
 func (p *OpenLibraryProvider) getWorksData(ctx context.Context, worksKey string) (*openLibraryWorksData, error) {
 	urlStr := fmt.Sprintf("https://openlibrary.org%s.json", worksKey)
-	req, err := http.NewRequestWithContext(ctx, "GET", urlStr, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-
-	resp, err := safeHTTPClient.Do(req)
+	resp, err := getWithRetry(ctx, safeHTTPClient, urlStr)
 	if err != nil {
 		return nil, fmt.Errorf("HTTP request failed: %w", err)
 	}
@@ -81,14 +80,9 @@ func (p *OpenLibraryProvider) SearchBooks(ctx context.Context, query string) ([]
 	}
 
 	escapedQuery := url.QueryEscape(query)
-	urlStr := fmt.Sprintf("https://openlibrary.org/search.json?title=%s", escapedQuery)
+	urlStr := fmt.Sprintf("https://openlibrary.org/search.json?title=%s&fields=key,title,subtitle,author_name,cover_edition_key,first_publish_year,isbn,language,publisher", escapedQuery)
 
-	req, err := http.NewRequestWithContext(ctx, "GET", urlStr, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-
-	resp, err := safeHTTPClient.Do(req)
+	resp, err := getWithRetry(ctx, safeHTTPClient, urlStr)
 	if err != nil {
 		return nil, fmt.Errorf("HTTP request failed: %w", err)
 	}
@@ -154,10 +148,29 @@ func (p *OpenLibraryProvider) SearchBooks(ctx context.Context, query string) ([]
 				coverURL = coverImages[0]
 			}
 
+			publisher := ""
+			if len(d.Publisher) > 0 {
+				publisher = d.Publisher[0]
+			}
+
+			language := ""
+			if len(d.Language) > 0 {
+				language = toTitle(d.Language[0])
+			}
+
+			isbn := ""
+			if len(d.ISBN) > 0 {
+				isbn = d.ISBN[0]
+			}
+
 			results[idx] = &MetadataResult{
 				Title:         d.Title,
+				Subtitle:      d.Subtitle,
 				Authors:       d.AuthorName,
 				PublishedYear: parsePublishYear(d.FirstPublishYear, worksData.FirstPublishDate),
+				Publisher:     publisher,
+				Language:      language,
+				ISBN:          isbn,
 				Description:   description,
 				CoverURL:      coverURL,
 			}
@@ -182,12 +195,7 @@ func (p *OpenLibraryProvider) SearchPodcasts(ctx context.Context, query string) 
 // IsbnLookup searches for works detailed info using an ISBN.
 func (p *OpenLibraryProvider) IsbnLookup(ctx context.Context, isbn string) (interface{}, error) {
 	urlStr := fmt.Sprintf("https://openlibrary.org/isbn/%s.json", url.PathEscape(isbn))
-	req, err := http.NewRequestWithContext(ctx, "GET", urlStr, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-
-	resp, err := safeHTTPClient.Do(req)
+	resp, err := getWithRetry(ctx, safeHTTPClient, urlStr)
 	if err != nil {
 		return nil, fmt.Errorf("HTTP request failed: %w", err)
 	}

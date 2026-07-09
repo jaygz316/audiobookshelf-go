@@ -36,8 +36,9 @@ func (f *Finder) SearchBooks(ctx context.Context, providerName, query string) ([
 
 	p, ok := f.providers[providerName]
 	if !ok {
-		// PORT: Fallback for region-specific Audible provider names like "audible.ca"
-		if strings.HasPrefix(providerName, "audible.") {
+		if providerName == "fanlab" {
+			p, ok = f.providers["fantlab"]
+		} else if strings.HasPrefix(providerName, "audible.") {
 			p, ok = f.providers["audible"]
 		}
 	}
@@ -56,8 +57,9 @@ func (f *Finder) SearchPodcasts(ctx context.Context, providerName, query string)
 
 	p, ok := f.providers[providerName]
 	if !ok {
-		// PORT: Fallback for region-specific Audible provider names like "audible.ca"
-		if strings.HasPrefix(providerName, "audible.") {
+		if providerName == "fanlab" {
+			p, ok = f.providers["fantlab"]
+		} else if strings.HasPrefix(providerName, "audible.") {
 			p, ok = f.providers["audible"]
 		}
 	}

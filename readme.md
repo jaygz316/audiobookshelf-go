@@ -28,22 +28,23 @@ This project is a heavily AI refactored version of **[Audiobookshelf](https://gi
 
 # Codebase Explanation
 
-The project has been split into a high-performance Go backend and a Nuxt.js/Vue.js frontend SPA.
+The project is structured as a high-performance Go backend that embeds a pre-built Nuxt/Vue frontend single-page application (SPA).
 
 ### 1. Go Backend (Root Directory & `internal/`)
-- [main.go](file:///home/jay/projects/audiobookshelf-go/main.go): Server entry point. Sets up the configuration, connects to the SQLite database, establishes the HTTP routing mux, and orchestrates the HLS stream manager, socket.io handlers, and file watch routines.
-- [db.go](file:///home/jay/projects/audiobookshelf-go/db.go): SQLite connection setup and database migration scripts.
-- [auth.go](file:///home/jay/projects/audiobookshelf-go/auth.go) & [users.go](file:///home/jay/projects/audiobookshelf-go/users.go): Handles user credentials, password encryption (`bcrypt`), user access levels, sessions, and OpenID Connect (OIDC).
-- [hls.go](file:///home/jay/projects/audiobookshelf-go/hls.go): Handlers for on-the-fly audio transcoding and HLS streaming using `ffmpeg` and `ffprobe`.
-- [socket.go](file:///home/jay/projects/audiobookshelf-go/socket.go): Real-time communication namespace utilizing `socket.io` for status syncs, user presence, and library events.
-- [scanner.go](file:///home/jay/projects/audiobookshelf-go/scanner.go): Multi-threaded library scanner that traverses audio files, parses metadata tags, and indexes authors, narrators, and series.
-- [watcher.go](file:///home/jay/projects/audiobookshelf-go/watcher.go): Filesystem monitor utilizing `fsnotify` to track changes in media directories and automatically update the database.
-- [internal/](file:///home/jay/projects/audiobookshelf-go/internal/): Core subpackages handling domains like RSS feeds, playlists, search providers, share links, and push notifications.
+- [main.go](file:///home/jay/projects/audiobookshelf-go/main.go): Server entry point. Sets up the configuration, connects to the SQLite database, establishes the HTTP routing mux, and embeds the frontend and documentation.
+- [internal/handlers/](file:///home/jay/projects/audiobookshelf-go/internal/handlers/): Contains HTTP route handlers (defined in `routes.go`), authentication/authorization middleware, library operations, settings, and other API endpoints.
+- [internal/db/](file:///home/jay/projects/audiobookshelf-go/internal/db/): SQLite connection setup, migrations, database schemas, and data queries.
+- [internal/auth/](file:///home/jay/projects/audiobookshelf-go/internal/auth/): Handles password hashing (`bcrypt`), user credentials, session verification, and OIDC support.
+- [internal/hls/](file:///home/jay/projects/audiobookshelf-go/internal/hls/): Audio transcoding and HLS stream segmenting utilizing `ffmpeg` and `ffprobe`.
+- [internal/socket/](file:///home/jay/projects/audiobookshelf-go/internal/socket/): Real-time communication via Socket.io for device progress syncing, library scans, and active user/session tracking.
+- [internal/scanner/](file:///home/jay/projects/audiobookshelf-go/internal/scanner/): Multi-threaded library scanner that traverses audio directories, parses file metadata tags (ID3, Vorbis, etc.), and indexes items.
+- [internal/watcher/](file:///home/jay/projects/audiobookshelf-go/internal/watcher/): Filesystem monitor utilizing `fsnotify` to track changes in media folders and automatically queue library rescans.
+- [internal/](file:///home/jay/projects/audiobookshelf-go/internal/): Core subpackages handling specialized modules like backups (`internal/backup/`), RSS feeds (`internal/feed/`), share links (`internal/share/`), push notifications (`internal/notification/`), and search providers (`internal/providers/`).
 
-### 2. Frontend Client (`client/`)
-- A single-page application built on Vue 2 / Nuxt.js, located in the [client/](file:///home/jay/projects/audiobookshelf-go/client/) folder.
-- Communicates with the Go backend via a JSON REST API and Socket.io connections.
-- Compiles down to static assets inside `client/dist/`, which are then served directly by the Go backend server using native Go SPA fallback routing.
+### 2. Frontend Client (`frontend/`)
+- A single-page application built with Nuxt.js/Vue.js. The static assets are pre-built and stored in the [frontend/](file:///home/jay/projects/audiobookshelf-go/frontend/) folder.
+- The assets are embedded directly into the Go binary at compile-time using Go's `//go:embed` directive.
+- The Go server hosts these files directly using SPA fallback routing, and the client communicates with the backend via a JSON REST API and real-time Socket.io connections.
 
 ---
 
@@ -85,34 +86,26 @@ The application will be accessible at `http://localhost:13378`.
 ### 2. Running & Building from Source (Bare Metal)
 
 #### Prerequisites
-- Go 1.22+ installed
-- Node.js (version 20+) & npm
+- Go 1.26+ installed (configured in [go.mod](file:///home/jay/projects/audiobookshelf-go/go.mod))
 - `ffmpeg` and `ffprobe` installed and added to your system's PATH
 
-#### Step 1: Build the Frontend Assets
-Go to the `client` directory, install packages, and compile the static build:
-```sh
-cd client
-npm ci
-npm run generate
-cd ..
-```
-This will compile the frontend and place the static assets in `client/dist/`.
+#### Step 1: Frontend Assets (Pre-built)
+The frontend is already pre-compiled inside the [frontend/](file:///home/jay/projects/audiobookshelf-go/frontend/) directory and will be embedded during the Go build step. No Node.js build steps are required.
 
 #### Step 2: Build the Go Server
-Run Go compiler to build the single binary:
+Run Go compiler to build the server binary (either named `audiobookshelf` or `abs-gateway`):
 ```sh
-go build -o abs-gateway .
+go build -o audiobookshelf .
 ```
 
 #### Step 3: Run the Application
 Start the Go gateway:
 ```sh
-./abs-gateway --port=13378 --config="./config" --metadata="./metadata"
+./audiobookshelf --port=13378 --config="./config" --metadata="./metadata"
 ```
 Or you can use environment variables:
 ```sh
-PORT=13378 CONFIG_PATH="./config" METADATA_PATH="./metadata" ./abs-gateway
+PORT=13378 CONFIG_PATH="./config" METADATA_PATH="./metadata" ./audiobookshelf
 ```
 
 ---

@@ -41,6 +41,7 @@ func initManagers(db *sql.DB) {
 		globalFinder = finders.NewFinder([]providers.Provider{
 			&providers.AudibleProvider{},
 			&providers.AudnexusProvider{},
+			&providers.FantLabProvider{},
 			&providers.GoogleBooksProvider{},
 			&providers.ITunesProvider{},
 			&providers.OpenLibraryProvider{},

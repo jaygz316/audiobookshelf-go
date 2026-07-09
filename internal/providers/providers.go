@@ -84,6 +84,8 @@ func getWithRetry(ctx context.Context, client *safeurl.WrappedClient, urlStr str
 			return nil, fmt.Errorf("failed to create request: %w", err)
 		}
 
+		req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+
 		resp, err := client.Do(req)
 		if err != nil {
 			return nil, fmt.Errorf("HTTP request failed: %w", err)
