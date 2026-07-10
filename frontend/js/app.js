@@ -8,7 +8,7 @@ import { connectSocket, disconnectSocket, onEvent } from './socket.js';
 import { loadSettings } from './settings.js';
 import { loadPlaylists } from './playlists.js';
 import { loadCollections } from './collections.js';
-import { loadAuthors, loadSeries } from './authors.js';
+import { loadAuthors, loadSeries, loadAuthorDetails, loadSeriesDetails } from './authors.js';
 import { loadStats } from './stats.js';
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -175,6 +175,26 @@ function setupEventHandlers() {
     }
 
     loadDashboard(activeLibId, filterBy, filterLabel);
+  });
+
+  window.addEventListener('navigate-to-author', (e) => {
+    const { authorId, authorName } = e.detail;
+    highlightSidebarLink('Authors');
+    const viewTitle = document.getElementById('view-title');
+    if (viewTitle) {
+      viewTitle.textContent = authorName || 'Author Details';
+    }
+    loadAuthorDetails(authorId);
+  });
+
+  window.addEventListener('navigate-to-series', (e) => {
+    const { seriesId, seriesName } = e.detail;
+    highlightSidebarLink('Series');
+    const viewTitle = document.getElementById('view-title');
+    if (viewTitle) {
+      viewTitle.textContent = seriesName || 'Series Details';
+    }
+    loadSeriesDetails(seriesId);
   });
 
   // User Menu settings/admin clicks
