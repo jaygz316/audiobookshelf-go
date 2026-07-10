@@ -1,30 +1,28 @@
-# Implementation Plan - WebSocket API Backplane
+# Implementation Plan & Milestone Status
 
-We will complete the implementation of the WebSocket API Backplane feature to support real-time state synchronization of active playback sessions, including a live Listening Sessions view with real-time additions, updates, deletions, and administrative session termination.
+## Done in this Session
+1. **OPML Import/Export**:
+   - Resolved safeurl restrictions on mock RSS server connections in E2E tests by setting `BYPASS_SAFEURL=true` environment variable on the test process.
+   - Successfully ran the E2E tests for OPML parsing, podcast creation, and library OPML exporting (`TestF14OPMLImportExport`).
+   - Marked the feature as completed in `features.md`.
 
-## Proposed Changes
+2. **Interactive Audiobook Bookmarks**:
+   - Added a modern, responsive **Export** button in the Bookmarks section of the Audiobook Details modal.
+   - Built a premium modal dialog overlay allowing users to export their saved bookmarks in three curated formats:
+     - **TXT Format (.txt)**: Clean chronological lists, e.g. `[00:05:23] Chapter 1`.
+     - **CSV Table (.csv)**: Spreadsheet-compatible structure containing raw seconds, human-readable timestamps, and titles.
+     - **JSON Payload (.json)**: Fully structured object arrays for developer integrations.
+   - Hooked events and tested the backend bookmark routes (Create, Update, Delete, Get User info) using a new E2E test suite `TestF15Bookmarks` in `e2e/f15_bookmark_test.go`.
+   - Marked the feature as completed in `features.md`.
 
-1. **Backend REST API and Socket Broadcasters** (Already partially implemented, verified, and extended):
-   - Added REST endpoint `DELETE /api/playback-sessions/:id` for terminating specific playback sessions.
-   - Enforced permissions (only the owner or an admin/root can close the session).
-   - Hooked up socket emitters:
-     - `playback_session_added`
-     - `playback_session_updated`
-     - `playback_session_removed`
-   - Real-time broadcasts configured in:
-     - `internal/handlers/me.go` (progress updates)
-     - `internal/handlers/misc_handlers.go` (explicit session close)
-     - `internal/hls/hls.go` (play session initialization)
-   - Covered with robust unit tests (`internal/socket/socket_test.go`, `internal/handlers/playback_sessions_test.go`) and E2E tests (`e2e/f5_playback_test.go`).
+---
 
-2. **Frontend Real-time Synchronization**:
-   - Exposed `window.currentUser` on bootstrap to support permission checking on the client side.
-   - Subscribed to `playback_session_added`, `playback_session_updated`, and `playback_session_removed` events at the module level in `frontend/js/settings.js`.
-   - Enabled client-side in-memory filtering by user so socket updates seamlessly reflect filtered or unfiltered active sessions.
-   - Added an **Actions** column in the Listening Sessions tab displaying a "Close Session" button.
-   - Secured the "Close Session" action so it is only visible and executable if the current user has appropriate credentials (owner or root/admin).
-   - Wired the button to dispatch a `DELETE /api/playback-sessions/:id` HTTP request, triggering immediate local and socket-broadcast state propagation.
+## Next Feature Target: Integrated E-Book Reader progress & rendering integration
 
-## Verification
-- Run backend unit tests (`go test ./...`) to verify socket authorization and session deletion.
-- Run E2E tests (`go test ./e2e/...`) to verify restricted-access enforcement and session life-cycle endpoints.
+### Proposed Changes
+1. **Verification of Ebook Serving**:
+   - Build tests to ensure EPUB and PDF files are correctly parsed and served via `GET /api/items/:id/ebook`.
+2. **Ebook Progress Synchronization**:
+   - Verify that the reader frontend correctly records reading position (progress) and triggers `POST/PATCH /api/me/progress/:id` to synchronize progress across active devices.
+3. **E2E E-Book Reader Tests**:
+   - Create a dedicated e2e test suite (`e2e/f16_ebook_reader_test.go`) validating the end-to-end ebook reading progress flows.

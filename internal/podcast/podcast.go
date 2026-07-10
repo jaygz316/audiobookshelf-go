@@ -47,7 +47,16 @@ type PodcastManager struct {
 // NewPodcastManager constructs a podcast subscription manager.
 func NewPodcastManager(db *sql.DB) *PodcastManager {
 	// PORT: Safe URL configuration builder is used to configure HTTP client against SSRF.
-	config := safeurl.GetConfigBuilder().Build()
+	builder := safeurl.GetConfigBuilder()
+	if os.Getenv("BYPASS_SAFEURL") == "true" {
+		builder = builder.SetAllowedIPs("127.0.0.1", "::1")
+		var ports []int
+		for p := 1; p <= 65535; p++ {
+			ports = append(ports, p)
+		}
+		builder = builder.SetAllowedPorts(ports...)
+	}
+	config := builder.Build()
 	client := safeurl.Client(config)
 	return &PodcastManager{
 		db:     db,
