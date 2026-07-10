@@ -164,6 +164,10 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
                   <span class="material-symbols text-sm">image</span>
                   <span>${item.media?.coverPath ? 'Change Cover' : 'Get Cover Art'}</span>
                 </button>
+                <button id="details-embed-metadata-btn" class="w-full bg-black-500 hover:bg-black-400 border border-black-300 text-white font-semibold py-2 px-4 rounded-md transition-all flex items-center justify-center space-x-2 text-xs shadow hover:scale-[1.02] duration-200 mt-2">
+                  <span class="material-symbols text-sm">settings_suggest</span>
+                  <span>Embed Metadata</span>
+                </button>
               ` : ''}
             </div>
 
@@ -393,6 +397,25 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
       const matchCoverBtn = document.getElementById('details-match-cover-btn');
       if (matchCoverBtn) {
         matchCoverBtn.onclick = () => triggerMatchCoverModal(item, libraryId, () => loadItemDetails(itemId, libraryId, backCallback));
+      }
+      const embedMetadataBtn = document.getElementById('details-embed-metadata-btn');
+      if (embedMetadataBtn) {
+        embedMetadataBtn.onclick = async () => {
+          if (!confirm('Are you sure you want to write and embed metadata, chapters, and cover art directly into the audio files? This will overwrite the tags of the files on disk.')) {
+            return;
+          }
+          embedMetadataBtn.disabled = true;
+          embedMetadataBtn.innerHTML = '<span class="material-symbols text-sm animate-spin">sync</span><span>Embedding...</span>';
+          try {
+            const resp = await request('POST', `/api/items/${item.id}/embed-metadata`);
+            alert(resp.message || 'Metadata embedded successfully!');
+          } catch (err) {
+            alert('Failed to embed metadata: ' + (err.message || err));
+          } finally {
+            embedMetadataBtn.disabled = false;
+            embedMetadataBtn.innerHTML = '<span class="material-symbols text-sm">settings_suggest</span><span>Embed Metadata</span>';
+          }
+        };
       }
       document.getElementById('details-edit-btn').onclick = () => triggerEditItemDetailsModal(item, libraryId, () => loadItemDetails(itemId, libraryId, backCallback));
       const editChaptersBtn = document.getElementById('details-edit-chapters-btn');

@@ -1130,6 +1130,12 @@ func HandleItemsDispatch(db *sql.DB, cfg *core.Config) http.HandlerFunc {
 				AuthMiddlewareWrapper(db, http.HandlerFunc(handleLookupChapters(db, itemID))).ServeHTTP(w, r)
 				return
 			}
+		} else if len(parts) == 2 && parts[1] == "embed-metadata" {
+			itemID := parts[0]
+			if r.Method == http.MethodPost {
+				AuthMiddlewareWrapper(db, http.HandlerFunc(handleEmbedMetadata(db, cfg, itemID))).ServeHTTP(w, r)
+				return
+			}
 		}
 
 		log.Printf("[Backend] 404 Not Found: %s %s", r.Method, r.URL.Path)
