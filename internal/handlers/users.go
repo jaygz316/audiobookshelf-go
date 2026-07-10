@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -721,6 +722,57 @@ func handleUserCRUD(db *sql.DB) http.HandlerFunc {
 		if subPath == "" {
 			http.NotFound(w, r)
 			return
+		}
+
+		parts := strings.Split(subPath, "/")
+		if len(parts) == 2 && parts[1] == "listening-stats" {
+			if r.Method == http.MethodGet {
+				targetUserID := parts[0]
+				log.Printf("[Go] GET /api/users/%s/listening-stats", targetUserID)
+				if userSess.Type != "root" && userSess.Type != "admin" && userSess.ID != targetUserID {
+					http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
+					return
+				}
+				stats, err := getUserListeningStats(db, targetUserID)
+				if err != nil {
+					log.Printf("[Listening Stats] Failed to query stats: %v", err)
+					http.Error(w, `{"error": "Internal Server Error"}`, http.StatusInternalServerError)
+					return
+				}
+				w.Header().Set("Content-Type", "application/json")
+				json.NewEncoder(w).Encode(stats)
+				return
+			}
+		} else if len(parts) == 2 && parts[1] == "listening-sessions" {
+			if r.Method == http.MethodGet {
+				targetUserID := parts[0]
+				log.Printf("[Go] GET /api/users/%s/listening-sessions", targetUserID)
+				if userSess.Type != "root" && userSess.Type != "admin" && userSess.ID != targetUserID {
+					http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
+					return
+				}
+				page := 0
+				if pVal := r.URL.Query().Get("page"); pVal != "" {
+					if p, err := strconv.Atoi(pVal); err == nil {
+						page = p
+					}
+				}
+				itemsPerPage := 10
+				if limitVal := r.URL.Query().Get("itemsPerPage"); limitVal != "" {
+					if limit, err := strconv.Atoi(limitVal); err == nil {
+						itemsPerPage = limit
+					}
+				}
+				sessions, err := handleGetUserListeningSessions(db, targetUserID, page, itemsPerPage)
+				if err != nil {
+					log.Printf("[Listening Sessions] Failed to query sessions: %v", err)
+					http.Error(w, `{"error": "Internal Server Error"}`, http.StatusInternalServerError)
+					return
+				}
+				w.Header().Set("Content-Type", "application/json")
+				json.NewEncoder(w).Encode(sessions)
+				return
+			}
 		}
 
 		targetUserID := subPath
