@@ -16,6 +16,7 @@ import (
 
 	"audiobookshelf/internal/core"
 	inotification "audiobookshelf/internal/notification"
+	isocket "audiobookshelf/internal/socket"
 )
 
 type ApiKeyResponse struct {
@@ -858,3 +859,48 @@ func handleUpdateNotification(db *sql.DB) http.HandlerFunc {
 		})
 	}
 }
+
+// handleClosePlaybackSession closes a playback session and broadcasts the removal.
+func handleClosePlaybackSession(db *sql.DB, sessionID string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		userSess, ok := r.Context().Value(core.UserContextKey).(*core.UserSession)
+		if !ok {
+			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
+			return
+		}
+
+		// Retrieve session first to know the owner
+		var userID string
+		err := db.QueryRowContext(r.Context(), "SELECT userId FROM playbackSessions WHERE id = ?", sessionID).Scan(&userID)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				http.Error(w, `{"error": "Session Not Found"}`, http.StatusNotFound)
+				return
+			}
+			http.Error(w, `{"error": "Database Error"}`, http.StatusInternalServerError)
+			return
+		}
+
+		// Check permissions: only owner or admin can close it
+		if userID != userSess.ID && userSess.Type != "root" && userSess.Type != "admin" {
+			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
+			return
+		}
+
+		// Delete session
+		_, err = db.ExecContext(r.Context(), "DELETE FROM playbackSessions WHERE id = ?", sessionID)
+		if err != nil {
+			log.Printf("[Close Playback Session] Delete failed: %v", err)
+			http.Error(w, `{"error": "Database Error"}`, http.StatusInternalServerError)
+			return
+		}
+
+		// Broadcast removal to socket
+		if isocket.GlobalAuth != nil {
+			isocket.GlobalAuth.BroadcastPlaybackSessionRemoved(userID, sessionID)
+		}
+
+		w.WriteHeader(http.StatusNoContent)
+	}
+}
+

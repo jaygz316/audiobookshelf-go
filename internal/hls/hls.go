@@ -963,6 +963,10 @@ func HandlePlayItem(db *sql.DB, sm *StreamManager) http.HandlerFunc {
 			return
 		}
 
+		if isocket.GlobalAuth != nil {
+			isocket.GlobalAuth.BroadcastPlaybackSessionAdded(user.ID, sessionID)
+		}
+
 		var audioTracks []map[string]interface{}
 		var displayTitle string
 		var displayAuthor string
