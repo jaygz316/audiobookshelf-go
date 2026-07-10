@@ -1,10 +1,12 @@
 package handlers
 
 import (
+	"context"
 	"crypto/rand"
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"net/url"
@@ -13,6 +15,7 @@ import (
 	"time"
 
 	"audiobookshelf/internal/core"
+	inotification "audiobookshelf/internal/notification"
 )
 
 type ApiKeyResponse struct {
@@ -206,22 +209,8 @@ func handleDeleteApiKey(db *sql.DB) http.HandlerFunc {
 	}
 }
 
-type Notification struct {
-	ID            string   `json:"id"`
-	LibraryID     *string  `json:"libraryId"`
-	EventName     string   `json:"eventName"`
-	Urls          []string `json:"urls"`
-	TitleTemplate string   `json:"titleTemplate"`
-	BodyTemplate  string   `json:"bodyTemplate"`
-	Enabled       bool     `json:"enabled"`
-}
-
-type NotificationSettings struct {
-	AppriseApiUrl        *string        `json:"appriseApiUrl"`
-	MaxNotificationQueue int            `json:"maxNotificationQueue"`
-	MaxFailedAttempts    int            `json:"maxFailedAttempts"`
-	Notifications        []Notification `json:"notifications"`
-}
+type Notification = inotification.Notification
+type NotificationSettings = inotification.NotificationSettings
 
 // handleGetNotifications returns notification settings from the database.
 func handleGetNotifications(db *sql.DB) http.HandlerFunc {
@@ -572,6 +561,300 @@ func handleGetPlaybackSessions(db *sql.DB) http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"sessions": sessions,
+		})
+	}
+}
+
+func handleSendDefaultTestNotification(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("[Notifications] GET /api/notifications/test")
+		userVal := r.Context().Value(core.UserContextKey)
+		if userVal == nil {
+			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
+			return
+		}
+		user := userVal.(*core.UserSession)
+		if user.Type != "root" && user.Type != "admin" {
+			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
+			return
+		}
+
+		fail := r.URL.Query().Get("fail") == "1"
+		eventName := "onTest"
+		title := "Test Notification"
+		message := "This is a test notification from Audiobookshelf."
+		if fail {
+			title = "Test Notification (Failing)"
+			message = "This test notification is sent with fail=1 to test failure handling."
+		}
+
+		// Trigger event
+		inotification.TriggerEvent(r.Context(), db, eventName, nil, title, message, map[string]string{
+			"isTest": "true",
+			"fail":   fmt.Sprintf("%t", fail),
+		})
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"success": true}`))
+	}
+}
+
+func handleSendTestNotification(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id := trimPathPrefix(r.URL.Path, "/api/notifications/")
+		id = strings.TrimSuffix(id, "/test")
+		log.Printf("[Notifications] GET /api/notifications/%s/test", id)
+		
+		userVal := r.Context().Value(core.UserContextKey)
+		if userVal == nil {
+			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
+			return
+		}
+		user := userVal.(*core.UserSession)
+		if user.Type != "root" && user.Type != "admin" {
+			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
+			return
+		}
+
+		// Load settings
+		var valStr string
+		err := db.QueryRow("SELECT value FROM settings WHERE key = 'notification-settings'").Scan(&valStr)
+		if err != nil {
+			http.Error(w, `{"error": "Notification settings not found"}`, http.StatusNotFound)
+			return
+		}
+
+		var settings NotificationSettings
+		if err := json.Unmarshal([]byte(valStr), &settings); err != nil {
+			http.Error(w, `{"error": "Internal Server Error"}`, http.StatusInternalServerError)
+			return
+		}
+
+		var targetNotif *Notification
+		for _, notif := range settings.Notifications {
+			if notif.ID == id {
+				targetNotif = &notif
+				break
+			}
+		}
+
+		if targetNotif == nil {
+			http.Error(w, `{"error": "Notification target not found"}`, http.StatusNotFound)
+			return
+		}
+
+		// Format message
+		title := "Test Notification"
+		if targetNotif.TitleTemplate != "" {
+			title = inotification.FormatTemplate(targetNotif.TitleTemplate, title, "Test Body", "onTest", map[string]string{"isTest": "true"})
+		}
+		message := "This is a test notification for target " + id
+		if targetNotif.BodyTemplate != "" {
+			message = inotification.FormatTemplate(targetNotif.BodyTemplate, title, message, "onTest", map[string]string{"isTest": "true"})
+		}
+
+		// Send to all URLs of this specific notification
+		for _, urlStr := range targetNotif.Urls {
+			notifier := inotification.NewWebhookNotifier(urlStr)
+			payload := inotification.NotificationPayload{
+				Title:   title,
+				Message: message,
+				Event:   "onTest",
+				Data:    map[string]string{"isTest": "true"},
+			}
+			go func(u string) {
+				subCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+				defer cancel()
+				if err := notifier.Send(subCtx, payload); err != nil {
+					log.Printf("[Notifications] Test webhook to %s failed: %v", u, err)
+				}
+			}(urlStr)
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"success": true}`))
+	}
+}
+
+func handleDeleteNotification(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id := trimPathPrefix(r.URL.Path, "/api/notifications/")
+		id = strings.TrimSuffix(id, "/")
+		log.Printf("[Notifications] DELETE /api/notifications/%s", id)
+
+		userVal := r.Context().Value(core.UserContextKey)
+		if userVal == nil {
+			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
+			return
+		}
+		user := userVal.(*core.UserSession)
+		if user.Type != "root" && user.Type != "admin" {
+			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
+			return
+		}
+
+		var valStr string
+		err := db.QueryRow("SELECT value FROM settings WHERE key = 'notification-settings'").Scan(&valStr)
+		if err != nil {
+			http.Error(w, `{"error": "Notification settings not found"}`, http.StatusNotFound)
+			return
+		}
+
+		var settings NotificationSettings
+		if err := json.Unmarshal([]byte(valStr), &settings); err != nil {
+			http.Error(w, `{"error": "Internal Server Error"}`, http.StatusInternalServerError)
+			return
+		}
+
+		found := false
+		newNotifications := []Notification{}
+		for _, notif := range settings.Notifications {
+			if notif.ID == id {
+				found = true
+				continue
+			}
+			newNotifications = append(newNotifications, notif)
+		}
+
+		if !found {
+			http.Error(w, `{"error": "Notification target not found"}`, http.StatusNotFound)
+			return
+		}
+
+		settings.Notifications = newNotifications
+
+		// Save settings
+		cleanBytes, err := json.Marshal(settings)
+		if err != nil {
+			http.Error(w, `{"error": "Internal Server Error"}`, http.StatusInternalServerError)
+			return
+		}
+
+		var mergedMapToSave map[string]interface{}
+		if err := json.Unmarshal(cleanBytes, &mergedMapToSave); err != nil {
+			http.Error(w, `{"error": "Internal Server Error"}`, http.StatusInternalServerError)
+			return
+		}
+
+		if err := saveSettings(db, "notification-settings", mergedMapToSave); err != nil {
+			http.Error(w, `{"error": "Internal Server Error"}`, http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"settings": settings,
+		})
+	}
+}
+
+func handleUpdateNotification(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id := trimPathPrefix(r.URL.Path, "/api/notifications/")
+		id = strings.TrimSuffix(id, "/")
+		log.Printf("[Notifications] PATCH /api/notifications/%s", id)
+
+		userVal := r.Context().Value(core.UserContextKey)
+		if userVal == nil {
+			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
+			return
+		}
+		user := userVal.(*core.UserSession)
+		if user.Type != "root" && user.Type != "admin" {
+			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
+			return
+		}
+
+		var payload map[string]interface{}
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			http.Error(w, `{"error": "Invalid request body"}`, http.StatusBadRequest)
+			return
+		}
+
+		var valStr string
+		err := db.QueryRow("SELECT value FROM settings WHERE key = 'notification-settings'").Scan(&valStr)
+		if err != nil {
+			http.Error(w, `{"error": "Notification settings not found"}`, http.StatusNotFound)
+			return
+		}
+
+		var settings NotificationSettings
+		if err := json.Unmarshal([]byte(valStr), &settings); err != nil {
+			http.Error(w, `{"error": "Internal Server Error"}`, http.StatusInternalServerError)
+			return
+		}
+
+		foundIndex := -1
+		for idx, notif := range settings.Notifications {
+			if notif.ID == id {
+				foundIndex = idx
+				break
+			}
+		}
+
+		if foundIndex == -1 {
+			http.Error(w, `{"error": "Notification target not found"}`, http.StatusNotFound)
+			return
+		}
+
+		// Merge payload into target notification
+		targetNotif := settings.Notifications[foundIndex]
+		notifBytes, _ := json.Marshal(targetNotif)
+		var targetMap map[string]interface{}
+		_ = json.Unmarshal(notifBytes, &targetMap)
+
+		for k, v := range payload {
+			targetMap[k] = v
+		}
+
+		mergedNotifBytes, err := json.Marshal(targetMap)
+		if err != nil {
+			http.Error(w, `{"error": "Invalid fields"}`, http.StatusBadRequest)
+			return
+		}
+
+		var updatedNotif Notification
+		if err := json.Unmarshal(mergedNotifBytes, &updatedNotif); err != nil {
+			http.Error(w, `{"error": "Invalid fields"}`, http.StatusBadRequest)
+			return
+		}
+
+		// Validate notification URLs
+		for _, uStr := range updatedNotif.Urls {
+			parsed, err := url.Parse(uStr)
+			if err != nil || parsed.Scheme == "" || parsed.Host == "" {
+				http.Error(w, `{"error": "invalid notification url"}`, http.StatusBadRequest)
+				return
+			}
+		}
+
+		settings.Notifications[foundIndex] = updatedNotif
+
+		// Save settings
+		cleanBytes, err := json.Marshal(settings)
+		if err != nil {
+			http.Error(w, `{"error": "Internal Server Error"}`, http.StatusInternalServerError)
+			return
+		}
+
+		var mergedMapToSave map[string]interface{}
+		if err := json.Unmarshal(cleanBytes, &mergedMapToSave); err != nil {
+			http.Error(w, `{"error": "Internal Server Error"}`, http.StatusInternalServerError)
+			return
+		}
+
+		if err := saveSettings(db, "notification-settings", mergedMapToSave); err != nil {
+			http.Error(w, `{"error": "Internal Server Error"}`, http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"settings": settings,
 		})
 	}
 }

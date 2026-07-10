@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
+	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log"
 	"mime/multipart"
 	"net"
 	"net/http"
@@ -13,6 +15,7 @@ import (
 	"net/textproto"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/doyensec/safeurl"
 )
@@ -293,3 +296,141 @@ func escapeTelegramMarkdown(s string) string {
 	}
 	return sb.String()
 }
+
+// Notification represents a webhook target.
+type Notification struct {
+	ID                           string   `json:"id"`
+	LibraryID                    *string  `json:"libraryId"`
+	EventName                    string   `json:"eventName"`
+	Urls                         []string `json:"urls"`
+	TitleTemplate                string   `json:"titleTemplate"`
+	BodyTemplate                 string   `json:"bodyTemplate"`
+	Enabled                      bool     `json:"enabled"`
+	Type                         string   `json:"type,omitempty"`
+	LastFiredAt                  int64    `json:"lastFiredAt,omitempty"`
+	LastAttemptFailed            bool     `json:"lastAttemptFailed,omitempty"`
+	NumConsecutiveFailedAttempts int      `json:"numConsecutiveFailedAttempts,omitempty"`
+	NumTimesFired                int      `json:"numTimesFired,omitempty"`
+	CreatedAt                    int64    `json:"createdAt,omitempty"`
+}
+
+// NotificationSettings holds all notification targets and queue configuration.
+type NotificationSettings struct {
+	AppriseApiUrl        *string        `json:"appriseApiUrl"`
+	MaxNotificationQueue int            `json:"maxNotificationQueue"`
+	MaxFailedAttempts    int            `json:"maxFailedAttempts"`
+	Notifications        []Notification `json:"notifications"`
+	AppriseType          string         `json:"appriseType,omitempty"`
+	NotificationDelay    int            `json:"notificationDelay,omitempty"`
+}
+
+// TriggerEvent loads notification settings from the database and dispatches any enabled notifications matching the event name.
+func TriggerEvent(ctx context.Context, dbConn *sql.DB, eventName string, libraryID *string, defaultTitle, defaultMessage string, extraData map[string]string) {
+	if dbConn == nil {
+		return
+	}
+
+	var valStr string
+	err := dbConn.QueryRow("SELECT value FROM settings WHERE key = 'notification-settings'").Scan(&valStr)
+	if err != nil {
+		// No notification settings configured
+		return
+	}
+
+	var settings NotificationSettings
+	if err := json.Unmarshal([]byte(valStr), &settings); err != nil {
+		log.Printf("[Notifications] Failed to parse settings JSON: %v", err)
+		return
+	}
+
+	for i, notif := range settings.Notifications {
+		if !notif.Enabled {
+			continue
+		}
+
+		// Match event name (e.g. "onBackupCompleted" or "onTest")
+		if notif.EventName != eventName && notif.EventName != "*" {
+			continue
+		}
+
+		// Match library ID if specified
+		if notif.LibraryID != nil && *notif.LibraryID != "" {
+			if libraryID == nil || *libraryID != *notif.LibraryID {
+				continue
+			}
+		}
+
+		// Format title & body using templates if they exist
+		title := defaultTitle
+		if notif.TitleTemplate != "" {
+			title = FormatTemplate(notif.TitleTemplate, defaultTitle, defaultMessage, eventName, extraData)
+		}
+		message := defaultMessage
+		if notif.BodyTemplate != "" {
+			message = FormatTemplate(notif.BodyTemplate, defaultTitle, defaultMessage, eventName, extraData)
+		}
+
+		// Update stats in the DB
+		nowEpoch := time.Now().UnixNano() / int64(time.Millisecond)
+
+		// Dispatch to each URL
+		for _, urlStr := range notif.Urls {
+			notifier := NewWebhookNotifier(urlStr)
+			payload := NotificationPayload{
+				Title:   title,
+				Message: message,
+				Event:   eventName,
+				Data:    extraData,
+			}
+
+			// We launch this in a goroutine or execute synchronously.
+			go func(url string, idx int) {
+				subCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+				defer cancel()
+				err := notifier.Send(subCtx, payload)
+				
+				// Update database with status
+				var currentValStr string
+				var currentSettings NotificationSettings
+				errDb := dbConn.QueryRow("SELECT value FROM settings WHERE key = 'notification-settings'").Scan(&currentValStr)
+				if errDb == nil {
+					_ = json.Unmarshal([]byte(currentValStr), &currentSettings)
+					if idx < len(currentSettings.Notifications) {
+						currentSettings.Notifications[idx].LastFiredAt = nowEpoch
+						currentSettings.Notifications[idx].NumTimesFired++
+						if err != nil {
+							currentSettings.Notifications[idx].LastAttemptFailed = true
+							currentSettings.Notifications[idx].NumConsecutiveFailedAttempts++
+						} else {
+							currentSettings.Notifications[idx].LastAttemptFailed = false
+							currentSettings.Notifications[idx].NumConsecutiveFailedAttempts = 0
+						}
+						cleanBytes, errMarshal := json.Marshal(currentSettings)
+						if errMarshal == nil {
+							_, _ = dbConn.Exec("INSERT OR REPLACE INTO settings (key, value) VALUES ('notification-settings', ?)", string(cleanBytes))
+						}
+					}
+				}
+
+				if err != nil {
+					log.Printf("[Notifications] Failed to send webhook to %s: %v", url, err)
+				} else {
+					log.Printf("[Notifications] Webhook sent successfully to %s", url)
+				}
+			}(urlStr, i)
+		}
+	}
+}
+
+// FormatTemplate replaces template placeholders like {{title}}, {{message}}, {{event}} and extraData keys.
+func FormatTemplate(tpl string, title, message, event string, extraData map[string]string) string {
+	res := tpl
+	res = strings.ReplaceAll(res, "{{title}}", title)
+	res = strings.ReplaceAll(res, "{{message}}", message)
+	res = strings.ReplaceAll(res, "{{event}}", event)
+	for k, v := range extraData {
+		res = strings.ReplaceAll(res, "{{"+k+"}}", v)
+	}
+	return res
+}
+

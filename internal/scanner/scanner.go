@@ -24,6 +24,7 @@ import (
 
 	"audiobookshelf/internal/core"
 	"audiobookshelf/internal/metadata"
+	inotification "audiobookshelf/internal/notification"
 	isocket "audiobookshelf/internal/socket"
 )
 
@@ -1588,13 +1589,25 @@ func scanNewLibraryItem(db *sql.DB, libraryID, folderID, itemPath string, groupF
 	if err != nil {
 		return err
 	}
-
 	log.Printf("[Scanner] [%s] scanNewLibraryItem: Committing transaction", itemPath)
 	err = tx.Commit()
 	if err != nil {
 		return err
 	}
 	log.Printf("[Scanner] [%s] scanNewLibraryItem: Transaction committed successfully", itemPath)
+
+	if mediaType == "podcast" {
+		var libraryName string
+		_ = db.QueryRow("SELECT name FROM libraries WHERE id = ?", libraryID).Scan(&libraryName)
+		for _, ep := range meta.PodcastEpisodes {
+			extraData := map[string]string{
+				"podcastTitle": title,
+				"episodeTitle": ep.Title,
+				"libraryName":  libraryName,
+			}
+			inotification.TriggerEvent(context.Background(), db, "onPodcastEpisodeDownloaded", &libraryID, "New Episode", fmt.Sprintf("%s - %s", title, ep.Title), extraData)
+		}
+	}
 
 	if socketAuth != nil {
 		if minItem, err := GetLibraryItemMinifiedByID(db, itemID); err == nil {
