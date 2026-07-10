@@ -12,6 +12,9 @@ export async function loadDashboard(libraryId) {
   const bookshelfContainer = document.getElementById('bookshelf');
   if (!bookshelfContainer) return;
 
+  const opmlBtn = document.getElementById('opml-btn');
+  if (opmlBtn) opmlBtn.classList.add('hidden');
+
   // Clear container first
   bookshelfContainer.innerHTML = '';
 
@@ -41,6 +44,19 @@ export async function loadDashboard(libraryId) {
     if (bookCountEl) {
       const unit = lib.mediaType === 'podcast' ? 'Podcasts' : 'Books';
       bookCountEl.textContent = `${totalItems} ${unit}`;
+    }
+
+    if (opmlBtn) {
+      if (lib.mediaType === 'podcast') {
+        opmlBtn.classList.remove('hidden');
+        opmlBtn.onclick = () => {
+          import('./opml.js').then(module => {
+            module.openOPMLModal(libraryId);
+          });
+        };
+      } else {
+        opmlBtn.classList.add('hidden');
+      }
     }
 
     if (shelves.length === 0 && (!allItemsPayload.results || allItemsPayload.results.length === 0)) {

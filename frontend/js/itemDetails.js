@@ -22,6 +22,9 @@ async function getCurrentUser() {
  * @param {function} backCallback - Function to execute when clicking "Back".
  */
 export async function loadItemDetails(itemId, libraryId, backCallback) {
+  const opmlBtn = document.getElementById('opml-btn');
+  if (opmlBtn) opmlBtn.classList.add('hidden');
+
   const container = document.getElementById('bookshelf');
   if (!container) return;
 

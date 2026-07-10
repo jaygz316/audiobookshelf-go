@@ -8,6 +8,9 @@ import { request, resolvePath } from './api.js';
  * Fetches GET /api/libraries/{libraryId}/authors and renders a grid.
  */
 export async function loadAuthors(libraryId) {
+  const opmlBtn = document.getElementById('opml-btn');
+  if (opmlBtn) opmlBtn.classList.add('hidden');
+
   const container = document.getElementById('bookshelf');
   if (!container) return;
 
@@ -66,6 +69,9 @@ export async function loadAuthors(libraryId) {
  * Fetches GET /api/libraries/{libraryId}/series and renders a grid.
  */
 export async function loadSeries(libraryId) {
+  const opmlBtn = document.getElementById('opml-btn');
+  if (opmlBtn) opmlBtn.classList.add('hidden');
+
   const container = document.getElementById('bookshelf');
   if (!container) return;
 

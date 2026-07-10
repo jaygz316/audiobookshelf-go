@@ -2,6 +2,9 @@
 import { request, resolvePath } from './api.js';
 
 export async function loadStats() {
+  const opmlBtn = document.getElementById('opml-btn');
+  if (opmlBtn) opmlBtn.classList.add('hidden');
+
   const container = document.getElementById('bookshelf');
   if (!container) return;
 

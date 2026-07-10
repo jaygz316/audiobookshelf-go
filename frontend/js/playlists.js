@@ -3,6 +3,9 @@ import { playItem } from './player.js';
 import { loadItemDetails } from './itemDetails.js';
 
 export async function loadPlaylists(libraryId) {
+  const opmlBtn = document.getElementById('opml-btn');
+  if (opmlBtn) opmlBtn.classList.add('hidden');
+
   const container = document.getElementById('bookshelf');
   if (!container) return;
 
