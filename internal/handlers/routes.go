@@ -994,16 +994,20 @@ func handleMeDispatch(db *sql.DB, cfg *core.Config) http.HandlerFunc {
 				AuthMiddlewareWrapper(db, handleReaddSeriesFromContinueListening(db)).ServeHTTP(w, r)
 				return
 			}
-		} else if len(parts) == 3 && parts[0] == "item" && parts[2] == "bookmark" {
-			if r.Method == http.MethodPost {
-				AuthMiddlewareWrapper(db, handleMeCreateBookmark(db)).ServeHTTP(w, r)
-				return
-			} else if r.Method == http.MethodPatch {
-				AuthMiddlewareWrapper(db, handleMeUpdateBookmark(db)).ServeHTTP(w, r)
-				return
-			} else if r.Method == http.MethodDelete {
-				AuthMiddlewareWrapper(db, handleMeRemoveBookmark(db)).ServeHTTP(w, r)
-				return
+		} else if parts[0] == "item" && len(parts) >= 3 && parts[2] == "bookmark" {
+			if len(parts) == 3 {
+				if r.Method == http.MethodPost {
+					AuthMiddlewareWrapper(db, handleMeCreateBookmark(db)).ServeHTTP(w, r)
+					return
+				} else if r.Method == http.MethodPatch {
+					AuthMiddlewareWrapper(db, handleMeUpdateBookmark(db)).ServeHTTP(w, r)
+					return
+				}
+			} else if len(parts) == 4 {
+				if r.Method == http.MethodDelete {
+					AuthMiddlewareWrapper(db, handleMeRemoveBookmark(db)).ServeHTTP(w, r)
+					return
+				}
 			}
 		}
 
