@@ -814,7 +814,7 @@ func handleUserCRUD(db *sql.DB) http.HandlerFunc {
 				IsActive            *bool                   `json:"isActive"`
 				Permissions         *map[string]interface{} `json:"permissions"`
 				LibrariesAccessible []string                `json:"librariesAccessible"`
-				ItemTagsSelected    []string                `json:"itemTagsSelected"`
+				ItemTagsSelected    *[]string               `json:"itemTagsSelected"`
 			}
 			r.Body = http.MaxBytesReader(w, r.Body, 1048576)
 			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
@@ -865,7 +865,7 @@ func handleUserCRUD(db *sql.DB) http.HandlerFunc {
 				hasUpdates = true
 			}
 
-			if body.Permissions != nil || len(body.LibrariesAccessible) > 0 || len(body.ItemTagsSelected) > 0 {
+			if body.Permissions != nil || len(body.LibrariesAccessible) > 0 || body.ItemTagsSelected != nil {
 				var currentPerms map[string]interface{}
 				json.Unmarshal(targetUser.Permissions, &currentPerms)
 				if currentPerms == nil {
@@ -874,7 +874,7 @@ func handleUserCRUD(db *sql.DB) http.HandlerFunc {
 
 				if body.Permissions != nil {
 					for k, v := range *body.Permissions {
-						if k == "librariesAccessible" || k == "itemTagsSelected" {
+						if k == "librariesAccessible" {
 							continue
 						}
 						currentPerms[k] = v
@@ -884,8 +884,8 @@ func handleUserCRUD(db *sql.DB) http.HandlerFunc {
 				if len(body.LibrariesAccessible) > 0 {
 					currentPerms["librariesAccessible"] = body.LibrariesAccessible
 				}
-				if len(body.ItemTagsSelected) > 0 {
-					currentPerms["itemTagsSelected"] = body.ItemTagsSelected
+				if body.ItemTagsSelected != nil {
+					currentPerms["itemTagsSelected"] = *body.ItemTagsSelected
 				}
 
 				newPermsBytes, _ := json.Marshal(currentPerms)

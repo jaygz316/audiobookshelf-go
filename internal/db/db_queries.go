@@ -372,7 +372,6 @@ func getUserPermissionWhere(user *core.UserSession, tableAlias string) (string, 
 		} else {
 			conds = append(conds, fmt.Sprintf("(SELECT count(*) FROM json_each(%s.tags) WHERE json_valid(%s.tags) AND json_each.value IN (%s)) >= 1", tableAlias, tableAlias, placeholders))
 		}
-		args = append(args, args...) // duplicate for bindings
 	}
 
 	if len(conds) == 0 {
