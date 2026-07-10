@@ -116,6 +116,15 @@ async function renderServerSettingsTab() {
             <p class="text-xs text-black-100 mt-1">Older backups are automatically pruned when new backups are created.</p>
           </div>
 
+          <div>
+            <label class="block text-xs font-semibold text-black-100 uppercase tracking-wider mb-2">OPDS Feed URL</label>
+            <div class="flex space-x-2">
+              <input type="text" id="setting-opds-url" readonly value="${window.location.origin}/opds" class="w-full bg-black-500 text-white px-3 py-2 rounded border border-black-300 focus:outline-none cursor-default">
+              <button type="button" id="btn-copy-opds" class="bg-accent hover:opacity-90 text-primary font-bold px-3 py-2 rounded transition-opacity">Copy</button>
+            </div>
+            <p class="text-xs text-black-100 mt-1">Use this URL to connect your e-readers and book discovery clients (e.g. KyBook, Marvin, Aldiko) to Audiobookshelf.</p>
+          </div>
+
           <div class="flex flex-col space-y-2 pt-2">
             <label class="flex items-center space-x-2 cursor-pointer text-sm">
               <input type="checkbox" id="setting-metadata-cover-with-item" ${settings.metadataCoverWithItem ? 'checked' : ''} class="rounded text-accent focus:ring-accent bg-black-500 border-black-300">
@@ -258,6 +267,21 @@ async function renderServerSettingsTab() {
     `;
 
     // Hook forms
+    const btnCopyOpds = document.getElementById('btn-copy-opds');
+    if (btnCopyOpds) {
+      btnCopyOpds.onclick = () => {
+        const opdsUrl = document.getElementById('setting-opds-url');
+        if (opdsUrl) {
+          opdsUrl.select();
+          navigator.clipboard.writeText(opdsUrl.value).then(() => {
+            alert('OPDS Feed URL copied to clipboard!');
+          }).catch(err => {
+            alert('Failed to copy: ' + err);
+          });
+        }
+      };
+    }
+
     document.getElementById('server-settings-form').onsubmit = async (e) => {
       e.preventDefault();
       try {

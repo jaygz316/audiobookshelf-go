@@ -12,6 +12,7 @@ import (
 	"sync"
 
 	"github.com/golang-jwt/jwt/v5"
+	"golang.org/x/crypto/bcrypt"
 
 	"audiobookshelf/internal/core"
 	idb "audiobookshelf/internal/db"
@@ -66,11 +67,33 @@ func AuthMiddleware(db *sql.DB, tokenSecret string, next http.Handler) http.Hand
 		authHeader := r.Header.Get("Authorization")
 		if strings.HasPrefix(authHeader, "Bearer ") {
 			tokenStr = strings.TrimPrefix(authHeader, "Bearer ")
+		} else if strings.HasPrefix(authHeader, "Basic ") {
+			username, password, ok := r.BasicAuth()
+			if ok {
+				user, err := idb.GetUserFullByUsername(r.Context(), db, username)
+				if err == nil && user != nil && user.IsActive {
+					errCompare := bcrypt.CompareHashAndPassword([]byte(user.Pash), []byte(password))
+					if errCompare == nil {
+						userSession, errSession := idb.GetUserByID(db, user.ID)
+						if errSession == nil && userSession != nil {
+							ctx := context.WithValue(r.Context(), core.UserContextKey, userSession)
+							next.ServeHTTP(w, r.WithContext(ctx))
+							return
+						}
+					}
+				}
+			}
 		} else {
 			tokenStr = r.URL.Query().Get("token")
 		}
 
 		if tokenStr == "" {
+			if strings.HasPrefix(r.URL.Path, "/opds") || strings.Contains(r.URL.Path, "/opds/") {
+				w.Header().Set("WWW-Authenticate", `Basic realm="Audiobookshelf OPDS"`)
+				w.WriteHeader(http.StatusUnauthorized)
+				_, _ = w.Write([]byte("Unauthorized"))
+				return
+			}
 			log.Printf("[Auth] Unauthorized: No token found for %s %s", r.Method, r.URL.Path)
 			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
 			return
