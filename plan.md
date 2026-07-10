@@ -1,26 +1,24 @@
-# Implementation Plan: Scheduled Metadata Backups
+# Implementation Plan: Per-Item Access Restrictions
 
-We will implement automated, scheduled metadata backups to achieve parity with Audiobookshelf's backup system.
+We will implement complete user interface controls for per-user tag-based access restrictions (hiding or showing specific tags/genres) and resolve related parameter-binding bugs in the Go backend.
 
 ## Proposed Changes
 
-1. **Database Schema & ServerSettings Update**
-   - Add `BackupSchedule` string field to `ServerSettings` struct in [db.go](file:///home/jay/projects/audiobookshelf-go/internal/db/db.go).
-   - Set up default backup schedule to hourly, daily, or empty (disabled).
+1. **Backend Bug Fixes & Refactoring**
+   - **Fix SQLite Bindings**: In `getUserPermissionWhere` in [db_queries.go](file:///home/jay/projects/audiobookshelf-go/internal/db/db_queries.go), fix `args = append(args, args...) // duplicate for bindings` which causes a parameter binding mismatch when checking items with tag restrictions. It should simply return `args` matching the `placeholders` count.
+   - **Update User Handler PATCH endpoint**: In [users.go](file:///home/jay/projects/audiobookshelf-go/internal/handlers/users.go), update the JSON structure of `PATCH /api/users/{id}` to correctly parse and update `accessAllTags`, `itemTagsSelected`, and `selectedTagsNotAccessible` (handling empty selections `[]`). Allow passing these properties inside the `permissions` map for consistency with standard API structures.
 
-2. **Cron Scheduler Engine**
-   - Create `internal/backup/scheduler.go` containing:
-     - Cron expression parser supporting 5-field and 6-field formats.
-     - Matcher to check if a specific time matches the parsed cron expression.
-     - Background runner (`BackupScheduler`) checking settings every minute.
-     - Logic to trigger backup and prune older backups based on settings.
-   - Add thread-safe start, stop, and restart controls for the scheduler.
+2. **Frontend UI Integration**
+   - In [settings.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/settings.js):
+     - Fetch the current master tags using `request('GET', '/api/tags')`.
+     - In the user modal (`triggerUserModal`), render:
+       - **Access All Tags** checkbox (`id="perm-all-tags"`).
+       - **Tag Restriction Mode** dropdown (`id="perm-tags-not-accessible"`):
+         - "Allow Only Selected Tags" (maps to `selectedTagsNotAccessible = false`)
+         - "Block Selected Tags" (maps to `selectedTagsNotAccessible = true`)
+       - **Selected Tags** checkbox list (`id="tag-filter-container"`), dynamically rendered and filtered when "Access All Tags" is unchecked.
+     - Ensure the payload for both `POST /api/users` and `PATCH /api/users/{id}` properly parses and sends the user's tag-based settings to the backend.
 
-3. **Lifecycle Integration**
-   - Start the scheduler in `main.go` after database initialization.
-   - Restart/reload the scheduler when server settings are updated via `PATCH /api/settings` in [settings_server.go](file:///home/jay/projects/audiobookshelf-go/internal/handlers/settings_server.go).
-   - Gracefully stop the scheduler on server shutdown.
-
-4. **Testing**
-   - Unit tests in `internal/backup/scheduler_test.go` verifying the cron parser/matcher.
-   - Integration tests verifying backup triggers.
+3. **E2E Integration & Unit Testing**
+   - Add unit tests or integration tests targeting the SQLite queries containing tag restrictions to ensure no "wrong number of SQL variables" error occurs.
+   - Verify user-specific items filtering (hiding/revealing tags) works end-to-end.

@@ -1066,9 +1066,17 @@ function renderUsersListRows(users, currentUser) {
   });
 }
 
-function triggerUserModal(user = null, currentUser, onSaveSuccess) {
+async function triggerUserModal(user = null, currentUser, onSaveSuccess) {
   const isEdit = !!user;
   const libraries = getLibrariesList();
+
+  let allTags = [];
+  try {
+    const res = await request('GET', '/api/tags');
+    allTags = res.tags || [];
+  } catch (err) {
+    console.error('Failed to load tags for user permissions', err);
+  }
 
   const modal = document.createElement('div');
   modal.className = 'fixed inset-0 bg-black-900/80 z-50 flex items-center justify-center p-4 overflow-y-auto';
@@ -1076,9 +1084,15 @@ function triggerUserModal(user = null, currentUser, onSaveSuccess) {
   const perms = user?.permissions || {
     download: true,
     accessExplicitContent: false,
-    accessAllLibraries: true
+    accessAllLibraries: true,
+    accessAllTags: true,
+    selectedTagsNotAccessible: false
   };
   const libsAccessible = user?.librariesAccessible || [];
+  const itemTagsSelected = user?.itemTagsSelected || [];
+
+  const accessAllTags = perms.accessAllTags !== false;
+  const selectedTagsNotAccessible = perms.selectedTagsNotAccessible === true;
 
   modal.innerHTML = `
     <div class="bg-primary border border-black-300 w-full max-w-lg p-6 rounded-md shadow-lg space-y-4 my-8">
@@ -1149,6 +1163,41 @@ function triggerUserModal(user = null, currentUser, onSaveSuccess) {
           </div>
         </div>
 
+        <!-- Tag Restrictions Section -->
+        <div class="border-t border-black-400 pt-3 space-y-3">
+          <h4 class="text-xs font-semibold text-accent uppercase tracking-wider">Tag Restrictions</h4>
+          
+          <div class="flex flex-col space-y-2">
+            <label class="flex items-center space-x-2 text-xs cursor-pointer">
+              <input type="checkbox" id="perm-all-tags" ${accessAllTags ? 'checked' : ''} class="rounded text-accent bg-black-600 border-black-300">
+              <span>Allow access to all tags</span>
+            </label>
+          </div>
+
+          <!-- Tag Selector (Collapsible) -->
+          <div id="tag-selector-container" class="${accessAllTags ? 'hidden' : ''} border border-black-300 rounded p-3 bg-black-500 space-y-3">
+            <div>
+              <label class="block text-[10px] font-semibold text-black-100 uppercase mb-1">Tag Filter Mode</label>
+              <select id="perm-tags-not-accessible" class="w-full bg-black-500 text-white px-2 py-1 rounded border border-black-300 focus:outline-none focus:border-accent text-xs">
+                <option value="false" ${!selectedTagsNotAccessible ? 'selected' : ''}>Allow Only Selected Tags</option>
+                <option value="true" ${selectedTagsNotAccessible ? 'selected' : ''}>Block Selected Tags</option>
+              </select>
+            </div>
+
+            <div>
+              <p class="text-[10px] font-semibold text-black-100 uppercase mb-1">Select Tags:</p>
+              <div class="max-h-28 overflow-y-auto space-y-1">
+                ${allTags.length === 0 ? '<p class="text-[11px] text-black-100">No tags available in library</p>' : allTags.map(tag => `
+                  <label class="flex items-center space-x-2 text-[11px] cursor-pointer hover:bg-black-400 p-1 rounded">
+                    <input type="checkbox" value="${escapeHtml(tag)}" ${itemTagsSelected.includes(tag) ? 'checked' : ''} class="user-tag-checkbox rounded text-accent bg-black-600 border-black-300">
+                    <span>${escapeHtml(tag)}</span>
+                  </label>
+                `).join('')}
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div class="flex justify-end space-x-3 pt-2">
           <button type="button" id="close-user-modal-btn" class="bg-black-400 hover:bg-black-300 text-white px-4 py-2 rounded text-xs font-semibold">Cancel</button>
           <button type="submit" class="bg-accent hover:opacity-90 text-primary font-bold px-4 py-2 rounded text-xs">${isEdit ? 'Save Changes' : 'Create User'}</button>
@@ -1169,6 +1218,16 @@ function triggerUserModal(user = null, currentUser, onSaveSuccess) {
       libContainer.classList.add('hidden');
     } else {
       libContainer.classList.remove('hidden');
+    }
+  };
+
+  const allTagsCheckbox = modal.querySelector('#perm-all-tags');
+  const tagContainer = modal.querySelector('#tag-selector-container');
+  allTagsCheckbox.onchange = () => {
+    if (allTagsCheckbox.checked) {
+      tagContainer.classList.add('hidden');
+    } else {
+      tagContainer.classList.remove('hidden');
     }
   };
 
@@ -1194,10 +1253,18 @@ function triggerUserModal(user = null, currentUser, onSaveSuccess) {
       return;
     }
 
+    const accessAllTags = allTagsCheckbox.checked;
+    const selectedTagsNotAccessible = modal.querySelector('#perm-tags-not-accessible').value === 'true';
+    const tagCheckboxes = modal.querySelectorAll('.user-tag-checkbox:checked');
+    const itemTagsSelected = Array.from(tagCheckboxes).map(cb => cb.value);
+
     const permissions = {
       download,
       accessExplicitContent,
-      accessAllLibraries
+      accessAllLibraries,
+      accessAllTags,
+      selectedTagsNotAccessible,
+      itemTagsSelected
     };
 
     try {
@@ -1205,7 +1272,8 @@ function triggerUserModal(user = null, currentUser, onSaveSuccess) {
         const payload = {
           email,
           permissions,
-          librariesAccessible
+          librariesAccessible,
+          itemTagsSelected
         };
         if (password) {
           payload.password = password;
@@ -1225,11 +1293,12 @@ function triggerUserModal(user = null, currentUser, onSaveSuccess) {
           permissions: {
             ...permissions,
             librariesAccessible,
-            accessAllTags: true,
-            itemTagsSelected: [],
-            selectedTagsNotAccessible: false
+            accessAllTags,
+            itemTagsSelected,
+            selectedTagsNotAccessible
           },
-          librariesAccessible
+          librariesAccessible,
+          itemTagsSelected
         };
         await request('POST', '/api/users', payload);
       }
