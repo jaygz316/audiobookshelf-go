@@ -1,28 +1,19 @@
 # Implementation Plan & Milestone Status
 
 ## Done in this Session
-1. **OPML Import/Export**:
-   - Resolved safeurl restrictions on mock RSS server connections in E2E tests by setting `BYPASS_SAFEURL=true` environment variable on the test process.
-   - Successfully ran the E2E tests for OPML parsing, podcast creation, and library OPML exporting (`TestF14OPMLImportExport`).
-   - Marked the feature as completed in `features.md`.
-
-2. **Interactive Audiobook Bookmarks**:
-   - Added a modern, responsive **Export** button in the Bookmarks section of the Audiobook Details modal.
-   - Built a premium modal dialog overlay allowing users to export their saved bookmarks in three curated formats:
-     - **TXT Format (.txt)**: Clean chronological lists, e.g. `[00:05:23] Chapter 1`.
-     - **CSV Table (.csv)**: Spreadsheet-compatible structure containing raw seconds, human-readable timestamps, and titles.
-     - **JSON Payload (.json)**: Fully structured object arrays for developer integrations.
-   - Hooked events and tested the backend bookmark routes (Create, Update, Delete, Get User info) using a new E2E test suite `TestF15Bookmarks` in `e2e/f15_bookmark_test.go`.
-   - Marked the feature as completed in `features.md`.
+1. **Integrated E-Book Reader progress & rendering integration**:
+   - Built a comprehensive E2E test suite (`e2e/f16_ebook_reader_test.go`) verifying EPUB and PDF serving, and progress tracking/updates (`ebookLocation` and `ebookProgress`).
+   - Verified that the backend correctly records reading positions (progress) and triggers `POST/PATCH /api/me/progress/:id` to synchronize progress across active devices.
+   - Synchronized the master feature checklist `features.md` to check off `Integrated E-Book Reader` as completed, as well as multiple other previously completed features that were unchecked.
+   - Discovered and added the new standard feature "Multi-File Audiobook Merging" to the features checklist.
 
 ---
 
-## Next Feature Target: Integrated E-Book Reader progress & rendering integration
+## Next Feature Target: Dynamic Audio Transcoding (HLS)
 
 ### Proposed Changes
-1. **Verification of Ebook Serving**:
-   - Build tests to ensure EPUB and PDF files are correctly parsed and served via `GET /api/items/:id/ebook`.
-2. **Ebook Progress Synchronization**:
-   - Verify that the reader frontend correctly records reading position (progress) and triggers `POST/PATCH /api/me/progress/:id` to synchronize progress across active devices.
-3. **E2E E-Book Reader Tests**:
-   - Create a dedicated e2e test suite (`e2e/f16_ebook_reader_test.go`) validating the end-to-end ebook reading progress flows.
+1. **Dynamic Audio Transcoding (HLS)**:
+   - Build HLS streaming handlers to parse bitrate and format requests.
+   - Integrate FFmpeg invocation to generate `.ts` stream segments on the fly.
+   - Construct E2E tests validating playback session initialization, streaming HLS playlists, and segment delivery.
+
