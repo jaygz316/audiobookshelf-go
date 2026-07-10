@@ -545,3 +545,112 @@ func TestPermissionBroadcasting(t *testing.T) {
 	// User3 should NOT receive because of tag restriction
 	c3.assertNoEvent(t, 100*time.Millisecond)
 }
+
+func TestSocketPlaybackSynchronization(t *testing.T) {
+	db := setupSocketTestDB(t)
+	defer db.Close()
+
+	// Seed user and session data
+	insertTestUser(t, db, "sync-user", "syncuser", "user", true, true, true, true, true, false, nil, nil)
+	
+	// Create Authority
+	sa := NewAuthority(db)
+	defer sa.Close()
+
+	srv := httptest.NewServer(InitSocketAuthority(sa))
+	defer srv.Close()
+
+	wsURL := "ws" + strings.TrimPrefix(srv.URL, "http")
+
+	// Get token
+	token, err := generateTestToken("sync-user", "syncuser", "user", cachedSecret)
+	if err != nil {
+		t.Fatalf("Failed to generate token: %v", err)
+	}
+
+	// 1. Initially, playback sessions should be empty
+	sessions := sa.getPlaybackSessionsForUser("sync-user")
+	if len(sessions) != 0 {
+		t.Errorf("Expected 0 sessions, got %d", len(sessions))
+	}
+
+	// 2. Seed a playback session in the DB
+	_, err = db.Exec(`INSERT INTO playbackSessions (id, userId, mediaItemId, mediaItemType, startTime, libraryId, extraData, createdAt, updatedAt) 
+		VALUES ('test-sess', 'sync-user', 'book-1', 'book', 10.0, 'lib-1', 
+		'{"playMethod":"HLS","deviceInfo":"iPhone","timeListened":120.5,"lastTime":45.0}', 
+		'2026-06-19 11:00:00', '2026-06-19 12:00:00')`)
+	if err != nil {
+		t.Fatalf("Failed to seed session: %v", err)
+	}
+
+	// 3. Connect a client and verify they get the seeded playback session in their init event
+	u, err := url.Parse(wsURL)
+	if err != nil {
+		t.Fatalf("Failed to parse URL: %v", err)
+	}
+	u.RawQuery = "EIO=4&transport=websocket"
+
+	conn, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
+	if err != nil {
+		t.Fatalf("Failed to dial ws: %v", err)
+	}
+	defer conn.Close()
+
+	// read open, send connect, read connect
+	_, _, _ = conn.ReadMessage()
+	_ = conn.WriteMessage(websocket.TextMessage, []byte("40"))
+	_, _, _ = conn.ReadMessage()
+
+	// Auth message
+	_ = conn.WriteMessage(websocket.TextMessage, []byte(fmt.Sprintf(`42["auth",%q]`, token)))
+
+	tc := newTestClient(conn)
+	initEv := tc.expectEvent(t, "init")
+	if len(initEv.Args) == 0 {
+		t.Fatalf("Init event payload empty")
+	}
+
+	initData, ok := initEv.Args[0].(map[string]interface{})
+	if !ok {
+		t.Fatalf("Init event payload not a map")
+	}
+
+	pSessions, ok := initData["playbackSessions"].([]interface{})
+	if !ok {
+		t.Fatalf("playbackSessions not found in init payload or not a slice")
+	}
+
+	if len(pSessions) != 1 {
+		t.Fatalf("Expected 1 playback session in init payload, got %d", len(pSessions))
+	}
+
+	s0 := pSessions[0].(map[string]interface{})
+	if s0["id"] != "test-sess" || s0["playMethod"] != "HLS" || s0["deviceInfo"] != "iPhone" || s0["lastTime"] != 45.0 {
+		t.Errorf("Unexpected session data: %+v", s0)
+	}
+
+	// 4. Test broadcasts
+	// Broadcast added
+	sa.BroadcastPlaybackSessionAdded("sync-user", "test-sess")
+	addEv := tc.expectEvent(t, "playback_session_added")
+	addPayload := addEv.Args[0].(map[string]interface{})
+	if addPayload["id"] != "test-sess" {
+		t.Errorf("Expected added session ID test-sess, got %v", addPayload["id"])
+	}
+
+	// Broadcast updated
+	sa.BroadcastPlaybackSessionUpdated("sync-user", "test-sess")
+	updEv := tc.expectEvent(t, "playback_session_updated")
+	updPayload := updEv.Args[0].(map[string]interface{})
+	if updPayload["id"] != "test-sess" {
+		t.Errorf("Expected updated session ID test-sess, got %v", updPayload["id"])
+	}
+
+	// Broadcast removed
+	sa.BroadcastPlaybackSessionRemoved("sync-user", "test-sess")
+	remEv := tc.expectEvent(t, "playback_session_removed")
+	remPayload := remEv.Args[0].(map[string]interface{})
+	if remPayload["id"] != "test-sess" {
+		t.Errorf("Expected removed session ID test-sess, got %v", remPayload["id"])
+	}
+}

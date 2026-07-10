@@ -1,6 +1,53 @@
 // frontend/js/settings.js (Proposed Implementation)
 import { request, resolvePath } from './api.js';
 import { getActiveLibraryId, getLibrariesList } from './library.js';
+import { onEvent } from './socket.js';
+
+let currentSessions = [];
+let selectedUserIdFilter = '';
+
+function getFilteredSessions() {
+  if (!selectedUserIdFilter) return currentSessions;
+  return currentSessions.filter(s => s.userId === selectedUserIdFilter);
+}
+
+// Register socket listeners for real-time playback session updates
+onEvent('playback_session_added', (session) => {
+  console.log('[Socket] playback_session_added:', session);
+  const idx = currentSessions.findIndex(s => s.id === session.id);
+  if (idx === -1) {
+    currentSessions.unshift(session);
+  } else {
+    currentSessions[idx] = session;
+  }
+  const tbody = document.getElementById('sessions-list-rows');
+  if (tbody) {
+    renderListeningSessionsListRows(getFilteredSessions());
+  }
+});
+
+onEvent('playback_session_updated', (session) => {
+  console.log('[Socket] playback_session_updated:', session);
+  const idx = currentSessions.findIndex(s => s.id === session.id);
+  if (idx !== -1) {
+    currentSessions[idx] = session;
+  } else {
+    currentSessions.unshift(session);
+  }
+  const tbody = document.getElementById('sessions-list-rows');
+  if (tbody) {
+    renderListeningSessionsListRows(getFilteredSessions());
+  }
+});
+
+onEvent('playback_session_removed', (data) => {
+  console.log('[Socket] playback_session_removed:', data);
+  currentSessions = currentSessions.filter(s => s.id !== data.id);
+  const tbody = document.getElementById('sessions-list-rows');
+  if (tbody) {
+    renderListeningSessionsListRows(getFilteredSessions());
+  }
+});
 
 export async function loadSettings() {
   const container = document.getElementById('bookshelf');
@@ -1581,7 +1628,8 @@ async function renderListeningSessionsTab() {
       request('GET', '/api/users'),
       request('GET', '/api/playback-sessions')
     ]);
-    const sessions = sessionsResp.sessions || [];
+    currentSessions = sessionsResp.sessions || [];
+    selectedUserIdFilter = '';
 
     container.innerHTML = `
       <div class="space-y-4">
@@ -1607,6 +1655,7 @@ async function renderListeningSessionsTab() {
                 <th class="px-4 py-3">Time Listened</th>
                 <th class="px-4 py-3">Last Position/Last Time</th>
                 <th class="px-4 py-3">Last Updated</th>
+                <th class="px-4 py-3 text-right">Actions</th>
               </tr>
             </thead>
             <tbody id="sessions-list-rows" class="divide-y divide-black-400">
@@ -1618,39 +1667,12 @@ async function renderListeningSessionsTab() {
     `;
 
     const select = container.querySelector('#filter-session-user');
-    select.onchange = async () => {
-      const tbody = document.getElementById('sessions-list-rows');
-      if (tbody) {
-        tbody.innerHTML = `
-          <tr>
-            <td colspan="7" class="px-4 py-8 text-center">
-              <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-accent mx-auto"></div>
-            </td>
-          </tr>
-        `;
-      }
-      try {
-        const selectedUserId = select.value;
-        let url = '/api/playback-sessions';
-        if (selectedUserId) {
-          url += `?userId=${selectedUserId}`;
-        }
-        const res = await request('GET', url);
-        renderListeningSessionsListRows(res.sessions || []);
-      } catch (err) {
-        if (tbody) {
-          tbody.innerHTML = `
-            <tr>
-              <td colspan="7" class="px-4 py-8 text-center text-red-500">
-                Failed to load sessions: ${escapeHtml(err.message)}
-              </td>
-            </tr>
-          `;
-        }
-      }
+    select.onchange = () => {
+      selectedUserIdFilter = select.value;
+      renderListeningSessionsListRows(getFilteredSessions());
     };
 
-    renderListeningSessionsListRows(sessions);
+    renderListeningSessionsListRows(getFilteredSessions());
   } catch (err) {
     container.innerHTML = `<div class="text-red-500 text-center py-4">Failed to load listening sessions: ${escapeHtml(err.message)}</div>`;
   }
@@ -1665,7 +1687,7 @@ function renderListeningSessionsListRows(sessions) {
   if (sessions.length === 0) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="7" class="px-4 py-8 text-center text-black-100">
+        <td colspan="8" class="px-4 py-8 text-center text-black-100">
           No listening sessions found.
         </td>
       </tr>
@@ -1681,6 +1703,19 @@ function renderListeningSessionsListRows(sessions) {
     const lastTimeFormatted = formatSessionTime(session.lastTime);
     const updatedAtFormatted = session.updatedAt ? (window.formatDateTime ? window.formatDateTime(session.updatedAt) : session.updatedAt) : 'Unknown';
 
+    // Verify current user permissions to show Close button
+    const curUser = window.currentUser || {};
+    const canClose = curUser.type === 'root' || curUser.type === 'admin' || curUser.id === session.userId;
+
+    let actionsHtml = '';
+    if (canClose) {
+      actionsHtml = `
+        <button class="close-session-btn text-red-500 hover:text-red-400 font-semibold text-xs transition-colors duration-150" data-id="${session.id}">
+          Close Session
+        </button>
+      `;
+    }
+
     tr.innerHTML = `
       <td class="px-4 py-3 font-semibold text-white">${escapeHtml(session.username || 'Unknown')}</td>
       <td class="px-4 py-3 text-black-50 font-medium">${escapeHtml(session.title || 'Unknown')}</td>
@@ -1689,7 +1724,25 @@ function renderListeningSessionsListRows(sessions) {
       <td class="px-4 py-3 text-black-100 font-mono text-xs">${escapeHtml(timeListenedFormatted)}</td>
       <td class="px-4 py-3 text-black-100 font-mono text-xs">${escapeHtml(lastTimeFormatted)}</td>
       <td class="px-4 py-3 text-black-100">${escapeHtml(updatedAtFormatted)}</td>
+      <td class="px-4 py-3 text-right">${actionsHtml}</td>
     `;
+
+    if (canClose) {
+      const closeBtn = tr.querySelector('.close-session-btn');
+      closeBtn.onclick = async () => {
+        if (confirm(`Are you sure you want to close this playback session for ${session.username || 'user'}?`)) {
+          try {
+            await request('DELETE', `/api/playback-sessions/${session.id}`);
+            // Note: socket listener will automatically remove it and re-render.
+            // But we can also remove it locally right away for an instant UI update:
+            currentSessions = currentSessions.filter(s => s.id !== session.id);
+            renderListeningSessionsListRows(getFilteredSessions());
+          } catch (err) {
+            alert('Failed to close playback session: ' + err.message);
+          }
+        }
+      };
+    }
 
     tbody.appendChild(tr);
   });

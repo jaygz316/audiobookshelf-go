@@ -455,4 +455,73 @@ func TestF5PlaybackSessionsAndHLS(t *testing.T) {
 			t.Errorf("Expected status 404 NotFound for another user's progress, got %d", respOther.StatusCode)
 		}
 	})
+
+	// 11. Playback session deletion access control
+	t.Run("DELETE /api/playback-sessions/:id - Close playback session", func(t *testing.T) {
+		sessID1 := "test-del-sess-1"
+		sessID2 := "test-del-sess-2"
+		
+		// Insert sessions into DB
+		_, err := db.Exec(`INSERT INTO playbackSessions (id, userId, mediaItemId, mediaItemType, startTime, libraryId, extraData, createdAt, updatedAt)
+			VALUES (?, ?, ?, 'book', 0.0, ?, '{}', datetime('now'), datetime('now'))`,
+			sessID1, adminUserID, bookID, libraryID)
+		if err != nil {
+			t.Fatalf("Failed to insert mock session: %v", err)
+		}
+		
+		_, err = db.Exec(`INSERT INTO playbackSessions (id, userId, mediaItemId, mediaItemType, startTime, libraryId, extraData, createdAt, updatedAt)
+			VALUES (?, ?, ?, 'book', 0.0, ?, '{}', datetime('now'), datetime('now'))`,
+			sessID2, restrictedUserID, bookID, libraryID)
+		if err != nil {
+			t.Fatalf("Failed to insert mock session: %v", err)
+		}
+
+		// 11a. Restricted user tries to delete admin session: expect 403 Forbidden
+		reqDel1, _ := http.NewRequest("DELETE", h.BaseURL+"/api/playback-sessions/"+sessID1, nil)
+		reqDel1.Header.Set("Authorization", "Bearer "+restrictedToken)
+		respDel1, err := client.Do(reqDel1)
+		if err != nil {
+			t.Fatalf("DELETE failed: %v", err)
+		}
+		respDel1.Body.Close()
+		if respDel1.StatusCode != http.StatusForbidden {
+			t.Errorf("Expected 403 Forbidden, got %d", respDel1.StatusCode)
+		}
+
+		// 11b. Restricted user deletes their own session: expect 204 No Content
+		reqDel2, _ := http.NewRequest("DELETE", h.BaseURL+"/api/playback-sessions/"+sessID2, nil)
+		reqDel2.Header.Set("Authorization", "Bearer "+restrictedToken)
+		respDel2, err := client.Do(reqDel2)
+		if err != nil {
+			t.Fatalf("DELETE failed: %v", err)
+		}
+		respDel2.Body.Close()
+		if respDel2.StatusCode != http.StatusNoContent {
+			t.Errorf("Expected 204 No Content, got %d", respDel2.StatusCode)
+		}
+
+		// 11c. Admin deletes admin session: expect 204 No Content
+		reqDel3, _ := http.NewRequest("DELETE", h.BaseURL+"/api/playback-sessions/"+sessID1, nil)
+		reqDel3.Header.Set("Authorization", "Bearer "+adminToken)
+		respDel3, err := client.Do(reqDel3)
+		if err != nil {
+			t.Fatalf("DELETE failed: %v", err)
+		}
+		respDel3.Body.Close()
+		if respDel3.StatusCode != http.StatusNoContent {
+			t.Errorf("Expected 204 No Content, got %d", respDel3.StatusCode)
+		}
+
+		// 11d. Delete non-existent: expect 404 Not Found
+		reqDel4, _ := http.NewRequest("DELETE", h.BaseURL+"/api/playback-sessions/nonexistent", nil)
+		reqDel4.Header.Set("Authorization", "Bearer "+adminToken)
+		respDel4, err := client.Do(reqDel4)
+		if err != nil {
+			t.Fatalf("DELETE failed: %v", err)
+		}
+		respDel4.Body.Close()
+		if respDel4.StatusCode != http.StatusNotFound {
+			t.Errorf("Expected 404 Not Found, got %d", respDel4.StatusCode)
+		}
+	})
 }

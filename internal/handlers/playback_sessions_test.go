@@ -190,4 +190,71 @@ func TestGetPlaybackSessionsHandler(t *testing.T) {
 			t.Errorf("Expected sess-1, got %s", resp.Sessions[0].ID)
 		}
 	})
+
+	t.Run("DELETE playback-session forbidden non-owner", func(t *testing.T) {
+		req := httptest.NewRequest("DELETE", "/api/playback-sessions/sess-1", nil)
+		// normalSession is user-normal, sess-1 belongs to user-root
+		req = req.WithContext(context.WithValue(req.Context(), core.UserContextKey, normalSession))
+		rr := httptest.NewRecorder()
+		handleClosePlaybackSession(db, "sess-1").ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusForbidden {
+			t.Errorf("Expected 403, got %d", rr.Code)
+		}
+	})
+
+	t.Run("DELETE playback-session non-existent", func(t *testing.T) {
+		req := httptest.NewRequest("DELETE", "/api/playback-sessions/non-existent-sess", nil)
+		req = req.WithContext(context.WithValue(req.Context(), core.UserContextKey, rootSession))
+		rr := httptest.NewRecorder()
+		handleClosePlaybackSession(db, "non-existent-sess").ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusNotFound {
+			t.Errorf("Expected 404, got %d", rr.Code)
+		}
+	})
+
+	t.Run("DELETE playback-session allowed owner", func(t *testing.T) {
+		req := httptest.NewRequest("DELETE", "/api/playback-sessions/sess-3", nil)
+		// sess-3 belongs to user-normal (normalSession)
+		req = req.WithContext(context.WithValue(req.Context(), core.UserContextKey, normalSession))
+		rr := httptest.NewRecorder()
+		handleClosePlaybackSession(db, "sess-3").ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusNoContent {
+			t.Errorf("Expected 204, got %d", rr.Code)
+		}
+
+		// Verify deletion
+		var count int
+		err := db.QueryRow("SELECT COUNT(*) FROM playbackSessions WHERE id = 'sess-3'").Scan(&count)
+		if err != nil {
+			t.Fatalf("Failed to query DB: %v", err)
+		}
+		if count != 0 {
+			t.Errorf("Expected session to be deleted, count: %d", count)
+		}
+	})
+
+	t.Run("DELETE playback-session allowed admin", func(t *testing.T) {
+		req := httptest.NewRequest("DELETE", "/api/playback-sessions/sess-1", nil)
+		// sess-1 belongs to user-root, adminuser is user-admin (adminSession)
+		req = req.WithContext(context.WithValue(req.Context(), core.UserContextKey, adminSession))
+		rr := httptest.NewRecorder()
+		handleClosePlaybackSession(db, "sess-1").ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusNoContent {
+			t.Errorf("Expected 204, got %d", rr.Code)
+		}
+
+		// Verify deletion
+		var count int
+		err := db.QueryRow("SELECT COUNT(*) FROM playbackSessions WHERE id = 'sess-1'").Scan(&count)
+		if err != nil {
+			t.Fatalf("Failed to query DB: %v", err)
+		}
+		if count != 0 {
+			t.Errorf("Expected session to be deleted, count: %d", count)
+		}
+	})
 }

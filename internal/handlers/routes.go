@@ -441,6 +441,18 @@ func registerSettingsRoutes(mux *http.ServeMux, cfg *core.Config, db *sql.DB) {
 			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
 		}
 	})
+	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/playback-sessions/"), func(w http.ResponseWriter, r *http.Request) {
+		subPath := strings.TrimPrefix(r.URL.Path, joinPath(cfg.RouterBasePath, "/api/playback-sessions/"))
+		parts := strings.Split(subPath, "/")
+		if len(parts) == 1 && parts[0] != "" {
+			sessionID := parts[0]
+			if r.Method == http.MethodDelete {
+				AuthMiddlewareWrapper(db, handleClosePlaybackSession(db, sessionID)).ServeHTTP(w, r)
+				return
+			}
+		}
+		http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
+	})
 }
 
 func registerMetadataRoutes(mux *http.ServeMux, cfg *core.Config, db *sql.DB) {

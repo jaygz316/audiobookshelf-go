@@ -178,6 +178,7 @@ function bootstrapApp(payload) {
 
   // Populate User Identity Details
   const user = payload.user || {};
+  window.currentUser = user;
   const userInitials = document.getElementById('user-initials');
   const userDisplayName = document.getElementById('user-display-name');
   const userDisplayRole = document.getElementById('user-display-role');

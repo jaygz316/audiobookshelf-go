@@ -435,6 +435,8 @@ func handleCreateUpdateMeProgress(db *sql.DB) http.HandlerFunc {
 				_, errSessUpdate := db.ExecContext(r.Context(), `UPDATE playbackSessions SET extraData = ?, updatedAt = ? WHERE id = ?`, string(sessExtraBytes), nowStr, sessID)
 				if errSessUpdate != nil {
 					log.Printf("[Me Progress] Failed to update playback session: %v", errSessUpdate)
+				} else if isocket.GlobalAuth != nil {
+					isocket.GlobalAuth.BroadcastPlaybackSessionUpdated(userSess.ID, sessID)
 				}
 			} else if errSess == sql.ErrNoRows {
 				// Fallback: Create playback session if none exists
@@ -461,6 +463,8 @@ func handleCreateUpdateMeProgress(db *sql.DB) http.HandlerFunc {
 					sessID, userSess.ID, mediaItemID, mediaItemType, currentTimeVal, resolvedLibraryID, string(sessExtraBytes), nowStr, nowStr)
 				if errSessInsert != nil {
 					log.Printf("[Me Progress] Failed to create fallback playback session: %v", errSessInsert)
+				} else if isocket.GlobalAuth != nil {
+					isocket.GlobalAuth.BroadcastPlaybackSessionAdded(userSess.ID, sessID)
 				}
 			}
 		}
