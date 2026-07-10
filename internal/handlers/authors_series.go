@@ -712,14 +712,14 @@ func handleGetLibraryItemByID(db *sql.DB, itemID string) http.HandlerFunc {
 			var bTitle string
 			var bTitleIgnorePrefix, bSubtitle, bPublishedYear, bPublishedDate, bPublisher, bDescription, bIsbn, bAsin, bLanguage, bCoverPath sql.NullString
 			var bDuration float64
-			var bNarrators, bAudioFiles, bEbookFile, bChapters, bTags, bGenres []byte
+			var bNarrators, bAudioFiles, bEbookFile, bChapters, bTags, bGenres, bLockedFields []byte
 			var bExplicit, bAbridged sql.NullInt64
 
 			err = db.QueryRow(`
-				SELECT title, titleIgnorePrefix, subtitle, publishedYear, publishedDate, publisher, description, isbn, asin, language, explicit, abridged, coverPath, duration, narrators, audioFiles, ebookFile, chapters, tags, genres
+				SELECT title, titleIgnorePrefix, subtitle, publishedYear, publishedDate, publisher, description, isbn, asin, language, explicit, abridged, coverPath, duration, narrators, audioFiles, ebookFile, chapters, tags, genres, lockedFields
 				FROM books WHERE id = ?
 			`, mediaID).Scan(
-				&bTitle, &bTitleIgnorePrefix, &bSubtitle, &bPublishedYear, &bPublishedDate, &bPublisher, &bDescription, &bIsbn, &bAsin, &bLanguage, &bExplicit, &bAbridged, &bCoverPath, &bDuration, &bNarrators, &bAudioFiles, &bEbookFile, &bChapters, &bTags, &bGenres,
+				&bTitle, &bTitleIgnorePrefix, &bSubtitle, &bPublishedYear, &bPublishedDate, &bPublisher, &bDescription, &bIsbn, &bAsin, &bLanguage, &bExplicit, &bAbridged, &bCoverPath, &bDuration, &bNarrators, &bAudioFiles, &bEbookFile, &bChapters, &bTags, &bGenres, &bLockedFields,
 			)
 			if err == nil {
 				var tags []string
@@ -732,6 +732,13 @@ func handleGetLibraryItemByID(db *sql.DB, itemID string) http.HandlerFunc {
 				_ = json.Unmarshal(bEbookFile, &ebook)
 				var chapters []interface{}
 				_ = json.Unmarshal(bChapters, &chapters)
+				var lockedFields []string
+				if len(bLockedFields) > 0 {
+					_ = json.Unmarshal(bLockedFields, &lockedFields)
+				}
+				if lockedFields == nil {
+					lockedFields = []string{}
+				}
 
 				var authorNames []string
 				var seriesNames []string
@@ -863,6 +870,7 @@ func handleGetLibraryItemByID(db *sql.DB, itemID string) http.HandlerFunc {
 						"language":          utils.NullIfEmpty(bLanguage.String),
 						"explicit":          bExplicit.Valid && bExplicit.Int64 != 0,
 						"abridged":          bAbridged.Valid && bAbridged.Int64 != 0,
+						"lockedFields":      lockedFields,
 					},
 				}
 
@@ -938,19 +946,26 @@ func handleGetLibraryItemByID(db *sql.DB, itemID string) http.HandlerFunc {
 		} else if mediaType == "podcast" {
 			var pTitle, pAuthor, pDescription, pLanguage, pPodcastType, pCoverPath sql.NullString
 			var pExplicit sql.NullInt64
-			var pTags, pGenres []byte
+			var pTags, pGenres, pLockedFields []byte
 
 			err = db.QueryRow(`
-				SELECT title, author, description, language, podcastType, explicit, coverPath, tags, genres
+				SELECT title, author, description, language, podcastType, explicit, coverPath, tags, genres, lockedFields
 				FROM podcasts WHERE id = ?
 			`, mediaID).Scan(
-				&pTitle, &pAuthor, &pDescription, &pLanguage, &pPodcastType, &pExplicit, &pCoverPath, &pTags, &pGenres,
+				&pTitle, &pAuthor, &pDescription, &pLanguage, &pPodcastType, &pExplicit, &pCoverPath, &pTags, &pGenres, &pLockedFields,
 			)
 			if err == nil {
 				var tags []string
 				_ = json.Unmarshal(pTags, &tags)
 				var genres []string
 				_ = json.Unmarshal(pGenres, &genres)
+				var lockedFields []string
+				if len(pLockedFields) > 0 {
+					_ = json.Unmarshal(pLockedFields, &lockedFields)
+				}
+				if lockedFields == nil {
+					lockedFields = []string{}
+				}
 
 				hasPubDate := hasColumn(r.Context(), db, "podcastEpisodes", "pubDate")
 				hasDesc := hasColumn(r.Context(), db, "podcastEpisodes", "description")
@@ -1055,6 +1070,7 @@ func handleGetLibraryItemByID(db *sql.DB, itemID string) http.HandlerFunc {
 						"podcastType": utils.NullIfEmpty(pPodcastType.String),
 						"explicit":    pExplicit.Valid && pExplicit.Int64 != 0,
 						"genres":      genres,
+						"lockedFields": lockedFields,
 					},
 				}
 			} else {
@@ -1164,6 +1180,7 @@ func handleUpdateLibraryItemByID(db *sql.DB, itemID string) http.HandlerFunc {
 			Abridged       bool     `json:"abridged"`
 			Tags           []string `json:"tags"`
 			Genres         []string `json:"genres"`
+			LockedFields   []string `json:"lockedFields"`
 		}
 
 		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
@@ -1191,15 +1208,16 @@ func handleUpdateLibraryItemByID(db *sql.DB, itemID string) http.HandlerFunc {
 			narratorsJSON, _ := json.Marshal(payload.Narrators)
 			tagsJSON, _ := json.Marshal(payload.Tags)
 			genresJSON, _ := json.Marshal(payload.Genres)
+			lockedFieldsJSON, _ := json.Marshal(payload.LockedFields)
 
 			prefixes := idb.GetSortingPrefixes(db)
 			titleIgnorePrefix := getTitleIgnorePrefixGo(payload.Title, prefixes)
 
 			_, err = tx.Exec(`
 				UPDATE books
-				SET title = ?, titleIgnorePrefix = ?, subtitle = ?, publishedYear = ?, publishedDate = ?, publisher = ?, description = ?, isbn = ?, asin = ?, language = ?, explicit = ?, abridged = ?, narrators = ?, tags = ?, genres = ?
+				SET title = ?, titleIgnorePrefix = ?, subtitle = ?, publishedYear = ?, publishedDate = ?, publisher = ?, description = ?, isbn = ?, asin = ?, language = ?, explicit = ?, abridged = ?, narrators = ?, tags = ?, genres = ?, lockedFields = ?
 				WHERE id = ?
-			`, payload.Title, titleIgnorePrefix, payload.Subtitle, payload.PublishedYear, payload.PublishedDate, payload.Publisher, payload.Description, payload.Isbn, payload.Asin, payload.Language, boolToInt(payload.Explicit), boolToInt(payload.Abridged), narratorsJSON, tagsJSON, genresJSON, mediaID)
+			`, payload.Title, titleIgnorePrefix, payload.Subtitle, payload.PublishedYear, payload.PublishedDate, payload.Publisher, payload.Description, payload.Isbn, payload.Asin, payload.Language, boolToInt(payload.Explicit), boolToInt(payload.Abridged), narratorsJSON, tagsJSON, genresJSON, lockedFieldsJSON, mediaID)
 			if err != nil {
 				http.Error(w, "failed to update book: "+err.Error(), http.StatusInternalServerError)
 				return
@@ -1253,6 +1271,7 @@ func handleUpdateLibraryItemByID(db *sql.DB, itemID string) http.HandlerFunc {
 		} else if mediaType == "podcast" {
 			tagsJSON, _ := json.Marshal(payload.Tags)
 			genresJSON, _ := json.Marshal(payload.Genres)
+			lockedFieldsJSON, _ := json.Marshal(payload.LockedFields)
 			var author string
 			if len(payload.Authors) > 0 {
 				author = payload.Authors[0]
@@ -1263,9 +1282,9 @@ func handleUpdateLibraryItemByID(db *sql.DB, itemID string) http.HandlerFunc {
 
 			_, err = tx.Exec(`
 				UPDATE podcasts
-				SET title = ?, titleIgnorePrefix = ?, author = ?, description = ?, language = ?, explicit = ?, tags = ?, genres = ?
+				SET title = ?, titleIgnorePrefix = ?, author = ?, description = ?, language = ?, explicit = ?, tags = ?, genres = ?, lockedFields = ?
 				WHERE id = ?
-			`, payload.Title, titleIgnorePrefix, author, payload.Description, payload.Language, boolToInt(payload.Explicit), tagsJSON, genresJSON, mediaID)
+			`, payload.Title, titleIgnorePrefix, author, payload.Description, payload.Language, boolToInt(payload.Explicit), tagsJSON, genresJSON, lockedFieldsJSON, mediaID)
 			if err != nil {
 				http.Error(w, "failed to update podcast: "+err.Error(), http.StatusInternalServerError)
 				return
@@ -1316,6 +1335,7 @@ func handleUpdateLibraryItemByID(db *sql.DB, itemID string) http.HandlerFunc {
 					"abridged":      payload.Abridged,
 					"tags":          payload.Tags,
 					"genres":        payload.Genres,
+					"lockedFields":  payload.LockedFields,
 				}
 				metaJSON, marshalErr := json.MarshalIndent(metaData, "", "  ")
 				if marshalErr == nil {

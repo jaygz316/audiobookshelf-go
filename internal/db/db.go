@@ -482,6 +482,66 @@ func migrateDatabase(db *sql.DB) error {
 		}
 	}
 
+	// Migrate books table to include lockedFields if missing
+	var booksExists int
+	err = db.QueryRow("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='books'").Scan(&booksExists)
+	if err == nil && booksExists > 0 {
+		rows, err := db.Query("PRAGMA table_info(books)")
+		if err == nil {
+			defer rows.Close()
+			hasLockedFields := false
+			for rows.Next() {
+				var cid int
+				var name string
+				var typeStr string
+				var notnull int
+				var dfltValue sql.NullString
+				var pk int
+				if err := rows.Scan(&cid, &name, &typeStr, &notnull, &dfltValue, &pk); err == nil {
+					if name == "lockedFields" {
+						hasLockedFields = true
+					}
+				}
+			}
+			if !hasLockedFields {
+				log.Printf("[DB] Migrating books table: adding lockedFields column")
+				if _, err := db.Exec("ALTER TABLE books ADD COLUMN lockedFields BLOB"); err != nil {
+					return fmt.Errorf("failed to add lockedFields column to books: %w", err)
+				}
+			}
+		}
+	}
+
+	// Migrate podcasts table to include lockedFields if missing
+	var podcastsExists int
+	err = db.QueryRow("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='podcasts'").Scan(&podcastsExists)
+	if err == nil && podcastsExists > 0 {
+		rows, err := db.Query("PRAGMA table_info(podcasts)")
+		if err == nil {
+			defer rows.Close()
+			hasLockedFields := false
+			for rows.Next() {
+				var cid int
+				var name string
+				var typeStr string
+				var notnull int
+				var dfltValue sql.NullString
+				var pk int
+				if err := rows.Scan(&cid, &name, &typeStr, &notnull, &dfltValue, &pk); err == nil {
+					if name == "lockedFields" {
+						hasLockedFields = true
+					}
+				}
+			}
+			if !hasLockedFields {
+				log.Printf("[DB] Migrating podcasts table: adding lockedFields column")
+				if _, err := db.Exec("ALTER TABLE podcasts ADD COLUMN lockedFields BLOB"); err != nil {
+					return fmt.Errorf("failed to add lockedFields column to podcasts: %w", err)
+				}
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -494,8 +554,8 @@ func bootstrapSchema(db *sql.DB) error {
 		`CREATE TABLE IF NOT EXISTS libraries (id TEXT PRIMARY KEY, name TEXT, displayOrder INTEGER, icon TEXT, mediaType TEXT, provider TEXT, lastScan TEXT, lastScanVersion TEXT, settings TEXT, createdAt TEXT, updatedAt TEXT)`,
 		`CREATE TABLE IF NOT EXISTS libraryFolders (id TEXT PRIMARY KEY, path TEXT, libraryId TEXT, createdAt TEXT, updatedAt TEXT)`,
 		`CREATE TABLE IF NOT EXISTS libraryItems (id TEXT PRIMARY KEY, ino TEXT, libraryId TEXT, path TEXT, relPath TEXT, isFile INTEGER, mtime TEXT, ctime TEXT, birthtime TEXT, createdAt TEXT, updatedAt TEXT, isMissing INTEGER, isInvalid INTEGER, mediaType TEXT, mediaId TEXT, size INTEGER, libraryFolderId TEXT, authorNamesFirstLast TEXT, authorNamesLastFirst TEXT, title TEXT, titleIgnorePrefix TEXT)`,
-		`CREATE TABLE IF NOT EXISTS books (id TEXT PRIMARY KEY, title TEXT, titleIgnorePrefix TEXT, subtitle TEXT, publishedYear TEXT, publishedDate TEXT, publisher TEXT, description TEXT, isbn TEXT, asin TEXT, language TEXT, explicit INTEGER, abridged INTEGER, coverPath TEXT, duration REAL, narrators BLOB, audioFiles BLOB, ebookFile BLOB, chapters BLOB, tags BLOB, genres BLOB)`,
-		`CREATE TABLE IF NOT EXISTS podcasts (id TEXT PRIMARY KEY, title TEXT, titleIgnorePrefix TEXT, author TEXT, releaseDate TEXT, feedURL TEXT, imageURL TEXT, description TEXT, itunesPageURL TEXT, itunesId TEXT, itunesArtistId TEXT, language TEXT, podcastType TEXT, explicit INTEGER, autoDownloadEpisodes INTEGER, autoDownloadSchedule TEXT, lastEpisodeCheck TEXT, maxEpisodesToKeep INTEGER, maxNewEpisodesToDownload INTEGER, coverPath TEXT, tags BLOB, genres BLOB, numEpisodes INTEGER)`,
+		`CREATE TABLE IF NOT EXISTS books (id TEXT PRIMARY KEY, title TEXT, titleIgnorePrefix TEXT, subtitle TEXT, publishedYear TEXT, publishedDate TEXT, publisher TEXT, description TEXT, isbn TEXT, asin TEXT, language TEXT, explicit INTEGER, abridged INTEGER, coverPath TEXT, duration REAL, narrators BLOB, audioFiles BLOB, ebookFile BLOB, chapters BLOB, tags BLOB, genres BLOB, lockedFields BLOB)`,
+		`CREATE TABLE IF NOT EXISTS podcasts (id TEXT PRIMARY KEY, title TEXT, titleIgnorePrefix TEXT, author TEXT, releaseDate TEXT, feedURL TEXT, imageURL TEXT, description TEXT, itunesPageURL TEXT, itunesId TEXT, itunesArtistId TEXT, language TEXT, podcastType TEXT, explicit INTEGER, autoDownloadEpisodes INTEGER, autoDownloadSchedule TEXT, lastEpisodeCheck TEXT, maxEpisodesToKeep INTEGER, maxNewEpisodesToDownload INTEGER, coverPath TEXT, tags BLOB, genres BLOB, numEpisodes INTEGER, lockedFields BLOB)`,
 		`CREATE TABLE IF NOT EXISTS bookSeries (bookId TEXT, seriesId TEXT, sequence TEXT)`,
 		`CREATE TABLE IF NOT EXISTS series (id TEXT PRIMARY KEY, libraryId TEXT, name TEXT, nameIgnorePrefix TEXT, description TEXT, createdAt TEXT, updatedAt TEXT)`,
 		`CREATE TABLE IF NOT EXISTS mediaProgresses (id TEXT PRIMARY KEY, userId TEXT, mediaItemId TEXT, mediaItemType TEXT, duration REAL, currentTime REAL, isFinished INTEGER, hideFromContinueListening INTEGER, ebookLocation TEXT, ebookProgress REAL, finishedAt TEXT, extraData TEXT, podcastId TEXT, createdAt TEXT, updatedAt TEXT)`,

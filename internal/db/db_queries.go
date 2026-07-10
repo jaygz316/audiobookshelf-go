@@ -569,6 +569,7 @@ type BookMetadataMinified struct {
 	Language          *string  `json:"language"`
 	Explicit          bool     `json:"explicit"`
 	Abridged          bool     `json:"abridged"`
+	LockedFields      []string `json:"lockedFields"`
 }
 
 type PodcastMinifiedJSON struct {
@@ -600,6 +601,7 @@ type PodcastMetadataMin struct {
 	Explicit          bool     `json:"explicit"`
 	Language          *string  `json:"language"`
 	Type              *string  `json:"type"`
+	LockedFields      []string `json:"lockedFields"`
 }
 
 // GetLibraryItemMinifiedByID retrieves a library item in its minified JSON form by ID.
@@ -641,14 +643,14 @@ func GetLibraryItemMinifiedByID(db *sql.DB, itemID string) (*LibraryItemMinified
 	if mediaType == "book" {
 		var bTitle, bTitleIgnorePrefix, bSubtitle, bPublishedYear, bPublishedDate, bPublisher, bDescription, bIsbn, bAsin, bLanguage, bCoverPath string
 		var bDuration float64
-		var bNarrators, bAudioFiles, bEbookFile, bChapters, bTags, bGenres []byte
+		var bNarrators, bAudioFiles, bEbookFile, bChapters, bTags, bGenres, bLockedFields []byte
 		var bExplicit, bAbridged int
 
 		err = db.QueryRow(`
-			SELECT title, titleIgnorePrefix, subtitle, publishedYear, publishedDate, publisher, description, isbn, asin, language, explicit, abridged, coverPath, duration, narrators, audioFiles, ebookFile, chapters, tags, genres
+			SELECT title, titleIgnorePrefix, subtitle, publishedYear, publishedDate, publisher, description, isbn, asin, language, explicit, abridged, coverPath, duration, narrators, audioFiles, ebookFile, chapters, tags, genres, lockedFields
 			FROM books WHERE id = ?
 		`, mediaID).Scan(
-			&bTitle, &bTitleIgnorePrefix, &bSubtitle, &bPublishedYear, &bPublishedDate, &bPublisher, &bDescription, &bIsbn, &bAsin, &bLanguage, &bExplicit, &bAbridged, &bCoverPath, &bDuration, &bNarrators, &bAudioFiles, &bEbookFile, &bChapters, &bTags, &bGenres,
+			&bTitle, &bTitleIgnorePrefix, &bSubtitle, &bPublishedYear, &bPublishedDate, &bPublisher, &bDescription, &bIsbn, &bAsin, &bLanguage, &bExplicit, &bAbridged, &bCoverPath, &bDuration, &bNarrators, &bAudioFiles, &bEbookFile, &bChapters, &bTags, &bGenres, &bLockedFields,
 		)
 		if err == nil {
 			var tags []string
@@ -661,6 +663,13 @@ func GetLibraryItemMinifiedByID(db *sql.DB, itemID string) (*LibraryItemMinified
 			_ = json.Unmarshal(bChapters, &chapters)
 			var narratorNames []string
 			_ = json.Unmarshal(bNarrators, &narratorNames)
+			var lockedFields []string
+			if len(bLockedFields) > 0 {
+				_ = json.Unmarshal(bLockedFields, &lockedFields)
+			}
+			if lockedFields == nil {
+				lockedFields = []string{}
+			}
 
 			var authorNames []string
 			rows, err2 := db.Query("SELECT name FROM authors WHERE id IN (SELECT authorId FROM bookAuthors WHERE bookId = ?)", mediaID)
@@ -728,6 +737,7 @@ func GetLibraryItemMinifiedByID(db *sql.DB, itemID string) (*LibraryItemMinified
 					Language:          nullIfEmpty(bLanguage),
 					Explicit:          bExplicit != 0,
 					Abridged:          bAbridged != 0,
+					LockedFields:      lockedFields,
 				},
 			}
 			li.Media = bookMin
@@ -735,19 +745,26 @@ func GetLibraryItemMinifiedByID(db *sql.DB, itemID string) (*LibraryItemMinified
 	} else if mediaType == "podcast" {
 		var pTitle, pTitleIgnorePrefix, pAuthor, pReleaseDate, pFeedURL, pImageURL, pDescription, pItunesPageURL, pItunesID, pItunesArtistID, pLanguage, pPodcastType, pCoverPath string
 		var pExplicit, pAutoDownloadEpisodes, pMaxEpisodesToKeep, pMaxNewEpisodesToDownload, pNumEpisodes int
-		var pTags, pGenres []byte
+		var pTags, pGenres, pLockedFields []byte
 
 		err = db.QueryRow(`
-			SELECT title, titleIgnorePrefix, author, releaseDate, feedURL, imageURL, description, itunesPageURL, itunesId, itunesArtistId, language, podcastType, explicit, autoDownloadEpisodes, maxEpisodesToKeep, maxNewEpisodesToDownload, coverPath, tags, genres, numEpisodes
+			SELECT title, titleIgnorePrefix, author, releaseDate, feedURL, imageURL, description, itunesPageURL, itunesId, itunesArtistId, language, podcastType, explicit, autoDownloadEpisodes, maxEpisodesToKeep, maxNewEpisodesToDownload, coverPath, tags, genres, numEpisodes, lockedFields
 			FROM podcasts WHERE id = ?
 		`, mediaID).Scan(
-			&pTitle, &pTitleIgnorePrefix, &pAuthor, &pReleaseDate, &pFeedURL, &pImageURL, &pDescription, &pItunesPageURL, &pItunesID, &pItunesArtistID, &pLanguage, &pPodcastType, &pExplicit, &pAutoDownloadEpisodes, &pMaxEpisodesToKeep, &pMaxNewEpisodesToDownload, &pCoverPath, &pTags, &pGenres, &pNumEpisodes,
+			&pTitle, &pTitleIgnorePrefix, &pAuthor, &pReleaseDate, &pFeedURL, &pImageURL, &pDescription, &pItunesPageURL, &pItunesID, &pItunesArtistID, &pLanguage, &pPodcastType, &pExplicit, &pAutoDownloadEpisodes, &pMaxEpisodesToKeep, &pMaxNewEpisodesToDownload, &pCoverPath, &pTags, &pGenres, &pNumEpisodes, &pLockedFields,
 		)
 		if err == nil {
 			var tags []string
 			_ = json.Unmarshal(pTags, &tags)
 			var genres []string
 			_ = json.Unmarshal(pGenres, &genres)
+			var lockedFields []string
+			if len(pLockedFields) > 0 {
+				_ = json.Unmarshal(pLockedFields, &lockedFields)
+			}
+			if lockedFields == nil {
+				lockedFields = []string{}
+			}
 
 			podcastMin := &PodcastMinifiedJSON{
 				ID:                       mediaID,
@@ -773,6 +790,7 @@ func GetLibraryItemMinifiedByID(db *sql.DB, itemID string) (*LibraryItemMinified
 					Explicit:          pExplicit != 0,
 					Language:          nullIfEmpty(pLanguage),
 					Type:              nullIfEmpty(pPodcastType),
+					LockedFields:      lockedFields,
 				},
 			}
 			li.Media = podcastMin
