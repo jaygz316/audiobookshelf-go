@@ -1,8 +1,12 @@
 import { request, resolvePath } from './api.js';
-import { playItem } from './player.js';
+import { playItem, getCurrentPlayingItem, getCurrentPlaybackTime } from './player.js';
 import { openEbookReader } from './reader.js';
 
 let currentUser = null;
+let activeItemId = null;
+let activeLibraryId = null;
+let activeBackCallback = null;
+let currentBookmarkListener = null;
 
 async function getCurrentUser() {
   if (currentUser) return currentUser;
@@ -22,6 +26,10 @@ async function getCurrentUser() {
  * @param {function} backCallback - Function to execute when clicking "Back".
  */
 export async function loadItemDetails(itemId, libraryId, backCallback) {
+  activeItemId = itemId;
+  activeLibraryId = libraryId;
+  activeBackCallback = backCallback;
+
   const opmlBtn = document.getElementById('opml-btn');
   if (opmlBtn) opmlBtn.classList.add('hidden');
 
@@ -317,6 +325,23 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
                 </ol>
               </div>
             ` : ''}
+
+            <!-- Bookmarks Section -->
+            ${hasAudio ? `
+              <div id="details-bookmarks-section" class="space-y-2 mt-4">
+                <div class="flex items-center justify-between border-b border-black-400 pb-1">
+                  <h3 class="font-bold text-sm text-white flex items-center space-x-1">
+                    <span class="material-symbols text-sm text-accent">bookmarks</span>
+                    <span>Bookmarks</span>
+                  </h3>
+                  <button id="details-add-bookmark-btn" class="text-xs text-accent hover:underline flex items-center space-x-1">
+                    <span class="material-symbols text-sm">bookmark_add</span>
+                    <span>Add Bookmark</span>
+                  </button>
+                </div>
+                <div id="bookmarks-list-container"></div>
+              </div>
+            ` : ''}
           </div>
         </div>
       </div>
@@ -388,6 +413,38 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
         readActionBtn.onclick = () => {
           openEbookReader(item, token);
         };
+      }
+    }
+
+    if (hasAudio) {
+      // Load bookmarks
+      renderBookmarks(item);
+
+      // Hook up add bookmark button
+      const addBookmarkBtn = document.getElementById('details-add-bookmark-btn');
+      if (addBookmarkBtn) {
+        addBookmarkBtn.onclick = () => {
+          triggerAddBookmarkOnDetailsModal(item);
+        };
+      }
+
+      // Hook up global bookmark-added listener for updates
+      const onBookmarkUpdate = (e) => {
+        if (e.detail && e.detail.itemId === item.id) {
+          renderBookmarks(item);
+        }
+      };
+
+      if (currentBookmarkListener) {
+        window.removeEventListener('bookmark-added', currentBookmarkListener);
+      }
+      window.addEventListener('bookmark-added', onBookmarkUpdate);
+      currentBookmarkListener = onBookmarkUpdate;
+    } else {
+      // Clear listener if we navigate to an item without audio
+      if (currentBookmarkListener) {
+        window.removeEventListener('bookmark-added', currentBookmarkListener);
+        currentBookmarkListener = null;
       }
     }
 
@@ -1143,4 +1200,275 @@ function triggerMatchBookModal(item, libraryId, onSaveSuccess) {
 
 function triggerMatchCoverModal(item, libraryId, onSaveSuccess) {
   triggerMatchModal(item, libraryId, 'cover', onSaveSuccess);
+}
+
+async function renderBookmarks(item) {
+  const container = document.getElementById('bookmarks-list-container');
+  if (!container) return;
+
+  container.innerHTML = `
+    <div class="flex items-center justify-center p-4">
+      <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-accent"></div>
+    </div>
+  `;
+
+  try {
+    currentUser = await request('GET', '/api/me');
+    const bookmarks = (currentUser.bookmarks || []).filter(b => b.libraryItemId === item.id);
+    
+    bookmarks.sort((a, b) => a.time - b.time);
+
+    if (bookmarks.length === 0) {
+      container.innerHTML = `
+        <p class="text-xs text-black-100 italic py-2">No bookmarks saved for this audiobook.</p>
+      `;
+      return;
+    }
+
+    container.innerHTML = `
+      <ul class="space-y-1.5 border border-black-400/50 rounded-md p-2 bg-primary/20 max-h-60 overflow-y-auto no-scroll">
+        ${bookmarks.map((b, idx) => `
+          <li class="flex items-center justify-between p-2 hover:bg-black-500/40 rounded transition-colors text-xs" data-time="${b.time}">
+            <div class="flex items-center space-x-2 truncate flex-grow cursor-pointer bookmark-jump-btn mr-4">
+              <span class="material-symbols text-sm text-accent">bookmark</span>
+              <div class="truncate">
+                <p class="font-semibold text-white truncate">${escapeHtml(b.title)}</p>
+                <p class="text-[0.7rem] text-black-100 mt-0.5">${formatDuration(b.time)}</p>
+              </div>
+            </div>
+            <div class="flex items-center space-x-2 flex-shrink-0">
+              <button class="bookmark-edit-btn text-black-100 hover:text-white p-1 rounded" title="Edit Bookmark" data-idx="${idx}">
+                <span class="material-symbols text-sm">edit</span>
+              </button>
+              <button class="bookmark-delete-btn text-black-100 hover:text-accent p-1 rounded" title="Delete Bookmark" data-idx="${idx}">
+                <span class="material-symbols text-sm">delete</span>
+              </button>
+            </div>
+          </li>
+        `).join('')}
+      </ul>
+    `;
+
+    container.querySelectorAll('.bookmark-jump-btn').forEach((btn, idx) => {
+      btn.onclick = () => {
+        const b = bookmarks[idx];
+        playItem(item, b.time);
+      };
+    });
+
+    container.querySelectorAll('.bookmark-edit-btn').forEach(btn => {
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        const idx = parseInt(btn.getAttribute('data-idx'), 10);
+        const b = bookmarks[idx];
+        triggerEditBookmarkModal(item, b);
+      };
+    });
+
+    container.querySelectorAll('.bookmark-delete-btn').forEach(btn => {
+      btn.onclick = async (e) => {
+        e.stopPropagation();
+        const idx = parseInt(btn.getAttribute('data-idx'), 10);
+        const b = bookmarks[idx];
+        if (confirm(`Are you sure you want to delete the bookmark "${b.title}"?`)) {
+          try {
+            await request('DELETE', `/api/me/item/${item.id}/bookmark/${b.time}`);
+            renderBookmarks(item);
+          } catch (err) {
+            console.error('Failed to delete bookmark:', err);
+            alert('Failed to delete bookmark.');
+          }
+        }
+      };
+    });
+
+  } catch (err) {
+    console.error('Failed to render bookmarks:', err);
+    container.innerHTML = `<p class="text-xs text-red-500">Failed to load bookmarks.</p>`;
+  }
+}
+
+function triggerEditBookmarkModal(item, bookmark) {
+  const modal = document.createElement('div');
+  modal.className = 'fixed inset-0 bg-black-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 select-none';
+  modal.innerHTML = `
+    <div class="bg-primary border border-black-400 rounded-lg max-w-md w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between border-b border-black-500 pb-3">
+        <h3 class="text-sm font-bold text-white uppercase tracking-wider flex items-center space-x-1.5">
+          <span class="material-symbols text-base text-accent">edit</span>
+          <span>Edit Bookmark</span>
+        </h3>
+        <button id="close-edit-bookmark-modal" class="text-black-100 hover:text-white transition-colors">
+          <span class="material-symbols text-lg">close</span>
+        </button>
+      </div>
+
+      <div class="space-y-3 text-left">
+        <div>
+          <label class="text-[0.65rem] uppercase font-bold text-black-100 tracking-wider">Bookmark Time</label>
+          <p class="text-white font-semibold text-sm">${formatDuration(bookmark.time)}</p>
+        </div>
+        <div>
+          <label for="edit-bookmark-title-input" class="text-[0.65rem] uppercase font-bold text-black-100 tracking-wider block mb-1">Bookmark Title</label>
+          <input type="text" id="edit-bookmark-title-input" required class="w-full bg-black-500 text-white px-3 py-2 rounded border border-black-300 focus:outline-none focus:border-accent text-xs">
+        </div>
+      </div>
+
+      <div class="flex items-center justify-end space-x-3 pt-3 border-t border-black-500">
+        <button id="cancel-edit-bookmark-btn" class="bg-transparent hover:bg-black-500 text-white px-4 py-2 rounded text-xs transition-colors">
+          Cancel
+        </button>
+        <button id="save-edit-bookmark-btn" class="bg-accent text-primary font-bold px-4 py-2 rounded text-xs hover:opacity-90 transition-opacity">
+          Save Changes
+        </button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+
+  const titleInput = document.getElementById('edit-bookmark-title-input');
+  titleInput.value = bookmark.title;
+  titleInput.focus();
+  titleInput.select();
+
+  const closeModal = () => modal.remove();
+  document.getElementById('close-edit-bookmark-modal').onclick = closeModal;
+  document.getElementById('cancel-edit-bookmark-btn').onclick = closeModal;
+
+  document.getElementById('save-edit-bookmark-btn').onclick = async () => {
+    const titleVal = titleInput.value.trim();
+    if (!titleVal) {
+      alert("Title is required");
+      return;
+    }
+
+    try {
+      await request('PATCH', `/api/me/item/${item.id}/bookmark`, {
+        time: bookmark.time,
+        title: titleVal
+      });
+      closeModal();
+      renderBookmarks(item);
+    } catch (err) {
+      console.error('Failed to update bookmark:', err);
+      alert('Failed to update bookmark: ' + (err.message || 'Unknown error'));
+    }
+  };
+}
+
+function triggerAddBookmarkOnDetailsModal(item) {
+  const playingItem = getCurrentPlayingItem();
+  const isPlayingThis = playingItem && playingItem.id === item.id;
+  const activeTime = isPlayingThis ? getCurrentPlaybackTime() : 0;
+
+  let hrs = Math.floor(activeTime / 3600);
+  let mins = Math.floor((activeTime % 3600) / 60);
+  let secs = Math.floor(activeTime % 60);
+  let timeStr = "";
+  if (hrs > 0) {
+    timeStr += `${hrs}:${mins < 10 ? '0' : ''}${mins}:${secs < 10 ? '0' : ''}${secs}`;
+  } else {
+    timeStr += `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+  }
+
+  const modal = document.createElement('div');
+  modal.className = 'fixed inset-0 bg-black-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 select-none';
+  modal.innerHTML = `
+    <div class="bg-primary border border-black-400 rounded-lg max-w-md w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between border-b border-black-500 pb-3">
+        <h3 class="text-sm font-bold text-white uppercase tracking-wider flex items-center space-x-1.5">
+          <span class="material-symbols text-base text-accent">bookmark</span>
+          <span>Add Bookmark</span>
+        </h3>
+        <button id="close-add-bookmark-modal" class="text-black-100 hover:text-white transition-colors">
+          <span class="material-symbols text-lg">close</span>
+        </button>
+      </div>
+
+      <div class="space-y-3 text-left">
+        <div>
+          <label for="add-bookmark-time-input" class="text-[0.65rem] uppercase font-bold text-black-100 tracking-wider block mb-1">Bookmark Time (HH:MM:SS or Seconds)</label>
+          <input type="text" id="add-bookmark-time-input" required class="w-full bg-black-500 text-white px-3 py-2 rounded border border-black-300 focus:outline-none focus:border-accent text-xs" placeholder="e.g. 1:15:30 or 4530">
+        </div>
+        <div>
+          <label for="add-bookmark-title-input" class="text-[0.65rem] uppercase font-bold text-black-100 tracking-wider block mb-1">Bookmark Title</label>
+          <input type="text" id="add-bookmark-title-input" required class="w-full bg-black-500 text-white px-3 py-2 rounded border border-black-300 focus:outline-none focus:border-accent text-xs" placeholder="e.g. Favorite Quote">
+        </div>
+      </div>
+
+      <div class="flex items-center justify-end space-x-3 pt-3 border-t border-black-500">
+        <button id="cancel-add-bookmark-btn" class="bg-transparent hover:bg-black-500 text-white px-4 py-2 rounded text-xs transition-colors">
+          Cancel
+        </button>
+        <button id="save-add-bookmark-btn" class="bg-accent text-primary font-bold px-4 py-2 rounded text-xs hover:opacity-90 transition-opacity">
+          Save Bookmark
+        </button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+
+  const timeInput = document.getElementById('add-bookmark-time-input');
+  const titleInput = document.getElementById('add-bookmark-title-input');
+
+  timeInput.value = timeStr;
+  titleInput.value = `Bookmark at ${timeStr}`;
+
+  timeInput.oninput = () => {
+    const currentVal = timeInput.value.trim();
+    if (currentVal) {
+      titleInput.value = `Bookmark at ${currentVal}`;
+    }
+  };
+
+  const closeModal = () => modal.remove();
+  document.getElementById('close-add-bookmark-modal').onclick = closeModal;
+  document.getElementById('cancel-add-bookmark-btn').onclick = closeModal;
+
+  document.getElementById('save-add-bookmark-btn').onclick = async () => {
+    const rawTime = timeInput.value.trim();
+    const titleVal = titleInput.value.trim();
+
+    if (!rawTime || !titleVal) {
+      alert("Both time and title are required.");
+      return;
+    }
+
+    let parsedTime = 0;
+    if (rawTime.includes(':')) {
+      const parts = rawTime.split(':').map(Number);
+      if (parts.some(isNaN)) {
+        alert("Invalid time format. Please use HH:MM:SS or simple seconds.");
+        return;
+      }
+      if (parts.length === 3) {
+        parsedTime = parts[0] * 3600 + parts[1] * 60 + parts[2];
+      } else if (parts.length === 2) {
+        parsedTime = parts[0] * 60 + parts[1];
+      } else {
+        alert("Invalid time format. Please use HH:MM:SS or simple seconds.");
+        return;
+      }
+    } else {
+      parsedTime = Number(rawTime);
+      if (isNaN(parsedTime)) {
+        alert("Invalid time format. Please use HH:MM:SS or simple seconds.");
+        return;
+      }
+    }
+
+    try {
+      await request('POST', `/api/me/item/${item.id}/bookmark`, {
+        time: parsedTime,
+        title: titleVal
+      });
+      closeModal();
+      renderBookmarks(item);
+    } catch (err) {
+      console.error('Failed to create bookmark:', err);
+      alert('Failed to save bookmark: ' + (err.message || 'Unknown error'));
+    }
+  };
 }

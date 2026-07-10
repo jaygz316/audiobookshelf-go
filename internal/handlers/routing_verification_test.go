@@ -279,6 +279,36 @@ func TestRoutingMeProgressRoutes(t *testing.T) {
 			t.Errorf("Expected 500 Internal Server Error for hide-from-continue-listening, got %d. Body: %s", rr.Code, rr.Body.String())
 		}
 	}
+
+	// 3. POST /audiobookshelf/api/me/item/some-id/bookmark -> 500
+	{
+		req := httptest.NewRequest("POST", "/audiobookshelf/api/me/item/some-id/bookmark", nil)
+		rr := httptest.NewRecorder()
+		handler.ServeHTTP(rr, req)
+		if rr.Code != http.StatusInternalServerError {
+			t.Errorf("Expected 500 Internal Server Error for POST bookmark, got %d", rr.Code)
+		}
+	}
+
+	// 4. PATCH /audiobookshelf/api/me/item/some-id/bookmark -> 500
+	{
+		req := httptest.NewRequest("PATCH", "/audiobookshelf/api/me/item/some-id/bookmark", nil)
+		rr := httptest.NewRecorder()
+		handler.ServeHTTP(rr, req)
+		if rr.Code != http.StatusInternalServerError {
+			t.Errorf("Expected 500 Internal Server Error for PATCH bookmark, got %d", rr.Code)
+		}
+	}
+
+	// 5. DELETE /audiobookshelf/api/me/item/some-id/bookmark/123.45 -> 500
+	{
+		req := httptest.NewRequest("DELETE", "/audiobookshelf/api/me/item/some-id/bookmark/123.45", nil)
+		rr := httptest.NewRecorder()
+		handler.ServeHTTP(rr, req)
+		if rr.Code != http.StatusInternalServerError {
+			t.Errorf("Expected 500 Internal Server Error for DELETE bookmark, got %d. Body: %s", rr.Code, rr.Body.String())
+		}
+	}
 }
 
 func TestRoutingDocs(t *testing.T) {
