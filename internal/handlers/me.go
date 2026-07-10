@@ -389,6 +389,82 @@ func handleCreateUpdateMeProgress(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
+		// Update active playback session if currentTime changed
+		if payload.CurrentTime != nil {
+			var sessID string
+			var sessExtraStr sql.NullString
+			errSess := db.QueryRowContext(r.Context(), `SELECT id, extraData FROM playbackSessions WHERE userId = ? AND mediaItemId = ? ORDER BY COALESCE(updatedAt, createdAt) DESC LIMIT 1`, userSess.ID, mediaItemID).Scan(&sessID, &sessExtraStr)
+			if errSess == nil {
+				var sessExtra map[string]interface{}
+				if sessExtraStr.Valid && sessExtraStr.String != "" {
+					json.Unmarshal([]byte(sessExtraStr.String), &sessExtra)
+				}
+				if sessExtra == nil {
+					sessExtra = make(map[string]interface{})
+				}
+				sessExtra["libraryItemId"] = libraryItemID
+
+				// Calculate timeListened delta
+				if val, ok := sessExtra["lastTime"]; ok {
+					if lf, ok2 := val.(float64); ok2 {
+						delta := currentTimeVal - lf
+						if delta > 0 && delta < 15 {
+							currListened := 0.0
+							if clVal, ok3 := sessExtra["timeListened"]; ok3 {
+								if clf, ok4 := clVal.(float64); ok4 {
+									currListened = clf
+								}
+							}
+							sessExtra["timeListened"] = currListened + delta
+						}
+					}
+				} else {
+					sessExtra["timeListened"] = 0.0
+				}
+				sessExtra["lastTime"] = currentTimeVal
+
+				// Add basic fallback playMethod / deviceInfo if not present
+				if _, ok := sessExtra["playMethod"]; !ok {
+					sessExtra["playMethod"] = "HLS"
+				}
+				if _, ok := sessExtra["deviceInfo"]; !ok {
+					sessExtra["deviceInfo"] = "Web Client"
+				}
+
+				sessExtraBytes, _ := json.Marshal(sessExtra)
+				_, errSessUpdate := db.ExecContext(r.Context(), `UPDATE playbackSessions SET extraData = ?, updatedAt = ? WHERE id = ?`, string(sessExtraBytes), nowStr, sessID)
+				if errSessUpdate != nil {
+					log.Printf("[Me Progress] Failed to update playback session: %v", errSessUpdate)
+				}
+			} else if errSess == sql.ErrNoRows {
+				// Fallback: Create playback session if none exists
+				var resolvedLibraryID sql.NullString
+				if mediaItemType == "podcastEpisode" {
+					var podcastID string
+					_ = db.QueryRowContext(r.Context(), "SELECT podcastId FROM podcastEpisodes WHERE id = ?", mediaItemID).Scan(&podcastID)
+					if podcastID != "" {
+						_ = db.QueryRowContext(r.Context(), "SELECT libraryId FROM libraryItems WHERE mediaId = ? AND mediaType = 'podcast'", podcastID).Scan(&resolvedLibraryID)
+					}
+				} else {
+					_ = db.QueryRowContext(r.Context(), "SELECT libraryId FROM libraryItems WHERE mediaId = ? AND mediaType = 'book'", mediaItemID).Scan(&resolvedLibraryID)
+				}
+				sessID := uuid.New().String()
+				sessExtra := map[string]interface{}{
+					"libraryItemId": libraryItemID,
+					"timeListened":  0.0,
+					"lastTime":      currentTimeVal,
+					"playMethod":    "HLS",
+					"deviceInfo":    "Web Client",
+				}
+				sessExtraBytes, _ := json.Marshal(sessExtra)
+				_, errSessInsert := db.ExecContext(r.Context(), `INSERT INTO playbackSessions (id, userId, mediaItemId, mediaItemType, startTime, libraryId, extraData, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+					sessID, userSess.ID, mediaItemID, mediaItemType, currentTimeVal, resolvedLibraryID, string(sessExtraBytes), nowStr, nowStr)
+				if errSessInsert != nil {
+					log.Printf("[Me Progress] Failed to create fallback playback session: %v", errSessInsert)
+				}
+			}
+		}
+
 		// Broadcast update
 		user, err := idb.GetUserFullByID(r.Context(), db, userSess.ID)
 		if err == nil && user != nil {

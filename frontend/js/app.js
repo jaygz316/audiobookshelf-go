@@ -9,6 +9,7 @@ import { loadSettings } from './settings.js';
 import { loadPlaylists } from './playlists.js';
 import { loadCollections } from './collections.js';
 import { loadAuthors, loadSeries } from './authors.js';
+import { loadStats } from './stats.js';
 
 document.addEventListener('DOMContentLoaded', () => {
   setupEventHandlers();
@@ -115,6 +116,8 @@ function setupEventHandlers() {
         if (activeLibId) loadAuthors(activeLibId);
       } else if (pageName === 'Series') {
         if (activeLibId) loadSeries(activeLibId);
+      } else if (pageName === 'Stats') {
+        loadStats();
       }
     });
   });

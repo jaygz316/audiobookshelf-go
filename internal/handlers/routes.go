@@ -892,6 +892,16 @@ func handleMeDispatch(db *sql.DB, cfg *core.Config) http.HandlerFunc {
 				AuthMiddlewareWrapper(db, handleUpdateMePassword(db)).ServeHTTP(w, r)
 				return
 			}
+		} else if len(parts) == 1 && parts[0] == "listening-stats" {
+			if r.Method == http.MethodGet {
+				AuthMiddlewareWrapper(db, handleGetMeListeningStats(db)).ServeHTTP(w, r)
+				return
+			}
+		} else if len(parts) == 1 && parts[0] == "listening-sessions" {
+			if r.Method == http.MethodGet {
+				AuthMiddlewareWrapper(db, handleGetMeListeningSessions(db)).ServeHTTP(w, r)
+				return
+			}
 		} else if len(parts) == 1 && parts[0] == "items-in-progress" {
 			if r.Method == http.MethodGet {
 				AuthMiddlewareWrapper(db, handleGetAllLibraryItemsInProgress(db)).ServeHTTP(w, r)
