@@ -88,6 +88,10 @@ function setupEventHandlers() {
   sidebarLinks.forEach(link => {
     link.addEventListener('click', (e) => {
       e.preventDefault();
+      
+      const opmlBtn = document.getElementById('opml-btn');
+      if (opmlBtn) opmlBtn.classList.add('hidden');
+
       sidebarLinks.forEach(l => {
         l.classList.remove('bg-primary/80', 'text-accent');
         l.classList.add('hover:bg-black-500');

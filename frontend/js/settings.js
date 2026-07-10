@@ -50,6 +50,9 @@ onEvent('playback_session_removed', (data) => {
 });
 
 export async function loadSettings() {
+  const opmlBtn = document.getElementById('opml-btn');
+  if (opmlBtn) opmlBtn.classList.add('hidden');
+
   const container = document.getElementById('bookshelf');
   if (!container) return;
 
@@ -2204,6 +2207,10 @@ async function renderFeedsTab() {
       <div class="space-y-4">
         <div class="flex justify-between items-center">
           <h3 class="text-lg font-semibold text-white">Active RSS Feeds</h3>
+          <button id="settings-opml-btn" class="bg-accent hover:opacity-90 text-primary font-bold px-3 py-1.5 rounded text-xs transition-colors flex items-center gap-1">
+            <span class="material-symbols text-sm">import_export</span>
+            OPML Import/Export
+          </button>
         </div>
         
         <div class="border border-black-300 rounded-md bg-primary overflow-x-auto">
@@ -2224,6 +2231,30 @@ async function renderFeedsTab() {
         </div>
       </div>
     `;
+
+    const settingsOpmlBtn = container.querySelector('#settings-opml-btn');
+    if (settingsOpmlBtn) {
+      settingsOpmlBtn.onclick = () => {
+        const activeLibId = getActiveLibraryId();
+        const libs = getLibrariesList() || [];
+        let targetLibId = activeLibId;
+        
+        const activeLib = libs.find(l => l.id === activeLibId);
+        if (!activeLib || activeLib.mediaType !== 'podcast') {
+          const firstPodcastLib = libs.find(l => l.mediaType === 'podcast');
+          if (firstPodcastLib) {
+            targetLibId = firstPodcastLib.id;
+          } else {
+            alert('Please create a Podcast library first to import/export OPML.');
+            return;
+          }
+        }
+
+        import('./opml.js').then(module => {
+          module.openOPMLModal(targetLibId);
+        });
+      };
+    }
 
     const listRows = document.getElementById('feeds-list-rows');
     if (!listRows) return;

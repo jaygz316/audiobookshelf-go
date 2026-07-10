@@ -206,3 +206,53 @@ func TestGetPodcastFeedWithTimeout(t *testing.T) {
 		t.Logf("Status code for cancelled context: %d", w.Code)
 	}
 }
+
+func TestGetLibraryOPML(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	// Insert test data
+	_, err := db.Exec(`INSERT INTO users (id, username, type, isActive, permissions) VALUES ('user-123', 'adminuser', 'admin', 1, '{}')`)
+	if err != nil {
+		t.Fatalf("Failed to insert test user: %v", err)
+	}
+
+	_, err = db.Exec(`INSERT INTO libraries (id, name, mediaType) VALUES ('lib-123', 'Podcast Library', 'podcast')`)
+	if err != nil {
+		t.Fatalf("Failed to insert test library: %v", err)
+	}
+
+	_, err = db.Exec(`INSERT INTO libraryItems (id, libraryId, mediaType, mediaId, title) VALUES ('item-123', 'lib-123', 'podcast', 'podcast-123', 'Test Podcast')`)
+	if err != nil {
+		t.Fatalf("Failed to insert library item: %v", err)
+	}
+
+	_, err = db.Exec(`INSERT INTO podcasts (id, title, feedURL) VALUES ('podcast-123', 'Test Podcast', 'https://example.com/podcast.xml')`)
+	if err != nil {
+		t.Fatalf("Failed to insert podcast: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/libraries/lib-123/opml", nil)
+	ctx := context.WithValue(req.Context(), core.UserContextKey, &core.UserSession{
+		ID:   "user-123",
+		Type: "admin",
+	})
+	req = req.WithContext(ctx)
+
+	reinitManagers(db)
+
+	w := httptest.NewRecorder()
+	handleGetLibraryOPML(db, "lib-123")(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("Expected status 200, got %d. Body: %s", w.Code, w.Body.String())
+	}
+
+	body := w.Body.String()
+	if !bytes.Contains([]byte(body), []byte("Test Podcast")) {
+		t.Errorf("Expected OPML to contain 'Test Podcast', got:\n%s", body)
+	}
+	if !bytes.Contains([]byte(body), []byte("https://example.com/podcast.xml")) {
+		t.Errorf("Expected OPML to contain feedURL, got:\n%s", body)
+	}
+}
