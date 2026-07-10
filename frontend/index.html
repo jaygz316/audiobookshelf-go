@@ -243,6 +243,10 @@
           
           <!-- Filter / View controls -->
           <div class="flex items-center space-x-2">
+            <button id="batch-edit-toggle-btn" class="hidden flex items-center space-x-1 hover:bg-black-500 px-2.5 py-1 rounded text-xs text-black-50 hover:text-white border border-transparent hover:border-black-300">
+              <span class="material-symbols text-base">checklist</span>
+              <span id="batch-edit-toggle-text">Batch Edit</span>
+            </button>
             <button class="flex items-center space-x-1 hover:bg-black-500 px-2.5 py-1 rounded text-xs text-black-50 hover:text-white border border-transparent hover:border-black-300">
               <span class="material-symbols text-base">filter_list</span>
               <span>Filter</span>
@@ -391,6 +395,13 @@
         </button>
       </div>
     </div>
+  </div>
+
+  <!-- Floating Batch Edit Action Bar -->
+  <div id="batch-action-bar" class="hidden fixed bottom-24 left-1/2 transform -translate-x-1/2 bg-primary border border-black-300 px-6 py-3 rounded-lg shadow-2xl z-50 flex items-center space-x-6">
+    <span id="batch-selected-count" class="text-sm font-semibold text-white">0 items selected</span>
+    <button id="batch-edit-metadata-btn" class="bg-accent hover:opacity-90 text-primary font-bold px-4 py-1.5 rounded text-xs transition duration-150">Edit Metadata</button>
+    <button id="batch-cancel-btn" class="bg-black-500 hover:bg-black-400 border border-black-300 text-white px-4 py-1.5 rounded text-xs transition duration-150">Cancel</button>
   </div>
 
   <!-- Toast Notification Container -->
