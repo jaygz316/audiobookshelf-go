@@ -20,12 +20,12 @@ func setupScannerTestDB(t *testing.T) *sql.DB {
 		`CREATE TABLE libraries (id TEXT PRIMARY KEY, name TEXT, mediaType TEXT, settings TEXT, provider TEXT, displayOrder INTEGER, createdAt TEXT, updatedAt TEXT);`,
 		`CREATE TABLE libraryFolders (id TEXT PRIMARY KEY, path TEXT, libraryId TEXT, createdAt TEXT, updatedAt TEXT);`,
 		`CREATE TABLE libraryItems (id TEXT PRIMARY KEY, ino TEXT, libraryId TEXT, path TEXT, relPath TEXT, isFile INTEGER, mtime TEXT, ctime TEXT, birthtime TEXT, createdAt TEXT, updatedAt TEXT, isMissing INTEGER, isInvalid INTEGER, mediaType TEXT, mediaId TEXT, size INTEGER, libraryFolderId TEXT, authorNamesFirstLast TEXT, authorNamesLastFirst TEXT, title TEXT, titleIgnorePrefix TEXT);`,
-		`CREATE TABLE books (id TEXT PRIMARY KEY, title TEXT, titleIgnorePrefix TEXT, subtitle TEXT, publishedYear TEXT, publishedDate TEXT, publisher TEXT, description TEXT, isbn TEXT, asin TEXT, language TEXT, explicit INTEGER, abridged INTEGER, coverPath TEXT, duration REAL, narrators TEXT, audioFiles TEXT, ebookFile TEXT, chapters TEXT, tags TEXT, genres TEXT);`,
+		`CREATE TABLE books (id TEXT PRIMARY KEY, title TEXT, titleIgnorePrefix TEXT, subtitle TEXT, publishedYear TEXT, publishedDate TEXT, publisher TEXT, description TEXT, isbn TEXT, asin TEXT, language TEXT, explicit INTEGER, abridged INTEGER, coverPath TEXT, duration REAL, narrators TEXT, audioFiles TEXT, ebookFile TEXT, chapters TEXT, tags TEXT, genres TEXT, lockedFields TEXT);`,
 		`CREATE TABLE authors (id TEXT PRIMARY KEY, name TEXT, lastFirst TEXT, libraryId TEXT, createdAt TEXT, updatedAt TEXT);`,
 		`CREATE TABLE bookAuthors (bookId TEXT, authorId TEXT, createdAt TEXT, updatedAt TEXT, PRIMARY KEY (bookId, authorId));`,
 		`CREATE TABLE series (id TEXT PRIMARY KEY, name TEXT, libraryId TEXT, createdAt TEXT, updatedAt TEXT);`,
 		`CREATE TABLE bookSeries (bookId TEXT, seriesId TEXT, sequence TEXT, createdAt TEXT, updatedAt TEXT, PRIMARY KEY (bookId, seriesId));`,
-		`CREATE TABLE podcasts (id TEXT PRIMARY KEY, title TEXT, titleIgnorePrefix TEXT, author TEXT, releaseDate TEXT, feedURL TEXT, imageURL TEXT, description TEXT, itunesPageURL TEXT, itunesId TEXT, itunesArtistId TEXT, language TEXT, podcastType TEXT, explicit INTEGER, autoDownloadEpisodes INTEGER, autoDownloadSchedule TEXT, lastEpisodeCheck TEXT, maxEpisodesToKeep INTEGER, maxNewEpisodesToDownload INTEGER, coverPath TEXT, tags TEXT, genres TEXT, numEpisodes INTEGER);`,
+		`CREATE TABLE podcasts (id TEXT PRIMARY KEY, title TEXT, titleIgnorePrefix TEXT, author TEXT, releaseDate TEXT, feedURL TEXT, imageURL TEXT, description TEXT, itunesPageURL TEXT, itunesId TEXT, itunesArtistId TEXT, language TEXT, podcastType TEXT, explicit INTEGER, autoDownloadEpisodes INTEGER, autoDownloadSchedule TEXT, lastEpisodeCheck TEXT, maxEpisodesToKeep INTEGER, maxNewEpisodesToDownload INTEGER, coverPath TEXT, tags TEXT, genres TEXT, numEpisodes INTEGER, lockedFields TEXT);`,
 		`CREATE TABLE podcastEpisodes (id TEXT PRIMARY KEY, podcastId TEXT, title TEXT, audioFile TEXT);`,
 	}
 
@@ -178,3 +178,94 @@ func TestScanLibraryIntegration(t *testing.T) {
 		t.Errorf("expected author 'J.R.R. Tolkien', got %q", bookAuthorNames)
 	}
 }
+
+func TestMetadataFieldLocking(t *testing.T) {
+	db := setupScannerTestDB(t)
+	defer db.Close()
+
+	// Create a temp folder
+	tempDir, err := os.MkdirTemp("", "abs-test-locking")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Create Book folder
+	bookDir := filepath.Join(tempDir, "NewAuthor", "NewTitle")
+	if err := os.MkdirAll(bookDir, 0755); err != nil {
+		t.Fatalf("failed to create book dir: %v", err)
+	}
+
+	// Write mock audio file
+	mockAudioPath := filepath.Join(bookDir, "audio.mp3")
+	if err := os.WriteFile(mockAudioPath, []byte("ID3mock-audio-data"), 0644); err != nil {
+		t.Fatalf("failed to write mock audio file: %v", err)
+	}
+
+	// Write desc.txt
+	descPath := filepath.Join(bookDir, "desc.txt")
+	if err := os.WriteFile(descPath, []byte("New Description"), 0644); err != nil {
+		t.Fatalf("failed to write desc.txt: %v", err)
+	}
+
+	// Pre-insert library item and book
+	libraryID := "lib-1"
+	folderID := "folder-1"
+	itemID := "item-1"
+	mediaID := "media-1"
+
+	_, _ = db.Exec("INSERT INTO libraries (id, name, mediaType, settings) VALUES (?, ?, ?, ?)",
+		libraryID, "Audiobooks", "book", `{"audiobooksOnly":true}`)
+	_, _ = db.Exec("INSERT INTO libraryFolders (id, path, libraryId) VALUES (?, ?, ?)",
+		folderID, tempDir, libraryID)
+
+	_, _ = db.Exec(`
+		INSERT INTO libraryItems (id, ino, libraryId, path, relPath, isFile, mediaType, mediaId)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+	`, itemID, "12345", libraryID, bookDir, "NewAuthor/NewTitle", 0, "book", mediaID)
+
+	// Insert book with title locked, description locked, but publisher not locked (publisher = "Original Publisher")
+	_, _ = db.Exec(`
+		INSERT INTO books (id, title, titleIgnorePrefix, description, publisher, lockedFields)
+		VALUES (?, ?, ?, ?, ?, ?)
+	`, mediaID, "Original Title", "Original Title", "Original Description", "Original Publisher", `["title", "description"]`)
+
+	// Construct groupFiles
+	groupFiles := []FileItem{
+		{
+			Path:      mockAudioPath,
+			RelPath:   "NewAuthor/NewTitle/audio.mp3",
+			Name:      "audio.mp3",
+			Extension: ".mp3",
+			Size:      18,
+		},
+		{
+			Path:      descPath,
+			RelPath:   "NewAuthor/NewTitle/desc.txt",
+			Name:      "desc.txt",
+			Extension: ".txt",
+			Size:      15,
+		},
+	}
+
+	// Now call scanExistingLibraryItem directly!
+	err = scanExistingLibraryItem(db, itemID, libraryID, folderID, bookDir, groupFiles, "book", false, 0, 0, 33, "12345", true, []string{"the", "a", "an"}, nil)
+	if err != nil {
+		t.Fatalf("scanExistingLibraryItem failed: %v", err)
+	}
+
+	// Query book to check if locked fields are preserved, unlocked fields updated
+	var title, description, publisher string
+	err = db.QueryRow("SELECT title, description, publisher FROM books WHERE id = ?", mediaID).Scan(&title, &description, &publisher)
+	if err != nil {
+		t.Fatalf("failed to query book: %v", err)
+	}
+
+	if title != "Original Title" {
+		t.Errorf("expected title to remain 'Original Title' (locked), got %q", title)
+	}
+	if description != "Original Description" {
+		t.Errorf("expected description to remain 'Original Description' (locked), got %q", description)
+	}
+}
+

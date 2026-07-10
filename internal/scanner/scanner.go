@@ -1664,6 +1664,111 @@ func scanExistingLibraryItem(db *sql.DB, itemID, libraryID, folderID, itemPath s
 	titleIgnorePrefix := getTitleIgnorePrefixGo(title, prefixes)
 
 	if mediaType == "book" {
+		var bLockedFields []byte
+		var dbTitle, dbSubtitle, dbPublishedYear, dbPublishedDate, dbPublisher, dbDescription, dbIsbn, dbAsin, dbLanguage, dbCoverPath sql.NullString
+		var dbNarrators, dbTags, dbGenres []byte
+
+		_ = tx.QueryRow(`
+			SELECT title, subtitle, publishedYear, publishedDate, publisher, description, isbn, asin, language, coverPath, narrators, tags, genres, lockedFields
+			FROM books WHERE id = ?
+		`, mediaID).Scan(
+			&dbTitle, &dbSubtitle, &dbPublishedYear, &dbPublishedDate, &dbPublisher, &dbDescription, &dbIsbn, &dbAsin, &dbLanguage, &dbCoverPath, &dbNarrators, &dbTags, &dbGenres, &bLockedFields,
+		)
+
+		var lockedFields []string
+		if len(bLockedFields) > 0 {
+			_ = json.Unmarshal(bLockedFields, &lockedFields)
+		}
+
+		isLocked := func(field string) bool {
+			for _, f := range lockedFields {
+				if f == field {
+					return true
+				}
+			}
+			return false
+		}
+
+		if isLocked("title") && dbTitle.String != "" {
+			title = dbTitle.String
+			titleIgnorePrefix = getTitleIgnorePrefixGo(title, prefixes)
+		}
+		if isLocked("subtitle") && dbSubtitle.Valid {
+			meta.Subtitle = dbSubtitle.String
+		}
+		if isLocked("publishedYear") && dbPublishedYear.Valid {
+			meta.PublishedYear = dbPublishedYear.String
+		}
+		if isLocked("publishedDate") && dbPublishedDate.Valid {
+			meta.PublishedDate = dbPublishedDate.String
+		}
+		if isLocked("publisher") && dbPublisher.Valid {
+			meta.Publisher = dbPublisher.String
+		}
+		if isLocked("description") && dbDescription.Valid {
+			meta.Description = dbDescription.String
+		}
+		if isLocked("isbn") && dbIsbn.Valid {
+			meta.ISBN = dbIsbn.String
+		}
+		if isLocked("asin") && dbAsin.Valid {
+			meta.ASIN = dbAsin.String
+		}
+		if isLocked("language") && dbLanguage.Valid {
+			meta.Language = dbLanguage.String
+		}
+		if (isLocked("cover") || isLocked("coverPath")) && dbCoverPath.Valid {
+			meta.CoverPath = dbCoverPath.String
+		}
+		if (isLocked("narrators") || isLocked("narrator")) && len(dbNarrators) > 0 {
+			var narrators []string
+			if err := json.Unmarshal(dbNarrators, &narrators); err == nil {
+				meta.Narrators = narrators
+			}
+		}
+		if isLocked("tags") && len(dbTags) > 0 {
+			var tags []string
+			if err := json.Unmarshal(dbTags, &tags); err == nil {
+				meta.Tags = tags
+			}
+		}
+		if isLocked("genres") && len(dbGenres) > 0 {
+			var genres []string
+			if err := json.Unmarshal(dbGenres, &genres); err == nil {
+				meta.Genres = genres
+			}
+		}
+		if isLocked("authors") || isLocked("author") {
+			rows, err := tx.Query("SELECT name FROM authors WHERE id IN (SELECT authorId FROM bookAuthors WHERE bookId = ?)", mediaID)
+			if err == nil {
+				defer rows.Close()
+				var dbAuthors []string
+				for rows.Next() {
+					var name string
+					if err := rows.Scan(&name); err == nil {
+						dbAuthors = append(dbAuthors, name)
+					}
+				}
+				if len(dbAuthors) > 0 {
+					meta.Authors = dbAuthors
+				}
+			}
+		}
+		if isLocked("series") {
+			var dbSeriesName string
+			var dbSequence string
+			err := tx.QueryRow(`
+				SELECT s.name, bs.sequence
+				FROM series s
+				JOIN bookSeries bs ON s.id = bs.seriesId
+				WHERE bs.bookId = ?
+			`, mediaID).Scan(&dbSeriesName, &dbSequence)
+			if err == nil {
+				meta.SeriesName = dbSeriesName
+				meta.SeriesSequence = dbSequence
+			}
+		}
+
 		authorNamesFirstLast = strings.Join(meta.Authors, ", ")
 		var lfs []string
 		for _, a := range meta.Authors {
@@ -1756,12 +1861,66 @@ func scanExistingLibraryItem(db *sql.DB, itemID, libraryID, folderID, itemPath s
 		}
 
 	} else if mediaType == "podcast" {
-		tagsJSON, _ := json.Marshal(meta.Tags)
-		genresJSON, _ := json.Marshal(meta.Genres)
+		var pLockedFields []byte
+		var dbTitle, dbAuthor, dbDescription, dbLanguage, dbCoverPath sql.NullString
+		var dbTags, dbGenres []byte
+
+		_ = tx.QueryRow(`
+			SELECT title, author, description, language, coverPath, tags, genres, lockedFields
+			FROM podcasts WHERE id = ?
+		`, mediaID).Scan(
+			&dbTitle, &dbAuthor, &dbDescription, &dbLanguage, &dbCoverPath, &dbTags, &dbGenres, &pLockedFields,
+		)
+
+		var lockedFields []string
+		if len(pLockedFields) > 0 {
+			_ = json.Unmarshal(pLockedFields, &lockedFields)
+		}
+
+		isLocked := func(field string) bool {
+			for _, f := range lockedFields {
+				if f == field {
+					return true
+				}
+			}
+			return false
+		}
+
+		if isLocked("title") && dbTitle.String != "" {
+			title = dbTitle.String
+			titleIgnorePrefix = getTitleIgnorePrefixGo(title, prefixes)
+		}
 		var author string
 		if len(meta.Authors) > 0 {
 			author = meta.Authors[0]
 		}
+		if (isLocked("author") || isLocked("authors")) && dbAuthor.Valid {
+			author = dbAuthor.String
+		}
+		if isLocked("description") && dbDescription.Valid {
+			meta.Description = dbDescription.String
+		}
+		if isLocked("language") && dbLanguage.Valid {
+			meta.Language = dbLanguage.String
+		}
+		if (isLocked("cover") || isLocked("coverPath")) && dbCoverPath.Valid {
+			meta.CoverPath = dbCoverPath.String
+		}
+		if isLocked("tags") && len(dbTags) > 0 {
+			var tags []string
+			if err := json.Unmarshal(dbTags, &tags); err == nil {
+				meta.Tags = tags
+			}
+		}
+		if isLocked("genres") && len(dbGenres) > 0 {
+			var genres []string
+			if err := json.Unmarshal(dbGenres, &genres); err == nil {
+				meta.Genres = genres
+			}
+		}
+
+		tagsJSON, _ := json.Marshal(meta.Tags)
+		genresJSON, _ := json.Marshal(meta.Genres)
 
 		cols := getTableColumnsTx(tx, "podcasts")
 		var setStmts []string
