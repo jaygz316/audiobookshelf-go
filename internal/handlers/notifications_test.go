@@ -331,4 +331,78 @@ func TestNotificationsHandlers(t *testing.T) {
 			t.Errorf("Expected status 400, got %d", rr.Code)
 		}
 	})
+
+	t.Run("GET /api/notifications/test triggers default test notification", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/api/notifications/test", nil)
+		req = req.WithContext(context.WithValue(req.Context(), core.UserContextKey, adminSession))
+		rr := httptest.NewRecorder()
+		handler := handleSendDefaultTestNotification(db)
+		handler.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusOK {
+			t.Errorf("Expected status 200, got %d. Body: %s", rr.Code, rr.Body.String())
+		}
+		var resp map[string]interface{}
+		_ = json.Unmarshal(rr.Body.Bytes(), &resp)
+		if resp["success"] != true {
+			t.Errorf("Expected success to be true, got %v", resp["success"])
+		}
+	})
+
+	t.Run("GET /api/notifications/{id}/test triggers targeted notification", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/api/notifications/notif1/test", nil)
+		req = req.WithContext(context.WithValue(req.Context(), core.UserContextKey, adminSession))
+		rr := httptest.NewRecorder()
+		handler := handleSendTestNotification(db)
+		handler.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusOK {
+			t.Errorf("Expected status 200, got %d. Body: %s", rr.Code, rr.Body.String())
+		}
+	})
+
+	t.Run("PATCH /api/notifications/{id} updates single target", func(t *testing.T) {
+		payload := map[string]interface{}{
+			"enabled": false,
+		}
+		body, _ := json.Marshal(payload)
+		req := httptest.NewRequest("PATCH", "/api/notifications/notif1", bytes.NewReader(body))
+		req = req.WithContext(context.WithValue(req.Context(), core.UserContextKey, adminSession))
+		rr := httptest.NewRecorder()
+		handler := handleUpdateNotification(db)
+		handler.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusOK {
+			t.Errorf("Expected status 200, got %d. Body: %s", rr.Code, rr.Body.String())
+		}
+
+		var resp map[string]interface{}
+		_ = json.Unmarshal(rr.Body.Bytes(), &resp)
+		settings := resp["settings"].(map[string]interface{})
+		notifications := settings["notifications"].([]interface{})
+		notif := notifications[0].(map[string]interface{})
+		if notif["enabled"] != false {
+			t.Errorf("Expected enabled to be false, got %v", notif["enabled"])
+		}
+	})
+
+	t.Run("DELETE /api/notifications/{id} removes target", func(t *testing.T) {
+		req := httptest.NewRequest("DELETE", "/api/notifications/notif1", nil)
+		req = req.WithContext(context.WithValue(req.Context(), core.UserContextKey, adminSession))
+		rr := httptest.NewRecorder()
+		handler := handleDeleteNotification(db)
+		handler.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusOK {
+			t.Errorf("Expected status 200, got %d. Body: %s", rr.Code, rr.Body.String())
+		}
+
+		var resp map[string]interface{}
+		_ = json.Unmarshal(rr.Body.Bytes(), &resp)
+		settings := resp["settings"].(map[string]interface{})
+		notifications := settings["notifications"].([]interface{})
+		if len(notifications) != 0 {
+			t.Errorf("Expected 0 notifications left, got %d", len(notifications))
+		}
+	})
 }

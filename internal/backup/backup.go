@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"audiobookshelf/internal/core"
+	inotification "audiobookshelf/internal/notification"
 )
 
 // BackupInfo holds details about a single backup file.
@@ -185,6 +186,7 @@ func parseBackupDetails(detailsContent string, zipPath string, fileSize int64) B
 // CreateBackup orchestrates generating database snapshot and metadata archives.
 func CreateBackup(ctx context.Context, db *sql.DB, configPath, metadataPath, backupDir string) ([]BackupInfo, error) {
 	if err := os.MkdirAll(backupDir, 0755); err != nil {
+		inotification.TriggerEvent(ctx, db, "onBackupFailed", nil, "Backup Failed", fmt.Sprintf("Failed to create backup directory: %v", err), nil)
 		return nil, err
 	}
 
@@ -194,17 +196,25 @@ func CreateBackup(ctx context.Context, db *sql.DB, configPath, metadataPath, bac
 
 	tempDBPath, err := createDBSnapshot(ctx, db, configPath, id)
 	if err != nil {
+		inotification.TriggerEvent(ctx, db, "onBackupFailed", nil, "Backup Failed", fmt.Sprintf("Failed to create DB snapshot: %v", err), nil)
 		return nil, err
 	}
 	defer os.Remove(tempDBPath)
 
 	if err := zipBackupContents(fullPath, tempDBPath, metadataPath, id, now); err != nil {
+		inotification.TriggerEvent(ctx, db, "onBackupFailed", nil, "Backup Failed", fmt.Sprintf("Failed to zip backup contents: %v", err), nil)
 		return nil, err
 	}
 
 	if err := pruneOldBackups(db, backupDir); err != nil {
 		log.Printf("[Backups] Pruning old backups failed: %v", err)
 	}
+
+	// Trigger onBackupCompleted!
+	inotification.TriggerEvent(ctx, db, "onBackupCompleted", nil, "Backup Completed", "Metadata backup completed successfully.", map[string]string{
+		"backupId": id,
+		"filename": id + ".audiobookshelf",
+	})
 
 	return LoadBackupsList(backupDir)
 }
