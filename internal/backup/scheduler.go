@@ -89,7 +89,7 @@ func (s *BackupScheduler) checkAndRun(ctx context.Context) {
 		return
 	}
 
-	schedule := strings.TrimSpace(settings.BackupSchedule)
+	schedule := strings.TrimSpace(string(settings.BackupSchedule))
 	if schedule == "" {
 		return
 	}

@@ -334,10 +334,16 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
                     <span class="material-symbols text-sm text-accent">bookmarks</span>
                     <span>Bookmarks</span>
                   </h3>
-                  <button id="details-add-bookmark-btn" class="text-xs text-accent hover:underline flex items-center space-x-1">
-                    <span class="material-symbols text-sm">bookmark_add</span>
-                    <span>Add Bookmark</span>
-                  </button>
+                  <div class="flex items-center space-x-3">
+                    <button id="details-add-bookmark-btn" class="text-xs text-accent hover:underline flex items-center space-x-1">
+                      <span class="material-symbols text-sm">bookmark_add</span>
+                      <span>Add Bookmark</span>
+                    </button>
+                    <button id="details-export-bookmarks-btn" class="text-xs text-accent hover:underline flex items-center space-x-1">
+                      <span class="material-symbols text-sm">download</span>
+                      <span>Export</span>
+                    </button>
+                  </div>
                 </div>
                 <div id="bookmarks-list-container"></div>
               </div>
@@ -425,6 +431,14 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
       if (addBookmarkBtn) {
         addBookmarkBtn.onclick = () => {
           triggerAddBookmarkOnDetailsModal(item);
+        };
+      }
+
+      // Hook up export bookmarks button
+      const exportBookmarksBtn = document.getElementById('details-export-bookmarks-btn');
+      if (exportBookmarksBtn) {
+        exportBookmarksBtn.onclick = () => {
+          triggerExportBookmarksModal(item);
         };
       }
 
@@ -1470,5 +1484,108 @@ function triggerAddBookmarkOnDetailsModal(item) {
       console.error('Failed to create bookmark:', err);
       alert('Failed to save bookmark: ' + (err.message || 'Unknown error'));
     }
+  };
+}
+
+function triggerExportBookmarksModal(item) {
+  const bookmarks = (currentUser.bookmarks || []).filter(b => b.libraryItemId === item.id);
+  bookmarks.sort((a, b) => a.time - b.time);
+
+  if (bookmarks.length === 0) {
+    alert("No bookmarks to export.");
+    return;
+  }
+
+  const modal = document.createElement('div');
+  modal.className = 'fixed inset-0 bg-black-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 select-none';
+  modal.innerHTML = `
+    <div class="bg-primary border border-black-400 rounded-lg max-w-md w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between border-b border-black-500 pb-3">
+        <h3 class="text-sm font-bold text-white uppercase tracking-wider flex items-center space-x-1.5">
+          <span class="material-symbols text-base text-accent">download</span>
+          <span>Export Bookmarks</span>
+        </h3>
+        <button id="close-export-bookmark-modal" class="text-black-100 hover:text-white transition-colors">
+          <span class="material-symbols text-lg">close</span>
+        </button>
+      </div>
+
+      <div class="space-y-3 text-center py-2">
+        <p class="text-xs text-black-100">Select the file format to export your bookmarks for <span class="text-white font-semibold">"${escapeHtml(item.title)}"</span>.</p>
+        
+        <div class="flex flex-col space-y-2 pt-2">
+          <button id="export-txt-btn" class="w-full bg-black-500 hover:bg-black-400 text-white text-xs py-2.5 px-4 rounded border border-black-300 font-semibold text-left flex items-center justify-between transition-colors">
+            <span>Text Format (.txt)</span>
+            <span class="text-[0.65rem] text-black-100 font-normal">[00:05:23] Chapter 1</span>
+          </button>
+          <button id="export-csv-btn" class="w-full bg-black-500 hover:bg-black-400 text-white text-xs py-2.5 px-4 rounded border border-black-300 font-semibold text-left flex items-center justify-between transition-colors">
+            <span>CSV Table (.csv)</span>
+            <span class="text-[0.65rem] text-black-100 font-normal">Time,Timestamp,Title</span>
+          </button>
+          <button id="export-json-btn" class="w-full bg-black-500 hover:bg-black-400 text-white text-xs py-2.5 px-4 rounded border border-black-300 font-semibold text-left flex items-center justify-between transition-colors">
+            <span>JSON Payload (.json)</span>
+            <span class="text-[0.65rem] text-black-100 font-normal">{"time": 323, ...}</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-end pt-3 border-t border-black-500">
+        <button id="cancel-export-bookmark-btn" class="bg-transparent hover:bg-black-500 text-white px-4 py-2 rounded text-xs transition-colors">
+          Cancel
+        </button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+
+  const closeModal = () => modal.remove();
+  document.getElementById('close-export-bookmark-modal').onclick = closeModal;
+  document.getElementById('cancel-export-bookmark-btn').onclick = closeModal;
+
+  const downloadFile = (filename, content, mimeType) => {
+    const blob = new Blob([content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    closeModal();
+  };
+
+  const sanitizeName = (name) => name.replace(/[\\/*?:"<>|]/g, "").trim() || "audiobook";
+
+  document.getElementById('export-txt-btn').onclick = () => {
+    let content = `Bookmarks for "${item.title}"\n`;
+    content += `Generated on ${new Date().toLocaleString()}\n`;
+    content += `-------------------------------------------\n\n`;
+    bookmarks.forEach(b => {
+      content += `[${formatDuration(b.time)}] ${b.title}\n`;
+    });
+    const filename = `${sanitizeName(item.title)}_bookmarks.txt`;
+    downloadFile(filename, content, 'text/plain;charset=utf-8');
+  };
+
+  document.getElementById('export-csv-btn').onclick = () => {
+    let content = `"Time (seconds)","Timestamp","Title"\n`;
+    bookmarks.forEach(b => {
+      content += `"${b.time}","${formatDuration(b.time)}","${b.title.replace(/"/g, '""')}"\n`;
+    });
+    const filename = `${sanitizeName(item.title)}_bookmarks.csv`;
+    downloadFile(filename, content, 'text/csv;charset=utf-8');
+  };
+
+  document.getElementById('export-json-btn').onclick = () => {
+    const data = bookmarks.map(b => ({
+      time: b.time,
+      timestamp: formatDuration(b.time),
+      title: b.title
+    }));
+    const content = JSON.stringify(data, null, 2);
+    const filename = `${sanitizeName(item.title)}_bookmarks.json`;
+    downloadFile(filename, content, 'application/json;charset=utf-8');
   };
 }

@@ -11,30 +11,61 @@ import (
 	"audiobookshelf/internal/core"
 )
 
+// BackupScheduleType is a custom type that can unmarshal from either a boolean or a string.
+type BackupScheduleType string
+
+func (bst *BackupScheduleType) UnmarshalJSON(data []byte) error {
+	if len(data) == 0 {
+		*bst = ""
+		return nil
+	}
+	if string(data) == "false" {
+		*bst = ""
+		return nil
+	}
+	if string(data) == "true" {
+		*bst = ""
+		return nil
+	}
+	var s string
+	if err := json.Unmarshal(data, &s); err != nil {
+		return err
+	}
+	*bst = BackupScheduleType(s)
+	return nil
+}
+
+func (bst BackupScheduleType) MarshalJSON() ([]byte, error) {
+	if bst == "" {
+		return []byte("false"), nil
+	}
+	return json.Marshal(string(bst))
+}
+
 // ServerSettings holds the settings stored in the database.
 type ServerSettings struct {
-	TokenSecret                  string   `json:"tokenSecret"`
-	Language                     string   `json:"language"`
-	AuthActiveAuthMethods        []string `json:"authActiveAuthMethods"`
-	AuthLoginCustomMessage       *string  `json:"authLoginCustomMessage"`
-	BackupPath                   string   `json:"backupPath"`
-	BackupsToKeep                int      `json:"backupsToKeep"`
-	BackupSchedule               string   `json:"backupSchedule"`
-	MetadataCoverWithItem        bool     `json:"metadataCoverWithItem"`
-	MetadataMarkdownWithItem     bool     `json:"metadataMarkdownWithItem"`
-	SortingIgnorePrefix          bool     `json:"sortingIgnorePrefix"`
-	ScannerParseSubtitles        bool     `json:"scannerParseSubtitles"`
-	ScannerFindCovers            bool     `json:"scannerFindCovers"`
-	ScannerCoverProvider         string   `json:"scannerCoverProvider"`
-	ScannerPreferMatchedMetadata bool     `json:"scannerPreferMatchedMetadata"`
-	WatchLibraryChanges          bool     `json:"watchLibraryChanges"`
-	ChromecastEnabled            bool     `json:"chromecastEnabled"`
-	AllowIframe                  bool     `json:"allowIframe"`
-	HomePageBookshelfView        bool     `json:"homePageBookshelfView"`
-	LibraryBookshelfView         bool     `json:"libraryBookshelfView"`
-	DateFormat                   string   `json:"dateFormat"`
-	TimeFormat                   string   `json:"timeFormat"`
-	AllowedCorsOrigins           string   `json:"allowedCorsOrigins"`
+	TokenSecret                  string             `json:"tokenSecret"`
+	Language                     string             `json:"language"`
+	AuthActiveAuthMethods        []string           `json:"authActiveAuthMethods"`
+	AuthLoginCustomMessage       *string            `json:"authLoginCustomMessage"`
+	BackupPath                   string             `json:"backupPath"`
+	BackupsToKeep                int                `json:"backupsToKeep"`
+	BackupSchedule               BackupScheduleType `json:"backupSchedule"`
+	MetadataCoverWithItem        bool               `json:"metadataCoverWithItem"`
+	MetadataMarkdownWithItem     bool               `json:"metadataMarkdownWithItem"`
+	SortingIgnorePrefix          bool               `json:"sortingIgnorePrefix"`
+	ScannerParseSubtitles        bool               `json:"scannerParseSubtitles"`
+	ScannerFindCovers            bool               `json:"scannerFindCovers"`
+	ScannerCoverProvider         string             `json:"scannerCoverProvider"`
+	ScannerPreferMatchedMetadata bool               `json:"scannerPreferMatchedMetadata"`
+	WatchLibraryChanges          bool               `json:"watchLibraryChanges"`
+	ChromecastEnabled            bool               `json:"chromecastEnabled"`
+	AllowIframe                  bool               `json:"allowIframe"`
+	HomePageBookshelfView        bool               `json:"homePageBookshelfView"`
+	LibraryBookshelfView         bool               `json:"libraryBookshelfView"`
+	DateFormat                   string             `json:"dateFormat"`
+	TimeFormat                   string             `json:"timeFormat"`
+	AllowedCorsOrigins           string             `json:"allowedCorsOrigins"`
 }
 
 // GetServerSettings reads the server settings from the settings table.
