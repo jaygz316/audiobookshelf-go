@@ -719,6 +719,10 @@ func registerMiscRoutes(mux *http.ServeMux, cfg *core.Config, db *sql.DB, appRoo
 	registerTagsAndGenresRoutes(mux, cfg, db)
 	registerStatsAndFilesystemRoutes(mux, cfg, db, appRoot)
 	registerTasksAndOtherRoutes(mux, cfg, db, cfg.MetadataPath)
+
+	// OPDS Catalog routes
+	mux.Handle(joinPath(cfg.RouterBasePath, "/opds"), AuthMiddlewareWrapper(db, ServeOPDS(db)))
+	mux.Handle(joinPath(cfg.RouterBasePath, "/opds/"), AuthMiddlewareWrapper(db, ServeOPDS(db)))
 }
 
 func registerFallbackRoutes(mux *http.ServeMux, cfg *core.Config, db *sql.DB, appRoot string) {
@@ -728,7 +732,7 @@ func registerFallbackRoutes(mux *http.ServeMux, cfg *core.Config, db *sql.DB, ap
 			path = trimBasePath(path, cfg.RouterBasePath)
 		}
 
-		prefixes := []string{"/api/", "/auth/", "/hls/", "/public/", "/feed/", "/status", "/login", "/logout", "/init", "/docs/"}
+		prefixes := []string{"/api/", "/auth/", "/hls/", "/public/", "/feed/", "/status", "/login", "/logout", "/init", "/docs/", "/opds/"}
 		isBackend := false
 		for _, prefix := range prefixes {
 			if strings.HasPrefix(path, prefix) || path == prefix[:len(prefix)-1] {
