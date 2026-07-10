@@ -1014,6 +1014,12 @@ func HandleItemsDispatch(db *sql.DB, cfg *core.Config) http.HandlerFunc {
 
 		subPath := strings.TrimPrefix(path, joinPath(cfg.RouterBasePath, "/api/items/"))
 		parts := strings.Split(subPath, "/")
+		if len(parts) == 2 && parts[0] == "batch" && parts[1] == "update" {
+			if r.Method == http.MethodPost {
+				AuthMiddlewareWrapper(db, http.HandlerFunc(handleBatchUpdateLibraryItems(db, cfg))).ServeHTTP(w, r)
+				return
+			}
+		}
 		if len(parts) == 1 && parts[0] != "" {
 			itemID := parts[0]
 			if r.Method == http.MethodGet {

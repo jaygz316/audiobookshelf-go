@@ -199,6 +199,9 @@ function bootstrapApp(payload) {
     if (settingsBtn) settingsBtn.classList.remove('hidden');
     if (adminBtn) adminBtn.classList.remove('hidden');
 
+    const batchToggleBtn = document.getElementById('batch-edit-toggle-btn');
+    if (batchToggleBtn) batchToggleBtn.classList.remove('hidden');
+
     const scanBtn = document.getElementById('scan-library-btn');
     if (scanBtn) {
       scanBtn.classList.remove('hidden');
@@ -271,7 +274,7 @@ function bootstrapApp(payload) {
   }
 }
 
-function showToast(message, type = 'info') {
+export function showToast(message, type = 'info') {
   const container = document.getElementById('toast-container');
   if (!container) return;
   
