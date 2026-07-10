@@ -344,14 +344,14 @@ func (m *PlaylistManager) CreateCollection(ctx context.Context, c *Collection) e
 	createdAtStr := msToTimeStr(c.CreatedAt)
 	updatedAtStr := msToTimeStr(c.UpdatedAt)
 
+	// Check if "displayOrder" column exists in "collections" table dynamically
+	hasDisplayOrder := hasColumn(ctx, m.db, "collections", "displayOrder")
+
 	tx, err := m.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
 	defer tx.Rollback()
-
-	// Check if "displayOrder" column exists in "collections" table dynamically
-	hasDisplayOrder := hasColumn(ctx, m.db, "collections", "displayOrder")
 
 	if hasDisplayOrder {
 		_, err = tx.ExecContext(ctx, `
@@ -451,13 +451,13 @@ func (m *PlaylistManager) UpdateCollection(ctx context.Context, c *Collection) e
 	c.UpdatedAt = time.Now().UnixNano() / int64(time.Millisecond)
 	updatedAtStr := msToTimeStr(c.UpdatedAt)
 
+	hasDisplayOrder := hasColumn(ctx, m.db, "collections", "displayOrder")
+
 	tx, err := m.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
 	defer tx.Rollback()
-
-	hasDisplayOrder := hasColumn(ctx, m.db, "collections", "displayOrder")
 
 	if hasDisplayOrder {
 		_, err = tx.ExecContext(ctx, `
