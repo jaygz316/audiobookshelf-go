@@ -168,6 +168,12 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
                   <span class="material-symbols text-sm">settings_suggest</span>
                   <span>Embed Metadata</span>
                 </button>
+                ${item.media?.audioFiles && item.media.audioFiles.length > 1 ? `
+                  <button id="details-merge-audio-btn" class="w-full bg-black-500 hover:bg-black-400 border border-black-300 text-white font-semibold py-2 px-4 rounded-md transition-all flex items-center justify-center space-x-2 text-xs shadow hover:scale-[1.02] duration-200 mt-2">
+                    <span class="material-symbols text-sm">call_merge</span>
+                    <span>Merge Audio Files</span>
+                  </button>
+                ` : ''}
               ` : ''}
             </div>
 
@@ -414,6 +420,26 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
           } finally {
             embedMetadataBtn.disabled = false;
             embedMetadataBtn.innerHTML = '<span class="material-symbols text-sm">settings_suggest</span><span>Embed Metadata</span>';
+          }
+        };
+      }
+      const mergeAudioBtn = document.getElementById('details-merge-audio-btn');
+      if (mergeAudioBtn) {
+        mergeAudioBtn.onclick = async () => {
+          if (!confirm('Are you sure you want to merge all separate audio tracks into a single M4B file? This will merge the files, create chapters, update the database, and delete the original files.')) {
+            return;
+          }
+          mergeAudioBtn.disabled = true;
+          mergeAudioBtn.innerHTML = '<span class="material-symbols text-sm animate-spin">sync</span><span>Merging...</span>';
+          try {
+            const resp = await request('POST', `/api/items/${item.id}/merge`);
+            alert(resp.message || 'Audio files merged successfully!');
+            loadItemDetails(itemId, libraryId, backCallback);
+          } catch (err) {
+            alert('Failed to merge audio files: ' + (err.message || err));
+          } finally {
+            mergeAudioBtn.disabled = false;
+            mergeAudioBtn.innerHTML = '<span class="material-symbols text-sm">call_merge</span><span>Merge Audio Files</span>';
           }
         };
       }
