@@ -1607,6 +1607,15 @@ func scanNewLibraryItem(db *sql.DB, libraryID, folderID, itemPath string, groupF
 			}
 			inotification.TriggerEvent(context.Background(), db, "onPodcastEpisodeDownloaded", &libraryID, "New Episode", fmt.Sprintf("%s - %s", title, ep.Title), extraData)
 		}
+	} else if mediaType == "book" {
+		var libraryName string
+		_ = db.QueryRow("SELECT name FROM libraries WHERE id = ?", libraryID).Scan(&libraryName)
+		extraData := map[string]string{
+			"title":       title,
+			"author":      authorNamesFirstLast,
+			"libraryName": libraryName,
+		}
+		inotification.TriggerEvent(context.Background(), db, "onItemAdded", &libraryID, "New Book Added", fmt.Sprintf("%s by %s", title, authorNamesFirstLast), extraData)
 	}
 
 	if socketAuth != nil {
