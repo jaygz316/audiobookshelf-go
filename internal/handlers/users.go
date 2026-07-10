@@ -195,10 +195,7 @@ func handleLogin(db *sql.DB) http.HandlerFunc {
 		}
 
 		// Save session
-		ipAddress := r.RemoteAddr
-		if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-			ipAddress = strings.Split(xff, ",")[0]
-		}
+		ipAddress := utils.GetClientIP(r)
 		userAgent := r.Header.Get("User-Agent")
 		expiresAt := time.Now().Add(30 * 24 * time.Hour)
 
