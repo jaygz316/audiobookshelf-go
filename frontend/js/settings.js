@@ -73,6 +73,7 @@ export async function loadSettings() {
         <button class="px-4 py-2 border-b-2 border-transparent hover:text-white text-black-50 focus:outline-none" data-tab="listening-sessions">Listening Sessions</button>
         <button class="px-4 py-2 border-b-2 border-transparent hover:text-white text-black-50 focus:outline-none" data-tab="logs">Logs</button>
         <button class="px-4 py-2 border-b-2 border-transparent hover:text-white text-black-50 focus:outline-none" data-tab="notifications">Notifications</button>
+        <button class="px-4 py-2 border-b-2 border-transparent hover:text-white text-black-50 focus:outline-none" data-tab="feeds">RSS Feeds</button>
       </div>
 
       <!-- Tab Contents -->
@@ -87,6 +88,7 @@ export async function loadSettings() {
         <div id="tab-listening-sessions" class="space-y-6 hidden"></div>
         <div id="tab-logs" class="space-y-6 hidden"></div>
         <div id="tab-notifications" class="space-y-6 hidden"></div>
+        <div id="tab-feeds" class="space-y-6 hidden"></div>
       </div>
     </div>
   `;
@@ -124,7 +126,8 @@ export async function loadSettings() {
     renderApiKeysTab(),
     renderListeningSessionsTab(),
     renderLogsTab(),
-    renderNotificationsTab()
+    renderNotificationsTab(),
+    renderFeedsTab()
   ]);
 }
 
@@ -2186,3 +2189,96 @@ function triggerCreateNotificationModal(allSettings, onSaveSuccess) {
     }
   };
 }
+
+async function renderFeedsTab() {
+  const container = document.getElementById('tab-feeds');
+  if (!container) return;
+
+  container.innerHTML = `<div class="animate-spin rounded-full h-8 w-8 border-b-2 border-accent mx-auto"></div>`;
+
+  try {
+    const feedsResp = await request('GET', '/api/feeds');
+    const feeds = feedsResp.feeds || [];
+
+    container.innerHTML = `
+      <div class="space-y-4">
+        <div class="flex justify-between items-center">
+          <h3 class="text-lg font-semibold text-white">Active RSS Feeds</h3>
+        </div>
+        
+        <div class="border border-black-300 rounded-md bg-primary overflow-x-auto">
+          <table class="w-full text-left text-sm">
+            <thead>
+              <tr class="border-b border-black-400 text-black-100 text-xs uppercase">
+                <th class="px-4 py-3">Title / Entity</th>
+                <th class="px-4 py-3">Type</th>
+                <th class="px-4 py-3">RSS Feed URL</th>
+                <th class="px-4 py-3 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="feeds-list-rows" class="divide-y divide-black-400">
+              <!-- Rows will be injected here -->
+            </tbody>
+          </table>
+          \${feeds.length === 0 ? \`<div class="p-8 text-center text-black-100">No active RSS feeds. You can open a feed from any item's details view.</div>\` : ''}
+        </div>
+      </div>
+    `;
+
+    const listRows = document.getElementById('feeds-list-rows');
+    if (!listRows) return;
+
+    feeds.forEach(feed => {
+      const tr = document.createElement('tr');
+      tr.className = 'hover:bg-primary-light';
+      tr.innerHTML = `
+        <td class="px-4 py-3 font-medium text-white">\${escapeHtml(feed.title || feed.entityId)}</td>
+        <td class="px-4 py-3 text-black-50 uppercase text-xs">\${escapeHtml(feed.type)}</td>
+        <td class="px-4 py-3 text-black-100">
+          <div class="flex items-center gap-2">
+            <span class="truncate max-w-xs font-mono text-xs select-all">\${escapeHtml(feed.feedUrl)}</span>
+            <button class="copy-feed-btn text-accent hover:underline text-xs" data-url="\${escapeHtml(feed.feedUrl)}">
+              Copy
+            </button>
+          </div>
+        </td>
+        <td class="px-4 py-3 text-right">
+          <button class="delete-feed-btn text-error hover:underline text-xs" data-id="\${escapeHtml(feed.id)}">
+            Close Feed
+          </button>
+        </td>
+      `;
+
+      // Wire up copy button
+      tr.querySelector('.copy-feed-btn').onclick = (e) => {
+        const btn = e.target;
+        navigator.clipboard.writeText(btn.dataset.url).then(() => {
+          const oldText = btn.textContent;
+          btn.textContent = 'Copied!';
+          setTimeout(() => { btn.textContent = oldText; }, 2000);
+        });
+      };
+
+      // Wire up delete button
+      tr.querySelector('.delete-feed-btn').onclick = async (e) => {
+        if (!confirm('Are you sure you want to close this RSS feed?')) return;
+        const btn = e.target;
+        try {
+          await request('DELETE', \`/api/feeds/\${btn.dataset.id}\`);
+          renderFeedsTab();
+        } catch (err) {
+          alert('Failed to close feed: ' + err.message);
+        }
+      };
+
+      listRows.appendChild(tr);
+    });
+  } catch (err) {
+    container.innerHTML = `
+      <div class="text-error p-4 text-center">
+        Failed to load active feeds: \${escapeHtml(err.message)}
+      </div>
+    `;
+  }
+}
+

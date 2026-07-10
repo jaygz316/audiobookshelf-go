@@ -527,6 +527,15 @@ func registerMockAndFeedRoutes(mux *http.ServeMux, cfg *core.Config, db *sql.DB)
 	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/feeds"), func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
 			AuthMiddlewareWrapper(db, handleGetFeeds(db)).ServeHTTP(w, r)
+		} else if r.Method == http.MethodPost {
+			AuthMiddlewareWrapper(db, handleCreateFeed(db)).ServeHTTP(w, r)
+		} else {
+			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
+		}
+	})
+	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/feeds/"), func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodDelete {
+			AuthMiddlewareWrapper(db, handleDeleteFeed(db)).ServeHTTP(w, r)
 		} else {
 			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
 		}

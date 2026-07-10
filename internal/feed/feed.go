@@ -26,8 +26,8 @@ func NewFeedManager(db *sql.DB) *FeedManager {
 	return &FeedManager{db: db}
 }
 
-// ServeRSSFeed creates an HTTP handler returning the RSS XML podcast representation of a library item or playlist.
-func (m *FeedManager) ServeRSSFeed(itemID string) http.HandlerFunc {
+// ServeRSSFeed creates an HTTP handler returning the RSS XML podcast representation of a library item, playlist, collection, or series.
+func (m *FeedManager) ServeRSSFeed(slug string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Path
 
@@ -42,18 +42,49 @@ func (m *FeedManager) ServeRSSFeed(itemID string) http.HandlerFunc {
 		}
 		hostPrefix := scheme + "://" + host
 
+		ctx := r.Context()
+		var entityID string
+		var entityType string
+		err := m.db.QueryRowContext(ctx, "SELECT entityId, type FROM feeds WHERE id = ?", slug).Scan(&entityID, &entityType)
+
+		var itemID string
+		if err == nil {
+			itemID = entityID
+		} else {
+			// Fallback: check if slug itself is a valid playlist ID, collection ID, series ID, podcast ID, or book ID
+			itemID = slug
+			var exists int
+			if m.db.QueryRowContext(ctx, "SELECT 1 FROM playlists WHERE id = ?", slug).Scan(&exists) == nil {
+				entityType = "playlist"
+			} else if m.db.QueryRowContext(ctx, "SELECT 1 FROM collections WHERE id = ?", slug).Scan(&exists) == nil {
+				entityType = "collection"
+			} else if m.db.QueryRowContext(ctx, "SELECT 1 FROM series WHERE id = ?", slug).Scan(&exists) == nil {
+				entityType = "series"
+			} else {
+				// Must be a library item. Let's query its mediaType from libraryItems
+				var mediaType string
+				err := m.db.QueryRowContext(ctx, "SELECT mediaType FROM libraryItems WHERE id = ?", slug).Scan(&mediaType)
+				if err == nil {
+					entityType = mediaType // "book" or "podcast"
+				} else {
+					http.NotFound(w, r)
+					return
+				}
+			}
+		}
+
 		// Route based on sub-path
 		if strings.Contains(path, "/cover") {
-			m.serveFeedCover(w, r, itemID)
+			m.serveFeedCover(w, r, itemID, entityType)
 			return
 		}
 
 		if strings.Contains(path, "/item/") {
-			m.serveFeedItem(w, r, itemID)
+			m.serveFeedItem(w, r, itemID, entityType)
 			return
 		}
 
-		m.serveFeedXML(w, r, itemID, hostPrefix)
+		m.serveFeedXML(w, r, itemID, slug, hostPrefix, entityType)
 	}
 }
 
@@ -270,14 +301,11 @@ type podcastEpData struct {
 }
 
 // Cover serving
-func (m *FeedManager) serveFeedCover(w http.ResponseWriter, r *http.Request, itemID string) {
+func (m *FeedManager) serveFeedCover(w http.ResponseWriter, r *http.Request, itemID string, entityType string) {
 	ctx := r.Context()
 
-	var playlistName string
-	isPlaylist := m.db.QueryRowContext(ctx, "SELECT name FROM playlists WHERE id = ?", itemID).Scan(&playlistName) == nil
-
 	var coverPath string
-	if isPlaylist {
+	if entityType == "playlist" {
 		// PORT: Legacy behavior resolves playlist cover using the first available item cover
 		rows, err := m.db.QueryContext(ctx, `
 			SELECT mediaItemId, mediaItemType 
@@ -311,19 +339,64 @@ func (m *FeedManager) serveFeedCover(w http.ResponseWriter, r *http.Request, ite
 			}
 			_ = rows.Err()
 		}
-	} else {
-		var mediaType, mediaID string
-		err := m.db.QueryRowContext(ctx, "SELECT mediaType, mediaId FROM libraryItems WHERE id = ?", itemID).Scan(&mediaType, &mediaID)
+	} else if entityType == "collection" {
+		// Query first available book in collection
+		rows, err := m.db.QueryContext(ctx, `
+			SELECT b.coverPath
+			FROM collectionBooks cb
+			JOIN books b ON cb.bookId = b.id
+			WHERE cb.collectionId = ?
+			ORDER BY cb."order" ASC
+		`, itemID)
 		if err == nil {
-			var cp sql.NullString
-			if mediaType == "book" {
-				_ = m.db.QueryRowContext(ctx, "SELECT coverPath FROM books WHERE id = ?", mediaID).Scan(&cp)
-			} else if mediaType == "podcast" {
-				_ = m.db.QueryRowContext(ctx, "SELECT coverPath FROM podcasts WHERE id = ?", mediaID).Scan(&cp)
+			defer rows.Close()
+			for rows.Next() {
+				var bCover sql.NullString
+				if err := rows.Scan(&bCover); err == nil && bCover.Valid && bCover.String != "" {
+					coverPath = bCover.String
+					break
+				}
 			}
-			if cp.Valid {
-				coverPath = cp.String
+			_ = rows.Err()
+		}
+	} else if entityType == "series" {
+		// Query first available book in series
+		rows, err := m.db.QueryContext(ctx, `
+			SELECT b.coverPath
+			FROM bookSeries bs
+			JOIN books b ON bs.bookId = b.id
+			WHERE bs.seriesId = ?
+			ORDER BY CAST(bs.sequence AS REAL) ASC, bs.sequence ASC
+		`, itemID)
+		if err == nil {
+			defer rows.Close()
+			for rows.Next() {
+				var bCover sql.NullString
+				if err := rows.Scan(&bCover); err == nil && bCover.Valid && bCover.String != "" {
+					coverPath = bCover.String
+					break
+				}
 			}
+			_ = rows.Err()
+		}
+	} else {
+		var mediaID string = itemID
+		var mediaType string = entityType
+
+		// If itemID is a libraryItem ID, resolve to mediaID
+		var mID string
+		if m.db.QueryRowContext(ctx, "SELECT mediaId FROM libraryItems WHERE id = ?", itemID).Scan(&mID) == nil {
+			mediaID = mID
+		}
+
+		var cp sql.NullString
+		if mediaType == "book" {
+			_ = m.db.QueryRowContext(ctx, "SELECT coverPath FROM books WHERE id = ?", mediaID).Scan(&cp)
+		} else if mediaType == "podcast" {
+			_ = m.db.QueryRowContext(ctx, "SELECT coverPath FROM podcasts WHERE id = ?", mediaID).Scan(&cp)
+		}
+		if cp.Valid {
+			coverPath = cp.String
 		}
 	}
 
@@ -336,7 +409,7 @@ func (m *FeedManager) serveFeedCover(w http.ResponseWriter, r *http.Request, ite
 }
 
 // Media file serving (handles HTTP range requests automatically via ServeFile)
-func (m *FeedManager) serveFeedItem(w http.ResponseWriter, r *http.Request, itemID string) {
+func (m *FeedManager) serveFeedItem(w http.ResponseWriter, r *http.Request, itemID string, entityType string) {
 	ctx := r.Context()
 	reqPath := r.URL.Path
 
@@ -353,13 +426,10 @@ func (m *FeedManager) serveFeedItem(w http.ResponseWriter, r *http.Request, item
 	}
 	episodeID := parts[0]
 
-	var playlistName string
-	isPlaylist := m.db.QueryRowContext(ctx, "SELECT name FROM playlists WHERE id = ?", itemID).Scan(&playlistName) == nil
-
 	var filePath string
 	var mimeType string
 
-	if isPlaylist {
+	if entityType == "playlist" {
 		rows, err := m.db.QueryContext(ctx, `
 			SELECT p.mediaItemId, p.mediaItemType, b.audioFiles
 			FROM playlistMediaItems p
@@ -408,39 +478,116 @@ func (m *FeedManager) serveFeedItem(w http.ResponseWriter, r *http.Request, item
 			}
 			_ = rows.Err()
 		}
-	} else {
-		var mediaType, mediaID string
-		err := m.db.QueryRowContext(ctx, "SELECT mediaType, mediaId FROM libraryItems WHERE id = ?", itemID).Scan(&mediaType, &mediaID)
+	} else if entityType == "collection" {
+		// Fetch all books in collection
+		rows, err := m.db.QueryContext(ctx, `
+			SELECT b.id, b.audioFiles
+			FROM collectionBooks cb
+			JOIN books b ON cb.bookId = b.id
+			WHERE cb.collectionId = ?
+			ORDER BY cb."order" ASC
+		`, itemID)
 		if err == nil {
-			if mediaType == "podcast" {
-				var audioFileJSON string
-				err := m.db.QueryRowContext(ctx, `
-					SELECT audioFile FROM podcastEpisodes 
-					WHERE id = ? AND podcastId = ?
-				`, episodeID, mediaID).Scan(&audioFileJSON)
-				if err == nil {
-					var af audioFile
-					if json.Unmarshal([]byte(audioFileJSON), &af) == nil {
-						filePath = af.Metadata.Path
-						mimeType = af.MimeType
-					}
-				}
-			} else if mediaType == "book" {
-				var audioFilesJSON string
-				err := m.db.QueryRowContext(ctx, "SELECT audioFiles FROM books WHERE id = ?", mediaID).Scan(&audioFilesJSON)
-				if err == nil {
+			defer rows.Close()
+			for rows.Next() {
+				var mediaItemID string
+				var audioFilesJSON sql.NullString
+				if err := rows.Scan(&mediaItemID, &audioFilesJSON); err == nil && audioFilesJSON.Valid {
 					var tracks []audiobookTrack
-					if json.Unmarshal([]byte(audioFilesJSON), &tracks) == nil {
+					if json.Unmarshal([]byte(audioFilesJSON.String), &tracks) == nil {
 						for _, t := range tracks {
 							if t.Exclude {
 								continue
 							}
-							trackID := computeMD5(t.Metadata.Path)
+							trackID := computeMD5(itemID + "_" + mediaItemID + "_" + t.Metadata.Path)
 							if trackID == episodeID {
 								filePath = t.Metadata.Path
 								mimeType = t.MimeType
 								break
 							}
+						}
+					}
+					if filePath != "" {
+						break
+					}
+				}
+			}
+			_ = rows.Err()
+		}
+	} else if entityType == "series" {
+		// Fetch all books in series
+		rows, err := m.db.QueryContext(ctx, `
+			SELECT b.id, b.audioFiles
+			FROM bookSeries bs
+			JOIN books b ON bs.bookId = b.id
+			WHERE bs.seriesId = ?
+			ORDER BY CAST(bs.sequence AS REAL) ASC, bs.sequence ASC
+		`, itemID)
+		if err == nil {
+			defer rows.Close()
+			for rows.Next() {
+				var mediaItemID string
+				var audioFilesJSON sql.NullString
+				if err := rows.Scan(&mediaItemID, &audioFilesJSON); err == nil && audioFilesJSON.Valid {
+					var tracks []audiobookTrack
+					if json.Unmarshal([]byte(audioFilesJSON.String), &tracks) == nil {
+						for _, t := range tracks {
+							if t.Exclude {
+								continue
+							}
+							trackID := computeMD5(itemID + "_" + mediaItemID + "_" + t.Metadata.Path)
+							if trackID == episodeID {
+								filePath = t.Metadata.Path
+								mimeType = t.MimeType
+								break
+							}
+						}
+					}
+					if filePath != "" {
+						break
+					}
+				}
+			}
+			_ = rows.Err()
+		}
+	} else {
+		var mediaID string = itemID
+		var mediaType string = entityType
+
+		// If itemID is a libraryItem ID, resolve to mediaID
+		var mID string
+		if m.db.QueryRowContext(ctx, "SELECT mediaId FROM libraryItems WHERE id = ?", itemID).Scan(&mID) == nil {
+			mediaID = mID
+		}
+
+		if mediaType == "podcast" {
+			var audioFileJSON string
+			err := m.db.QueryRowContext(ctx, `
+				SELECT audioFile FROM podcastEpisodes 
+				WHERE id = ? AND podcastId = ?
+			`, episodeID, mediaID).Scan(&audioFileJSON)
+			if err == nil {
+				var af audioFile
+				if json.Unmarshal([]byte(audioFileJSON), &af) == nil {
+					filePath = af.Metadata.Path
+					mimeType = af.MimeType
+				}
+			}
+		} else if mediaType == "book" {
+			var audioFilesJSON string
+			err := m.db.QueryRowContext(ctx, "SELECT audioFiles FROM books WHERE id = ?", mediaID).Scan(&audioFilesJSON)
+			if err == nil {
+				var tracks []audiobookTrack
+				if json.Unmarshal([]byte(audioFilesJSON), &tracks) == nil {
+					for _, t := range tracks {
+						if t.Exclude {
+							continue
+						}
+						trackID := computeMD5(t.Metadata.Path)
+						if trackID == episodeID {
+							filePath = t.Metadata.Path
+							mimeType = t.MimeType
+							break
 						}
 					}
 				}
@@ -465,23 +612,18 @@ func (m *FeedManager) serveFeedItem(w http.ResponseWriter, r *http.Request, item
 }
 
 // Serve podcast feed XML representation
-func (m *FeedManager) serveFeedXML(w http.ResponseWriter, r *http.Request, itemID string, hostPrefix string) {
+func (m *FeedManager) serveFeedXML(w http.ResponseWriter, r *http.Request, itemID string, slug string, hostPrefix string, entityType string) {
 	ctx := r.Context()
 
 	reqPath := r.URL.Path
 	feedIdx := strings.Index(reqPath, "/feed/")
 	var pathPrefix string
 	if feedIdx != -1 {
-		pathPrefix = reqPath[:feedIdx] + "/feed/" + itemID
+		pathPrefix = reqPath[:feedIdx] + "/feed/" + slug
 	} else {
-		pathPrefix = "/feed/" + itemID
+		pathPrefix = "/feed/" + slug
 	}
 	feedBaseURL := hostPrefix + pathPrefix
-
-	var playlistName string
-	var playlistDesc sql.NullString
-	err := m.db.QueryRowContext(ctx, "SELECT name, description FROM playlists WHERE id = ?", itemID).Scan(&playlistName, &playlistDesc)
-	isPlaylist := err == nil
 
 	var rssFeed rss
 	rssFeed.Version = "2.0"
@@ -494,7 +636,11 @@ func (m *FeedManager) serveFeedXML(w http.ResponseWriter, r *http.Request, itemI
 	feedChannel.Language = "en"
 	feedChannel.ITunesType = "serial"
 
-	if isPlaylist {
+	if entityType == "playlist" {
+		var playlistName string
+		var playlistDesc sql.NullString
+		_ = m.db.QueryRowContext(ctx, "SELECT name, description FROM playlists WHERE id = ?", itemID).Scan(&playlistName, &playlistDesc)
+
 		feedChannel.Title = playlistName
 		if playlistDesc.Valid {
 			feedChannel.Description = playlistDesc.String
@@ -710,6 +856,207 @@ func (m *FeedManager) serveFeedXML(w http.ResponseWriter, r *http.Request, itemI
 					}
 				}
 			}
+		}
+	} else if entityType == "collection" {
+		var collName string
+		var collDesc sql.NullString
+		err := m.db.QueryRowContext(ctx, "SELECT name, description FROM collections WHERE id = ?", itemID).Scan(&collName, &collDesc)
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+
+		feedChannel.Title = collName
+		if collDesc.Valid {
+			feedChannel.Description = collDesc.String
+			feedChannel.ITunesSummary = &cdata{Value: collDesc.String}
+		}
+		feedChannel.SiteURL = hostPrefix + "/collection/" + itemID
+		feedChannel.Image = &image{
+			URL:   feedBaseURL + "/cover",
+			Title: collName,
+			Link:  feedChannel.SiteURL,
+		}
+		feedChannel.ITunesImage = &itunesImage{Href: feedBaseURL + "/cover"}
+
+		// Query all books in the collection
+		rows, err := m.db.QueryContext(ctx, `
+			SELECT b.id, b.title, b.description, b.explicit, b.audioFiles, b.chapters, li.createdAt
+			FROM collectionBooks cb
+			JOIN books b ON cb.bookId = b.id
+			JOIN libraryItems li ON li.mediaId = b.id AND li.mediaType = 'book'
+			WHERE cb.collectionId = ?
+			ORDER BY cb."order" ASC
+		`, itemID)
+		if err == nil {
+			defer rows.Close()
+			for rows.Next() {
+				var mediaItemID string
+				var title, desc sql.NullString
+				var explicit int
+				var audioFilesJSON, chaptersJSON, liCreatedAtStr string
+				if err := rows.Scan(&mediaItemID, &title, &desc, &explicit, &audioFilesJSON, &chaptersJSON, &liCreatedAtStr); err == nil {
+					var tracks []audiobookTrack
+					_ = json.Unmarshal([]byte(audioFilesJSON), &tracks)
+					var chapters []audiobookChapter
+					_ = json.Unmarshal([]byte(chaptersJSON), &chapters)
+
+					liCreatedAt, _ := time.Parse(time.RFC3339, liCreatedAtStr)
+					if liCreatedAt.IsZero() {
+						liCreatedAt = time.Now()
+					}
+
+					useChapterTitles := checkUseChapterTitles(tracks, chapters)
+
+					for i, t := range tracks {
+						if t.Exclude {
+							continue
+						}
+						trackID := computeMD5(itemID + "_" + mediaItemID + "_" + t.Metadata.Path)
+						ext := filepath.Ext(t.Metadata.Filename)
+
+						epTitle := strings.TrimSuffix(t.Metadata.Filename, ext)
+						if len(tracks) == 1 {
+							epTitle = title.String
+						} else if useChapterTitles {
+							for _, ch := range chapters {
+								if math.Abs(ch.Start-t.StartOffset) < 1.0 {
+									epTitle = ch.Title
+									break
+								}
+							}
+						}
+
+						pubDate := liCreatedAt.Add(time.Duration(i) * time.Minute).UTC().Format(time.RFC1123Z)
+
+						itemVal := item{
+							Title:       epTitle,
+							Description: desc.String,
+							URL:         hostPrefix + "/item/" + mediaItemID,
+							GUID:        feedBaseURL + "/item/" + trackID + "/media",
+							PubDate:     pubDate,
+							Enclosure: enclosure{
+								URL:    feedBaseURL + "/item/" + trackID + "/media" + ext,
+								Length: t.Metadata.Size,
+								Type:   t.MimeType,
+							},
+							ITunesDuration: int(math.Round(t.Duration)),
+						}
+						if explicit != 0 {
+							itemVal.ITunesExplicit = "yes"
+						} else {
+							itemVal.ITunesExplicit = "no"
+						}
+						if desc.String != "" {
+							itemVal.ITunesSummary = &cdata{Value: desc.String}
+						}
+						feedChannel.Items = append(feedChannel.Items, itemVal)
+					}
+				}
+			}
+			_ = rows.Err()
+		}
+	} else if entityType == "series" {
+		var seriesName string
+		var seriesDesc sql.NullString
+		err := m.db.QueryRowContext(ctx, "SELECT name, description FROM series WHERE id = ?", itemID).Scan(&seriesName, &seriesDesc)
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+
+		feedChannel.Title = seriesName
+		if seriesDesc.Valid {
+			feedChannel.Description = seriesDesc.String
+			feedChannel.ITunesSummary = &cdata{Value: seriesDesc.String}
+		}
+		feedChannel.SiteURL = hostPrefix + "/series/" + itemID
+		feedChannel.Image = &image{
+			URL:   feedBaseURL + "/cover",
+			Title: seriesName,
+			Link:  feedChannel.SiteURL,
+		}
+		feedChannel.ITunesImage = &itunesImage{Href: feedBaseURL + "/cover"}
+
+		// Query all books in the series
+		rows, err := m.db.QueryContext(ctx, `
+			SELECT b.id, b.title, b.description, b.explicit, b.audioFiles, b.chapters, li.createdAt, bs.sequence
+			FROM bookSeries bs
+			JOIN books b ON bs.bookId = b.id
+			JOIN libraryItems li ON li.mediaId = b.id AND li.mediaType = 'book'
+			WHERE bs.seriesId = ?
+			ORDER BY CAST(bs.sequence AS REAL) ASC, bs.sequence ASC
+		`, itemID)
+		if err == nil {
+			defer rows.Close()
+			for rows.Next() {
+				var mediaItemID string
+				var title, desc sql.NullString
+				var explicit int
+				var audioFilesJSON, chaptersJSON, liCreatedAtStr, sequence string
+				if err := rows.Scan(&mediaItemID, &title, &desc, &explicit, &audioFilesJSON, &chaptersJSON, &liCreatedAtStr, &sequence); err == nil {
+					var tracks []audiobookTrack
+					_ = json.Unmarshal([]byte(audioFilesJSON), &tracks)
+					var chapters []audiobookChapter
+					_ = json.Unmarshal([]byte(chaptersJSON), &chapters)
+
+					liCreatedAt, _ := time.Parse(time.RFC3339, liCreatedAtStr)
+					if liCreatedAt.IsZero() {
+						liCreatedAt = time.Now()
+					}
+
+					useChapterTitles := checkUseChapterTitles(tracks, chapters)
+
+					for i, t := range tracks {
+						if t.Exclude {
+							continue
+						}
+						trackID := computeMD5(itemID + "_" + mediaItemID + "_" + t.Metadata.Path)
+						ext := filepath.Ext(t.Metadata.Filename)
+
+						epTitle := strings.TrimSuffix(t.Metadata.Filename, ext)
+						if len(tracks) == 1 {
+							epTitle = title.String
+							if sequence != "" {
+								epTitle = fmt.Sprintf("Book %s - %s", sequence, epTitle)
+							}
+						} else if useChapterTitles {
+							for _, ch := range chapters {
+								if math.Abs(ch.Start-t.StartOffset) < 1.0 {
+									epTitle = ch.Title
+									break
+								}
+							}
+						}
+
+						pubDate := liCreatedAt.Add(time.Duration(i) * time.Minute).UTC().Format(time.RFC1123Z)
+
+						itemVal := item{
+							Title:       epTitle,
+							Description: desc.String,
+							URL:         hostPrefix + "/item/" + mediaItemID,
+							GUID:        feedBaseURL + "/item/" + trackID + "/media",
+							PubDate:     pubDate,
+							Enclosure: enclosure{
+								URL:    feedBaseURL + "/item/" + trackID + "/media" + ext,
+								Length: t.Metadata.Size,
+								Type:   t.MimeType,
+							},
+							ITunesDuration: int(math.Round(t.Duration)),
+						}
+						if explicit != 0 {
+							itemVal.ITunesExplicit = "yes"
+						} else {
+							itemVal.ITunesExplicit = "no"
+						}
+						if desc.String != "" {
+							itemVal.ITunesSummary = &cdata{Value: desc.String}
+						}
+						feedChannel.Items = append(feedChannel.Items, itemVal)
+					}
+				}
+			}
+			_ = rows.Err()
 		}
 	} else {
 		var mediaType, mediaID, liCreatedAtStr string

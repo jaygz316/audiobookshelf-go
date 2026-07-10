@@ -150,6 +150,44 @@ func setupTestDB(t *testing.T) *sql.DB {
 			createdAt TEXT, 
 			playlistId TEXT
 		)`,
+		`CREATE TABLE feeds (
+			id TEXT PRIMARY KEY,
+			type TEXT,
+			entityId TEXT,
+			userId TEXT,
+			serverAddress TEXT,
+			createdAt TEXT,
+			updatedAt TEXT
+		)`,
+		`CREATE TABLE collections (
+			id TEXT PRIMARY KEY,
+			libraryId TEXT,
+			name TEXT,
+			description TEXT,
+			createdAt TEXT,
+			updatedAt TEXT
+		)`,
+		`CREATE TABLE collectionBooks (
+			id TEXT PRIMARY KEY,
+			"order" INTEGER,
+			createdAt TEXT,
+			bookId TEXT,
+			collectionId TEXT
+		)`,
+		`CREATE TABLE series (
+			id TEXT PRIMARY KEY,
+			libraryId TEXT,
+			name TEXT,
+			nameIgnorePrefix TEXT,
+			description TEXT,
+			createdAt TEXT,
+			updatedAt TEXT
+		)`,
+		`CREATE TABLE bookSeries (
+			bookId TEXT,
+			seriesId TEXT,
+			sequence TEXT
+		)`,
 	}
 
 	for _, schema := range schemas {
@@ -829,3 +867,244 @@ func TestServeRSSFeed_Playlist(t *testing.T) {
 		t.Errorf("expected playlist podcast track content")
 	}
 }
+
+func TestServeRSSFeed_AccessControl(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	// Insert test data
+	libraryItemID := "lib_item_1"
+	_, err := db.Exec(`
+		INSERT INTO libraryItems (id, title, mediaType, mediaId, createdAt) 
+		VALUES (?, 'Access Controlled Book', 'book', 'book_1', '2026-07-10T11:00:00Z')
+	`, libraryItemID)
+	if err != nil {
+		t.Fatalf("failed to insert library item: %v", err)
+	}
+
+	_, err = db.Exec(`
+		INSERT INTO books (id, title, explicit, audioFiles, chapters) 
+		VALUES ('book_1', 'Access Controlled Book', 0, '[]', '[]')
+	`)
+	if err != nil {
+		t.Fatalf("failed to insert book: %v", err)
+	}
+
+	manager := NewFeedManager(db)
+
+	// 1. Without feed in feeds table, query using a random slug -> should 404
+	req404 := httptest.NewRequest("GET", "/feed/non_existent_slug", nil)
+	w404 := httptest.NewRecorder()
+	manager.ServeRSSFeed("non_existent_slug")(w404, req404)
+	if w404.Result().StatusCode != http.StatusNotFound {
+		t.Errorf("Expected 404 for non-existent feed, got %d", w404.Result().StatusCode)
+	}
+
+	// 2. Query using libraryItemID (which exists in libraryItems table) -> should serve (fallback logic)
+	reqFallback := httptest.NewRequest("GET", "/feed/"+libraryItemID, nil)
+	wFallback := httptest.NewRecorder()
+	manager.ServeRSSFeed(libraryItemID)(wFallback, reqFallback)
+	if wFallback.Result().StatusCode != http.StatusOK {
+		t.Errorf("Expected 200 via fallback logic, got %d", wFallback.Result().StatusCode)
+	}
+
+	// 3. Register a feed with a custom slug
+	slug := "my-secret-feed-slug"
+	_, err = db.Exec(`
+		INSERT INTO feeds (id, type, entityId, userId, serverAddress, createdAt, updatedAt)
+		VALUES (?, 'book', ?, 'user_1', 'http://example.com', '2026-07-10T11:00:00Z', '2026-07-10T11:00:00Z')
+	`, slug, libraryItemID)
+	if err != nil {
+		t.Fatalf("failed to insert feed row: %v", err)
+	}
+
+	// 4. Query using the custom slug -> should 200 OK
+	reqSlug := httptest.NewRequest("GET", "/feed/"+slug, nil)
+	wSlug := httptest.NewRecorder()
+	manager.ServeRSSFeed(slug)(wSlug, reqSlug)
+	if wSlug.Result().StatusCode != http.StatusOK {
+		t.Errorf("Expected 200 via custom slug, got %d", wSlug.Result().StatusCode)
+	}
+}
+
+func TestServeRSSFeed_Collection(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	tempDir := t.TempDir()
+
+	coverContent := []byte("collection_cover_bytes")
+	coverPath := writeTempFile(t, tempDir, "collection_cover.jpg", coverContent)
+
+	audioContent := []byte("collection_audio_bytes")
+	audioPath := writeTempFile(t, tempDir, "coll_track.mp3", audioContent)
+
+	// Set up Collection
+	collectionID := "coll1"
+	_, err := db.Exec(`
+		INSERT INTO collections (id, name, description, createdAt, updatedAt)
+		VALUES (?, ?, ?, ?, ?)
+	`, collectionID, "My Collection", "My collection description", "2026-06-09T00:00:00Z", "2026-06-09T00:00:00Z")
+	if err != nil {
+		t.Fatalf("failed to insert collection: %v", err)
+	}
+
+	bookID := "collbook1"
+	_, err = db.Exec(`
+		INSERT INTO collectionBooks (id, collectionId, bookId, "order", createdAt)
+		VALUES (?, ?, ?, ?, ?)
+	`, "cb1", collectionID, bookID, 1, "2026-06-09T00:00:00Z")
+	if err != nil {
+		t.Fatalf("failed to insert collectionBook: %v", err)
+	}
+
+	bookTracks := []audiobookTrack{
+		{
+			Index:       0,
+			Exclude:     false,
+			Duration:    60.0,
+			Codec:       "mp3",
+			MimeType:    "audio/mpeg",
+			StartOffset: 0.0,
+			Metadata: struct {
+				Path     string `json:"path"`
+				Filename string `json:"filename"`
+				Size     int64  `json:"size"`
+			}{
+				Path:     audioPath,
+				Filename: "coll_track.mp3",
+				Size:     int64(len(audioContent)),
+			},
+		},
+	}
+	insertBook(t, db, bookID, "Collection Book", "A book in a collection", "en", 0, coverPath, 60.0, makeBookTracksJSON(bookTracks), "[]")
+	insertLibraryItem(t, db, "libitem_collbook", "lib1", "book", bookID)
+	_, _ = db.Exec("UPDATE libraryItems SET createdAt = ? WHERE id = ?", "2026-06-09T00:00:00Z", "libitem_collbook")
+
+	mgr := NewFeedManager(db)
+	handler := mgr.ServeRSSFeed(collectionID)
+
+	// Test Cover (should resolve to the first book's cover)
+	reqCover := httptest.NewRequest("GET", "/feed/"+collectionID+"/cover", nil)
+	wCover := httptest.NewRecorder()
+	handler(wCover, reqCover)
+	if wCover.Result().StatusCode != http.StatusOK {
+		t.Errorf("expected 200 OK for collection cover, got: %d", wCover.Result().StatusCode)
+	}
+
+	// Test RSS XML
+	reqXML := httptest.NewRequest("GET", "/feed/"+collectionID, nil)
+	wXML := httptest.NewRecorder()
+	handler(wXML, reqXML)
+	if wXML.Result().StatusCode != http.StatusOK {
+		t.Errorf("expected 200 OK for collection XML, got: %d", wXML.Result().StatusCode)
+	}
+
+	bodyBytes, _ := io.ReadAll(wXML.Result().Body)
+	bodyStr := string(bodyBytes)
+	if !strings.Contains(bodyStr, "<title>My Collection</title>") {
+		t.Errorf("expected collection title in XML")
+	}
+
+	// Test download track
+	expectedTrackMD5 := computeMD5(collectionID + "_" + bookID + "_" + audioPath)
+	reqAudio := httptest.NewRequest("GET", "/feed/"+collectionID+"/item/"+expectedTrackMD5+"/media.mp3", nil)
+	wAudio := httptest.NewRecorder()
+	handler(wAudio, reqAudio)
+	if wAudio.Result().StatusCode != http.StatusOK {
+		t.Errorf("expected 200 OK for track download, got: %d", wAudio.Result().StatusCode)
+	}
+}
+
+func TestServeRSSFeed_Series(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	tempDir := t.TempDir()
+
+	coverContent := []byte("series_cover_bytes")
+	coverPath := writeTempFile(t, tempDir, "series_cover.jpg", coverContent)
+
+	audioContent := []byte("series_audio_bytes")
+	audioPath := writeTempFile(t, tempDir, "series_track.mp3", audioContent)
+
+	// Set up Series
+	seriesID := "series1"
+	_, err := db.Exec(`
+		INSERT INTO series (id, name, description, createdAt, updatedAt)
+		VALUES (?, ?, ?, ?, ?)
+	`, seriesID, "My Series", "My series description", "2026-06-09T00:00:00Z", "2026-06-09T00:00:00Z")
+	if err != nil {
+		t.Fatalf("failed to insert series: %v", err)
+	}
+
+	bookID := "seriesbook1"
+	_, err = db.Exec(`
+		INSERT INTO bookSeries (bookId, seriesId, sequence)
+		VALUES (?, ?, ?)
+	`, bookID, seriesID, "1.5")
+	if err != nil {
+		t.Fatalf("failed to insert bookSeries: %v", err)
+	}
+
+	bookTracks := []audiobookTrack{
+		{
+			Index:       0,
+			Exclude:     false,
+			Duration:    120.0,
+			Codec:       "mp3",
+			MimeType:    "audio/mpeg",
+			StartOffset: 0.0,
+			Metadata: struct {
+				Path     string `json:"path"`
+				Filename string `json:"filename"`
+				Size     int64  `json:"size"`
+			}{
+				Path:     audioPath,
+				Filename: "series_track.mp3",
+				Size:     int64(len(audioContent)),
+			},
+		},
+	}
+	insertBook(t, db, bookID, "Series Book 1.5", "A book in a series", "en", 0, coverPath, 120.0, makeBookTracksJSON(bookTracks), "[]")
+	insertLibraryItem(t, db, "libitem_seriesbook", "lib1", "book", bookID)
+	_, _ = db.Exec("UPDATE libraryItems SET createdAt = ? WHERE id = ?", "2026-06-09T00:00:00Z", "libitem_seriesbook")
+
+	mgr := NewFeedManager(db)
+	handler := mgr.ServeRSSFeed(seriesID)
+
+	// Test Cover
+	reqCover := httptest.NewRequest("GET", "/feed/"+seriesID+"/cover", nil)
+	wCover := httptest.NewRecorder()
+	handler(wCover, reqCover)
+	if wCover.Result().StatusCode != http.StatusOK {
+		t.Errorf("expected 200 OK for series cover, got: %d", wCover.Result().StatusCode)
+	}
+
+	// Test RSS XML
+	reqXML := httptest.NewRequest("GET", "/feed/"+seriesID, nil)
+	wXML := httptest.NewRecorder()
+	handler(wXML, reqXML)
+	if wXML.Result().StatusCode != http.StatusOK {
+		t.Errorf("expected 200 OK for series XML, got: %d", wXML.Result().StatusCode)
+	}
+
+	bodyBytes, _ := io.ReadAll(wXML.Result().Body)
+	bodyStr := string(bodyBytes)
+	if !strings.Contains(bodyStr, "<title>My Series</title>") {
+		t.Errorf("expected series title in XML")
+	}
+	if !strings.Contains(bodyStr, "<title>Book 1.5 - Series Book 1.5</title>") {
+		t.Errorf("expected series episode title to contain Book sequence prefix")
+	}
+
+	// Test download track
+	expectedTrackMD5 := computeMD5(seriesID + "_" + bookID + "_" + audioPath)
+	reqAudio := httptest.NewRequest("GET", "/feed/"+seriesID+"/item/"+expectedTrackMD5+"/media.mp3", nil)
+	wAudio := httptest.NewRecorder()
+	handler(wAudio, reqAudio)
+	if wAudio.Result().StatusCode != http.StatusOK {
+		t.Errorf("expected 200 OK for track download, got: %d", wAudio.Result().StatusCode)
+	}
+}
+

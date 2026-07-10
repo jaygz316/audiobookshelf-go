@@ -244,6 +244,17 @@ async function loadCollectionDetails(collectionId, libraryId) {
           <div id="coll-empty-tracks" class="text-center py-10 border border-dashed border-black-400 rounded-md text-black-100 hidden">
             No books in this collection.
           </div>
+
+          <!-- RSS Feed Status & Management Section -->
+          <div id="collection-rss-section" class="border-t border-black-400/50 pt-4 space-y-3">
+            <div class="flex items-center justify-between">
+              <h4 class="font-bold text-sm text-white uppercase tracking-wider">RSS Feed</h4>
+              <span id="rss-status-badge" class="px-2 py-0.5 rounded text-[0.65rem] font-bold uppercase tracking-wide bg-black-500 text-black-100">Closed</span>
+            </div>
+            <div id="rss-controls" class="space-y-2 max-w-md">
+              <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-accent mx-auto"></div>
+            </div>
+          </div>
         </div>
       </div>
     `;
@@ -263,6 +274,104 @@ async function loadCollectionDetails(collectionId, libraryId) {
     };
 
     document.getElementById('edit-coll-btn').onclick = () => triggerEditCollectionDetailsModal(collection, libraryId);
+
+    // Fetch user and render RSS Feed management section
+    const user = await request('GET', '/api/me').catch(() => null);
+    const isAdmin = user && (user.type === 'root' || user.type === 'admin');
+
+    const rssStatusBadge = document.getElementById('rss-status-badge');
+    const rssControls = document.getElementById('rss-controls');
+    
+    async function updateRssSection() {
+      if (!rssStatusBadge || !rssControls) return;
+      try {
+        const feedsResp = await request('GET', '/api/feeds');
+        const feeds = feedsResp.feeds || [];
+        const activeFeed = feeds.find(f => f.entityId === collection.id);
+        
+        if (activeFeed) {
+          rssStatusBadge.className = 'px-2 py-0.5 rounded text-[0.65rem] font-bold uppercase tracking-wide bg-accent/20 text-accent';
+          rssStatusBadge.textContent = 'Active';
+          
+          rssControls.innerHTML = `
+            <div class="space-y-1.5 w-full">
+              <label class="text-[0.65rem] text-black-100 font-semibold uppercase">Feed URL</label>
+              <div class="flex gap-1.5 w-full">
+                <input type="text" id="rss-feed-url-input" readonly value="${escapeHtml(activeFeed.feedUrl)}" class="flex-grow bg-black-500 text-white font-mono text-[0.7rem] px-2.5 py-1.5 rounded border border-black-300 focus:outline-none select-all w-0">
+                <button id="rss-copy-btn" class="bg-accent hover:opacity-90 text-primary font-bold px-3 rounded transition-colors text-[0.7rem] whitespace-nowrap">
+                  Copy
+                </button>
+              </div>
+            </div>
+            ${isAdmin ? `
+              <button id="rss-action-btn" class="w-full bg-error hover:opacity-90 text-white font-bold py-1.5 px-3 rounded transition-all text-[0.7rem]">
+                Close RSS Feed
+              </button>
+            ` : ''}
+          `;
+          
+          const copyBtn = document.getElementById('rss-copy-btn');
+          if (copyBtn) {
+            copyBtn.onclick = () => {
+              const urlInput = document.getElementById('rss-feed-url-input');
+              navigator.clipboard.writeText(urlInput ? urlInput.value : activeFeed.feedUrl).then(() => {
+                const oldText = copyBtn.textContent;
+                copyBtn.textContent = 'Copied';
+                setTimeout(() => { copyBtn.textContent = oldText; }, 2000);
+              });
+            };
+          }
+          
+          const actionBtn = document.getElementById('rss-action-btn');
+          if (actionBtn) {
+            actionBtn.onclick = async () => {
+              if (!confirm('Are you sure you want to close this RSS feed?')) return;
+              try {
+                await request('DELETE', `/api/feeds/${activeFeed.id}`);
+                updateRssSection();
+              } catch (err) {
+                alert('Failed to close RSS feed: ' + err.message);
+              }
+            };
+          }
+        } else {
+          rssStatusBadge.className = 'px-2 py-0.5 rounded text-[0.65rem] font-bold uppercase tracking-wide bg-black-500 text-black-100';
+          rssStatusBadge.textContent = 'Closed';
+          
+          if (isAdmin) {
+            rssControls.innerHTML = `
+              <p class="text-black-100 text-[0.7rem]">Generate a public RSS feed to subscribe to this collection in external podcast players.</p>
+              <button id="rss-action-btn" class="w-full bg-accent hover:opacity-90 text-primary font-bold py-1.5 px-3 rounded transition-all text-[0.7rem]">
+                Open Public RSS Feed
+              </button>
+            `;
+            
+            const actionBtn = document.getElementById('rss-action-btn');
+            if (actionBtn) {
+              actionBtn.onclick = async () => {
+                try {
+                  await request('POST', '/api/feeds', {
+                    entityId: collection.id,
+                    type: 'collection'
+                  });
+                  updateRssSection();
+                } catch (err) {
+                  alert('Failed to open RSS feed: ' + err.message);
+                }
+              };
+            }
+          } else {
+            rssControls.innerHTML = `
+              <p class="text-black-100 text-[0.7rem]">No active RSS feed. Public RSS feeds must be enabled by an administrator.</p>
+            `;
+          }
+        }
+      } catch (err) {
+        rssControls.innerHTML = `<p class="text-error text-[0.75rem]">Failed to query RSS details: ${escapeHtml(err.message)}</p>`;
+      }
+    }
+    
+    updateRssSection();
 
   } catch (err) {
     container.innerHTML = `<p class="text-red-400 text-sm p-6">Failed to load collection details: ${err.message}</p>`;
