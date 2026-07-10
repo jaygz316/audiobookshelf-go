@@ -252,6 +252,40 @@ func (m *PodcastManager) SyncAllFeeds(ctx context.Context) error {
 	return nil
 }
 
+// SyncFeed syncs the feed and downloads episodes for a single podcast by its ID.
+func (m *PodcastManager) SyncFeed(ctx context.Context, podcastID string) error {
+	var p podcastInfo
+	var feedURL sql.NullString
+	var autoDownload sql.NullInt64
+	var maxKeep sql.NullInt64
+	var maxDownload sql.NullInt64
+
+	err := m.db.QueryRowContext(ctx, `
+		SELECT id, title, feedURL, autoDownloadEpisodes, maxEpisodesToKeep, maxNewEpisodesToDownload
+		FROM podcasts
+		WHERE id = ?
+	`, podcastID).Scan(&p.ID, &p.Title, &feedURL, &autoDownload, &maxKeep, &maxDownload)
+	if err != nil {
+		return err
+	}
+
+	p.FeedURL = feedURL.String
+	p.AutoDownload = int(autoDownload.Int64)
+	p.MaxEpisodesToKeep = int(maxKeep.Int64)
+	p.MaxNewEpisodesToDownload = int(maxDownload.Int64)
+
+	if p.FeedURL == "" {
+		return fmt.Errorf("no feed URL configured")
+	}
+
+	feed, err := m.FetchFeed(ctx, p.FeedURL)
+	if err != nil {
+		return err
+	}
+
+	return m.syncPodcastEpisodes(ctx, p, feed)
+}
+
 func (m *PodcastManager) syncPodcastEpisodes(ctx context.Context, p podcastInfo, feed *PodcastFeed) error {
 	var libraryItemPath string
 	var libraryItemID string

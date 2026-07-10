@@ -67,6 +67,7 @@ func SetupHandler(db *sql.DB, cfg *core.Config, dbConnected bool, appRoot string
 	registerBaseRoutes(mux, cfg, db, dbConnected, version)
 	registerAuthAndUserRoutes(mux, cfg, db, appRoot)
 	registerLibraryRoutes(mux, cfg, db)
+	registerPodcastRoutes(mux, cfg, db)
 	registerPlaylistCollectionRoutes(mux, cfg, db)
 	registerShareRoutes(mux, cfg, db)
 	registerSearchRoutes(mux, cfg, db)
@@ -327,6 +328,18 @@ func registerLibraryRoutes(mux *http.ServeMux, cfg *core.Config, db *sql.DB) {
 	})
 
 	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/libraries/"), handleLibrariesDispatch(db, cfg))
+}
+
+func registerPodcastRoutes(mux *http.ServeMux, cfg *core.Config, db *sql.DB) {
+	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/podcasts"), func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			AuthMiddlewareWrapper(db, handleCreatePodcast(db)).ServeHTTP(w, r)
+		} else {
+			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
+		}
+	})
+
+	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/podcasts/"), handlePodcastsDispatch(db, cfg))
 }
 
 func registerPlaylistCollectionRoutes(mux *http.ServeMux, cfg *core.Config, db *sql.DB) {

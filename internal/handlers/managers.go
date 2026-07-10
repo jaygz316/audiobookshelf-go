@@ -10,6 +10,7 @@ import (
 	"audiobookshelf/internal/finders"
 	"audiobookshelf/internal/hls"
 	"audiobookshelf/internal/playlist"
+	"audiobookshelf/internal/podcast"
 	"audiobookshelf/internal/providers"
 	"audiobookshelf/internal/share"
 )
@@ -22,6 +23,7 @@ var (
 	globalShareManager    *share.ShareManager
 	globalPlaylistManager *playlist.PlaylistManager
 	globalFeedManager     *feed.FeedManager
+	globalPodcastManager  *podcast.PodcastManager
 	globalFinder          *finders.Finder
 	globalDB              *sql.DB
 )
@@ -57,6 +59,9 @@ func initManagers(db *sql.DB) {
 	if globalFeedManager == nil {
 		globalFeedManager = feed.NewFeedManager(db)
 	}
+	if globalPodcastManager == nil {
+		globalPodcastManager = podcast.NewPodcastManager(db)
+	}
 }
 
 func reinitManagers(db *sql.DB) {
@@ -72,4 +77,5 @@ func reinitManagers(db *sql.DB) {
 	globalShareManager = share.NewShareManager(db)
 	globalPlaylistManager = playlist.NewPlaylistManager(db)
 	globalFeedManager = feed.NewFeedManager(db)
+	globalPodcastManager = podcast.NewPodcastManager(db)
 }
