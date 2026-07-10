@@ -19,6 +19,7 @@ type ServerSettings struct {
 	AuthLoginCustomMessage       *string  `json:"authLoginCustomMessage"`
 	BackupPath                   string   `json:"backupPath"`
 	BackupsToKeep                int      `json:"backupsToKeep"`
+	BackupSchedule               string   `json:"backupSchedule"`
 	MetadataCoverWithItem        bool     `json:"metadataCoverWithItem"`
 	MetadataMarkdownWithItem     bool     `json:"metadataMarkdownWithItem"`
 	SortingIgnorePrefix          bool     `json:"sortingIgnorePrefix"`

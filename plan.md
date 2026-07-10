@@ -1,6 +1,26 @@
-1. **Fix `internal/handlers/users.go`**: Use the `replace_with_git_merge_diff` tool or `sed` to wrap `r.Body` with `http.MaxBytesReader(w, r.Body, 1048576)` before any call to `json.NewDecoder(r.Body).Decode` inside the `users.go` file. There are 4 occurrences in `handleInit`, `handleLogin`, and `handleUserCRUD` (POST and PATCH).
-2. **Verify modification**: Run `cat internal/handlers/users.go | grep -C 2 "MaxBytesReader"` to confirm the changes have been applied correctly in all 4 places.
-3. **Add unit test**: Use `write_file` to create a basic test case in `internal/handlers/users_test.go` (if it doesn't exist) to verify that an extremely large JSON request to `/init` or a mock handler fails early due to the size limit without crashing or consuming too much memory.
-4. **Run tests**: Execute `go test ./internal/handlers/` and `go vet ./...` to ensure no functionality is broken by the fix.
-5. **Complete pre commit steps**: Complete pre commit steps to ensure proper testing, verification, review, and reflection are done.
-6. **Submit PR**: Commit the changes using the `submit` tool with a descriptive title starting with "🔒" and explaining the risk and solution as requested in the prompt.
+# Implementation Plan: Scheduled Metadata Backups
+
+We will implement automated, scheduled metadata backups to achieve parity with Audiobookshelf's backup system.
+
+## Proposed Changes
+
+1. **Database Schema & ServerSettings Update**
+   - Add `BackupSchedule` string field to `ServerSettings` struct in [db.go](file:///home/jay/projects/audiobookshelf-go/internal/db/db.go).
+   - Set up default backup schedule to hourly, daily, or empty (disabled).
+
+2. **Cron Scheduler Engine**
+   - Create `internal/backup/scheduler.go` containing:
+     - Cron expression parser supporting 5-field and 6-field formats.
+     - Matcher to check if a specific time matches the parsed cron expression.
+     - Background runner (`BackupScheduler`) checking settings every minute.
+     - Logic to trigger backup and prune older backups based on settings.
+   - Add thread-safe start, stop, and restart controls for the scheduler.
+
+3. **Lifecycle Integration**
+   - Start the scheduler in `main.go` after database initialization.
+   - Restart/reload the scheduler when server settings are updated via `PATCH /api/settings` in [settings_server.go](file:///home/jay/projects/audiobookshelf-go/internal/handlers/settings_server.go).
+   - Gracefully stop the scheduler on server shutdown.
+
+4. **Testing**
+   - Unit tests in `internal/backup/scheduler_test.go` verifying the cron parser/matcher.
+   - Integration tests verifying backup triggers.

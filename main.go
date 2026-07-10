@@ -19,6 +19,7 @@ import (
 	"audiobookshelf/internal/core"
 	"audiobookshelf/internal/db"
 	"audiobookshelf/internal/handlers"
+	ibackup "audiobookshelf/internal/backup"
 	"audiobookshelf/internal/logger"
 	"audiobookshelf/internal/watcher"
 
@@ -125,6 +126,7 @@ func main() {
 		log.Printf("Successfully connected to SQLite database: %s", dbPath)
 		dbConnected = true
 		globalDB = db
+		ibackup.InitScheduler(db, cfg.ConfigPath, cfg.MetadataPath)
 	}
 
 	handler := handlers.SetupHandler(db, cfg, dbConnected, appRoot, version)
@@ -145,6 +147,9 @@ func main() {
 			if err := watcher.GlobalWatcher.Close(); err != nil {
 				log.Printf("[Watcher] Error closing watcher: %v", err)
 			}
+		}
+		if ibackup.GlobalScheduler != nil {
+			ibackup.GlobalScheduler.Stop()
 		}
 		srv.Close()
 	}()

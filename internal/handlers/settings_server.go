@@ -10,6 +10,7 @@ import (
 
 	"audiobookshelf/internal/core"
 	idb "audiobookshelf/internal/db"
+	ibackup "audiobookshelf/internal/backup"
 	"audiobookshelf/internal/watcher"
 )
 
@@ -73,6 +74,10 @@ func handleUpdateServerSettings(db *sql.DB) http.HandlerFunc {
 				oldPrefixesJSON = string(b)
 			}
 		}
+		oldBackupSchedule := ""
+		if val, ok := currentSettings["backupSchedule"].(string); ok {
+			oldBackupSchedule = val
+		}
 
 		// Clean sortingPrefixes if provided in settingsUpdate
 		if rawPrefs, ok := settingsUpdate["sortingPrefixes"]; ok {
@@ -119,6 +124,16 @@ func handleUpdateServerSettings(db *sql.DB) http.HandlerFunc {
 		if newWatch != oldWatch {
 			if watcher.GlobalWatcher != nil {
 				watcher.GlobalWatcher.Reload()
+			}
+		}
+
+		newBackupSchedule := ""
+		if val, ok := currentSettings["backupSchedule"].(string); ok {
+			newBackupSchedule = val
+		}
+		if newBackupSchedule != oldBackupSchedule {
+			if ibackup.GlobalScheduler != nil {
+				ibackup.GlobalScheduler.Reload()
 			}
 		}
 
