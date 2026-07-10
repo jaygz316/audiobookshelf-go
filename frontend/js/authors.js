@@ -152,6 +152,15 @@ function createAuthorCard(author) {
     });
   }
 
+  card.onclick = () => {
+    window.dispatchEvent(new CustomEvent('navigate-to-dashboard', {
+      detail: {
+        filterBy: `authors.${author.id}`,
+        filterLabel: `Books by ${author.name}`
+      }
+    }));
+  };
+
   return card;
 }
 
@@ -168,6 +177,15 @@ function createSeriesCard(series) {
     <p class="text-sm font-semibold text-white text-center leading-tight truncate w-full text-center">${escapeHtml(series.name)}</p>
     <p class="text-xs text-black-100 mt-0.5">${numBooks} book${numBooks !== 1 ? 's' : ''}</p>
   `;
+
+  card.onclick = () => {
+    window.dispatchEvent(new CustomEvent('navigate-to-dashboard', {
+      detail: {
+        filterBy: `series.${series.id}`,
+        filterLabel: `Series: ${series.name}`
+      }
+    }));
+  };
 
   return card;
 }
