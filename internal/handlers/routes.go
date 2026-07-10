@@ -684,6 +684,7 @@ func registerTasksAndOtherRoutes(mux *http.ServeMux, cfg *core.Config, db *sql.D
 	})
 
 	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/authors/"), handleAuthorsDispatch(db, cfg))
+	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/series/"), handleSeriesDispatch(db, cfg))
 
 	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/feed/"), func(w http.ResponseWriter, r *http.Request) {
 		initManagers(db)
@@ -1169,6 +1170,9 @@ func handleAuthorsDispatch(db *sql.DB, cfg *core.Config) http.HandlerFunc {
 			if r.Method == http.MethodGet {
 				AuthMiddlewareWrapper(db, http.HandlerFunc(handleGetAuthorByID(db, authorID))).ServeHTTP(w, r)
 				return
+			} else if r.Method == http.MethodPatch {
+				AuthMiddlewareWrapper(db, http.HandlerFunc(handleUpdateAuthor(db, authorID))).ServeHTTP(w, r)
+				return
 			}
 		} else if len(parts) == 2 && parts[1] == "image" {
 			authorID := parts[0]
@@ -1180,6 +1184,25 @@ func handleAuthorsDispatch(db *sql.DB, cfg *core.Config) http.HandlerFunc {
 			authorID := parts[0]
 			if r.Method == http.MethodPost {
 				AuthMiddlewareWrapper(db, http.HandlerFunc(handleMatchAuthor(db, authorID))).ServeHTTP(w, r)
+				return
+			}
+		}
+
+		http.NotFound(w, r)
+	}
+}
+
+func handleSeriesDispatch(db *sql.DB, cfg *core.Config) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("[Go] %s %s", r.Method, r.URL.Path)
+
+		subPath := strings.TrimPrefix(r.URL.Path, joinPath(cfg.RouterBasePath, "/api/series/"))
+		parts := strings.Split(subPath, "/")
+
+		if len(parts) == 1 && parts[0] != "" {
+			seriesID := parts[0]
+			if r.Method == http.MethodPatch {
+				AuthMiddlewareWrapper(db, http.HandlerFunc(handleUpdateSeries(db, seriesID))).ServeHTTP(w, r)
 				return
 			}
 		}

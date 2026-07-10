@@ -204,14 +204,25 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
             <div class="flex flex-wrap gap-x-6 gap-y-2 text-sm text-black-100">
               <div class="flex items-center space-x-1">
                 <span class="material-symbols text-base text-accent">person</span>
-                <span class="font-medium text-white">${escapeHtml(authorName)}</span>
+                ${(item.media?.metadata?.authors && item.media.metadata.authors.length > 0) ?
+                  item.media.metadata.authors.map((auth, idx) => `
+                    <span class="author-link font-medium text-white hover:text-accent cursor-pointer transition-colors hover:underline" data-id="${auth.id}" data-name="${escapeHtml(auth.name)}">${escapeHtml(auth.name)}</span>${idx < item.media.metadata.authors.length - 1 ? '<span class="text-black-100">, </span>' : ''}
+                  `).join('') : `<span class="font-medium text-white">${escapeHtml(authorName)}</span>`
+                }
               </div>
-              ${seriesName ? `
-                <div class="flex items-center space-x-1">
-                  <span class="material-symbols text-base text-accent">layers</span>
-                  <span>Series: <span class="font-medium text-white">${escapeHtml(seriesName)}</span> ${seriesSequence ? `(Book ${seriesSequence})` : ''}</span>
-                </div>
-              ` : ''}
+              ${(item.media?.metadata?.series && item.media.metadata.series.length > 0) ?
+                item.media.metadata.series.map(ser => `
+                  <div class="flex items-center space-x-1">
+                    <span class="material-symbols text-base text-accent">layers</span>
+                    <span>Series: <span class="series-link font-medium text-white hover:text-accent cursor-pointer transition-colors hover:underline" data-id="${ser.id}" data-name="${escapeHtml(ser.name)}">${escapeHtml(ser.name)}</span> ${ser.sequence ? `(Book ${ser.sequence})` : ''}</span>
+                  </div>
+                `).join('') : (seriesName ? `
+                  <div class="flex items-center space-x-1">
+                    <span class="material-symbols text-base text-accent">layers</span>
+                    <span>Series: <span class="font-medium text-white">${escapeHtml(seriesName)}</span> ${seriesSequence ? `(Book ${seriesSequence})` : ''}</span>
+                  </div>
+                ` : '')
+              }
               ${narratorName ? `
                 <div class="flex items-center space-x-1">
                   <span class="material-symbols text-base text-accent">record_voice_over</span>
@@ -398,6 +409,30 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
 
     // Hook click events
     document.getElementById('details-back-btn').onclick = backCallback;
+
+    container.querySelectorAll('.author-link').forEach(link => {
+      link.onclick = (e) => {
+        e.preventDefault();
+        window.dispatchEvent(new CustomEvent('navigate-to-author', {
+          detail: {
+            authorId: link.dataset.id,
+            authorName: link.dataset.name
+          }
+        }));
+      };
+    });
+
+    container.querySelectorAll('.series-link').forEach(link => {
+      link.onclick = (e) => {
+        e.preventDefault();
+        window.dispatchEvent(new CustomEvent('navigate-to-series', {
+          detail: {
+            seriesId: link.dataset.id,
+            seriesName: link.dataset.name
+          }
+        }));
+      };
+    });
 
     if (isAdmin) {
       const matchBtn = document.getElementById('details-match-btn');

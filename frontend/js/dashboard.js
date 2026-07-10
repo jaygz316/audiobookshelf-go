@@ -141,7 +141,7 @@ function createShelfSection(shelfId, label, entities, libraryId) {
   return shelfWrapper;
 }
 
-function createCard(item, isContinue, libraryId) {
+export function createCard(item, isContinue, libraryId) {
   const card = document.createElement('div');
   card.className = 'w-28e h-40e mr-8e relative cursor-pointer select-none box-shadow-book rounded-sm overflow-hidden flex-shrink-0 transition-transform hover:scale-105 group';
   

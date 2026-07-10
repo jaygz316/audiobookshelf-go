@@ -754,3 +754,120 @@ func TestUpdateCoverFromURL(t *testing.T) {
 		t.Errorf("Expected file content 'fake cover image data', got %q", string(data))
 	}
 }
+
+func TestUpdateAuthor(t *testing.T) {
+	db := setupTestDBShared(t)
+	defer db.Close()
+
+	// 1. Insert test library, book, author, and libraryItem
+	_, _ = db.Exec(`INSERT INTO libraries (id, name, displayOrder, icon, mediaType, provider, settings, createdAt, updatedAt) VALUES ('lib1', 'Audiobooks', 1, 'book', 'book', 'local', '{}', '2026-06-08 12:00:00.000', '2026-06-08 12:00:00.000')`)
+	_, _ = db.Exec(`INSERT INTO books (id, title, duration, coverPath, narrators, audioFiles, ebookFile, chapters, tags, genres) VALUES ('book1', 'Old Title', 3600, '', '[]', '[]', 'null', '[]', '[]', '[]')`)
+	_, _ = db.Exec(`INSERT INTO authors (id, name, lastFirst, asin, description, libraryId) VALUES ('author1', 'Old Author Name', 'Name, Old Author', 'OldASIN', 'Old bio', 'lib1')`)
+	_, _ = db.Exec(`INSERT INTO bookAuthors (bookId, authorId) VALUES ('book1', 'author1')`)
+	_, _ = db.Exec(`INSERT INTO libraryItems (
+		id, ino, libraryId, libraryFolderId, path, relPath, isFile, 
+		mtime, ctime, birthtime, createdAt, updatedAt, 
+		isMissing, isInvalid, mediaType, mediaId, size,
+		authorNamesFirstLast, authorNamesLastFirst, title, titleIgnorePrefix
+	) VALUES (
+		'item1', 'inode-item', 'lib1', 'folder1', '/path1', 'rel1', 1, 
+		'2026-06-08 12:00:00.000', '2026-06-08 12:00:00.000', '2026-06-08 12:00:00.000', '2026-06-08 12:00:00.000', '2026-06-08 12:00:00.000', 
+		0, 0, 'book', 'book1', 5000,
+		'Old Author Name', 'Name, Old Author', 'Old Title', 'Old Title'
+	)`)
+
+	// 2. Prepare PATCH payload
+	payload := map[string]interface{}{
+		"name":        "New Author Name",
+		"lastFirst":   "Name, New Author",
+		"asin":        "NewASIN",
+		"description": "New bio description",
+	}
+	bodyBytes, _ := json.Marshal(payload)
+
+	// 3. Make request
+	handler := handleUpdateAuthor(db, "author1")
+	req := httptest.NewRequest("PATCH", "/api/authors/author1", strings.NewReader(string(bodyBytes)))
+
+	user := &core.UserSession{
+		ID:                 "user1",
+		Username:           "admin",
+		Type:               "admin",
+		IsActive:           true,
+		AccessAllLibraries: true,
+	}
+	req = req.WithContext(context.WithValue(req.Context(), core.UserContextKey, user))
+
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("Expected status 200, got %d. Body: %s", rr.Code, rr.Body.String())
+	}
+
+	// 4. Verify DB changes on author
+	var name, lastFirst, asin, description string
+	err := db.QueryRow("SELECT name, lastFirst, asin, description FROM authors WHERE id = 'author1'").Scan(&name, &lastFirst, &asin, &description)
+	if err != nil {
+		t.Fatalf("Failed to query updated author: %v", err)
+	}
+	if name != "New Author Name" || lastFirst != "Name, New Author" || asin != "NewASIN" || description != "New bio description" {
+		t.Errorf("Author details not updated correctly: name=%q, lastFirst=%q, asin=%q, description=%q", name, lastFirst, asin, description)
+	}
+
+	// 5. Verify libraryItem denormalized fields are updated
+	var liAuthorNamesFirstLast, liAuthorNamesLastFirst string
+	err = db.QueryRow("SELECT authorNamesFirstLast, authorNamesLastFirst FROM libraryItems WHERE id = 'item1'").Scan(&liAuthorNamesFirstLast, &liAuthorNamesLastFirst)
+	if err != nil {
+		t.Fatalf("Failed to query updated libraryItem: %v", err)
+	}
+	if liAuthorNamesFirstLast != "New Author Name" || liAuthorNamesLastFirst != "Name, New Author" {
+		t.Errorf("LibraryItem denormalized author fields not updated correctly: firstLast=%q, lastFirst=%q", liAuthorNamesFirstLast, liAuthorNamesLastFirst)
+	}
+}
+
+func TestUpdateSeries(t *testing.T) {
+	db := setupTestDBShared(t)
+	defer db.Close()
+
+	// 1. Insert series and bookSeries
+	_, _ = db.Exec(`INSERT INTO series (id, name, nameIgnorePrefix, description, libraryId) VALUES ('series1', 'Old Series', 'Old Series', 'Old description', 'lib1')`)
+
+	// 2. Prepare PATCH payload
+	payload := map[string]interface{}{
+		"name":             "New Series Name",
+		"nameIgnorePrefix": "New Series Name",
+		"description":      "New description detail",
+	}
+	bodyBytes, _ := json.Marshal(payload)
+
+	// 3. Make request
+	handler := handleUpdateSeries(db, "series1")
+	req := httptest.NewRequest("PATCH", "/api/series/series1", strings.NewReader(string(bodyBytes)))
+
+	user := &core.UserSession{
+		ID:                 "user1",
+		Username:           "admin",
+		Type:               "admin",
+		IsActive:           true,
+		AccessAllLibraries: true,
+	}
+	req = req.WithContext(context.WithValue(req.Context(), core.UserContextKey, user))
+
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("Expected status 200, got %d. Body: %s", rr.Code, rr.Body.String())
+	}
+
+	// 4. Verify DB changes on series
+	var name, nameIgnorePrefix, description string
+	err := db.QueryRow("SELECT name, nameIgnorePrefix, description FROM series WHERE id = 'series1'").Scan(&name, &nameIgnorePrefix, &description)
+	if err != nil {
+		t.Fatalf("Failed to query updated series: %v", err)
+	}
+	if name != "New Series Name" || nameIgnorePrefix != "New Series Name" || description != "New description detail" {
+		t.Errorf("Series details not updated correctly: name=%q, nameIgnorePrefix=%q, description=%q", name, nameIgnorePrefix, description)
+	}
+}
