@@ -22,6 +22,26 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 });
 
+function highlightSidebarLink(pageName) {
+  const sidebarLinks = document.querySelectorAll('#siderail-buttons-container a');
+  sidebarLinks.forEach(link => {
+    const p = link.querySelector('p');
+    if (!p) return;
+    const name = p.textContent.trim();
+    if (name === pageName) {
+      link.classList.remove('hover:bg-black-500');
+      link.classList.add('bg-primary/80', 'text-accent');
+      const activeBar = link.querySelector('.active-indicator');
+      if (activeBar) activeBar.classList.remove('hidden');
+    } else {
+      link.classList.remove('bg-primary/80', 'text-accent');
+      link.classList.add('hover:bg-black-500');
+      const activeBar = link.querySelector('.active-indicator');
+      if (activeBar) activeBar.classList.add('hidden');
+    }
+  });
+}
+
 function setupEventHandlers() {
   // Credentials Form Submission
   const loginForm = document.getElementById('login-form');
@@ -92,19 +112,9 @@ function setupEventHandlers() {
       const opmlBtn = document.getElementById('opml-btn');
       if (opmlBtn) opmlBtn.classList.add('hidden');
 
-      sidebarLinks.forEach(l => {
-        l.classList.remove('bg-primary/80', 'text-accent');
-        l.classList.add('hover:bg-black-500');
-        const activeBar = l.querySelector('.active-indicator');
-        if (activeBar) activeBar.classList.add('hidden');
-      });
+      const pageName = link.querySelector('p').textContent.trim();
+      highlightSidebarLink(pageName);
 
-      link.classList.remove('hover:bg-black-500');
-      link.classList.add('bg-primary/80', 'text-accent');
-      const activeBar = link.querySelector('.active-indicator');
-      if (activeBar) activeBar.classList.remove('hidden');
-
-      const pageName = link.querySelector('p').textContent;
       if (viewTitle) {
         viewTitle.textContent = pageName;
       }
@@ -150,6 +160,21 @@ function setupEventHandlers() {
     } else {
       loadDashboard(libraryId);
     }
+  });
+
+  window.addEventListener('navigate-to-dashboard', (e) => {
+    const activeLibId = getActiveLibraryId();
+    if (!activeLibId) return;
+    const { filterBy, filterLabel } = e.detail;
+
+    highlightSidebarLink('Home');
+
+    const viewTitle = document.getElementById('view-title');
+    if (viewTitle) {
+      viewTitle.textContent = filterLabel || 'Home';
+    }
+
+    loadDashboard(activeLibId, filterBy, filterLabel);
   });
 
   // User Menu settings/admin clicks

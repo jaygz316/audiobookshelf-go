@@ -8,7 +8,7 @@ import { showToast } from './app.js';
 let batchEditMode = false;
 const selectedItems = new Set();
 
-export async function loadDashboard(libraryId) {
+export async function loadDashboard(libraryId, filterBy = '', filterLabel = '') {
   const bookshelfContainer = document.getElementById('bookshelf');
   if (!bookshelfContainer) return;
 
@@ -32,8 +32,13 @@ export async function loadDashboard(libraryId) {
     // 2. Fetch personalized shelves
     const shelves = await request('GET', `/api/libraries/${libraryId}/personalized`);
     
-    // 3. Fetch all items (up to 40)
-    const allItemsPayload = await request('GET', `/api/libraries/${libraryId}/items?limit=40&minified=1`);
+    // 3. Fetch all items (up to 100 if filtered, 40 if not)
+    const limit = filterBy ? 100 : 40;
+    let url = `/api/libraries/${libraryId}/items?limit=${limit}&minified=1` + (filterBy ? `&filter=${encodeURIComponent(filterBy)}` : '');
+    if (filterBy.startsWith('series.')) {
+      url += '&sort=sequence';
+    }
+    const allItemsPayload = await request('GET', url);
     
     bookshelfContainer.innerHTML = '';
 
@@ -59,27 +64,32 @@ export async function loadDashboard(libraryId) {
       }
     }
 
-    if (shelves.length === 0 && (!allItemsPayload.results || allItemsPayload.results.length === 0)) {
+    const noItems = shelves.length === 0 && (!allItemsPayload.results || allItemsPayload.results.length === 0);
+    const noFilteredItems = filterBy && (!allItemsPayload.results || allItemsPayload.results.length === 0);
+
+    if (noItems || noFilteredItems) {
       bookshelfContainer.innerHTML = `
         <div class="flex flex-col items-center justify-center h-48 text-black-100">
           <span class="material-symbols text-4xl mb-2">library_books</span>
-          <p class="text-sm font-medium">No items found in this library</p>
+          <p class="text-sm font-medium">${filterBy ? 'No matching items found' : 'No items found in this library'}</p>
         </div>
       `;
       return;
     }
 
-    // Render personalized shelves
-    shelves.forEach(shelf => {
-      if (shelf.entities && shelf.entities.length > 0) {
-        const section = createShelfSection(shelf.id, shelf.label, shelf.entities, libraryId);
-        bookshelfContainer.appendChild(section);
-      }
-    });
+    // Render personalized shelves only if not filtering
+    if (!filterBy) {
+      shelves.forEach(shelf => {
+        if (shelf.entities && shelf.entities.length > 0) {
+          const section = createShelfSection(shelf.id, shelf.label, shelf.entities, libraryId);
+          bookshelfContainer.appendChild(section);
+        }
+      });
+    }
 
     // Render "All Books" / "All Podcasts" shelf
     if (allItemsPayload.results && allItemsPayload.results.length > 0) {
-      const allLabel = lib.mediaType === 'podcast' ? 'All Podcasts' : 'All Books';
+      const allLabel = filterLabel || (lib.mediaType === 'podcast' ? 'All Podcasts' : 'All Books');
       const section = createShelfSection('all-books', allLabel, allItemsPayload.results, libraryId);
       bookshelfContainer.appendChild(section);
     }
