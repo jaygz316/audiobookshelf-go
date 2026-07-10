@@ -157,6 +157,10 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
                   <span class="material-symbols text-lg font-bold">menu_book</span>
                   <span>Read Book</span>
                 </button>
+                <button id="details-send-device-btn" class="w-full bg-black-500 hover:bg-black-400 border border-black-300 text-white font-semibold py-2 px-4 rounded-md transition-all flex items-center justify-center space-x-2 text-xs shadow hover:scale-[1.02] duration-200 mt-2">
+                  <span class="material-symbols text-sm">send_to_mobile</span>
+                  <span>Send to Device</span>
+                </button>
               ` : ''}
               
               ${isAdmin ? `
@@ -500,6 +504,71 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
       if (readActionBtn) {
         readActionBtn.onclick = () => {
           openEbookReader(item, token);
+        };
+      }
+
+      const sendDeviceBtn = document.getElementById('details-send-device-btn');
+      if (sendDeviceBtn) {
+        sendDeviceBtn.onclick = async () => {
+          try {
+            // Fetch available devices
+            const devices = await request('GET', '/api/emails/devices');
+            if (!devices || devices.length === 0) {
+              alert('No e-reader devices are currently configured or available for your account.');
+              return;
+            }
+
+            // Create a selection modal/popup
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 bg-black-900/80 z-50 flex items-center justify-center p-4';
+            modal.innerHTML = `
+              <div class="bg-primary border border-black-300 w-full max-w-sm rounded-md shadow-2xl p-6 relative text-left">
+                <h3 class="text-md font-bold text-white mb-3 border-b border-black-400 pb-2">Send E-Book to Device</h3>
+                
+                <div class="space-y-4">
+                  <div>
+                    <label class="block text-xs font-semibold text-black-100 uppercase tracking-wider mb-2">Select Target Device</label>
+                    <select id="send-target-device" class="w-full bg-black-500 text-white px-3 py-2 rounded border border-black-300 focus:outline-none focus:border-accent">
+                      ${devices.map(dev => `<option value="${escapeHtml(dev.name)}">${escapeHtml(dev.name)} (${escapeHtml(dev.email)})</option>`).join('')}
+                    </select>
+                  </div>
+
+                  <div class="flex justify-end space-x-3 pt-2">
+                    <button type="button" id="close-send-modal-btn" class="bg-black-400 hover:bg-black-300 text-white px-4 py-2 rounded text-xs font-semibold">Cancel</button>
+                    <button type="button" id="confirm-send-device-btn" class="bg-accent hover:opacity-90 text-primary font-bold px-4 py-2 rounded text-xs">Send</button>
+                  </div>
+                </div>
+              </div>
+            `;
+
+            document.body.appendChild(modal);
+
+            const closeModal = () => modal.remove();
+            modal.querySelector('#close-send-modal-btn').onclick = closeModal;
+
+            modal.querySelector('#confirm-send-device-btn').onclick = async () => {
+              const selectedDevice = modal.querySelector('#send-target-device').value;
+              const sendBtn = modal.querySelector('#confirm-send-device-btn');
+              sendBtn.textContent = 'Sending...';
+              sendBtn.disabled = true;
+
+              try {
+                await request('POST', '/api/emails/send-ebook-to-device', {
+                  libraryItemId: item.id,
+                  deviceName: selectedDevice
+                });
+                alert(`E-Book successfully queued to send to "${selectedDevice}"!`);
+                closeModal();
+              } catch (err) {
+                alert('Failed to send e-book: ' + err.message);
+                sendBtn.textContent = 'Send';
+                sendBtn.disabled = false;
+              }
+            };
+
+          } catch (err) {
+            alert('Error loading devices: ' + err.message);
+          }
         };
       }
     }

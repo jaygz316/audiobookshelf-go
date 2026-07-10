@@ -325,3 +325,91 @@ func TestEmailHandlers_SendEBookToDevice(t *testing.T) {
 		}
 	})
 }
+
+func TestEmailHandlers_GetAvailableDevices(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	// Seed email settings with devices having different availability policies
+	settingsJSON := `{
+		"id":"email-settings",
+		"host":"smtp.example.com",
+		"port":587,
+		"ereaderDevices":[
+			{"name":"Kindle-All","email":"all@kindle.com","availabilityOption":"allUsers","users":[]},
+			{"name":"Kindle-AdminOnly","email":"admin@kindle.com","availabilityOption":"adminOrUp","users":[]},
+			{"name":"Kindle-Specific","email":"specific@kindle.com","availabilityOption":"specificUsers","users":["user-allowed"]}
+		]
+	}`
+	_, err := db.Exec("INSERT INTO settings (key, value) VALUES ('email-settings', ?)", settingsJSON)
+	if err != nil {
+		t.Fatalf("failed to seed settings: %v", err)
+	}
+
+	adminSession := &core.UserSession{ID: "admin-user", Username: "admin", Type: "admin", IsActive: true}
+	allowedSession := &core.UserSession{ID: "user-allowed", Username: "user1", Type: "user", IsActive: true}
+	deniedSession := &core.UserSession{ID: "user-denied", Username: "user2", Type: "user", IsActive: true}
+
+	t.Run("AdminGetAvailableDevices", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/api/emails/devices", nil)
+		req = req.WithContext(context.WithValue(req.Context(), core.UserContextKey, adminSession))
+		rr := httptest.NewRecorder()
+
+		handleGetAvailableDevices(db).ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusOK {
+			t.Errorf("expected 200, got %d", rr.Code)
+		}
+		var devices []EreaderDevice
+		if err := json.Unmarshal(rr.Body.Bytes(), &devices); err != nil {
+			t.Fatalf("failed to unmarshal body: %v", err)
+		}
+		// Admin should see all 3 devices
+		if len(devices) != 3 {
+			t.Errorf("expected 3 devices for admin, got %d", len(devices))
+		}
+	})
+
+	t.Run("AllowedUserGetAvailableDevices", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/api/emails/devices", nil)
+		req = req.WithContext(context.WithValue(req.Context(), core.UserContextKey, allowedSession))
+		rr := httptest.NewRecorder()
+
+		handleGetAvailableDevices(db).ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusOK {
+			t.Errorf("expected 200, got %d", rr.Code)
+		}
+		var devices []EreaderDevice
+		if err := json.Unmarshal(rr.Body.Bytes(), &devices); err != nil {
+			t.Fatalf("failed to unmarshal body: %v", err)
+		}
+		// Allowed user should see Kindle-All and Kindle-Specific (2 devices)
+		if len(devices) != 2 {
+			t.Errorf("expected 2 devices for allowed user, got %d", len(devices))
+		}
+	})
+
+	t.Run("DeniedUserGetAvailableDevices", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/api/emails/devices", nil)
+		req = req.WithContext(context.WithValue(req.Context(), core.UserContextKey, deniedSession))
+		rr := httptest.NewRecorder()
+
+		handleGetAvailableDevices(db).ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusOK {
+			t.Errorf("expected 200, got %d", rr.Code)
+		}
+		var devices []EreaderDevice
+		if err := json.Unmarshal(rr.Body.Bytes(), &devices); err != nil {
+			t.Fatalf("failed to unmarshal body: %v", err)
+		}
+		// Denied user should see only Kindle-All (1 device)
+		if len(devices) != 1 {
+			t.Errorf("expected 1 device for denied user, got %d", len(devices))
+		}
+		if devices[0].Name != "Kindle-All" {
+			t.Errorf("expected Kindle-All, got %s", devices[0].Name)
+		}
+	})
+}

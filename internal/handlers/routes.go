@@ -776,6 +776,13 @@ func registerEmailRoutes(mux *http.ServeMux, cfg *core.Config, db *sql.DB) {
 			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
 		}
 	})
+	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/emails/devices"), func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			AuthMiddlewareWrapper(db, handleGetAvailableDevices(db)).ServeHTTP(w, r)
+		} else {
+			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
+		}
+	})
 	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/emails/send-ebook-to-device"), func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPost {
 			AuthMiddlewareWrapper(db, handleSendEBookToDevice(db)).ServeHTTP(w, r)

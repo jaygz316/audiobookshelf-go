@@ -433,6 +433,57 @@ func handleSendEBookToDevice(db *sql.DB) http.HandlerFunc {
 	}
 }
 
+// handleGetAvailableDevices maps to GET /api/emails/devices
+func handleGetAvailableDevices(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("[Go] GET /api/emails/devices")
+		userVal := r.Context().Value(core.UserContextKey)
+		if userVal == nil {
+			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
+			return
+		}
+		userSess := userVal.(*core.UserSession)
+
+		settings, err := loadEmailSettings(db)
+		if err != nil {
+			// If not configured, return empty list
+			w.Header().Set("Content-Type", "application/json")
+			w.Write([]byte("[]"))
+			return
+		}
+
+		var availableDevices []EreaderDevice
+		for _, dev := range settings.EreaderDevices {
+			allowed := false
+			if userSess.Type == "root" || userSess.Type == "admin" {
+				allowed = true
+			} else {
+				switch dev.AvailabilityOption {
+				case "adminOrUp":
+					allowed = false
+				case "allUsers":
+					allowed = true
+				case "specificUsers":
+					for _, uID := range dev.Users {
+						if uID == userSess.ID {
+							allowed = true
+							break
+						}
+					}
+				default:
+					allowed = false
+				}
+			}
+			if allowed {
+				availableDevices = append(availableDevices, dev)
+			}
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(availableDevices)
+	}
+}
+
 // sendMail connects to the SMTP server and sends a raw MIME email (with optional attachment)
 func sendMail(ctx context.Context, host string, port int, secure bool, rejectUnauthorized bool, user, pass, fromAddress, toAddress, subject, body string, attachmentPath string, attachmentName string) error {
 	addr := net.JoinHostPort(host, strconv.Itoa(port))

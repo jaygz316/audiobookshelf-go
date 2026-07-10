@@ -77,6 +77,7 @@ export async function loadSettings() {
         <button class="px-4 py-2 border-b-2 border-transparent hover:text-white text-black-50 focus:outline-none" data-tab="logs">Logs</button>
         <button class="px-4 py-2 border-b-2 border-transparent hover:text-white text-black-50 focus:outline-none" data-tab="notifications">Notifications</button>
         <button class="px-4 py-2 border-b-2 border-transparent hover:text-white text-black-50 focus:outline-none" data-tab="feeds">RSS Feeds</button>
+        <button class="px-4 py-2 border-b-2 border-transparent hover:text-white text-black-50 focus:outline-none" data-tab="emails">Email (E-Readers)</button>
       </div>
 
       <!-- Tab Contents -->
@@ -92,6 +93,7 @@ export async function loadSettings() {
         <div id="tab-logs" class="space-y-6 hidden"></div>
         <div id="tab-notifications" class="space-y-6 hidden"></div>
         <div id="tab-feeds" class="space-y-6 hidden"></div>
+        <div id="tab-emails" class="space-y-6 hidden"></div>
       </div>
     </div>
   `;
@@ -130,7 +132,8 @@ export async function loadSettings() {
     renderListeningSessionsTab(),
     renderLogsTab(),
     renderNotificationsTab(),
-    renderFeedsTab()
+    renderFeedsTab(),
+    renderEmailsTab()
   ]);
 }
 
@@ -2307,9 +2310,385 @@ async function renderFeedsTab() {
   } catch (err) {
     container.innerHTML = `
       <div class="text-error p-4 text-center">
-        Failed to load active feeds: \${escapeHtml(err.message)}
+        Failed to load active feeds: ${escapeHtml(err.message)}
       </div>
     `;
   }
+}
+
+export async function renderEmailsTab() {
+  const container = document.getElementById('tab-emails');
+  if (!container) return;
+
+  container.innerHTML = `<div class="animate-spin rounded-full h-8 w-8 border-b-2 border-accent mx-auto"></div>`;
+
+  try {
+    const settings = await request('GET', '/api/emails/settings');
+    const host = settings.host || '';
+    const port = settings.port || 587;
+    const secure = settings.secure || false;
+    const rejectUnauthorized = settings.rejectUnauthorized !== false;
+    const user = settings.user || '';
+    const pass = settings.pass || '';
+    const fromAddress = settings.fromAddress || '';
+    const testAddress = settings.testAddress || '';
+    const devices = settings.ereaderDevices || [];
+
+    // Fetch all users to display names in the user selector modal
+    const users = await request('GET', '/api/users');
+
+    container.innerHTML = `
+      <form id="email-settings-form" class="space-y-6 bg-primary border border-black-300 p-6 rounded-md">
+        <h3 class="text-lg font-semibold border-b border-black-400 pb-2">SMTP Configuration</h3>
+        
+        <div class="space-y-4">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-semibold text-black-100 uppercase tracking-wider mb-2">SMTP Host</label>
+              <input type="text" id="email-host" value="${escapeHtml(host)}" placeholder="e.g. smtp.gmail.com" class="w-full bg-black-500 text-white px-3 py-2 rounded border border-black-300 focus:outline-none focus:border-accent">
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-black-100 uppercase tracking-wider mb-2">SMTP Port</label>
+              <input type="number" id="email-port" value="${port}" class="w-full bg-black-500 text-white px-3 py-2 rounded border border-black-300 focus:outline-none focus:border-accent">
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-semibold text-black-100 uppercase tracking-wider mb-2">SMTP Username</label>
+              <input type="text" id="email-user" value="${escapeHtml(user)}" placeholder="Username or email" class="w-full bg-black-500 text-white px-3 py-2 rounded border border-black-300 focus:outline-none focus:border-accent">
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-black-100 uppercase tracking-wider mb-2">SMTP Password</label>
+              <input type="password" id="email-pass" value="${escapeHtml(pass)}" placeholder="Password" class="w-full bg-black-500 text-white px-3 py-2 rounded border border-black-300 focus:outline-none focus:border-accent">
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-semibold text-black-100 uppercase tracking-wider mb-2">From Address</label>
+              <input type="text" id="email-from" value="${escapeHtml(fromAddress)}" placeholder="e.g. library@my-domain.com" class="w-full bg-black-500 text-white px-3 py-2 rounded border border-black-300 focus:outline-none focus:border-accent">
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-black-100 uppercase tracking-wider mb-2">Test Recipient Address</label>
+              <input type="text" id="email-test-addr" value="${escapeHtml(testAddress)}" placeholder="e.g. my-kindle@kindle.com" class="w-full bg-black-500 text-white px-3 py-2 rounded border border-black-300 focus:outline-none focus:border-accent">
+            </div>
+          </div>
+
+          <div class="flex flex-col space-y-2 pt-2">
+            <label class="flex items-center space-x-2 cursor-pointer text-sm">
+              <input type="checkbox" id="email-secure" ${secure ? 'checked' : ''} class="rounded text-accent focus:ring-accent bg-black-500 border-black-300">
+              <span>Secure connection (SSL/TLS)</span>
+            </label>
+            <label class="flex items-center space-x-2 cursor-pointer text-sm">
+              <input type="checkbox" id="email-reject-unauthorized" ${rejectUnauthorized ? 'checked' : ''} class="rounded text-accent focus:ring-accent bg-black-500 border-black-300">
+              <span>Reject unauthorized SSL certificates</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="flex space-x-4 pt-2">
+          <button type="submit" id="save-email-settings-btn" class="bg-accent hover:opacity-90 text-primary font-bold px-4 py-2 rounded transition-opacity">Save Settings</button>
+          <button type="button" id="test-email-settings-btn" class="bg-black-500 hover:bg-black-400 border border-black-300 text-white font-bold px-4 py-2 rounded transition-colors">Send Test Email</button>
+        </div>
+      </form>
+
+      <hr class="border-black-400">
+
+      <div class="space-y-4">
+        <div class="flex justify-between items-center">
+          <h3 class="text-lg font-semibold text-white">E-Reader Devices</h3>
+          <button id="add-ereader-btn" class="bg-accent hover:opacity-90 text-primary font-bold px-4 py-2 rounded text-xs">
+            + Add Device
+          </button>
+        </div>
+        
+        <div class="border border-black-300 rounded-md bg-primary overflow-x-auto">
+          <table class="w-full text-left text-sm">
+            <thead>
+              <tr class="border-b border-black-400 text-black-100 text-xs uppercase">
+                <th class="px-4 py-3">Device Name</th>
+                <th class="px-4 py-3">Device Email</th>
+                <th class="px-4 py-3">Availability</th>
+                <th class="px-4 py-3 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="ereader-list-rows" class="divide-y divide-black-400">
+              <!-- Rows will be injected dynamically -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `;
+
+    renderEreaderDevicesRows(devices, users, settings);
+
+    // Save Email Settings Handler
+    document.getElementById('email-settings-form').onsubmit = async (e) => {
+      e.preventDefault();
+      try {
+        const hostVal = document.getElementById('email-host').value.trim();
+        const portVal = parseInt(document.getElementById('email-port').value, 10);
+        const userVal = document.getElementById('email-user').value.trim();
+        const passVal = document.getElementById('email-pass').value;
+        const fromVal = document.getElementById('email-from').value.trim();
+        const testVal = document.getElementById('email-test-addr').value.trim();
+        const secureVal = document.getElementById('email-secure').checked;
+        const rejectVal = document.getElementById('email-reject-unauthorized').checked;
+
+        const payload = {
+          host: hostVal,
+          port: isNaN(portVal) ? 587 : portVal,
+          secure: secureVal,
+          rejectUnauthorized: rejectVal,
+          user: userVal,
+          pass: passVal,
+          fromAddress: fromVal,
+          testAddress: testVal
+        };
+
+        await request('PATCH', '/api/emails/settings', payload);
+        alert('SMTP configuration saved successfully!');
+        renderEmailsTab();
+      } catch (err) {
+        alert('Failed to save configuration: ' + err.message);
+      }
+    };
+
+    // Test Email Handler
+    document.getElementById('test-email-settings-btn').onclick = async () => {
+      try {
+        const hostVal = document.getElementById('email-host').value.trim();
+        const portVal = parseInt(document.getElementById('email-port').value, 10);
+        const userVal = document.getElementById('email-user').value.trim();
+        const passVal = document.getElementById('email-pass').value;
+        const fromVal = document.getElementById('email-from').value.trim();
+        const testVal = document.getElementById('email-test-addr').value.trim();
+        const secureVal = document.getElementById('email-secure').checked;
+        const rejectVal = document.getElementById('email-reject-unauthorized').checked;
+
+        const payload = {
+          host: hostVal,
+          port: isNaN(portVal) ? 587 : portVal,
+          secure: secureVal,
+          rejectUnauthorized: rejectVal,
+          user: userVal,
+          pass: passVal,
+          fromAddress: fromVal,
+          testAddress: testVal
+        };
+
+        if (!payload.testAddress) {
+          alert('Please specify a Test Recipient Address');
+          return;
+        }
+
+        const btn = document.getElementById('test-email-settings-btn');
+        btn.textContent = 'Sending...';
+        btn.disabled = true;
+
+        try {
+          await request('POST', '/api/emails/test', payload);
+          alert('Test email sent successfully! Please check the recipient address.');
+        } finally {
+          btn.textContent = 'Send Test Email';
+          btn.disabled = false;
+        }
+      } catch (err) {
+        alert('Failed to send test email: ' + err.message);
+      }
+    };
+
+    // Add Ereader Device Handler
+    document.getElementById('add-ereader-btn').onclick = () => {
+      triggerEreaderDeviceModal(null, devices, users, settings);
+    };
+
+  } catch (err) {
+    container.innerHTML = `<p class="text-red-400 text-sm">Failed to load email settings: ${escapeHtml(err.message)}</p>`;
+  }
+}
+
+function renderEreaderDevicesRows(devices, users, settings) {
+  const rowsContainer = document.getElementById('ereader-list-rows');
+  if (!rowsContainer) return;
+
+  if (devices.length === 0) {
+    rowsContainer.innerHTML = `
+      <tr>
+        <td colspan="4" class="px-4 py-8 text-center text-black-100 text-sm">No e-reader devices configured.</td>
+      </tr>
+    `;
+    return;
+  }
+
+  rowsContainer.innerHTML = '';
+  devices.forEach((dev, idx) => {
+    const tr = document.createElement('tr');
+    tr.className = 'hover:bg-black-400/30 transition-colors';
+
+    let availText = '';
+    if (dev.availabilityOption === 'allUsers') {
+      availText = '<span class="text-accent">All Users</span>';
+    } else if (dev.availabilityOption === 'adminOrUp') {
+      availText = '<span class="text-yellow-400">Admin or Up</span>';
+    } else if (dev.availabilityOption === 'specificUsers') {
+      const allowedNames = (dev.users || []).map(uId => {
+        const u = users.find(x => x.id === uId);
+        return u ? u.username : uId;
+      }).join(', ');
+      availText = `<span class="text-blue-400 font-semibold">Specific Users</span> <span class="text-xs text-black-100">(${escapeHtml(allowedNames || 'none')})</span>`;
+    }
+
+    tr.innerHTML = `
+      <td class="px-4 py-3 font-semibold text-white">${escapeHtml(dev.name)}</td>
+      <td class="px-4 py-3 font-mono text-black-50">${escapeHtml(dev.email)}</td>
+      <td class="px-4 py-3 text-sm">${availText}</td>
+      <td class="px-4 py-3 text-right space-x-2">
+        <button class="edit-dev-btn text-accent hover:underline text-xs font-semibold" data-index="${idx}">Edit</button>
+        <button class="delete-dev-btn text-red-400 hover:underline text-xs font-semibold" data-index="${idx}">Delete</button>
+      </td>
+    `;
+
+    tr.querySelector('.edit-dev-btn').onclick = (e) => {
+      const index = parseInt(e.target.dataset.index, 10);
+      triggerEreaderDeviceModal(devices[index], devices, users, settings);
+    };
+
+    tr.querySelector('.delete-dev-btn').onclick = async (e) => {
+      const index = parseInt(e.target.dataset.index, 10);
+      if (!confirm(`Are you sure you want to delete device "${devices[index].name}"?`)) return;
+
+      const updatedDevices = devices.filter((_, i) => i !== index);
+      try {
+        await request('POST', '/api/emails/ereader-devices', { ereaderDevices: updatedDevices });
+        alert('Device deleted successfully.');
+        renderEmailsTab();
+      } catch (err) {
+        alert('Failed to delete device: ' + err.message);
+      }
+    };
+
+    rowsContainer.appendChild(tr);
+  });
+}
+
+function triggerEreaderDeviceModal(device = null, devices, users, settings) {
+  const modal = document.createElement('div');
+  modal.className = 'fixed inset-0 bg-black-900/80 z-50 flex items-center justify-center p-4 overflow-y-auto';
+
+  const isEdit = !!device;
+  const devName = isEdit ? device.name : '';
+  const devEmail = isEdit ? device.email : '';
+  const availOption = isEdit ? device.availabilityOption : 'allUsers';
+  const selectedUsers = isEdit ? (device.users || []) : [];
+
+  modal.innerHTML = `
+    <div class="bg-primary border border-black-300 w-full max-w-lg rounded-md shadow-2xl p-6 relative">
+      <h3 class="text-lg font-bold text-white mb-4 border-b border-black-400 pb-2">
+        ${isEdit ? 'Edit E-Reader Device' : 'Add E-Reader Device'}
+      </h3>
+      
+      <form id="ereader-device-form" class="space-y-4 text-left">
+        <div>
+          <label class="block text-xs font-semibold text-black-100 uppercase tracking-wider mb-2">Device Name</label>
+          <input type="text" id="dev-name" value="${escapeHtml(devName)}" required placeholder="e.g. My Kindle" class="w-full bg-black-500 text-white px-3 py-2 rounded border border-black-300 focus:outline-none focus:border-accent">
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-black-100 uppercase tracking-wider mb-2">Device Email Address</label>
+          <input type="email" id="dev-email" value="${escapeHtml(devEmail)}" required placeholder="e.g. name@kindle.com" class="w-full bg-black-500 text-white px-3 py-2 rounded border border-black-300 focus:outline-none focus:border-accent">
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-black-100 uppercase tracking-wider mb-2">Availability Option</label>
+          <select id="dev-availability" class="w-full bg-black-500 text-white px-3 py-2 rounded border border-black-300 focus:outline-none focus:border-accent">
+            <option value="allUsers" ${availOption === 'allUsers' ? 'selected' : ''}>All Users</option>
+            <option value="adminOrUp" ${availOption === 'adminOrUp' ? 'selected' : ''}>Admin or Up</option>
+            <option value="specificUsers" ${availOption === 'specificUsers' ? 'selected' : ''}>Specific Users</option>
+          </select>
+        </div>
+
+        <div id="dev-users-selection-container" class="hidden space-y-2 border border-black-400 p-3 rounded-md bg-black-500/20 max-h-40 overflow-y-auto">
+          <label class="block text-xs font-semibold text-black-100 uppercase tracking-wider mb-1">Select Allowed Users</label>
+          <div class="space-y-1">
+            ${users.map(u => `
+              <label class="flex items-center space-x-2 cursor-pointer text-sm">
+                <input type="checkbox" name="dev-allowed-users" value="${u.id}" ${selectedUsers.includes(u.id) ? 'checked' : ''} class="rounded text-accent focus:ring-accent bg-black-500 border-black-300">
+                <span>${escapeHtml(u.username)}</span>
+              </label>
+            `).join('')}
+          </div>
+        </div>
+
+        <div class="flex justify-end space-x-3 pt-4 border-t border-black-400">
+          <button type="button" id="close-ereader-modal-btn" class="bg-black-400 hover:bg-black-300 text-white px-4 py-2 rounded text-xs font-semibold">Cancel</button>
+          <button type="submit" class="bg-accent hover:opacity-90 text-primary font-bold px-4 py-2 rounded text-xs">Save</button>
+        </div>
+      </form>
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+
+  const closeModal = () => modal.remove();
+  modal.querySelector('#close-ereader-modal-btn').onclick = closeModal;
+
+  const availabilitySelect = modal.querySelector('#dev-availability');
+  const usersContainer = modal.querySelector('#dev-users-selection-container');
+
+  const toggleUsersContainer = () => {
+    if (availabilitySelect.value === 'specificUsers') {
+      usersContainer.classList.remove('hidden');
+    } else {
+      usersContainer.classList.add('hidden');
+    }
+  };
+
+  availabilitySelect.onchange = toggleUsersContainer;
+  toggleUsersContainer(); // Initial run
+
+  const form = modal.querySelector('#ereader-device-form');
+  form.onsubmit = async (e) => {
+    e.preventDefault();
+
+    const nameVal = modal.querySelector('#dev-name').value.trim();
+    const emailVal = modal.querySelector('#dev-email').value.trim();
+    const availVal = availabilitySelect.value;
+
+    let usersVal = [];
+    if (availVal === 'specificUsers') {
+      const checkedBoxes = modal.querySelectorAll('input[name="dev-allowed-users"]:checked');
+      checkedBoxes.forEach(cb => usersVal.push(cb.value));
+    }
+
+    const payloadDevice = {
+      name: nameVal,
+      email: emailVal,
+      availabilityOption: availVal,
+      users: usersVal
+    };
+
+    let updatedDevices;
+    if (isEdit) {
+      // Find the index of the original device
+      const originalIndex = devices.indexOf(device);
+      updatedDevices = devices.map((d, i) => i === originalIndex ? payloadDevice : d);
+    } else {
+      updatedDevices = [...devices, payloadDevice];
+    }
+
+    try {
+      await request('POST', '/api/emails/ereader-devices', { ereaderDevices: updatedDevices });
+      alert(isEdit ? 'Device updated successfully.' : 'Device added successfully.');
+      closeModal();
+      renderEmailsTab();
+    } catch (err) {
+      alert('Failed to save device: ' + err.message);
+    }
+  };
 }
 
