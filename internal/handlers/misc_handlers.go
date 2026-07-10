@@ -409,14 +409,6 @@ func handleUpdateNotifications(db *sql.DB) http.HandlerFunc {
 	}
 }
 
-// handleGetEmailsSettings returns mock email settings.
-func handleGetEmailsSettings(db *sql.DB) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"settings":{"host":"","port":465,"secure":true,"rejectUnauthorized":true,"user":"","pass":"","testAddress":"","fromAddress":"","ereaderDevices":[]}}`))
-	}
-}
-
 // handleGetFeeds returns a mock list of feeds.
 func handleGetFeeds(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {

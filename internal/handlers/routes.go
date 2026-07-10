@@ -511,14 +511,6 @@ func registerMockAndFeedRoutes(mux *http.ServeMux, cfg *core.Config, db *sql.DB)
 
 	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/notifications/"), handleNotificationsDispatch(db, cfg))
 
-	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/emails/settings"), func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodGet {
-			AuthMiddlewareWrapper(db, handleGetEmailsSettings(db)).ServeHTTP(w, r)
-		} else {
-			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
-		}
-	})
-
 	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/feeds"), func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
 			AuthMiddlewareWrapper(db, handleGetFeeds(db)).ServeHTTP(w, r)
@@ -731,11 +723,46 @@ func registerMiscRoutes(mux *http.ServeMux, cfg *core.Config, db *sql.DB, appRoo
 	registerTagsAndGenresRoutes(mux, cfg, db)
 	registerStatsAndFilesystemRoutes(mux, cfg, db, appRoot)
 	registerTasksAndOtherRoutes(mux, cfg, db, cfg.MetadataPath)
+	registerEmailRoutes(mux, cfg, db)
 
 	// OPDS Catalog routes
 	mux.Handle(joinPath(cfg.RouterBasePath, "/opds"), AuthMiddlewareWrapper(db, ServeOPDS(db)))
 	mux.Handle(joinPath(cfg.RouterBasePath, "/opds/"), AuthMiddlewareWrapper(db, ServeOPDS(db)))
 }
+
+func registerEmailRoutes(mux *http.ServeMux, cfg *core.Config, db *sql.DB) {
+	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/emails/settings"), func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			AuthMiddlewareWrapper(db, handleGetEmailSettings(db)).ServeHTTP(w, r)
+		} else if r.Method == http.MethodPatch {
+			AuthMiddlewareWrapper(db, handleUpdateEmailSettings(db)).ServeHTTP(w, r)
+		} else {
+			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
+		}
+	})
+	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/emails/test"), func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			AuthMiddlewareWrapper(db, handleSendTestEmail(db)).ServeHTTP(w, r)
+		} else {
+			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
+		}
+	})
+	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/emails/ereader-devices"), func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			AuthMiddlewareWrapper(db, handleUpdateEReaderDevices(db)).ServeHTTP(w, r)
+		} else {
+			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
+		}
+	})
+	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/emails/send-ebook-to-device"), func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			AuthMiddlewareWrapper(db, handleSendEBookToDevice(db)).ServeHTTP(w, r)
+		} else {
+			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
+		}
+	})
+}
+
 
 func registerFallbackRoutes(mux *http.ServeMux, cfg *core.Config, db *sql.DB, appRoot string) {
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
