@@ -1,40 +1,29 @@
-# Task: Author Metadata Scraping & Matching
+# Task: Author Metadata Scraping & Matching Enhancement
 
 ## Objective
-Implement Author Metadata Scraping & Matching, enabling users to search for author details using external metadata providers (like Audnexus) and apply the match (ASIN, biography/description, profile photo) to local author entries in Audiobookshelf.
+Improve and enhance the Author Metadata Scraping & Matching feature with:
+1. **ASIN Direct Query**: Enable search by a 10-character ASIN directly in the search field to bypass name matching and fetch details immediately.
+2. **Author Image Deletion**: Implement a `DELETE /api/authors/{id}/image` endpoint on the Go backend to delete the profile photo file and clear it from the database.
+3. **Frontend Management**:
+   - Add a fallback placeholder image if an author's image fails to load.
+   - Embed a "Remove Image" button in the Edit Author modal allowing admins to delete the profile picture directly.
 
 ## Proposed Changes
 
-### 1. Extend the Search API
-- [x] Add `GET /api/search/authors` endpoint:
-  - [x] Query parameters: `provider` (defaults to "audnexus"), `name` (author name to search).
-  - [x] Searches Audnexus API for authors matching the query.
-  - [x] Concurrently resolves details (description, image URL) for top 5 matches to show detailed information in the UI search list.
-  - [x] Registers the route `/api/search/authors` in `registerSearchRoutes` inside `internal/handlers/routes.go`.
-  - [x] Implements `handleSearchAuthors` in `internal/handlers/search_handlers.go`.
-  - [x] Implements `SearchAuthors` inside `internal/finders/finders.go`.
+### 1. Go Backend: ASIN Detection in Search
+- Update `SearchAuthors` in `internal/finders/finders.go` to detect if the query is a valid 10-character ASIN.
+- If it is a valid ASIN, directly request the author details from Audnexus instead of listing matches.
 
-### 2. Implement Author Matching Backend
-- [x] Update `handleMatchAuthor` in `internal/handlers/authors_series.go`:
-  - [x] Accepts a JSON payload: `{ "asin": "...", "provider": "..." }`.
-  - [x] Queries `AudnexusProvider` to retrieve the author details (Name, ASIN, Description, Image URL).
-  - [x] Automatically downloads the author profile image from the retrieved image URL and saves it to `<metadata-path>/authors/<authorID>.jpg`.
-  - [x] Updates the SQLite database record for the author with the new `asin`, `description` (biography), `imagePath` (`authors/<authorID>.jpg`), and `updatedAt`.
-  - [x] Formats `lastFirst` from the author name if it was not previously set.
-  - [x] Refreshes/updates the linked `libraryItems` table caches for author names.
-  - [x] Updates the signature to accept `cfg *core.Config` to know the metadata folder path.
+### 2. Go Backend: Delete Image Endpoint
+- Register a DELETE handler for `/api/authors/{id}/image` in `handleAuthorsDispatch` inside `internal/handlers/routes.go`.
+- Implement `handleDeleteAuthorImage` in `internal/handlers/authors_series.go` to:
+  - Verify admin/root privileges.
+  - Delete the physical image file from the `<metadata-path>/authors` directory.
+  - Clear the `imagePath` in the database for the author.
 
-### 3. Build the Frontend UI
-- [x] Update `openEditAuthorModal` in `frontend/js/authors.js`:
-  - [x] Add a **Match** button to open the Author Match Modal.
-- [x] Create an interactive **Author Match Modal**:
-  - [x] Allows selecting the metadata provider (Audnexus).
-  - [x] Pre-fills search inputs with the author's name.
-  - [x] Displays search results with biography previews and author photos.
-  - [x] On clicking "Match/Import", triggers `POST /api/authors/<ID>/match` to apply the metadata and download the image.
-  - [x] Triggers a success notification and refreshes the author detail view.
+### 3. Frontend UI Updates
+- Update `loadAuthorDetails` in `frontend/js/authors.js` to handle image loading errors gracefully on the details page.
+- Update `openEditAuthorModal` in `frontend/js/authors.js` to render the author image and provide a "Remove Image" action if a profile image is present.
 
-### 4. Tests & Verification
-- [x] Create `internal/handlers/authors_match_test.go` to unit-test the search and match handlers with mocked external API requests.
-- [x] Verify through E2E execution.
-
+### 4. Verification
+- Create unit tests for deleting author images and searching via ASIN.

@@ -363,6 +363,16 @@ export async function loadAuthorDetails(authorId) {
       matchBtn.onclick = () => openMatchAuthorModal(author, null);
     }
 
+    const detailImg = document.getElementById('author-detail-img');
+    if (detailImg) {
+      detailImg.onerror = function() {
+        const parent = this.parentElement;
+        if (parent) {
+          parent.innerHTML = '<span class="material-symbols text-6xl text-black-100">person</span>';
+        }
+      };
+    }
+
   } catch (err) {
     console.error('Failed to load author details:', err);
     container.innerHTML = `
@@ -632,6 +642,15 @@ function openEditAuthorModal(author) {
           <label class="block text-xs uppercase font-semibold text-black-100 mb-1.5">Biography</label>
           <textarea id="edit-author-description" rows="5" class="w-full bg-black-500 text-white px-3 py-2 rounded border border-black-300 focus:outline-none focus:border-accent text-xs">${escapeHtml(author.description || '')}</textarea>
         </div>
+        ${author.imagePath ? `
+        <div class="flex items-center justify-between bg-black-500/30 p-3 rounded border border-black-300">
+          <div class="flex items-center space-x-3">
+            <img src="${resolvePath(`/api/authors/${author.id}/image?token=${localStorage.getItem('token')}`)}" class="w-12 h-12 rounded-full object-cover">
+            <span class="text-xs text-white font-medium">Author Photo</span>
+          </div>
+          <button id="remove-author-image-btn" class="bg-red-950/40 hover:bg-red-900 border border-red-500/50 text-red-200 text-xs px-3 py-1.5 rounded transition-colors font-semibold">Remove Image</button>
+        </div>
+        ` : ''}
       </div>
       <div class="px-6 py-4 border-t border-black-400 flex justify-end space-x-3">
         <button id="cancel-author-edit" class="bg-black-400 hover:bg-black-300 text-white px-4 py-2 rounded text-xs font-semibold">Cancel</button>
@@ -649,6 +668,22 @@ function openEditAuthorModal(author) {
   document.getElementById('match-author-btn').onclick = (e) => {
     e.preventDefault();
     openMatchAuthorModal(author, closeModal);
+  };
+
+  const removeImgBtn = document.getElementById('remove-author-image-btn');
+  if (removeImgBtn) {
+    removeImgBtn.onclick = async (e) => {
+      e.preventDefault();
+      if (!confirm('Are you sure you want to remove the author image?')) return;
+      try {
+        await request('DELETE', `/api/authors/${author.id}/image`);
+        showToast('Author image removed successfully', 'success');
+        closeModal();
+        loadAuthorDetails(author.id);
+      } catch (err) {
+        showToast('Failed to remove image: ' + err.message, 'error');
+      }
+    };
   };
 
   document.getElementById('save-author-edit').onclick = async () => {

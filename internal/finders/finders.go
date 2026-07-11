@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"regexp"
 	"strings"
 	"sync"
 
@@ -244,6 +245,12 @@ func (f *Finder) searchAllPodcasts(ctx context.Context, query string) ([]*provid
 	return results, nil
 }
 
+var asinRegex = regexp.MustCompile(`^[A-Z0-9]{10}$`)
+
+func isValidASIN(str string) bool {
+	return asinRegex.MatchString(strings.ToUpper(str))
+}
+
 // SearchAuthors searches for authors using Audnexus (or future providers).
 func (f *Finder) SearchAuthors(ctx context.Context, providerName, query string) ([]*providers.AudnexusAuthorDetails, error) {
 	// Only audnexus supports author matching right now
@@ -254,6 +261,14 @@ func (f *Finder) SearchAuthors(ctx context.Context, providerName, query string) 
 	audnexus, ok := prov.(*providers.AudnexusProvider)
 	if !ok {
 		return nil, fmt.Errorf("failed to cast to AudnexusProvider")
+	}
+
+	trimmedQuery := strings.TrimSpace(query)
+	if isValidASIN(trimmedQuery) {
+		details, err := audnexus.AuthorRequest(ctx, strings.ToUpper(trimmedQuery), "")
+		if err == nil && details != nil {
+			return []*providers.AudnexusAuthorDetails{details}, nil
+		}
 	}
 
 	asins, err := audnexus.AuthorASINsRequest(ctx, query, "")

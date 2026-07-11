@@ -659,6 +659,50 @@ func handleGetAuthorImage(db *sql.DB, metadataPath string, authorID string) http
 	}
 }
 
+// handleDeleteAuthorImage handles DELETE /api/authors/{id}/image
+func handleDeleteAuthorImage(db *sql.DB, cfg *core.Config, authorID string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("[Go] DELETE /api/authors/%s/image", authorID)
+
+		userVal := r.Context().Value(core.UserContextKey)
+		if userVal == nil {
+			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
+			return
+		}
+		user := userVal.(*core.UserSession)
+		if user.Type != "root" && user.Type != "admin" {
+			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
+			return
+		}
+
+		imagePath, err := idb.GetAuthorImagePath(db, authorID)
+		if err != nil {
+			http.Error(w, "failed to check author image: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		if imagePath != "" {
+			var fullPath string
+			if filepath.IsAbs(imagePath) {
+				fullPath = imagePath
+			} else {
+				fullPath = filepath.Join(cfg.MetadataPath, imagePath)
+			}
+			_ = os.Remove(fullPath)
+		}
+
+		nowStr := time.Now().Format("2006-01-02 15:04:05.000")
+		_, err = db.Exec("UPDATE authors SET imagePath = '', updatedAt = ? WHERE id = ?", nowStr, authorID)
+		if err != nil {
+			http.Error(w, "failed to update database: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"updated": true}`))
+	}
+}
+
 // handleMatchAuthor handles POST /api/authors/{id}/match
 func handleMatchAuthor(db *sql.DB, cfg *core.Config, authorID string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
