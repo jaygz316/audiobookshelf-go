@@ -66,6 +66,30 @@ func ServeOPDS(db *sql.DB) http.HandlerFunc {
 				serveOPDSLibraryItems(w, r, db, user, lib, true)
 			case "search":
 				serveOPDSSearch(w, r, db, user, lib)
+			case "authors":
+				if len(parts) >= 5 {
+					serveOPDSAuthorItems(w, r, db, user, lib, parts[4])
+				} else {
+					serveOPDSAuthors(w, r, db, user, lib)
+				}
+			case "series":
+				if len(parts) >= 5 {
+					serveOPDSSeriesItems(w, r, db, user, lib, parts[4])
+				} else {
+					serveOPDSSeries(w, r, db, user, lib)
+				}
+			case "collections":
+				if len(parts) >= 5 {
+					serveOPDSCollectionItems(w, r, db, user, lib, parts[4])
+				} else {
+					serveOPDSCollections(w, r, db, user, lib)
+				}
+			case "playlists":
+				if len(parts) >= 5 {
+					serveOPDSPlaylistItems(w, r, db, user, lib, parts[4])
+				} else {
+					serveOPDSPlaylists(w, r, db, user, lib)
+				}
 			case "":
 				serveOPDSLibraryDetails(w, r, db, user, lib)
 			default:
@@ -161,8 +185,492 @@ func serveOPDSLibraryDetails(w http.ResponseWriter, r *http.Request, db *sql.DB,
 	sb.WriteString(fmt.Sprintf("    <link rel=\"subsection\" href=\"/opds/v1.2/libraries/%s/recent\" type=\"application/atom+xml;profile=opds-catalog;kind=acquisition\"/>\n", lib.ID))
 	sb.WriteString("  </entry>\n")
 
+	// Subsection: Authors
+	sb.WriteString("  <entry>\n")
+	sb.WriteString("    <title>Authors</title>\n")
+	sb.WriteString(fmt.Sprintf("    <id>urn:uuid:%s-authors</id>\n", lib.ID))
+	sb.WriteString(fmt.Sprintf("    <updated>%s</updated>\n", updatedStr))
+	sb.WriteString("    <content type=\"text\">Browse items by author</content>\n")
+	sb.WriteString(fmt.Sprintf("    <link rel=\"subsection\" href=\"/opds/v1.2/libraries/%s/authors\" type=\"application/atom+xml;profile=opds-catalog;kind=navigation\"/>\n", lib.ID))
+	sb.WriteString("  </entry>\n")
+
+	// Subsection: Series
+	sb.WriteString("  <entry>\n")
+	sb.WriteString("    <title>Series</title>\n")
+	sb.WriteString(fmt.Sprintf("    <id>urn:uuid:%s-series</id>\n", lib.ID))
+	sb.WriteString(fmt.Sprintf("    <updated>%s</updated>\n", updatedStr))
+	sb.WriteString("    <content type=\"text\">Browse items by series</content>\n")
+	sb.WriteString(fmt.Sprintf("    <link rel=\"subsection\" href=\"/opds/v1.2/libraries/%s/series\" type=\"application/atom+xml;profile=opds-catalog;kind=navigation\"/>\n", lib.ID))
+	sb.WriteString("  </entry>\n")
+
+	// Subsection: Collections
+	sb.WriteString("  <entry>\n")
+	sb.WriteString("    <title>Collections</title>\n")
+	sb.WriteString(fmt.Sprintf("    <id>urn:uuid:%s-collections</id>\n", lib.ID))
+	sb.WriteString(fmt.Sprintf("    <updated>%s</updated>\n", updatedStr))
+	sb.WriteString("    <content type=\"text\">Browse collections</content>\n")
+	sb.WriteString(fmt.Sprintf("    <link rel=\"subsection\" href=\"/opds/v1.2/libraries/%s/collections\" type=\"application/atom+xml;profile=opds-catalog;kind=navigation\"/>\n", lib.ID))
+	sb.WriteString("  </entry>\n")
+
+	// Subsection: Playlists
+	sb.WriteString("  <entry>\n")
+	sb.WriteString("    <title>Playlists</title>\n")
+	sb.WriteString(fmt.Sprintf("    <id>urn:uuid:%s-playlists</id>\n", lib.ID))
+	sb.WriteString(fmt.Sprintf("    <updated>%s</updated>\n", updatedStr))
+	sb.WriteString("    <content type=\"text\">Browse your playlists</content>\n")
+	sb.WriteString(fmt.Sprintf("    <link rel=\"subsection\" href=\"/opds/v1.2/libraries/%s/playlists\" type=\"application/atom+xml;profile=opds-catalog;kind=navigation\"/>\n", lib.ID))
+	sb.WriteString("  </entry>\n")
+
 	sb.WriteString("</feed>")
 
+	w.Header().Set("Content-Type", "application/atom+xml;profile=opds-catalog;charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write([]byte(sb.String()))
+}
+
+// serveOPDSAuthors lists all authors in the library as navigation entries.
+func serveOPDSAuthors(w http.ResponseWriter, r *http.Request, db *sql.DB, user *core.UserSession, lib *idb.LibraryJSON) {
+	rows, err := db.Query(`
+		SELECT id, name, description
+		FROM authors
+		WHERE libraryId = ?
+		ORDER BY name ASC
+	`, lib.ID)
+	if err != nil {
+		log.Printf("[OPDS] Failed to query authors: %v", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	updatedStr := time.Now().UTC().Format(time.RFC3339)
+	var sb strings.Builder
+	sb.WriteString(`<?xml version="1.0" encoding="utf-8"?>` + "\n")
+	sb.WriteString(`<feed xmlns="http://www.w3.org/2005/Atom" xmlns:opds="http://opds-spec.org/2012/OPDS">` + "\n")
+	sb.WriteString(fmt.Sprintf("  <id>urn:uuid:%s-authors</id>\n", lib.ID))
+	sb.WriteString(fmt.Sprintf("  <title>%s - Authors</title>\n", html.EscapeString(lib.Name)))
+	sb.WriteString(fmt.Sprintf("  <updated>%s</updated>\n", updatedStr))
+	sb.WriteString("  <author><name>Audiobookshelf Go</name></author>\n")
+	sb.WriteString(fmt.Sprintf("  <link rel=\"self\" href=\"/opds/v1.2/libraries/%s/authors\" type=\"application/atom+xml;profile=opds-catalog;kind=navigation\"/>\n", lib.ID))
+	sb.WriteString("  <link rel=\"start\" href=\"/opds\" type=\"application/atom+xml;profile=opds-catalog;kind=navigation\"/>\n")
+
+	for rows.Next() {
+		var id, name string
+		var description sql.NullString
+		if err := rows.Scan(&id, &name, &description); err == nil {
+			desc := "Browse items by " + name
+			if description.Valid && description.String != "" {
+				desc = description.String
+			}
+			sb.WriteString("  <entry>\n")
+			sb.WriteString(fmt.Sprintf("    <title>%s</title>\n", html.EscapeString(name)))
+			sb.WriteString(fmt.Sprintf("    <id>urn:uuid:%s-authors-%s</id>\n", lib.ID, id))
+			sb.WriteString(fmt.Sprintf("    <updated>%s</updated>\n", updatedStr))
+			sb.WriteString(fmt.Sprintf("    <content type=\"text\">%s</content>\n", html.EscapeString(desc)))
+			sb.WriteString(fmt.Sprintf("    <link rel=\"subsection\" href=\"/opds/v1.2/libraries/%s/authors/%s\" type=\"application/atom+xml;profile=opds-catalog;kind=acquisition\"/>\n", lib.ID, id))
+			sb.WriteString("  </entry>\n")
+		}
+	}
+
+	sb.WriteString("</feed>")
+	w.Header().Set("Content-Type", "application/atom+xml;profile=opds-catalog;charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write([]byte(sb.String()))
+}
+
+// serveOPDSAuthorItems lists all items matching the specified author.
+func serveOPDSAuthorItems(w http.ResponseWriter, r *http.Request, db *sql.DB, user *core.UserSession, lib *idb.LibraryJSON, authorID string) {
+	var authorName string
+	err := db.QueryRow("SELECT name FROM authors WHERE id = ?", authorID).Scan(&authorName)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			http.Error(w, "Author not found", http.StatusNotFound)
+		} else {
+			log.Printf("[OPDS] Failed to query author name: %v", err)
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		}
+		return
+	}
+
+	rows, err := db.Query(`
+		SELECT DISTINCT li.id
+		FROM libraryItems li
+		JOIN bookAuthors ba ON li.mediaId = ba.bookId AND li.mediaType = 'book'
+		WHERE li.libraryId = ? AND ba.authorId = ?
+		ORDER BY li.createdAt DESC
+	`, lib.ID, authorID)
+	if err != nil {
+		log.Printf("[OPDS] Failed to query author items: %v", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+
+	var itemIDs []string
+	for rows.Next() {
+		var itemID string
+		if err := rows.Scan(&itemID); err == nil {
+			itemIDs = append(itemIDs, itemID)
+		}
+	}
+	rows.Close()
+
+	var items []*idb.LibraryItemMinifiedJSON
+	for _, itemID := range itemIDs {
+		if item, err := idb.GetLibraryItemMinifiedByID(db, itemID); err == nil && item != nil {
+			items = append(items, item)
+		}
+	}
+
+	updatedStr := time.Now().UTC().Format(time.RFC3339)
+	var sb strings.Builder
+	sb.WriteString(`<?xml version="1.0" encoding="utf-8"?>` + "\n")
+	sb.WriteString(`<feed xmlns="http://www.w3.org/2005/Atom" xmlns:opds="http://opds-spec.org/2012/OPDS">` + "\n")
+	sb.WriteString(fmt.Sprintf("  <id>urn:uuid:%s-authors-%s-items</id>\n", lib.ID, authorID))
+	sb.WriteString(fmt.Sprintf("  <title>Books by %s</title>\n", html.EscapeString(authorName)))
+	sb.WriteString(fmt.Sprintf("  <updated>%s</updated>\n", updatedStr))
+	sb.WriteString("  <author><name>Audiobookshelf Go</name></author>\n")
+	sb.WriteString(fmt.Sprintf("  <link rel=\"self\" href=\"/opds/v1.2/libraries/%s/authors/%s\" type=\"application/atom+xml;profile=opds-catalog;kind=acquisition\"/>\n", lib.ID, authorID))
+	sb.WriteString("  <link rel=\"start\" href=\"/opds\" type=\"application/atom+xml;profile=opds-catalog;kind=navigation\"/>\n")
+
+	writeItemEntries(&sb, items, r)
+
+	sb.WriteString("</feed>")
+	w.Header().Set("Content-Type", "application/atom+xml;profile=opds-catalog;charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write([]byte(sb.String()))
+}
+
+// serveOPDSSeries lists all series in the library.
+func serveOPDSSeries(w http.ResponseWriter, r *http.Request, db *sql.DB, user *core.UserSession, lib *idb.LibraryJSON) {
+	rows, err := db.Query(`
+		SELECT id, name, description
+		FROM series
+		WHERE libraryId = ?
+		ORDER BY name ASC
+	`, lib.ID)
+	if err != nil {
+		log.Printf("[OPDS] Failed to query series: %v", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	updatedStr := time.Now().UTC().Format(time.RFC3339)
+	var sb strings.Builder
+	sb.WriteString(`<?xml version="1.0" encoding="utf-8"?>` + "\n")
+	sb.WriteString(`<feed xmlns="http://www.w3.org/2005/Atom" xmlns:opds="http://opds-spec.org/2012/OPDS">` + "\n")
+	sb.WriteString(fmt.Sprintf("  <id>urn:uuid:%s-series</id>\n", lib.ID))
+	sb.WriteString(fmt.Sprintf("  <title>%s - Series</title>\n", html.EscapeString(lib.Name)))
+	sb.WriteString(fmt.Sprintf("  <updated>%s</updated>\n", updatedStr))
+	sb.WriteString("  <author><name>Audiobookshelf Go</name></author>\n")
+	sb.WriteString(fmt.Sprintf("  <link rel=\"self\" href=\"/opds/v1.2/libraries/%s/series\" type=\"application/atom+xml;profile=opds-catalog;kind=navigation\"/>\n", lib.ID))
+	sb.WriteString("  <link rel=\"start\" href=\"/opds\" type=\"application/atom+xml;profile=opds-catalog;kind=navigation\"/>\n")
+
+	for rows.Next() {
+		var id, name string
+		var description sql.NullString
+		if err := rows.Scan(&id, &name, &description); err == nil {
+			desc := "Browse items in series: " + name
+			if description.Valid && description.String != "" {
+				desc = description.String
+			}
+			sb.WriteString("  <entry>\n")
+			sb.WriteString(fmt.Sprintf("    <title>%s</title>\n", html.EscapeString(name)))
+			sb.WriteString(fmt.Sprintf("    <id>urn:uuid:%s-series-%s</id>\n", lib.ID, id))
+			sb.WriteString(fmt.Sprintf("    <updated>%s</updated>\n", updatedStr))
+			sb.WriteString(fmt.Sprintf("    <content type=\"text\">%s</content>\n", html.EscapeString(desc)))
+			sb.WriteString(fmt.Sprintf("    <link rel=\"subsection\" href=\"/opds/v1.2/libraries/%s/series/%s\" type=\"application/atom+xml;profile=opds-catalog;kind=acquisition\"/>\n", lib.ID, id))
+			sb.WriteString("  </entry>\n")
+		}
+	}
+
+	sb.WriteString("</feed>")
+	w.Header().Set("Content-Type", "application/atom+xml;profile=opds-catalog;charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write([]byte(sb.String()))
+}
+
+// serveOPDSSeriesItems lists all items in the specified series.
+func serveOPDSSeriesItems(w http.ResponseWriter, r *http.Request, db *sql.DB, user *core.UserSession, lib *idb.LibraryJSON, seriesID string) {
+	var seriesName string
+	err := db.QueryRow("SELECT name FROM series WHERE id = ?", seriesID).Scan(&seriesName)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			http.Error(w, "Series not found", http.StatusNotFound)
+		} else {
+			log.Printf("[OPDS] Failed to query series name: %v", err)
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		}
+		return
+	}
+
+	rows, err := db.Query(`
+		SELECT li.id
+		FROM libraryItems li
+		JOIN bookSeries bs ON li.mediaId = bs.bookId AND li.mediaType = 'book'
+		WHERE li.libraryId = ? AND bs.seriesId = ?
+		ORDER BY CAST(bs.sequence AS REAL) ASC, bs.sequence ASC
+	`, lib.ID, seriesID)
+	if err != nil {
+		log.Printf("[OPDS] Failed to query series items: %v", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+
+	var itemIDs []string
+	for rows.Next() {
+		var itemID string
+		if err := rows.Scan(&itemID); err == nil {
+			itemIDs = append(itemIDs, itemID)
+		}
+	}
+	rows.Close()
+
+	var items []*idb.LibraryItemMinifiedJSON
+	for _, itemID := range itemIDs {
+		if item, err := idb.GetLibraryItemMinifiedByID(db, itemID); err == nil && item != nil {
+			items = append(items, item)
+		}
+	}
+
+	updatedStr := time.Now().UTC().Format(time.RFC3339)
+	var sb strings.Builder
+	sb.WriteString(`<?xml version="1.0" encoding="utf-8"?>` + "\n")
+	sb.WriteString(`<feed xmlns="http://www.w3.org/2005/Atom" xmlns:opds="http://opds-spec.org/2012/OPDS">` + "\n")
+	sb.WriteString(fmt.Sprintf("  <id>urn:uuid:%s-series-%s-items</id>\n", lib.ID, seriesID))
+	sb.WriteString(fmt.Sprintf("  <title>Series: %s</title>\n", html.EscapeString(seriesName)))
+	sb.WriteString(fmt.Sprintf("  <updated>%s</updated>\n", updatedStr))
+	sb.WriteString("  <author><name>Audiobookshelf Go</name></author>\n")
+	sb.WriteString(fmt.Sprintf("  <link rel=\"self\" href=\"/opds/v1.2/libraries/%s/series/%s\" type=\"application/atom+xml;profile=opds-catalog;kind=acquisition\"/>\n", lib.ID, seriesID))
+	sb.WriteString("  <link rel=\"start\" href=\"/opds\" type=\"application/atom+xml;profile=opds-catalog;kind=navigation\"/>\n")
+
+	writeItemEntries(&sb, items, r)
+
+	sb.WriteString("</feed>")
+	w.Header().Set("Content-Type", "application/atom+xml;profile=opds-catalog;charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write([]byte(sb.String()))
+}
+
+// serveOPDSCollections lists all collections in the library.
+func serveOPDSCollections(w http.ResponseWriter, r *http.Request, db *sql.DB, user *core.UserSession, lib *idb.LibraryJSON) {
+	rows, err := db.Query(`
+		SELECT id, name, description
+		FROM collections
+		WHERE libraryId = ?
+		ORDER BY name ASC
+	`, lib.ID)
+	if err != nil {
+		log.Printf("[OPDS] Failed to query collections: %v", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	updatedStr := time.Now().UTC().Format(time.RFC3339)
+	var sb strings.Builder
+	sb.WriteString(`<?xml version="1.0" encoding="utf-8"?>` + "\n")
+	sb.WriteString(`<feed xmlns="http://www.w3.org/2005/Atom" xmlns:opds="http://opds-spec.org/2012/OPDS">` + "\n")
+	sb.WriteString(fmt.Sprintf("  <id>urn:uuid:%s-collections</id>\n", lib.ID))
+	sb.WriteString(fmt.Sprintf("  <title>%s - Collections</title>\n", html.EscapeString(lib.Name)))
+	sb.WriteString(fmt.Sprintf("  <updated>%s</updated>\n", updatedStr))
+	sb.WriteString("  <author><name>Audiobookshelf Go</name></author>\n")
+	sb.WriteString(fmt.Sprintf("  <link rel=\"self\" href=\"/opds/v1.2/libraries/%s/collections\" type=\"application/atom+xml;profile=opds-catalog;kind=navigation\"/>\n", lib.ID))
+	sb.WriteString("  <link rel=\"start\" href=\"/opds\" type=\"application/atom+xml;profile=opds-catalog;kind=navigation\"/>\n")
+
+	for rows.Next() {
+		var id, name string
+		var description sql.NullString
+		if err := rows.Scan(&id, &name, &description); err == nil {
+			desc := "Browse items in collection: " + name
+			if description.Valid && description.String != "" {
+				desc = description.String
+			}
+			sb.WriteString("  <entry>\n")
+			sb.WriteString(fmt.Sprintf("    <title>%s</title>\n", html.EscapeString(name)))
+			sb.WriteString(fmt.Sprintf("    <id>urn:uuid:%s-collections-%s</id>\n", lib.ID, id))
+			sb.WriteString(fmt.Sprintf("    <updated>%s</updated>\n", updatedStr))
+			sb.WriteString(fmt.Sprintf("    <content type=\"text\">%s</content>\n", html.EscapeString(desc)))
+			sb.WriteString(fmt.Sprintf("    <link rel=\"subsection\" href=\"/opds/v1.2/libraries/%s/collections/%s\" type=\"application/atom+xml;profile=opds-catalog;kind=acquisition\"/>\n", lib.ID, id))
+			sb.WriteString("  </entry>\n")
+		}
+	}
+
+	sb.WriteString("</feed>")
+	w.Header().Set("Content-Type", "application/atom+xml;profile=opds-catalog;charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write([]byte(sb.String()))
+}
+
+// serveOPDSCollectionItems lists all items in the specified collection.
+func serveOPDSCollectionItems(w http.ResponseWriter, r *http.Request, db *sql.DB, user *core.UserSession, lib *idb.LibraryJSON, collectionID string) {
+	var collectionName string
+	err := db.QueryRow("SELECT name FROM collections WHERE id = ?", collectionID).Scan(&collectionName)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			http.Error(w, "Collection not found", http.StatusNotFound)
+		} else {
+			log.Printf("[OPDS] Failed to query collection name: %v", err)
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		}
+		return
+	}
+
+	rows, err := db.Query(`
+		SELECT li.id
+		FROM libraryItems li
+		JOIN collectionBooks cb ON li.mediaId = cb.bookId AND li.mediaType = 'book'
+		WHERE li.libraryId = ? AND cb.collectionId = ?
+		ORDER BY cb."order" ASC
+	`, lib.ID, collectionID)
+	if err != nil {
+		log.Printf("[OPDS] Failed to query collection items: %v", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+
+	var itemIDs []string
+	for rows.Next() {
+		var itemID string
+		if err := rows.Scan(&itemID); err == nil {
+			itemIDs = append(itemIDs, itemID)
+		}
+	}
+	rows.Close()
+
+	var items []*idb.LibraryItemMinifiedJSON
+	for _, itemID := range itemIDs {
+		if item, err := idb.GetLibraryItemMinifiedByID(db, itemID); err == nil && item != nil {
+			items = append(items, item)
+		}
+	}
+
+	updatedStr := time.Now().UTC().Format(time.RFC3339)
+	var sb strings.Builder
+	sb.WriteString(`<?xml version="1.0" encoding="utf-8"?>` + "\n")
+	sb.WriteString(`<feed xmlns="http://www.w3.org/2005/Atom" xmlns:opds="http://opds-spec.org/2012/OPDS">` + "\n")
+	sb.WriteString(fmt.Sprintf("  <id>urn:uuid:%s-collections-%s-items</id>\n", lib.ID, collectionID))
+	sb.WriteString(fmt.Sprintf("  <title>Collection: %s</title>\n", html.EscapeString(collectionName)))
+	sb.WriteString(fmt.Sprintf("  <updated>%s</updated>\n", updatedStr))
+	sb.WriteString("  <author><name>Audiobookshelf Go</name></author>\n")
+	sb.WriteString(fmt.Sprintf("  <link rel=\"self\" href=\"/opds/v1.2/libraries/%s/collections/%s\" type=\"application/atom+xml;profile=opds-catalog;kind=acquisition\"/>\n", lib.ID, collectionID))
+	sb.WriteString("  <link rel=\"start\" href=\"/opds\" type=\"application/atom+xml;profile=opds-catalog;kind=navigation\"/>\n")
+
+	writeItemEntries(&sb, items, r)
+
+	sb.WriteString("</feed>")
+	w.Header().Set("Content-Type", "application/atom+xml;profile=opds-catalog;charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write([]byte(sb.String()))
+}
+
+// serveOPDSPlaylists lists all playlists of the user.
+func serveOPDSPlaylists(w http.ResponseWriter, r *http.Request, db *sql.DB, user *core.UserSession, lib *idb.LibraryJSON) {
+	rows, err := db.Query(`
+		SELECT id, name, description
+		FROM playlists
+		WHERE userId = ? AND (libraryId = ? OR libraryId = '' OR libraryId IS NULL)
+		ORDER BY name ASC
+	`, user.ID, lib.ID)
+	if err != nil {
+		log.Printf("[OPDS] Failed to query playlists: %v", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	updatedStr := time.Now().UTC().Format(time.RFC3339)
+	var sb strings.Builder
+	sb.WriteString(`<?xml version="1.0" encoding="utf-8"?>` + "\n")
+	sb.WriteString(`<feed xmlns="http://www.w3.org/2005/Atom" xmlns:opds="http://opds-spec.org/2012/OPDS">` + "\n")
+	sb.WriteString(fmt.Sprintf("  <id>urn:uuid:%s-playlists</id>\n", lib.ID))
+	sb.WriteString(fmt.Sprintf("  <title>%s - Playlists</title>\n", html.EscapeString(lib.Name)))
+	sb.WriteString(fmt.Sprintf("  <updated>%s</updated>\n", updatedStr))
+	sb.WriteString("  <author><name>Audiobookshelf Go</name></author>\n")
+	sb.WriteString(fmt.Sprintf("  <link rel=\"self\" href=\"/opds/v1.2/libraries/%s/playlists\" type=\"application/atom+xml;profile=opds-catalog;kind=navigation\"/>\n", lib.ID))
+	sb.WriteString("  <link rel=\"start\" href=\"/opds\" type=\"application/atom+xml;profile=opds-catalog;kind=navigation\"/>\n")
+
+	for rows.Next() {
+		var id, name string
+		var description sql.NullString
+		if err := rows.Scan(&id, &name, &description); err == nil {
+			desc := "Browse items in playlist: " + name
+			if description.Valid && description.String != "" {
+				desc = description.String
+			}
+			sb.WriteString("  <entry>\n")
+			sb.WriteString(fmt.Sprintf("    <title>%s</title>\n", html.EscapeString(name)))
+			sb.WriteString(fmt.Sprintf("    <id>urn:uuid:%s-playlists-%s</id>\n", lib.ID, id))
+			sb.WriteString(fmt.Sprintf("    <updated>%s</updated>\n", updatedStr))
+			sb.WriteString(fmt.Sprintf("    <content type=\"text\">%s</content>\n", html.EscapeString(desc)))
+			sb.WriteString(fmt.Sprintf("    <link rel=\"subsection\" href=\"/opds/v1.2/libraries/%s/playlists/%s\" type=\"application/atom+xml;profile=opds-catalog;kind=acquisition\"/>\n", lib.ID, id))
+			sb.WriteString("  </entry>\n")
+		}
+	}
+
+	sb.WriteString("</feed>")
+	w.Header().Set("Content-Type", "application/atom+xml;profile=opds-catalog;charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write([]byte(sb.String()))
+}
+
+// serveOPDSPlaylistItems lists all items in the specified playlist.
+func serveOPDSPlaylistItems(w http.ResponseWriter, r *http.Request, db *sql.DB, user *core.UserSession, lib *idb.LibraryJSON, playlistID string) {
+	var playlistName string
+	err := db.QueryRow("SELECT name FROM playlists WHERE id = ? AND userId = ?", playlistID, user.ID).Scan(&playlistName)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			http.Error(w, "Playlist not found", http.StatusNotFound)
+		} else {
+			log.Printf("[OPDS] Failed to query playlist name: %v", err)
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		}
+		return
+	}
+
+	rows, err := db.Query(`
+		SELECT li.id
+		FROM libraryItems li
+		JOIN playlistMediaItems pmi ON li.id = pmi.mediaItemId
+		WHERE pmi.playlistId = ? AND li.libraryId = ?
+		ORDER BY pmi."order" ASC
+	`, playlistID, lib.ID)
+	if err != nil {
+		log.Printf("[OPDS] Failed to query playlist items: %v", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+
+	var itemIDs []string
+	for rows.Next() {
+		var itemID string
+		if err := rows.Scan(&itemID); err == nil {
+			itemIDs = append(itemIDs, itemID)
+		}
+	}
+	rows.Close()
+
+	var items []*idb.LibraryItemMinifiedJSON
+	for _, itemID := range itemIDs {
+		if item, err := idb.GetLibraryItemMinifiedByID(db, itemID); err == nil && item != nil {
+			items = append(items, item)
+		}
+	}
+
+	updatedStr := time.Now().UTC().Format(time.RFC3339)
+	var sb strings.Builder
+	sb.WriteString(`<?xml version="1.0" encoding="utf-8"?>` + "\n")
+	sb.WriteString(`<feed xmlns="http://www.w3.org/2005/Atom" xmlns:opds="http://opds-spec.org/2012/OPDS">` + "\n")
+	sb.WriteString(fmt.Sprintf("  <id>urn:uuid:%s-playlists-%s-items</id>\n", lib.ID, playlistID))
+	sb.WriteString(fmt.Sprintf("  <title>Playlist: %s</title>\n", html.EscapeString(playlistName)))
+	sb.WriteString(fmt.Sprintf("  <updated>%s</updated>\n", updatedStr))
+	sb.WriteString("  <author><name>Audiobookshelf Go</name></author>\n")
+	sb.WriteString(fmt.Sprintf("  <link rel=\"self\" href=\"/opds/v1.2/libraries/%s/playlists/%s\" type=\"application/atom+xml;profile=opds-catalog;kind=acquisition\"/>\n", lib.ID, playlistID))
+	sb.WriteString("  <link rel=\"start\" href=\"/opds\" type=\"application/atom+xml;profile=opds-catalog;kind=navigation\"/>\n")
+
+	writeItemEntries(&sb, items, r)
+
+	sb.WriteString("</feed>")
 	w.Header().Set("Content-Type", "application/atom+xml;profile=opds-catalog;charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write([]byte(sb.String()))
