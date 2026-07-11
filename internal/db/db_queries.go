@@ -551,25 +551,33 @@ type BookMinifiedJSON struct {
 	EbookFormat   *string               `json:"ebookFormat"`
 }
 
+type BookSeriesMinifiedJSON struct {
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	Sequence string `json:"sequence"`
+}
+
 type BookMetadataMinified struct {
-	Title             string   `json:"title"`
-	TitleIgnorePrefix string   `json:"titleIgnorePrefix"`
-	Subtitle          *string  `json:"subtitle"`
-	AuthorName        string   `json:"authorName"`
-	AuthorNameLF      string   `json:"authorNameLF"`
-	NarratorName      string   `json:"narratorName"`
-	SeriesName        string   `json:"seriesName"`
-	Genres            []string `json:"genres"`
-	PublishedYear     *string  `json:"publishedYear"`
-	PublishedDate     *string  `json:"publishedDate"`
-	Publisher         *string  `json:"publisher"`
-	Description       *string  `json:"description"`
-	Isbn              *string  `json:"isbn"`
-	Asin              *string  `json:"asin"`
-	Language          *string  `json:"language"`
-	Explicit          bool     `json:"explicit"`
-	Abridged          bool     `json:"abridged"`
-	LockedFields      []string `json:"lockedFields"`
+	Title             string                    `json:"title"`
+	TitleIgnorePrefix string                    `json:"titleIgnorePrefix"`
+	Subtitle          *string                   `json:"subtitle"`
+	AuthorName        string                    `json:"authorName"`
+	AuthorNameLF      string                    `json:"authorNameLF"`
+	NarratorName      string                    `json:"narratorName"`
+	SeriesName        string                    `json:"seriesName"`
+	SeriesSequence    *string                   `json:"seriesSequence"`
+	Series            []*BookSeriesMinifiedJSON `json:"series"`
+	Genres            []string                  `json:"genres"`
+	PublishedYear     *string                   `json:"publishedYear"`
+	PublishedDate     *string                   `json:"publishedDate"`
+	Publisher         *string                   `json:"publisher"`
+	Description       *string                   `json:"description"`
+	Isbn              *string                   `json:"isbn"`
+	Asin              *string                   `json:"asin"`
+	Language          *string                   `json:"language"`
+	Explicit          bool                      `json:"explicit"`
+	Abridged          bool                      `json:"abridged"`
+	LockedFields      []string                  `json:"lockedFields"`
 }
 
 type PodcastMinifiedJSON struct {
@@ -683,16 +691,36 @@ func GetLibraryItemMinifiedByID(db *sql.DB, itemID string) (*LibraryItemMinified
 				}
 			}
 
+			var seriesList []*BookSeriesMinifiedJSON
 			var seriesNames []string
-			srows, err3 := db.Query("SELECT name FROM series WHERE id IN (SELECT seriesId FROM bookSeries WHERE bookId = ?)", mediaID)
+			srows, err3 := db.Query("SELECT s.id, s.name, bs.sequence FROM series s JOIN bookSeries bs ON s.id = bs.seriesId WHERE bs.bookId = ?", mediaID)
 			if err3 == nil {
 				defer srows.Close()
 				for srows.Next() {
-					var name string
-					if err := srows.Scan(&name); err == nil {
-						seriesNames = append(seriesNames, name)
+					var sid, name string
+					var sequence sql.NullString
+					if err := srows.Scan(&sid, &name, &sequence); err == nil {
+						var seqVal string
+						if sequence.Valid {
+							seqVal = sequence.String
+						}
+						seriesList = append(seriesList, &BookSeriesMinifiedJSON{
+							ID:       sid,
+							Name:     name,
+							Sequence: seqVal,
+						})
+						if seqVal != "" {
+							seriesNames = append(seriesNames, fmt.Sprintf("%s #%s", name, seqVal))
+						} else {
+							seriesNames = append(seriesNames, name)
+						}
 					}
 				}
+			}
+
+			var firstSeq *string
+			if len(seriesList) > 0 && seriesList[0].Sequence != "" {
+				firstSeq = &seriesList[0].Sequence
 			}
 
 			var ebookFormat *string
@@ -727,6 +755,8 @@ func GetLibraryItemMinifiedByID(db *sql.DB, itemID string) (*LibraryItemMinified
 					AuthorNameLF:      utils.NameToLastFirst(authorName),
 					NarratorName:      narratorName,
 					SeriesName:        seriesName,
+					SeriesSequence:    firstSeq,
+					Series:            seriesList,
 					Genres:            genres,
 					PublishedYear:     nullIfEmpty(bPublishedYear),
 					PublishedDate:     nullIfEmpty(bPublishedDate),
@@ -1223,7 +1253,7 @@ func GetFilteredLibraryItems(db *sql.DB, options GetFilteredLibraryItemsOptions)
 		}
 
 		seriesQuery := fmt.Sprintf(`
-			SELECT bs.bookId, s.name, bs.sequence
+			SELECT bs.bookId, s.id, s.name, bs.sequence
 			FROM bookSeries bs
 			JOIN series s ON bs.seriesId = s.id
 			WHERE bs.bookId IN (%s)
@@ -1234,22 +1264,41 @@ func GetFilteredLibraryItems(db *sql.DB, options GetFilteredLibraryItemsOptions)
 		if err == nil {
 			defer sRows.Close()
 
-			bookSeriesMap := make(map[string][]string)
+			bookSeriesMap := make(map[string][]*BookSeriesMinifiedJSON)
 			for sRows.Next() {
-				var bookID, seriesName string
+				var bookID, seriesID, seriesName string
 				var sequence sql.NullString
-				if err := sRows.Scan(&bookID, &seriesName, &sequence); err == nil {
-					nameSeq := seriesName
-					if sequence.Valid && sequence.String != "" {
-						nameSeq = fmt.Sprintf("%s #%s", seriesName, sequence.String)
+				if err := sRows.Scan(&bookID, &seriesID, &seriesName, &sequence); err == nil {
+					var seqVal string
+					if sequence.Valid {
+						seqVal = sequence.String
 					}
-					bookSeriesMap[bookID] = append(bookSeriesMap[bookID], nameSeq)
+					bookSeriesMap[bookID] = append(bookSeriesMap[bookID], &BookSeriesMinifiedJSON{
+						ID:       seriesID,
+						Name:     seriesName,
+						Sequence: seqVal,
+					})
 				}
 			}
 
 			for bID, bookMin := range bookMap {
-				if seriesList, ok := bookSeriesMap[bID]; ok {
-					bookMin.Metadata.SeriesName = strings.Join(seriesList, ", ")
+				if sList, ok := bookSeriesMap[bID]; ok {
+					bookMin.Metadata.Series = sList
+
+					var nameSeqs []string
+					for _, s := range sList {
+						if s.Sequence != "" {
+							nameSeqs = append(nameSeqs, fmt.Sprintf("%s #%s", s.Name, s.Sequence))
+						} else {
+							nameSeqs = append(nameSeqs, s.Name)
+						}
+					}
+					bookMin.Metadata.SeriesName = strings.Join(nameSeqs, ", ")
+
+					if len(sList) > 0 && sList[0].Sequence != "" {
+						seq := sList[0].Sequence
+						bookMin.Metadata.SeriesSequence = &seq
+					}
 				}
 			}
 		}
