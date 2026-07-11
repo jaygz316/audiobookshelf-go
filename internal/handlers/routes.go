@@ -926,6 +926,13 @@ func handleLibrarySubRouteDispatch(db *sql.DB, w http.ResponseWriter, r *http.Re
 			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
 		}
 		return true
+	case "narrators":
+		if r.Method == http.MethodGet {
+			AuthMiddlewareWrapper(db, http.HandlerFunc(handleGetLibraryNarrators(db, libraryID))).ServeHTTP(w, r)
+		} else {
+			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
+		}
+		return true
 	case "series":
 		if r.Method == http.MethodGet {
 			AuthMiddlewareWrapper(db, http.HandlerFunc(handleGetLibrarySeries(db, libraryID))).ServeHTTP(w, r)
