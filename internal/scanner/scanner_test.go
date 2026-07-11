@@ -1,6 +1,7 @@
 package scanner
 
 import (
+	"archive/zip"
 	"database/sql"
 	"os"
 	"path/filepath"
@@ -266,6 +267,83 @@ func TestMetadataFieldLocking(t *testing.T) {
 	}
 	if description != "Original Description" {
 		t.Errorf("expected description to remain 'Original Description' (locked), got %q", description)
+	}
+}
+
+func TestStoragePathIsolation(t *testing.T) {
+	db := setupScannerTestDB(t)
+	defer db.Close()
+
+	// 1. Create a temp directory for metadata isolation
+	metaDir := t.TempDir()
+	MetadataPath = metaDir
+
+	// 2. Create a temp book directory and a valid cbz zip file containing cover.jpg
+	bookDir := t.TempDir()
+	cbzPath := filepath.Join(bookDir, "comic.cbz")
+	f, err := os.Create(cbzPath)
+	if err != nil {
+		t.Fatalf("failed to create cbz: %v", err)
+	}
+	zw := zip.NewWriter(f)
+	w, err := zw.Create("cover.jpg")
+	if err != nil {
+		t.Fatalf("failed to create zip file entry: %v", err)
+	}
+	_, _ = w.Write([]byte("mock-image-data"))
+	zw.Close()
+	f.Close()
+
+	groupFiles := []FileItem{
+		{
+			Path:      cbzPath,
+			RelPath:   "comic.cbz",
+			Name:      "comic.cbz",
+			Extension: ".cbz",
+			Size:      100,
+		},
+	}
+
+	itemID := "test-item-123"
+
+	// Scenario A: metadataCoverWithItem is true (Default settings)
+	// Let's insert settings with metadataCoverWithItem = true
+	_, _ = db.Exec("DELETE FROM settings WHERE key = 'server-settings'")
+	_, err = db.Exec("INSERT INTO settings (key, value) VALUES ('server-settings', ?)",
+		`{"scannerFindCovers":true,"metadataCoverWithItem":true}`)
+	if err != nil {
+		t.Fatalf("failed to insert settings: %v", err)
+	}
+
+	meta := parseMetadataForGroup(db, itemID, groupFiles, "book", bookDir, "", false)
+	expectedLocalCover := filepath.Join(bookDir, "cover.jpg")
+	if meta.CoverPath != expectedLocalCover {
+		t.Errorf("Expected cover path to be local: %q, got: %q", expectedLocalCover, meta.CoverPath)
+	}
+	if _, err := os.Stat(expectedLocalCover); os.IsNotExist(err) {
+		t.Errorf("Expected local cover file to exist at %q", expectedLocalCover)
+	}
+	// Clean up local cover for next scenario
+	_ = os.Remove(expectedLocalCover)
+
+	// Scenario B: metadataCoverWithItem is false
+	_, _ = db.Exec("DELETE FROM settings WHERE key = 'server-settings'")
+	_, err = db.Exec("INSERT INTO settings (key, value) VALUES ('server-settings', ?)",
+		`{"scannerFindCovers":true,"metadataCoverWithItem":false}`)
+	if err != nil {
+		t.Fatalf("failed to insert settings: %v", err)
+	}
+
+	meta = parseMetadataForGroup(db, itemID, groupFiles, "book", bookDir, "", false)
+	expectedIsolatedCover := filepath.Join(metaDir, "items", itemID, "cover.jpg")
+	if meta.CoverPath != expectedIsolatedCover {
+		t.Errorf("Expected cover path to be isolated: %q, got: %q", expectedIsolatedCover, meta.CoverPath)
+	}
+	if _, err := os.Stat(expectedIsolatedCover); os.IsNotExist(err) {
+		t.Errorf("Expected isolated cover file to exist at %q", expectedIsolatedCover)
+	}
+	if _, err := os.Stat(expectedLocalCover); err == nil {
+		t.Errorf("Expected local cover file NOT to exist when metadataCoverWithItem is false")
 	}
 }
 

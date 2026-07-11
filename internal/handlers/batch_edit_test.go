@@ -13,6 +13,10 @@ import (
 )
 
 func TestHandleBatchUpdateLibraryItems(t *testing.T) {
+	oldMetaPath := MetadataPath
+	MetadataPath = t.TempDir()
+	defer func() { MetadataPath = oldMetaPath }()
+
 	db := setupTestDBShared(t)
 	defer db.Close()
 

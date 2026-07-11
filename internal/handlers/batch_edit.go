@@ -346,18 +346,27 @@ func handleBatchUpdateLibraryItems(db *sql.DB, cfg *core.Config) http.HandlerFun
 
 		srvSettings, srvErr := idb.GetServerSettings(db)
 		for _, info := range updatedItems {
+			var metadataPath string
+			var dbErr error
 			if srvErr == nil && srvSettings != nil && srvSettings.MetadataMarkdownWithItem {
 				var itemPath string
 				var isFile int
-				dbErr := db.QueryRow("SELECT COALESCE(path, ''), isFile FROM libraryItems WHERE id = ?", info.itemID).Scan(&itemPath, &isFile)
+				dbErr = db.QueryRow("SELECT COALESCE(path, ''), isFile FROM libraryItems WHERE id = ?", info.itemID).Scan(&itemPath, &isFile)
 				if dbErr == nil && itemPath != "" {
 					folder := itemPath
 					if isFile != 0 {
 						folder = filepath.Dir(itemPath)
 					}
-					metadataPath := filepath.Join(folder, "metadata.json")
+					metadataPath = filepath.Join(folder, "metadata.json")
+				}
+			} else {
+				itemDir := filepath.Join(MetadataPath, "items", info.itemID)
+				_ = os.MkdirAll(itemDir, 0755)
+				metadataPath = filepath.Join(itemDir, "metadata.json")
+			}
 
-					if info.mediaType == "book" {
+			if metadataPath != "" {
+				if info.mediaType == "book" {
 						var title, subtitle, publisher, publishedYear, publishedDate, description, isbn, asin, language, narratorsRaw, tagsRaw, genresRaw string
 						var explicitVal, abridgedVal int
 						dbErr = db.QueryRow(`
@@ -436,7 +445,6 @@ func handleBatchUpdateLibraryItems(db *sql.DB, cfg *core.Config) http.HandlerFun
 						}
 					}
 				}
-			}
 
 			if isocket.GlobalAuth != nil {
 				if minItem, err := idb.GetLibraryItemMinifiedByID(db, info.itemID); err == nil {

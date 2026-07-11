@@ -1308,6 +1308,7 @@ func handleUpdateLibraryItemByID(db *sql.DB, itemID string) http.HandlerFunc {
 		}
 
 		srvSettings, srvErr := idb.GetServerSettings(db)
+		var metadataPath string
 		if srvErr == nil && srvSettings != nil && srvSettings.MetadataMarkdownWithItem {
 			var itemPath string
 			var isFile int
@@ -1317,30 +1318,37 @@ func handleUpdateLibraryItemByID(db *sql.DB, itemID string) http.HandlerFunc {
 				if isFile != 0 {
 					folder = filepath.Dir(itemPath)
 				}
-				metadataPath := filepath.Join(folder, "metadata.json")
+				metadataPath = filepath.Join(folder, "metadata.json")
+			}
+		} else {
+			// Save in centralized metadata folder
+			itemDir := filepath.Join(MetadataPath, "items", itemID)
+			_ = os.MkdirAll(itemDir, 0755)
+			metadataPath = filepath.Join(itemDir, "metadata.json")
+		}
 
-				metaData := map[string]interface{}{
-					"title":         payload.Title,
-					"subtitle":      payload.Subtitle,
-					"authors":       payload.Authors,
-					"narrators":     payload.Narrators,
-					"publisher":     payload.Publisher,
-					"publishedYear": payload.PublishedYear,
-					"publishedDate": payload.PublishedDate,
-					"description":   payload.Description,
-					"isbn":          payload.Isbn,
-					"asin":          payload.Asin,
-					"language":      payload.Language,
-					"explicit":      payload.Explicit,
-					"abridged":      payload.Abridged,
-					"tags":          payload.Tags,
-					"genres":        payload.Genres,
-					"lockedFields":  payload.LockedFields,
-				}
-				metaJSON, marshalErr := json.MarshalIndent(metaData, "", "  ")
-				if marshalErr == nil {
-					_ = os.WriteFile(metadataPath, metaJSON, 0644)
-				}
+		if metadataPath != "" {
+			metaData := map[string]interface{}{
+				"title":         payload.Title,
+				"subtitle":      payload.Subtitle,
+				"authors":       payload.Authors,
+				"narrators":     payload.Narrators,
+				"publisher":     payload.Publisher,
+				"publishedYear": payload.PublishedYear,
+				"publishedDate": payload.PublishedDate,
+				"description":   payload.Description,
+				"isbn":          payload.Isbn,
+				"asin":          payload.Asin,
+				"language":      payload.Language,
+				"explicit":      payload.Explicit,
+				"abridged":      payload.Abridged,
+				"tags":          payload.Tags,
+				"genres":        payload.Genres,
+				"lockedFields":  payload.LockedFields,
+			}
+			metaJSON, marshalErr := json.MarshalIndent(metaData, "", "  ")
+			if marshalErr == nil {
+				_ = os.WriteFile(metadataPath, metaJSON, 0644)
 			}
 		}
 
@@ -1446,8 +1454,11 @@ func handleUpdateAuthor(db *sql.DB, authorID string) http.HandlerFunc {
 					WHERE mediaId = ? AND mediaType = 'book'
 				`, authorNamesStr, authorLastFirstsStr, nowStr, bid)
 
-				// Also edit sidecar metadata.json files if metadataMarkdownWithItem is active
+				// Also edit metadata.json files
 				srvSettings, srvErr := idb.GetServerSettings(db)
+				var metadataPath string
+				var itemID string
+				_ = tx.QueryRow("SELECT id FROM libraryItems WHERE mediaId = ? AND mediaType = 'book'", bid).Scan(&itemID)
 				if srvErr == nil && srvSettings != nil && srvSettings.MetadataMarkdownWithItem {
 					var itemPath string
 					var isFile int
@@ -1457,15 +1468,20 @@ func handleUpdateAuthor(db *sql.DB, authorID string) http.HandlerFunc {
 						if isFile != 0 {
 							folder = filepath.Dir(itemPath)
 						}
-						metadataPath := filepath.Join(folder, "metadata.json")
-						if _, err := os.Stat(metadataPath); err == nil {
-							var metadata map[string]interface{}
-							if mBytes, err := os.ReadFile(metadataPath); err == nil {
-								if json.Unmarshal(mBytes, &metadata) == nil {
-									metadata["authors"] = authorNames
-									if mJSON, err := json.MarshalIndent(metadata, "", "  "); err == nil {
-										_ = os.WriteFile(metadataPath, mJSON, 0644)
-									}
+						metadataPath = filepath.Join(folder, "metadata.json")
+					}
+				} else if itemID != "" {
+					metadataPath = filepath.Join(MetadataPath, "items", itemID, "metadata.json")
+				}
+
+				if metadataPath != "" {
+					if _, err := os.Stat(metadataPath); err == nil {
+						var metadata map[string]interface{}
+						if mBytes, err := os.ReadFile(metadataPath); err == nil {
+							if json.Unmarshal(mBytes, &metadata) == nil {
+								metadata["authors"] = authorNames
+								if mJSON, err := json.MarshalIndent(metadata, "", "  "); err == nil {
+									_ = os.WriteFile(metadataPath, mJSON, 0644)
 								}
 							}
 						}
