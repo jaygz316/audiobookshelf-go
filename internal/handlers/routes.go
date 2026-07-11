@@ -332,6 +332,14 @@ func registerLibraryRoutes(mux *http.ServeMux, cfg *core.Config, db *sql.DB) {
 	})
 
 	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/libraries/"), handleLibrariesDispatch(db, cfg))
+
+	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/upload"), func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			AuthMiddlewareWrapper(db, handleUpload(db)).ServeHTTP(w, r)
+		} else {
+			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
+		}
+	})
 }
 
 func registerPodcastRoutes(mux *http.ServeMux, cfg *core.Config, db *sql.DB) {
