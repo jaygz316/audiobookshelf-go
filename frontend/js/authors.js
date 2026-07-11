@@ -428,11 +428,12 @@ export async function loadSeriesDetails(seriesId) {
         </div>
 
         <!-- Books List -->
-        <div class="space-y-4">
-          <div class="border-b border-black-400 pb-2">
-            <h3 class="text-xl font-bold text-white">Books in Series</h3>
+        <div class="space-y-6">
+          <div class="border-b border-black-400 pb-2 flex items-center justify-between">
+            <h3 class="text-xl font-bold text-white">Series Matrix</h3>
+            <span class="text-xs text-black-300">Chronological list of books and editions</span>
           </div>
-          <div class="flex flex-wrap gap-4 pt-2">
+          <div id="series-matrix-container" class="space-y-4 pt-2">
             ${items.length === 0 ? `
               <p class="text-sm text-black-200 italic">No books in this series yet.</p>
             ` : ''}
@@ -443,11 +444,11 @@ export async function loadSeriesDetails(seriesId) {
 
     container.innerHTML = html;
 
-    const itemsGrid = container.querySelector('.flex.flex-wrap.gap-4.pt-2');
-    if (itemsGrid && items.length > 0) {
+    const matrixContainer = container.querySelector('#series-matrix-container');
+    if (matrixContainer && items.length > 0) {
+      // Group items by sequence
+      const groups = {};
       items.forEach(item => {
-        const card = createCard(item, false, libraryId);
-        
         let seq = '';
         if (item.media?.metadata?.series?.sequence) {
           seq = item.media.metadata.series.sequence;
@@ -459,14 +460,95 @@ export async function loadSeriesDetails(seriesId) {
             seq = matchingSeries.sequence;
           }
         }
-        
-        if (seq) {
-          const badge = document.createElement('div');
-          badge.className = 'absolute top-1 left-1 bg-black/80 text-accent text-[10px] px-1.5 py-0.5 rounded font-semibold z-40';
-          badge.textContent = `Book ${seq}`;
-          card.appendChild(badge);
+        if (!seq) {
+          seq = 'Unsequenced';
         }
-        itemsGrid.appendChild(card);
+        if (!groups[seq]) {
+          groups[seq] = [];
+        }
+        groups[seq].push(item);
+      });
+
+      // Sort sequences: numbers first, then 'Unsequenced'
+      const sortedSeqs = Object.keys(groups).sort((a, b) => {
+        if (a === 'Unsequenced') return 1;
+        if (b === 'Unsequenced') return -1;
+        const valA = parseFloat(a) || 0;
+        const valB = parseFloat(b) || 0;
+        return valA - valB;
+      });
+
+      matrixContainer.innerHTML = ''; // clear initial msg
+
+      sortedSeqs.forEach(seq => {
+        const groupItems = groups[seq];
+        const row = document.createElement('div');
+        row.className = 'flex flex-col md:flex-row md:items-stretch bg-black-600/30 border border-black-400/40 rounded-lg overflow-hidden transition-all hover:border-accent/30 mb-4';
+        
+        // Sequence side banner
+        const sideBanner = document.createElement('div');
+        sideBanner.className = 'w-full md:w-32 bg-black-600/50 p-4 border-b md:border-b-0 md:border-r border-black-400/40 flex flex-col justify-center items-center text-center';
+        
+        let seqLabel = seq;
+        if (seq !== 'Unsequenced') {
+          seqLabel = `Book ${seq}`;
+        }
+        
+        sideBanner.innerHTML = `
+          <span class="text-accent text-sm font-semibold tracking-wider uppercase">${seqLabel}</span>
+          <span class="text-xs text-black-300 mt-1">${groupItems.length} version${groupItems.length !== 1 ? 's' : ''}</span>
+        `;
+        row.appendChild(sideBanner);
+
+        // Versions container
+        const versionsContainer = document.createElement('div');
+        versionsContainer.className = 'flex-1 p-4 flex flex-wrap gap-6 items-center';
+        
+        groupItems.forEach(item => {
+          const cardContainer = document.createElement('div');
+          cardContainer.className = 'relative flex items-center space-x-4 bg-black-500/20 p-3 rounded-lg border border-black-400/20 max-w-sm w-full hover:border-black-400/60 transition-colors';
+          
+          const card = createCard(item, false, libraryId);
+          card.classList.add('flex-shrink-0');
+          
+          cardContainer.appendChild(card);
+
+          // Build metadata block for version comparison
+          const infoBlock = document.createElement('div');
+          infoBlock.className = 'flex-1 min-w-0 text-left';
+          
+          const metadata = item.media?.metadata || {};
+          const title = metadata.title || item.title || 'Untitled';
+          const narrator = metadata.narratorName || '';
+          const publisher = metadata.publisher || '';
+          const duration = item.media?.duration || 0;
+          
+          let durationStr = 'Unknown duration';
+          if (duration > 0) {
+            const hrs = Math.floor(duration / 3600);
+            const mins = Math.floor((duration % 3600) / 60);
+            if (hrs > 0) {
+              durationStr = `${hrs}h ${mins}m`;
+            } else {
+              durationStr = `${mins}m`;
+            }
+          }
+
+          infoBlock.innerHTML = `
+            <h4 class="font-bold text-sm text-white truncate" title="${escapeHtml(title)}">${escapeHtml(title)}</h4>
+            ${narrator ? `<p class="text-xs text-accent mt-1 truncate" title="${escapeHtml(narrator)}"><span class="text-black-300 font-medium">Narrator:</span> ${escapeHtml(narrator)}</p>` : '<p class="text-xs text-black-300 mt-1 italic">No narrator info</p>'}
+            ${publisher ? `<p class="text-[11px] text-black-200 truncate" title="${escapeHtml(publisher)}"><span class="text-black-400">Publisher:</span> ${escapeHtml(publisher)}</p>` : ''}
+            <p class="text-[11px] text-black-300 mt-1 flex items-center space-x-1.5">
+              <span class="material-symbols text-[13px] text-black-400">schedule</span>
+              <span>${durationStr}</span>
+            </p>
+          `;
+          cardContainer.appendChild(infoBlock);
+          versionsContainer.appendChild(cardContainer);
+        });
+
+        row.appendChild(versionsContainer);
+        matrixContainer.appendChild(row);
       });
     }
 
