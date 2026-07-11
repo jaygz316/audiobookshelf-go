@@ -96,10 +96,64 @@ export async function openEbookReader(item, token) {
             <button id="theme-sepia-btn" class="px-2.5 py-1 text-xs rounded transition-colors text-black-100 hover:text-white" data-theme="sepia">Sepia</button>
             <button id="theme-dark-btn" class="px-2.5 py-1 text-xs rounded transition-colors text-black-100 hover:text-white" data-theme="dark">Dark</button>
           </div>
+
+          <!-- Typography / Reader Settings Trigger -->
+          <button id="reader-settings-btn" class="p-2 hover:bg-black-500 rounded text-black-50 hover:text-white transition-colors focus:outline-none" title="Typography & Page Layout Settings">
+            <span class="material-symbols text-xl">settings</span>
+          </button>
         </div>
 
         <div class="h-5 w-px bg-black-600"></div>
         <span class="bg-accent/10 border border-accent/20 text-accent px-2 py-0.5 rounded text-xs font-semibold uppercase tracking-wider" id="reader-format-badge"></span>
+      </div>
+    </div>
+
+    <!-- Reader Settings Popover -->
+    <div id="reader-settings-popover" class="hidden absolute right-6 top-16 bg-[#1a1a1a]/95 border border-black-400 rounded-lg shadow-2xl p-4 z-50 w-72 backdrop-blur-md space-y-4 text-white font-sans">
+      <div class="border-b border-black-600/50 pb-2 mb-2">
+        <h4 class="text-xs font-bold text-white uppercase tracking-wider">Reader Display Settings</h4>
+      </div>
+      
+      <!-- Font Family Choice -->
+      <div class="space-y-1.5">
+        <label class="text-xs text-black-100 font-semibold">Font Style</label>
+        <select id="reader-font-family-select" class="w-full bg-black-600 text-white text-xs px-2 py-1.5 rounded border border-black-400 focus:outline-none focus:border-accent font-sans">
+          <option value="Georgia, serif">Georgia (Default)</option>
+          <option value="'Merriweather', serif">Merriweather (Serif)</option>
+          <option value="'Inter', sans-serif">Inter (Sans-Serif)</option>
+          <option value="'Arial', sans-serif">Arial / Sans-Serif</option>
+          <option value="'OpenDyslexic', sans-serif">OpenDyslexic</option>
+        </select>
+      </div>
+
+      <!-- Line Spacing Choice -->
+      <div class="space-y-1.5">
+        <label class="text-xs text-black-100 font-semibold">Line Spacing</label>
+        <div class="grid grid-cols-4 gap-1 bg-black-600 p-0.5 rounded border border-black-400">
+          <button class="reader-line-spacing-btn text-xs py-1 text-center rounded transition-colors" data-val="1.25">1.25</button>
+          <button class="reader-line-spacing-btn text-xs py-1 text-center rounded transition-colors" data-val="1.5">1.5</button>
+          <button class="reader-line-spacing-btn text-xs py-1 text-center rounded transition-colors" data-val="1.75">1.75</button>
+          <button class="reader-line-spacing-btn text-xs py-1 text-center rounded transition-colors" data-val="2.0">2.0</button>
+        </div>
+      </div>
+
+      <!-- Page Margin Choice -->
+      <div class="space-y-1.5">
+        <label class="text-xs text-black-100 font-semibold">Side Margins</label>
+        <div class="grid grid-cols-3 gap-1 bg-black-600 p-0.5 rounded border border-black-400">
+          <button class="reader-margin-btn text-xs py-1 text-center rounded transition-colors" data-val="5%">Narrow</button>
+          <button class="reader-margin-btn text-xs py-1 text-center rounded transition-colors" data-val="15%">Medium</button>
+          <button class="reader-margin-btn text-xs py-1 text-center rounded transition-colors" data-val="25%">Wide</button>
+        </div>
+      </div>
+
+      <!-- Reader Layout choice -->
+      <div class="space-y-1.5">
+        <label class="text-xs text-black-100 font-semibold">Page Layout</label>
+        <div class="grid grid-cols-2 gap-1 bg-black-600 p-0.5 rounded border border-black-400">
+          <button id="reader-layout-single-btn" class="text-xs py-1 text-center rounded transition-colors" data-val="none">Single Page</button>
+          <button id="reader-layout-spread-btn" class="text-xs py-1 text-center rounded transition-colors" data-val="auto">Two Pages</button>
+        </div>
       </div>
     </div>
 
@@ -169,15 +223,26 @@ export async function openEbookReader(item, token) {
   let rendition = null;
   let currentTheme = 'dark';
   let currentFontSize = 100;
+  let currentFont = 'Georgia, serif';
+  let currentLineHeight = '1.5';
+  let currentMargin = '15%';
+  let currentLayout = 'auto'; // 'none' for single, 'auto' for two-page spread
   let progressSaveTimeout = null;
   let currentProgress = 0;
   let tocDrawerOpen = false;
+
+  const activeBtnClass = "bg-accent text-primary font-bold shadow";
+  const inactiveBtnClass = "text-black-100 hover:text-white hover:bg-black-500 bg-black-600";
 
   // Save Settings helper
   const saveSettings = () => {
     localStorage.setItem('ereaderSettings', JSON.stringify({
       theme: currentTheme,
-      fontScale: currentFontSize
+      fontScale: currentFontSize,
+      fontFamily: currentFont,
+      lineHeight: currentLineHeight,
+      margin: currentMargin,
+      layout: currentLayout
     }));
   };
 
@@ -205,6 +270,7 @@ export async function openEbookReader(item, token) {
     document.removeEventListener('keyup', keyListener);
     window.removeEventListener('resize', handleResize);
     document.removeEventListener('click', clickOutsideTOC);
+    document.removeEventListener('click', clickOutsideSettings);
 
     // Remove overlay
     overlay.remove();
@@ -268,6 +334,10 @@ export async function openEbookReader(item, token) {
       const parsed = JSON.parse(saved);
       if (parsed.theme) currentTheme = parsed.theme;
       if (parsed.fontScale) currentFontSize = parsed.fontScale;
+      if (parsed.fontFamily) currentFont = parsed.fontFamily;
+      if (parsed.lineHeight) currentLineHeight = parsed.lineHeight;
+      if (parsed.margin) currentMargin = parsed.margin;
+      if (parsed.layout) currentLayout = parsed.layout;
     }
   } catch (err) {
     console.error("Failed to load ereader settings:", err);
@@ -343,7 +413,8 @@ export async function openEbookReader(item, token) {
         width: "100%",
         height: "100%",
         flow: "paginated",
-        manager: "default"
+        manager: "default",
+        spread: currentLayout
       });
 
       // Mouse wheel navigation handler
@@ -380,46 +451,113 @@ export async function openEbookReader(item, token) {
         }
       };
 
-      // Register content hook for click, keyup, and scroll inside iframe
+      // Register content hook for click, keyup, scroll and font injection inside iframe
       rendition.hooks.content.register((contents) => {
+        // Inject custom fonts
+        const linkDyslexic = contents.document.createElement('link');
+        linkDyslexic.rel = 'stylesheet';
+        linkDyslexic.href = 'https://cdn.jsdelivr.net/npm/open-dyslexic@1.0.3/open-dyslexic.css';
+        contents.document.head.appendChild(linkDyslexic);
+        
+        const linkInter = contents.document.createElement('link');
+        linkInter.rel = 'stylesheet';
+        linkInter.href = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap';
+        contents.document.head.appendChild(linkInter);
+
+        const linkMerriweather = contents.document.createElement('link');
+        linkMerriweather.rel = 'stylesheet';
+        linkMerriweather.href = 'https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&display=swap';
+        contents.document.head.appendChild(linkMerriweather);
+
         contents.document.addEventListener("click", () => {
           closeTOCDrawer();
+          const popover = document.getElementById('reader-settings-popover');
+          if (popover) popover.classList.add('hidden');
         });
         contents.document.addEventListener("keyup", keyListener);
         contents.document.addEventListener("wheel", handleWheel, { passive: false });
       });
 
-      // Register EpubJS themes
-      rendition.themes.register("light", {
-        body: {
-          background: "#ffffff !important",
-          color: "#000000 !important",
-          "font-family": "Georgia, serif !important",
-          "line-height": "1.6 !important"
-        },
-        p: { color: "#000000 !important" }
-      });
-      rendition.themes.register("sepia", {
-        body: {
-          background: "#f4ecd8 !important",
-          color: "#5b4636 !important",
-          "font-family": "Georgia, serif !important",
-          "line-height": "1.6 !important"
-        },
-        p: { color: "#5b4636 !important" }
-      });
-      rendition.themes.register("dark", {
-        body: {
-          background: "#1a1a1a !important",
-          color: "#e0e0e0 !important",
-          "font-family": "Georgia, serif !important",
-          "line-height": "1.6 !important"
-        },
-        p: { color: "#e0e0e0 !important" }
-      });
+      // Style helper
+      const getThemeRules = (theme, font, lineHeight, margin) => {
+        let bg, fg;
+        if (theme === 'light') {
+          bg = '#ffffff';
+          fg = '#000000';
+        } else if (theme === 'sepia') {
+          bg = '#f4ecd8';
+          fg = '#5b4636';
+        } else {
+          bg = '#1a1a1a';
+          fg = '#e0e0e0';
+        }
+        return {
+          body: {
+            background: `${bg} !important`,
+            color: `${fg} !important`,
+            "font-family": `${font} !important`,
+            "line-height": `${lineHeight} !important`,
+            "padding": `0 ${margin} !important`
+          },
+          p: {
+            color: `${fg} !important`
+          }
+        };
+      };
 
       // Display book at saved location
       await rendition.display(savedLocation || undefined);
+
+      const applyTypography = () => {
+        if (!rendition) return;
+        
+        rendition.themes.register("light", getThemeRules("light", currentFont, currentLineHeight, currentMargin));
+        rendition.themes.register("sepia", getThemeRules("sepia", currentFont, currentLineHeight, currentMargin));
+        rendition.themes.register("dark", getThemeRules("dark", currentFont, currentLineHeight, currentMargin));
+        
+        rendition.themes.select(currentTheme);
+        
+        rendition.spread(currentLayout);
+        rendition.resize();
+        
+        updateSettingsUIActiveStates();
+        saveSettings();
+      };
+
+      const updateSettingsUIActiveStates = () => {
+        const fontSelect = document.getElementById('reader-font-family-select');
+        if (fontSelect) fontSelect.value = currentFont;
+        
+        document.querySelectorAll('.reader-line-spacing-btn').forEach(btn => {
+          const val = btn.getAttribute('data-val');
+          if (val === currentLineHeight) {
+            btn.className = `reader-line-spacing-btn text-xs py-1 text-center rounded transition-colors ${activeBtnClass}`;
+          } else {
+            btn.className = `reader-line-spacing-btn text-xs py-1 text-center rounded transition-colors ${inactiveBtnClass}`;
+          }
+        });
+        
+        document.querySelectorAll('.reader-margin-btn').forEach(btn => {
+          const val = btn.getAttribute('data-val');
+          if (val === currentMargin) {
+            btn.className = `reader-margin-btn text-xs py-1 text-center rounded transition-colors ${activeBtnClass}`;
+          } else {
+            btn.className = `reader-margin-btn text-xs py-1 text-center rounded transition-colors ${inactiveBtnClass}`;
+          }
+        });
+        
+        const layoutSingleBtn = document.getElementById('reader-layout-single-btn');
+        const layoutSpreadBtn = document.getElementById('reader-layout-spread-btn');
+        if (layoutSingleBtn && layoutSpreadBtn) {
+          if (currentLayout === 'none') {
+            layoutSingleBtn.className = `text-xs py-1 text-center rounded transition-colors ${activeBtnClass}`;
+            layoutSpreadBtn.className = `text-xs py-1 text-center rounded transition-colors ${inactiveBtnClass}`;
+          } else {
+            layoutSingleBtn.className = `text-xs py-1 text-center rounded transition-colors ${inactiveBtnClass}`;
+            layoutSpreadBtn.className = `text-xs py-1 text-center rounded transition-colors ${activeBtnClass}`;
+          }
+        }
+      };
 
       // Throttled progress save
       const queueSaveProgress = (cfi, progressPercent) => {
@@ -496,7 +634,12 @@ export async function openEbookReader(item, token) {
           if (cBody) cBody.style.backgroundColor = '#121212';
         }
         
-        if (rendition) rendition.themes.select(theme);
+        if (rendition) {
+          rendition.themes.register("light", getThemeRules("light", currentFont, currentLineHeight, currentMargin));
+          rendition.themes.register("sepia", getThemeRules("sepia", currentFont, currentLineHeight, currentMargin));
+          rendition.themes.register("dark", getThemeRules("dark", currentFont, currentLineHeight, currentMargin));
+          rendition.themes.select(theme);
+        }
         
         document.querySelectorAll('[data-theme]').forEach(btn => {
           if (btn.getAttribute('data-theme') === theme) {
@@ -516,6 +659,68 @@ export async function openEbookReader(item, token) {
           applyTheme(e.target.getAttribute('data-theme'));
         };
       });
+
+      // Settings popover toggle
+      const settingsBtn = document.getElementById('reader-settings-btn');
+      const settingsPopover = document.getElementById('reader-settings-popover');
+      if (settingsBtn && settingsPopover) {
+        settingsBtn.onclick = (e) => {
+          e.stopPropagation();
+          settingsPopover.classList.toggle('hidden');
+        };
+      }
+
+      // Close settings when clicking outside
+      const clickOutsideSettings = (e) => {
+        if (settingsPopover && !settingsPopover.contains(e.target) && e.target !== settingsBtn && !settingsBtn.contains(e.target)) {
+          settingsPopover.classList.add('hidden');
+        }
+      };
+      document.addEventListener('click', clickOutsideSettings);
+
+      // Initialize popover UI active states
+      updateSettingsUIActiveStates();
+
+      // Font Family Select change event
+      const fontSelect = document.getElementById('reader-font-family-select');
+      if (fontSelect) {
+        fontSelect.onchange = (e) => {
+          currentFont = e.target.value;
+          applyTypography();
+        };
+      }
+
+      // Line Spacing Button click events
+      document.querySelectorAll('.reader-line-spacing-btn').forEach(btn => {
+        btn.onclick = (e) => {
+          currentLineHeight = e.target.getAttribute('data-val');
+          applyTypography();
+        };
+      });
+
+      // Margin Button click events
+      document.querySelectorAll('.reader-margin-btn').forEach(btn => {
+        btn.onclick = (e) => {
+          currentMargin = e.target.getAttribute('data-val');
+          applyTypography();
+        };
+      });
+
+      // Layout Button click events
+      const layoutSingleBtn = document.getElementById('reader-layout-single-btn');
+      if (layoutSingleBtn) {
+        layoutSingleBtn.onclick = () => {
+          currentLayout = 'none';
+          applyTypography();
+        };
+      }
+      const layoutSpreadBtn = document.getElementById('reader-layout-spread-btn');
+      if (layoutSpreadBtn) {
+        layoutSpreadBtn.onclick = () => {
+          currentLayout = 'auto';
+          applyTypography();
+        };
+      }
 
       // Font size button clicks
       document.getElementById('reader-font-dec-btn').onclick = () => {
@@ -538,6 +743,9 @@ export async function openEbookReader(item, token) {
       window.addEventListener('resize', handleResize);
       document.addEventListener('click', clickOutsideTOC);
       viewer.addEventListener('wheel', handleWheel, { passive: false });
+
+      // Apply initial typography rules (like custom font family/margins)
+      applyTypography();
 
       // Navigation arrows click events
       document.getElementById('epub-prev-page-btn').onclick = () => rendition.prev();
