@@ -549,6 +549,7 @@ type BookMinifiedJSON struct {
 	Duration      float64               `json:"duration"`
 	Size          int64                 `json:"size"`
 	EbookFormat   *string               `json:"ebookFormat"`
+	AudioFiles    []interface{}         `json:"audioFiles,omitempty"`
 }
 
 type BookSeriesMinifiedJSON struct {
@@ -592,6 +593,7 @@ type PodcastMinifiedJSON struct {
 	MaxEpisodesToKeep        int                 `json:"maxEpisodesToKeep"`
 	MaxNewEpisodesToDownload int                 `json:"maxNewEpisodesToDownload"`
 	Size                     int64               `json:"size"`
+	Episodes                 []interface{}       `json:"episodes,omitempty"`
 }
 
 type PodcastMetadataMin struct {
@@ -747,6 +749,7 @@ func GetLibraryItemMinifiedByID(db *sql.DB, itemID string) (*LibraryItemMinified
 				Duration:      bDuration,
 				Size:          size,
 				EbookFormat:   ebookFormat,
+				AudioFiles:    audioFiles,
 				Metadata: &BookMetadataMinified{
 					Title:             bTitle,
 					TitleIgnorePrefix: bTitleIgnorePrefix,
@@ -796,6 +799,25 @@ func GetLibraryItemMinifiedByID(db *sql.DB, itemID string) (*LibraryItemMinified
 				lockedFields = []string{}
 			}
 
+			var episodes []interface{}
+			erows, err4 := db.Query("SELECT id, title, audioFile FROM podcastEpisodes WHERE podcastId = ?", mediaID)
+			if err4 == nil {
+				defer erows.Close()
+				for erows.Next() {
+					var epId, epTitle string
+					var epAudioFile []byte
+					if err := erows.Scan(&epId, &epTitle, &epAudioFile); err == nil {
+						var audioFile interface{}
+						_ = json.Unmarshal(epAudioFile, &audioFile)
+						episodes = append(episodes, map[string]interface{}{
+							"id":        epId,
+							"title":     epTitle,
+							"audioFile": audioFile,
+						})
+					}
+				}
+			}
+
 			podcastMin := &PodcastMinifiedJSON{
 				ID:                       mediaID,
 				CoverPath:                nullIfEmpty(pCoverPath),
@@ -805,6 +827,7 @@ func GetLibraryItemMinifiedByID(db *sql.DB, itemID string) (*LibraryItemMinified
 				MaxEpisodesToKeep:        pMaxEpisodesToKeep,
 				MaxNewEpisodesToDownload: pMaxNewEpisodesToDownload,
 				Size:                     size,
+				Episodes:                 episodes,
 				Metadata: &PodcastMetadataMin{
 					Title:             pTitle,
 					TitleIgnorePrefix: pTitleIgnorePrefix,
