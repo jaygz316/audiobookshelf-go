@@ -647,6 +647,22 @@ func registerTagsAndGenresRoutes(mux *http.ServeMux, cfg *core.Config, db *sql.D
 }
 
 func registerStatsAndFilesystemRoutes(mux *http.ServeMux, cfg *core.Config, db *sql.DB, appRoot string) {
+	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/server-listening-stats"), func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			AuthMiddlewareWrapper(db, handleGetServerListeningStats(db)).ServeHTTP(w, r)
+		} else {
+			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
+		}
+	})
+
+	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/server-listening-sessions"), func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			AuthMiddlewareWrapper(db, handleGetServerListeningSessions(db)).ServeHTTP(w, r)
+		} else {
+			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
+		}
+	})
+
 	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/stats/year/"), func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
 			AuthMiddlewareWrapper(db, handleGetAdminStatsForYear(db)).ServeHTTP(w, r)
