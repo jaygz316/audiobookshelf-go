@@ -91,11 +91,133 @@ export async function initPublicShare(slug) {
         downloadBtn.classList.add('hidden');
       }
 
-      // Setup audio streaming if there's audio files
-      const audioFiles = media.audioFiles || [];
-      if (audioFiles.length > 0 || item.mediaType === 'book' || item.mediaType === 'podcast') {
+      // Setup audio streaming / playlist
+      let tracks = [];
+      if (item.mediaType === 'book' && media.audioFiles) {
+        tracks = media.audioFiles.map((af, idx) => {
+          const filename = af.metadata?.filename || `Track ${idx + 1}`;
+          const title = af.metaTags?.tagTitle || filename;
+          return {
+            index: idx,
+            filename: filename,
+            title: title,
+            duration: af.duration || 0
+          };
+        });
+      } else if (item.mediaType === 'podcast' && media.episodes) {
+        tracks = media.episodes.map((ep, idx) => {
+          const filename = ep.audioFile?.metadata?.filename || '';
+          const title = ep.title || filename || `Episode ${idx + 1}`;
+          return {
+            index: idx,
+            filename: filename,
+            title: title,
+            duration: ep.duration || ep.audioFile?.duration || 0
+          };
+        });
+      }
+
+      const tracklistContainer = document.getElementById('public-share-tracklist-container');
+      const tracklistEl = document.getElementById('public-share-tracklist');
+      const playerTitleEl = document.getElementById('public-share-player-title');
+      
+      let currentTrackIndex = 0;
+
+      function formatDuration(seconds) {
+        if (!seconds || isNaN(seconds)) return '00:00';
+        const hrs = Math.floor(seconds / 3600);
+        const mins = Math.floor((seconds % 3600) / 60);
+        const secs = Math.floor(seconds % 60);
+        if (hrs > 0) {
+          return `${hrs}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }
+        return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+      }
+
+      function playTrack(idx, shouldPlay = true) {
+        if (idx < 0 || idx >= tracks.length) return;
+        currentTrackIndex = idx;
+        const track = tracks[idx];
+        
+        // Highlight active track
+        if (tracklistEl) {
+          const trackButtons = tracklistEl.querySelectorAll('button');
+          trackButtons.forEach((btn, i) => {
+            if (i === idx) {
+              btn.classList.add('bg-black-500', 'text-accent');
+              btn.classList.remove('text-black-100', 'hover:bg-black-500', 'hover:text-white');
+            } else {
+              btn.classList.remove('bg-black-500', 'text-accent');
+              btn.classList.add('text-black-100', 'hover:bg-black-500', 'hover:text-white');
+            }
+          });
+        }
+        
+        // Update Title
+        if (playerTitleEl) {
+          playerTitleEl.textContent = `Now Playing: ${track.title}`;
+        }
+        
+        // Load stream source
+        const passParam = password ? `&password=${encodeURIComponent(password)}` : '';
+        const trackParam = track.filename ? `&track=${encodeURIComponent(track.filename)}` : '';
+        audioEl.src = resolvePath(`/api/s/${slug}/stream?raw=1${passParam}${trackParam}`);
+        
+        if (shouldPlay) {
+          audioEl.play().catch(err => {
+            console.log("Auto-play prevented or failed:", err);
+          });
+        }
+      }
+
+      if (tracks.length > 0) {
+        audioPlayerContainer.classList.remove('hidden');
+        
+        // Render tracklist if multiple tracks
+        if (tracks.length > 1 && tracklistContainer && tracklistEl) {
+          tracklistContainer.classList.remove('hidden');
+          tracklistEl.innerHTML = '';
+          tracks.forEach((track, idx) => {
+            const trackItem = document.createElement('button');
+            trackItem.className = 'w-full text-left px-3 py-2 rounded flex justify-between items-center transition duration-150 text-black-100 hover:bg-black-500 hover:text-white focus:outline-none';
+            trackItem.dataset.index = idx;
+            
+            const titleSpan = document.createElement('span');
+            titleSpan.className = 'truncate pr-2 font-medium';
+            titleSpan.textContent = `${idx + 1}. ${track.title}`;
+            
+            const durSpan = document.createElement('span');
+            durSpan.className = 'text-xs text-black-300 flex-shrink-0';
+            durSpan.textContent = formatDuration(track.duration);
+            
+            trackItem.appendChild(titleSpan);
+            trackItem.appendChild(durSpan);
+            
+            trackItem.onclick = () => {
+              playTrack(idx, true);
+            };
+            
+            tracklistEl.appendChild(trackItem);
+          });
+        } else if (tracklistContainer) {
+          tracklistContainer.classList.add('hidden');
+        }
+
+        // Initialize first track but do not force autoplay immediately on page load
+        playTrack(0, false);
+
+        // Auto-advance track on end
+        audioEl.onended = () => {
+          if (currentTrackIndex + 1 < tracks.length) {
+            playTrack(currentTrackIndex + 1, true);
+          }
+        };
+      } else if (item.mediaType === 'book' || item.mediaType === 'podcast') {
+        // Fallback if tracks array is empty but metadata specifies it is streamable
         audioEl.src = resolvePath(`/api/s/${slug}/stream${query ? query : ''}`);
         audioPlayerContainer.classList.remove('hidden');
+        if (tracklistContainer) tracklistContainer.classList.add('hidden');
+        if (playerTitleEl) playerTitleEl.textContent = 'Streaming Preview';
       } else {
         audioPlayerContainer.classList.add('hidden');
       }
