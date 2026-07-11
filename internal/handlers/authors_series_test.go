@@ -879,3 +879,64 @@ func TestUpdateSeries(t *testing.T) {
 		t.Errorf("Series details not updated correctly: name=%q, nameIgnorePrefix=%q, description=%q", name, nameIgnorePrefix, description)
 	}
 }
+
+func TestHandleAutoNumberSeries(t *testing.T) {
+	db := setupTestDBShared(t)
+	defer db.Close()
+
+	// 1. Insert series
+	_, _ = db.Exec(`INSERT INTO series (id, name, nameIgnorePrefix, description, libraryId) VALUES ('series1', 'Test Series', 'Test Series', 'Test description', 'lib1')`)
+
+	// 2. Insert books in the series
+	// book1: pubYear 2020, title "B book"
+	// book2: pubYear 2010, title "A book"
+	// book3: pubYear 2020, title "C book"
+	_, _ = db.Exec(`INSERT INTO books (id, title, publishedYear) VALUES ('book1', 'B book', '2020')`)
+	_, _ = db.Exec(`INSERT INTO books (id, title, publishedYear) VALUES ('book2', 'A book', '2010')`)
+	_, _ = db.Exec(`INSERT INTO books (id, title, publishedYear) VALUES ('book3', 'C book', '2020')`)
+
+	// Link books to series in bookSeries
+	_, _ = db.Exec(`INSERT INTO bookSeries (bookId, seriesId, sequence) VALUES ('book1', 'series1', '99')`)
+	_, _ = db.Exec(`INSERT INTO bookSeries (bookId, seriesId, sequence) VALUES ('book2', 'series1', '98')`)
+	_, _ = db.Exec(`INSERT INTO bookSeries (bookId, seriesId, sequence) VALUES ('book3', 'series1', '97')`)
+
+	// 3. Make auto-number request
+	handler := handleAutoNumberSeries(db, "series1")
+	req := httptest.NewRequest("POST", "/api/series/series1/auto-number", nil)
+
+	user := &core.UserSession{
+		ID:                 "user1",
+		Username:           "admin",
+		Type:               "admin",
+		IsActive:           true,
+		AccessAllLibraries: true,
+	}
+	req = req.WithContext(context.WithValue(req.Context(), core.UserContextKey, user))
+
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("Expected status 200, got %d. Body: %s", rr.Code, rr.Body.String())
+	}
+
+	// 4. Verify new sequences:
+	// Chronological order:
+	// - book2 (2010) => sequence should be "1"
+	// - book1 (2020, title "B book") => sequence should be "2"
+	// - book3 (2020, title "C book") => sequence should be "3"
+	var seq1, seq2, seq3 string
+	_ = db.QueryRow("SELECT sequence FROM bookSeries WHERE bookId = 'book2' AND seriesId = 'series1'").Scan(&seq1)
+	_ = db.QueryRow("SELECT sequence FROM bookSeries WHERE bookId = 'book1' AND seriesId = 'series1'").Scan(&seq2)
+	_ = db.QueryRow("SELECT sequence FROM bookSeries WHERE bookId = 'book3' AND seriesId = 'series1'").Scan(&seq3)
+
+	if seq1 != "1" {
+		t.Errorf("Expected book2 sequence to be '1', got %q", seq1)
+	}
+	if seq2 != "2" {
+		t.Errorf("Expected book1 sequence to be '2', got %q", seq2)
+	}
+	if seq3 != "3" {
+		t.Errorf("Expected book3 sequence to be '3', got %q", seq3)
+	}
+}

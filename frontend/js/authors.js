@@ -400,9 +400,15 @@ export async function loadSeriesDetails(seriesId) {
               <span class="material-symbols text-3xl text-accent">layers</span>
               <h2 class="text-3xl font-bold text-white">${escapeHtml(name)}</h2>
               ${window.currentUser?.type === 'root' || window.currentUser?.type === 'admin' ? `
-                <button id="edit-series-btn" class="px-3 py-1 bg-accent/20 text-accent hover:bg-accent/30 border border-accent/40 rounded text-xs font-semibold self-center transition-colors">
-                  Edit
-                </button>
+                <div class="flex items-center space-x-2">
+                  <button id="edit-series-btn" class="px-3 py-1 bg-accent/20 text-accent hover:bg-accent/30 border border-accent/40 rounded text-xs font-semibold self-center transition-colors">
+                    Edit
+                  </button>
+                  <button id="auto-number-series-btn" class="px-3 py-1 bg-accent/20 text-accent hover:bg-accent/30 border border-accent/40 rounded text-xs font-semibold self-center transition-colors flex items-center space-x-1">
+                    <span class="material-symbols text-[13px]">format_list_numbered</span>
+                    <span>Auto-Number</span>
+                  </button>
+                </div>
               ` : ''}
             </div>
             
@@ -467,6 +473,32 @@ export async function loadSeriesDetails(seriesId) {
     const editBtn = document.getElementById('edit-series-btn');
     if (editBtn) {
       editBtn.onclick = () => openEditSeriesModal(series);
+    }
+
+    const autoNumberBtn = document.getElementById('auto-number-series-btn');
+    if (autoNumberBtn) {
+      autoNumberBtn.onclick = async () => {
+        if (!confirm('Are you sure you want to automatically number all books in this series chronologically? This will overwrite existing sequences.')) {
+          return;
+        }
+        try {
+          autoNumberBtn.disabled = true;
+          autoNumberBtn.innerHTML = `
+            <div class="animate-spin rounded-full h-3 w-3 border border-t-transparent border-accent mr-1"></div>
+            <span>Auto-Numbering...</span>
+          `;
+          await request('POST', `/api/series/${series.id}/auto-number`);
+          showToast('Series auto-numbered successfully', 'success');
+          loadSeriesDetails(series.id);
+        } catch (err) {
+          showToast('Failed to auto-number: ' + err.message, 'error');
+          autoNumberBtn.disabled = false;
+          autoNumberBtn.innerHTML = `
+            <span class="material-symbols text-[13px]">format_list_numbered</span>
+            <span>Auto-Number</span>
+          `;
+        }
+      };
     }
 
   } catch (err) {
