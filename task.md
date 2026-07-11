@@ -1,29 +1,15 @@
-# Audiobookshelf Go Rewrite: Settings Tasks
+# Audiobookshelf Go Rewrite: Series and Author Bundling Tasks
 
-## R1. General Settings
-- [x] Store covers with item (`metadataCoverWithItem`)
-- [x] Store metadata with item (`metadataMarkdownWithItem`)
-- [x] Ignore prefixes when sorting (`sortingIgnorePrefix`)
+## Goal
+Implement a chronological series matrix on the series details page that groups books by their sequence number/position, allowing the user to cleanly see and track multiple narrator versions of the same title side-by-side or stacked.
 
-## R2. Scanner Settings
-- [x] Persistent scanner settings (`scannerParseSubtitles`, `scannerFindCovers`, `scannerCoverProvider`, `scannerPreferMatchedMetadata`)
-- [x] Automatically watch libraries for changes (`watchLibraryChanges`)
-
-## R3. Web Client Settings
-- [x] Chromecast support (`chromecastEnabled`)
-- [x] Allow embedding in an iframe (`allowIframe`)
-
-## R4. Display Settings
-- [x] Home page and library bookshelf view options (`homePageBookshelfView`, `libraryBookshelfView`)
-- [x] Date/Time Format & Default Server Language dropdowns (`dateFormat`, `timeFormat`, `language`)
-
-## R5. Security Settings
-- [x] Allowed CORS Origins (`allowedCorsOrigins`)
-
-## Acceptance Criteria
-- [x] UI layout and database persistence via GET/PATCH `/api/settings`
-- [x] Dynamic CORS handling
-- [x] Iframe block handling
-- [x] File watcher directory mapping adjustments
-- [x] Metadata cover path saving destination adjustments
-- [x] All backend unit and E2E integration tests compiling and passing
+## Implementation Details
+1. **Frontend Update** (`frontend/js/authors.js`):
+   - Modify the `loadSeriesDetails` function.
+   - Group the series items dynamically by their sequence.
+   - Sort sequences numerically.
+   - For each sequence, render a list of narrator versions side-by-side/stacked with their specific title, narrator details, publisher, and duration comparison.
+   - Add visual cues like book badges, schedule/duration indicators, and clean layout with modern colors.
+2. **Verification & Testing**:
+   - Re-build the frontend with `npm run generate`.
+   - Run tests `go test ./...` and `go test ./e2e/...` to verify nothing is broken.
