@@ -1067,6 +1067,44 @@ function triggerMatchModal(item, libraryId, mode, onSaveSuccess) {
     currentAuthor = item.media?.metadata?.author || '';
   }
 
+  // Deep Matching state trackers
+  const fieldValues = {
+    title: { label: 'Title', current: currentTitle, activeSource: 'current', options: { current: currentTitle } },
+    subtitle: { label: 'Subtitle', current: (item.media?.metadata?.subtitle || ''), activeSource: 'current', options: { current: (item.media?.metadata?.subtitle || '') } },
+    authors: { label: 'Authors', current: currentAuthor, activeSource: 'current', options: { current: currentAuthor }, type: 'array' },
+    narrators: { label: 'Narrators', current: (item.media?.metadata?.narrators || []).join(', '), activeSource: 'current', options: { current: (item.media?.metadata?.narrators || []).join(', ') }, type: 'array' },
+    publisher: { label: 'Publisher', current: (item.media?.metadata?.publisher || ''), activeSource: 'current', options: { current: (item.media?.metadata?.publisher || '') } },
+    publishedYear: { label: 'Published Year', current: (item.media?.metadata?.publishedYear || ''), activeSource: 'current', options: { current: (item.media?.metadata?.publishedYear || '') } },
+    description: { label: 'Description', current: (item.media?.metadata?.description || ''), activeSource: 'current', options: { current: (item.media?.metadata?.description || '') } },
+    isbn: { label: 'ISBN', current: (item.media?.metadata?.isbn || ''), activeSource: 'current', options: { current: (item.media?.metadata?.isbn || '') } },
+    asin: { label: 'ASIN', current: (item.media?.metadata?.asin || ''), activeSource: 'current', options: { current: (item.media?.metadata?.asin || '') } },
+    language: { label: 'Language', current: (item.media?.metadata?.language || ''), activeSource: 'current', options: { current: (item.media?.metadata?.language || '') } },
+    cover: { label: 'Cover Image', current: '', activeSource: 'current', options: { current: '' } }
+  };
+
+  const updateFieldOptions = (res, providerName) => {
+    const fieldsToUpdate = {
+      title: res.title,
+      subtitle: res.subtitle,
+      authors: res.authors?.join(', '),
+      narrators: res.narrators?.join(', '),
+      publisher: res.publisher,
+      publishedYear: res.publishedYear,
+      description: res.description,
+      isbn: res.isbn,
+      asin: res.asin,
+      language: res.language,
+      cover: res.coverUrl
+    };
+
+    for (const [key, val] of Object.entries(fieldsToUpdate)) {
+      if (val && String(val).trim().length > 0) {
+        fieldValues[key].options[providerName] = val;
+        fieldValues[key].activeSource = providerName;
+      }
+    }
+  };
+
   // Create Modal
   const modal = document.createElement('div');
   modal.className = 'fixed inset-0 bg-black-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 select-none';
@@ -1076,7 +1114,7 @@ function triggerMatchModal(item, libraryId, mode, onSaveSuccess) {
       <div class="flex justify-between items-center border-b border-black-400 pb-2 flex-shrink-0">
         <h3 class="text-lg font-bold text-white flex items-center space-x-2">
           <span class="material-symbols text-accent">${isCoverMode ? 'image' : 'find_replace'}</span>
-          <span>${isCoverMode ? 'Get Cover Art' : 'Match Book Details'}</span>
+          <span>${isCoverMode ? 'Get Cover Art' : 'Deep Multi-Provider Match'}</span>
         </h3>
         <button id="close-match-modal" class="text-black-100 hover:text-white transition-colors">
           <span class="material-symbols text-xl">close</span>
@@ -1115,9 +1153,9 @@ function triggerMatchModal(item, libraryId, mode, onSaveSuccess) {
 
       <!-- Selected Result Details (Import Options) -->
       <div id="match-details-container" class="flex-shrink-0 border-t border-black-400 pt-3 hidden space-y-3">
-        <h4 class="text-xs uppercase font-semibold text-white">Choose fields to import:</h4>
-        <div id="match-fields-checkboxes" class="grid grid-cols-2 sm:grid-cols-3 gap-2 p-3 bg-black-500/30 border border-black-300/30 rounded-md">
-          <!-- Dynamically populated checkboxes -->
+        <h4 class="text-xs uppercase font-semibold text-white">Granular Metadata Merging (Select source per field):</h4>
+        <div id="match-fields-checkboxes" class="grid grid-cols-1 gap-2 p-3 bg-black-500/30 border border-black-300/30 rounded-md">
+          <!-- Dynamically populated fields with source selector dropdowns -->
         </div>
       </div>
 
@@ -1168,8 +1206,6 @@ function triggerMatchModal(item, libraryId, mode, onSaveSuccess) {
         <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-accent"></div>
       </div>
     `;
-    detailsContainer.classList.add('hidden');
-    importBtn.classList.add('hidden');
     selectedResult = null;
 
     try {
@@ -1236,7 +1272,9 @@ function triggerMatchModal(item, libraryId, mode, onSaveSuccess) {
           await executeCoverImport(selectedResult, itemEl);
         } else {
           // Full metadata match mode: show checklist
-          showImportCheckboxes(selectedResult);
+          const providerName = providerSelect.options[providerSelect.selectedIndex]?.text || providerSelect.value;
+          updateFieldOptions(selectedResult, providerName);
+          renderMergedFieldsTable();
         }
       };
     });
@@ -1305,41 +1343,88 @@ function triggerMatchModal(item, libraryId, mode, onSaveSuccess) {
   }
 
   // Populate checkboxes
-  function showImportCheckboxes(res) {
+  function renderMergedFieldsTable() {
     detailsContainer.classList.remove('hidden');
     importBtn.classList.remove('hidden');
     importBtn.textContent = 'Import Selected';
 
-    const fields = [
-      { key: 'title', label: 'Title', value: res.title },
-      { key: 'subtitle', label: 'Subtitle', value: res.subtitle },
-      { key: 'authors', label: 'Authors', value: res.authors?.join(', ') },
-      { key: 'narrators', label: 'Narrators', value: res.narrators?.join(', ') },
-      { key: 'publisher', label: 'Publisher', value: res.publisher },
-      { key: 'publishedYear', label: 'Published Year', value: res.publishedYear },
-      { key: 'description', label: 'Description', value: res.description },
-      { key: 'isbn', label: 'ISBN', value: res.isbn },
-      { key: 'asin', label: 'ASIN', value: res.asin },
-      { key: 'language', label: 'Language', value: res.language },
-      { key: 'cover', label: 'Cover Image', value: res.coverUrl }
-    ];
+    checkboxesContainer.className = 'space-y-3 p-3 bg-black-500/30 border border-black-300/30 rounded-md max-h-[30vh] overflow-y-auto no-scroll';
 
-    checkboxesContainer.innerHTML = fields
-      .filter(f => f.value && String(f.value).trim().length > 0)
-      .map(f => `
-        <label class="flex items-center space-x-2 text-xs text-black-50 cursor-pointer hover:text-white transition-colors py-1 truncate" title="${escapeHtml(f.label)}: ${escapeHtml(f.value)}">
-          <input type="checkbox" id="match-cb-${f.key}" checked class="match-import-cb w-4 h-4 rounded text-accent bg-black-600 border-black-300 focus:ring-accent">
-          <span class="truncate">${escapeHtml(f.label)}</span>
-        </label>
-      `).join('');
+    checkboxesContainer.innerHTML = Object.entries(fieldValues).map(([key, f]) => {
+      const optionKeys = Object.keys(f.options).filter(optKey => {
+        const val = f.options[optKey];
+        return val !== undefined && val !== null && String(val).trim().length > 0;
+      });
+
+      // If only one option (current) and it's empty, we don't show it
+      if (optionKeys.length <= 1 && (!f.current || String(f.current).trim().length === 0)) {
+        return '';
+      }
+
+      const selectOptionsHtml = optionKeys.map(optKey => {
+        const isSelected = f.activeSource === optKey ? 'selected' : '';
+        const displaySource = optKey === 'current' ? 'Current Value' : optKey;
+        return `<option value="${escapeHtml(optKey)}" ${isSelected}>${escapeHtml(displaySource)}</option>`;
+      }).join('');
+
+      const activeValue = f.options[f.activeSource] || '';
+      let previewHtml = '';
+      if (key === 'cover' && activeValue) {
+        previewHtml = `<img src="${escapeHtml(activeValue)}" class="w-10 h-15 rounded object-cover border border-black-400 mt-1" alt="">`;
+      } else if (key === 'description' && activeValue) {
+        previewHtml = `<p class="text-[11px] text-black-100 mt-1 line-clamp-2" title="${escapeHtml(activeValue)}">${escapeHtml(activeValue)}</p>`;
+      } else if (activeValue) {
+        previewHtml = `<p class="text-[11px] text-black-100 mt-1 truncate">${escapeHtml(activeValue)}</p>`;
+      }
+
+      return `
+        <div class="flex flex-col space-y-1 pb-2 border-b border-black-400/30 last:border-b-0 last:pb-0">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-semibold text-white">${escapeHtml(f.label)}</span>
+            <select id="match-select-${key}" class="bg-black-600 text-white text-[11px] px-2 py-0.5 rounded border border-black-400 focus:outline-none focus:border-accent max-w-[150px]">
+              ${selectOptionsHtml}
+            </select>
+          </div>
+          <div id="match-preview-${key}">
+            ${previewHtml}
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    // Attach change listeners to update activeSource and preview
+    Object.keys(fieldValues).forEach(key => {
+      const selectEl = document.getElementById(`match-select-${key}`);
+      if (selectEl) {
+        selectEl.onchange = () => {
+          const newSource = selectEl.value;
+          fieldValues[key].activeSource = newSource;
+          
+          // Update preview
+          const previewEl = document.getElementById(`match-preview-${key}`);
+          if (previewEl) {
+            const activeValue = fieldValues[key].options[newSource] || '';
+            if (key === 'cover' && activeValue) {
+              previewEl.innerHTML = `<img src="${escapeHtml(activeValue)}" class="w-10 h-15 rounded object-cover border border-black-400 mt-1" alt="">`;
+            } else if (key === 'description' && activeValue) {
+              previewEl.innerHTML = `<p class="text-[11px] text-black-100 mt-1 line-clamp-2" title="${escapeHtml(activeValue)}">${escapeHtml(activeValue)}</p>`;
+            } else if (activeValue) {
+              previewEl.innerHTML = `<p class="text-[11px] text-black-100 mt-1 truncate">${escapeHtml(activeValue)}</p>`;
+            } else {
+              previewEl.innerHTML = '';
+            }
+          }
+        };
+      }
+    });
   }
 
   // Submit Handler
   importBtn.onclick = async (e) => {
     e.preventDefault();
-    if (!selectedResult) return;
 
     if (isCoverMode) {
+      if (!selectedResult) return;
       const selectedEl = resultsContainer.querySelector('.match-result-item.border-accent');
       await executeCoverImport(selectedResult, selectedEl);
     } else {
@@ -1350,37 +1435,49 @@ function triggerMatchModal(item, libraryId, mode, onSaveSuccess) {
       `;
 
       try {
-        // Full Metadata Match Mode
-        const cbChecked = (key) => {
-          const el = document.getElementById(`match-cb-${key}`);
-          return el ? el.checked : false;
+        // Helper to get selected value
+        const getSelectedValue = (key) => {
+          const f = fieldValues[key];
+          return f.options[f.activeSource];
         };
 
-        // If cover is checked, download it first
-        if (cbChecked('cover') && selectedResult.coverUrl) {
+        // If cover is checked and selected source is not current, download it first
+        const selectedCover = getSelectedValue('cover');
+        if (fieldValues.cover.activeSource !== 'current' && selectedCover) {
           try {
-            await request('POST', `/api/items/${item.id}/cover-from-url`, { coverUrl: selectedResult.coverUrl });
+            await request('POST', `/api/items/${item.id}/cover-from-url`, { coverUrl: selectedCover });
           } catch (coverErr) {
             console.error('Failed to import cover art:', coverErr);
-            // We can show a warning and continue with metadata import
+            // We can continue with metadata import
           }
         }
 
+        // Helper to check if a field is modified (activeSource is not current)
+        const getMergedVal = (key, defaultVal) => {
+          const f = fieldValues[key];
+          if (f.activeSource === 'current') return defaultVal;
+          const val = f.options[f.activeSource];
+          if (f.type === 'array') {
+            return val ? val.split(',').map(s => s.trim()).filter(Boolean) : [];
+          }
+          return val;
+        };
+
         // Construct PATCH payload (merging matching result with existing data)
         const payload = {
-          title: cbChecked('title') ? selectedResult.title : currentTitle,
-          subtitle: cbChecked('subtitle') ? selectedResult.subtitle : (item.media?.metadata?.subtitle || ''),
-          authors: cbChecked('authors') ? selectedResult.authors : (item.media?.metadata?.authors?.map(a => a.name || a) || (item.media?.metadata?.authorName ? [item.media.metadata.authorName] : [])),
-          narrators: cbChecked('narrators') ? selectedResult.narrators : (item.media?.metadata?.narrators || []),
+          title: getMergedVal('title', currentTitle),
+          subtitle: getMergedVal('subtitle', item.media?.metadata?.subtitle || ''),
+          authors: getMergedVal('authors', item.media?.metadata?.authors?.map(a => a.name || a) || (item.media?.metadata?.authorName ? [item.media.metadata.authorName] : [])),
+          narrators: getMergedVal('narrators', item.media?.metadata?.narrators || []),
           seriesName: item.media?.metadata?.series?.[0]?.name || item.media?.metadata?.seriesName || '',
           seriesSequence: item.media?.metadata?.series?.[0]?.sequence || '',
-          description: cbChecked('description') ? selectedResult.description : (item.media?.metadata?.description || ''),
-          publisher: cbChecked('publisher') ? selectedResult.publisher : (item.media?.metadata?.publisher || ''),
-          publishedYear: cbChecked('publishedYear') ? selectedResult.publishedYear : (item.media?.metadata?.publishedYear || ''),
+          description: getMergedVal('description', item.media?.metadata?.description || ''),
+          publisher: getMergedVal('publisher', item.media?.metadata?.publisher || ''),
+          publishedYear: getMergedVal('publishedYear', item.media?.metadata?.publishedYear || ''),
           publishedDate: item.media?.metadata?.publishedDate || '',
-          isbn: cbChecked('isbn') ? selectedResult.isbn : (item.media?.metadata?.isbn || ''),
-          asin: cbChecked('asin') ? selectedResult.asin : (item.media?.metadata?.asin || ''),
-          language: cbChecked('language') ? selectedResult.language : (item.media?.metadata?.language || ''),
+          isbn: getMergedVal('isbn', item.media?.metadata?.isbn || ''),
+          asin: getMergedVal('asin', item.media?.metadata?.asin || ''),
+          language: getMergedVal('language', item.media?.metadata?.language || ''),
           explicit: !!item.media?.metadata?.explicit,
           abridged: !!item.media?.metadata?.abridged,
           genres: item.media?.metadata?.genres || [],
