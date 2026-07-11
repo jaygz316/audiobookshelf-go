@@ -163,6 +163,7 @@ export function createCard(item, isContinue, libraryId) {
   const token = localStorage.getItem('token');
   const ts = item.updatedAt || item.addedAt || Date.now();
   const coverUrl = resolvePath(`/api/items/${item.id}/cover?token=${token}&ts=${ts}`);
+  const narrator = item.media?.metadata?.narratorName || '';
 
   card.innerHTML = `
     <img class="w-full h-full object-cover" src="${coverUrl}" alt="${escapeHtml(title)}" onerror="this.onerror=null; this.src='assets/images/logo.png'">
@@ -172,6 +173,7 @@ export function createCard(item, isContinue, libraryId) {
       <div class="overflow-y-auto no-scroll">
         <h4 class="font-semibold text-sm text-white leading-tight mb-1">${escapeHtml(title)}</h4>
         <p class="text-xs text-black-100">${escapeHtml(author)}</p>
+        ${narrator ? `<p class="text-[10px] text-accent mt-2 italic truncate" title="${escapeHtml(narrator)}">Narrated by: ${escapeHtml(narrator)}</p>` : ''}
       </div>
     </div>
   `;
