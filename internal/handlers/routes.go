@@ -447,6 +447,13 @@ func registerSearchRoutes(mux *http.ServeMux, cfg *core.Config, db *sql.DB) {
 			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
 		}
 	})
+	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/search/authors"), func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			AuthMiddlewareWrapper(db, http.HandlerFunc(handleSearchAuthors(db))).ServeHTTP(w, r)
+		} else {
+			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
+		}
+	})
 }
 
 func registerBackupRoutes(mux *http.ServeMux, cfg *core.Config, db *sql.DB) {
@@ -1270,7 +1277,7 @@ func handleAuthorsDispatch(db *sql.DB, cfg *core.Config) http.HandlerFunc {
 		} else if len(parts) == 2 && parts[1] == "match" {
 			authorID := parts[0]
 			if r.Method == http.MethodPost {
-				AuthMiddlewareWrapper(db, http.HandlerFunc(handleMatchAuthor(db, authorID))).ServeHTTP(w, r)
+				AuthMiddlewareWrapper(db, http.HandlerFunc(handleMatchAuthor(db, cfg, authorID))).ServeHTTP(w, r)
 				return
 			}
 		}

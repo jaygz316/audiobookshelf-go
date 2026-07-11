@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"html"
+	"io"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -113,3 +114,29 @@ func getWithRetry(ctx context.Context, client *safeurl.WrappedClient, urlStr str
 		return resp, nil
 	}
 }
+
+// DownloadURL downloads a URL using the safe HTTP client.
+func DownloadURL(ctx context.Context, urlStr string) ([]byte, error) {
+	resp, err := getWithRetry(ctx, safeHTTPClient, urlStr)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("bad status code: %d", resp.StatusCode)
+	}
+
+	data, err := io.ReadAll(io.LimitReader(resp.Body, 50*1024*1024))
+	if err != nil {
+		return nil, err
+	}
+	return data, nil
+}
+
+// SetSafeHTTPClientForTest overrides the global safe HTTP client for testing.
+func SetSafeHTTPClientForTest(client *safeurl.WrappedClient) {
+	safeHTTPClient = client
+}
+
+

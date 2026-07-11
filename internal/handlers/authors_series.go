@@ -3,6 +3,7 @@ package handlers
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -14,6 +15,7 @@ import (
 
 	"audiobookshelf/internal/core"
 	idb "audiobookshelf/internal/db"
+	"audiobookshelf/internal/providers"
 	iscanner "audiobookshelf/internal/scanner"
 	isocket "audiobookshelf/internal/socket"
 	"audiobookshelf/internal/utils"
@@ -657,12 +659,161 @@ func handleGetAuthorImage(db *sql.DB, metadataPath string, authorID string) http
 	}
 }
 
-// handleMatchAuthor stubs out author matching
-func handleMatchAuthor(db *sql.DB, authorID string) http.HandlerFunc {
+// handleMatchAuthor handles POST /api/authors/{id}/match
+func handleMatchAuthor(db *sql.DB, cfg *core.Config, authorID string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[Go] POST /api/authors/%s/match (stub)", authorID)
+		log.Printf("[Go] POST /api/authors/%s/match", authorID)
+
+		userVal := r.Context().Value(core.UserContextKey)
+		if userVal == nil {
+			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
+			return
+		}
+		user := userVal.(*core.UserSession)
+		if user.Type != "root" && user.Type != "admin" {
+			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
+			return
+		}
+
+		var payload struct {
+			ASIN     string `json:"asin"`
+			Provider string `json:"provider"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			http.Error(w, `{"error": "Invalid request body"}`, http.StatusBadRequest)
+			return
+		}
+
+		if payload.ASIN == "" {
+			http.Error(w, `{"error": "asin parameter is required"}`, http.StatusBadRequest)
+			return
+		}
+
+		initManagers(db)
+		prov, ok := globalFinder.Providers()["audnexus"]
+		if !ok {
+			http.Error(w, `{"error": "audnexus provider not registered"}`, http.StatusInternalServerError)
+			return
+		}
+		audnexus, ok := prov.(*providers.AudnexusProvider)
+		if !ok {
+			http.Error(w, `{"error": "failed to cast to AudnexusProvider"}`, http.StatusInternalServerError)
+			return
+		}
+
+		details, err := audnexus.AuthorRequest(r.Context(), payload.ASIN, "")
+		if err != nil {
+			log.Printf("[MatchAuthor] AuthorRequest failed: %v", err)
+			http.Error(w, fmt.Sprintf("Failed to fetch author details from provider: %v", err), http.StatusInternalServerError)
+			return
+		}
+		if details == nil {
+			http.Error(w, `{"error": "Author details not found on provider"}`, http.StatusNotFound)
+			return
+		}
+
+		// Download author image if present
+		localImagePath := ""
+		if details.Image != "" {
+			// Ensure metadata/authors folder exists
+			authorsDir := filepath.Join(cfg.MetadataPath, "authors")
+			if err := os.MkdirAll(authorsDir, 0755); err == nil {
+				imgBytes, downloadErr := providers.DownloadURL(r.Context(), details.Image)
+				if downloadErr == nil {
+					destFile := filepath.Join(authorsDir, authorID+".jpg")
+					if writeErr := os.WriteFile(destFile, imgBytes, 0644); writeErr == nil {
+						localImagePath = "authors/" + authorID + ".jpg"
+					} else {
+						log.Printf("[MatchAuthor] Warning: failed to write author image file: %v", writeErr)
+					}
+				} else {
+					log.Printf("[MatchAuthor] Warning: failed to download author image: %v", downloadErr)
+				}
+			} else {
+				log.Printf("[MatchAuthor] Warning: failed to create authors metadata dir: %v", err)
+			}
+		}
+
+		tx, err := db.Begin()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		defer tx.Rollback()
+
+		nowStr := time.Now().Format("2006-01-02 15:04:05.000")
+		lastFirst := utils.NameToLastFirst(details.Name)
+
+		if localImagePath != "" {
+			_, err = tx.Exec(`
+				UPDATE authors
+				SET name = ?, lastFirst = ?, asin = ?, description = ?, imagePath = ?, updatedAt = ?
+				WHERE id = ?
+			`, details.Name, lastFirst, details.ASIN, details.Description, localImagePath, nowStr, authorID)
+		} else {
+			_, err = tx.Exec(`
+				UPDATE authors
+				SET name = ?, lastFirst = ?, asin = ?, description = ?, updatedAt = ?
+				WHERE id = ?
+			`, details.Name, lastFirst, details.ASIN, details.Description, nowStr, authorID)
+		}
+
+		if err != nil {
+			http.Error(w, "Failed to update database: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		// Update linked libraryItems caches
+		rows, err := tx.Query("SELECT bookId FROM bookAuthors WHERE authorId = ?", authorID)
+		if err == nil {
+			var bookIDs []string
+			for rows.Next() {
+				var bid string
+				if err := rows.Scan(&bid); err == nil {
+					bookIDs = append(bookIDs, bid)
+				}
+			}
+			rows.Close()
+
+			for _, bid := range bookIDs {
+				var authorNames []string
+				var authorLastFirsts []string
+
+				arows, err := tx.Query(`
+					SELECT a.name, a.lastFirst
+					FROM authors a
+					JOIN bookAuthors ba ON ba.authorId = a.id
+					WHERE ba.bookId = ?
+				`, bid)
+				if err == nil {
+					for arows.Next() {
+						var aName, aLastFirst string
+						if err := arows.Scan(&aName, &aLastFirst); err == nil {
+							authorNames = append(authorNames, aName)
+							authorLastFirsts = append(authorLastFirsts, aLastFirst)
+						}
+					}
+					arows.Close()
+				}
+
+				authorNamesStr := strings.Join(authorNames, ", ")
+				authorLastFirstsStr := strings.Join(authorLastFirsts, ", ")
+
+				_, _ = tx.Exec(`
+					UPDATE libraryItems
+					SET authorNamesFirstLast = ?, authorNamesLastFirst = ?, updatedAt = ?
+					WHERE mediaId = ? AND mediaType = 'book'
+				`, authorNamesStr, authorLastFirstsStr, nowStr, bid)
+			}
+		}
+
+		if err := tx.Commit(); err != nil {
+			http.Error(w, "Failed to commit transaction: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+
 		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`{"updated": false}`))
+		w.Write([]byte(`{"updated": true}`))
 	}
 }
 

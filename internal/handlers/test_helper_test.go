@@ -8,6 +8,12 @@ import (
 )
 
 func setupTestDB(t testing.TB) *sql.DB {
+	globalFinder = nil
+	globalPlaylistManager = nil
+	globalShareManager = nil
+	globalFeedManager = nil
+	globalPodcastManager = nil
+
 	db, err := sql.Open("sqlite", ":memory:")
 	if err != nil {
 		t.Fatalf("Failed to open memory db: %v", err)
