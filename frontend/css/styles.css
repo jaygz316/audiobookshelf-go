@@ -5370,3 +5370,45 @@ google-cast-launcher {
   --disconnected-color: rgba(255, 255, 255, 0.5) !important;
 }
 
+/* Custom Themes for Audiobookshelf */
+:root[data-theme="light"] {
+  --color-bg: #f3f4f6;
+  --color-primary: #ffffff;
+  --color-accent: #059669;
+  --color-white: #111827;
+  --color-black: #ffffff;
+  --color-black-50: #4b5563;
+  --color-black-100: #6b7280;
+  --color-black-200: #9ca3af;
+  --color-black-300: #d1d5db;
+  --color-black-400: #e5e7eb;
+  --color-black-500: #f3f4f6;
+  --color-black-600: #f9fafb;
+  --color-black-700: #ffffff;
+}
+
+:root[data-theme="sepia"] {
+  --color-bg: #e9dfc4;
+  --color-primary: #f4ecd8;
+  --color-accent: #b8860b;
+  --color-white: #5b4636;
+  --color-black: #f4ecd8;
+  --color-black-50: #8b7355;
+  --color-black-100: #a0886c;
+  --color-black-200: #cfc2a9;
+  --color-black-300: #dfd5be;
+  --color-black-400: #e9dfc4;
+  --color-black-500: #f4ecd8;
+  --color-black-600: #e9dfc4;
+  --color-black-700: #dfd5be;
+}
+
+/* Specific component overrides for light/sepia themes */
+[data-theme="light"] select, [data-theme="light"] input, [data-theme="light"] textarea {
+  color: #111827 !important;
+}
+[data-theme="sepia"] select, [data-theme="sepia"] input, [data-theme="sepia"] textarea {
+  color: #5b4636 !important;
+}
+
+

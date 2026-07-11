@@ -66,6 +66,8 @@ type ServerSettings struct {
 	DateFormat                   string             `json:"dateFormat"`
 	TimeFormat                   string             `json:"timeFormat"`
 	AllowedCorsOrigins           string             `json:"allowedCorsOrigins"`
+	Theme                        string             `json:"theme"`
+	CustomCSS                    string             `json:"customCss"`
 }
 
 // GetServerSettings reads the server settings from the settings table.
@@ -86,6 +88,7 @@ func GetServerSettings(database *sql.DB) (*ServerSettings, error) {
 	settings.WatchLibraryChanges = true
 	settings.DateFormat = "MM/DD/YYYY"
 	settings.TimeFormat = "HH:mm"
+	settings.Theme = "dark"
 
 	if err := json.Unmarshal([]byte(valStr), &settings); err != nil {
 		return nil, err
@@ -97,6 +100,9 @@ func GetServerSettings(database *sql.DB) (*ServerSettings, error) {
 	}
 	if settings.Language == "" {
 		settings.Language = "en-us"
+	}
+	if settings.Theme == "" {
+		settings.Theme = "dark"
 	}
 
 	return &settings, nil

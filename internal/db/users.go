@@ -331,6 +331,12 @@ func GetUserLoginPayload(ctx context.Context, db *sql.DB, user *User) (map[strin
 	if browserSettings["authActiveAuthMethods"] == nil {
 		browserSettings["authActiveAuthMethods"] = []string{"local"}
 	}
+	if browserSettings["theme"] == nil || browserSettings["theme"] == "" {
+		browserSettings["theme"] = "dark"
+	}
+	if browserSettings["customCss"] == nil {
+		browserSettings["customCss"] = ""
+	}
 
 	// 2. Get libraries filtered by user's access
 	userSess := &core.UserSession{

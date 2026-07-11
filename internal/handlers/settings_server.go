@@ -241,6 +241,12 @@ func sanitizeBrowserSettings(settings map[string]interface{}) map[string]interfa
 	if browserSettings["authActiveAuthMethods"] == nil {
 		browserSettings["authActiveAuthMethods"] = []string{"local"}
 	}
+	if browserSettings["theme"] == nil || browserSettings["theme"] == "" {
+		browserSettings["theme"] = "dark"
+	}
+	if browserSettings["customCss"] == nil {
+		browserSettings["customCss"] = ""
+	}
 	return browserSettings
 }
 
