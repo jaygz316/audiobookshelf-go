@@ -80,17 +80,35 @@ func TestF4AuthorsAndSeries(t *testing.T) {
 	resp.Body.Close()
 	libraryID := createdLib["id"].(string)
 
-	// 2. Populate book with tags to scan
+	// 2. Populate books with tags to scan
 	bookDir := filepath.Join(libraryPath, "F4Book")
 	err = os.MkdirAll(bookDir, 0755)
 	if err != nil {
 		t.Fatalf("Failed to create book directory: %v", err)
 	}
-
-	// Generate 1 mock audio file with tags
 	err = GenerateMockAudio(filepath.Join(bookDir, "01_intro.mp3"), "Intro Track", "Author F4", "Series F4", "1", "2026")
 	if err != nil {
 		t.Fatalf("Failed to generate audio track: %v", err)
+	}
+
+	bookDir2 := filepath.Join(libraryPath, "F4Book2")
+	err = os.MkdirAll(bookDir2, 0755)
+	if err != nil {
+		t.Fatalf("Failed to create book directory 2: %v", err)
+	}
+	err = GenerateMockAudio(filepath.Join(bookDir2, "track.mp3"), "Fellowship (Narrated by Rob Inglis)", "Author F4", "Series F4", "99", "1954")
+	if err != nil {
+		t.Fatalf("Failed to generate audio track 2: %v", err)
+	}
+
+	bookDir3 := filepath.Join(libraryPath, "F4Book3")
+	err = os.MkdirAll(bookDir3, 0755)
+	if err != nil {
+		t.Fatalf("Failed to create book directory 3: %v", err)
+	}
+	err = GenerateMockAudio(filepath.Join(bookDir3, "track.mp3"), "Fellowship (Narrated by Andy Serkis)", "Author F4", "Series F4", "98", "1954")
+	if err != nil {
+		t.Fatalf("Failed to generate audio track 3: %v", err)
 	}
 
 	// Trigger Scan
@@ -115,15 +133,15 @@ func TestF4AuthorsAndSeries(t *testing.T) {
 			respList.Body.Close()
 			if listResp["results"] != nil {
 				items = listResp["results"].([]interface{})
-				if len(items) > 0 {
+				if len(items) >= 3 {
 					break
 				}
 			}
 		}
 	}
 
-	if len(items) != 1 {
-		t.Fatalf("Expected exactly 1 scanned item, got %d", len(items))
+	if len(items) != 3 {
+		t.Fatalf("Expected exactly 3 scanned items, got %d", len(items))
 	}
 
 	// 3. Test: List and retrieve Authors (Tier 1 & Tier 2)
@@ -312,4 +330,68 @@ func TestF4AuthorsAndSeries(t *testing.T) {
 			t.Errorf("Expected status 404 for nonexistent series, got %d", respGet.StatusCode)
 		}
 	})
+
+	t.Run("POST /api/series/:seriesId/auto-number - Verify grouping and ordering", func(t *testing.T) {
+		if seriesID == "" {
+			t.Skip("No series ID found from scan")
+		}
+
+		reqAutoNum, _ := http.NewRequest("POST", h.BaseURL+"/api/series/"+seriesID+"/auto-number", nil)
+		reqAutoNum.Header.Set("Authorization", "Bearer "+adminToken)
+		respAutoNum, err := client.Do(reqAutoNum)
+		if err != nil {
+			t.Fatalf("POST auto-number failed: %v", err)
+		}
+		defer respAutoNum.Body.Close()
+
+		if respAutoNum.StatusCode != http.StatusOK {
+			t.Fatalf("Expected auto-number response status 200, got %d", respAutoNum.StatusCode)
+		}
+
+		// Now query the books in the series to verify their sequence values
+		reqItems, _ := http.NewRequest("GET", h.BaseURL+"/api/libraries/"+libraryID+"/items?filter=series."+seriesID, nil)
+		reqItems.Header.Set("Authorization", "Bearer "+adminToken)
+		respItems, err := client.Do(reqItems)
+		if err != nil {
+			t.Fatalf("Failed to fetch library items for series: %v", err)
+		}
+		defer respItems.Body.Close()
+
+		var payload map[string]interface{}
+		json.NewDecoder(respItems.Body).Decode(&payload)
+		results := payload["results"].([]interface{})
+
+		// Expected sequences:
+		// - "Fellowship (Narrated by Rob Inglis)" and "Fellowship (Narrated by Andy Serkis)" should both be sequence "1"
+		// - "Intro Track" should be sequence "2"
+		for _, rawItem := range results {
+			item := rawItem.(map[string]interface{})
+			media := item["media"].(map[string]interface{})
+			metadata := media["metadata"].(map[string]interface{})
+			title := metadata["title"].(string)
+			
+			// Find series sequence in the series list of this item
+			var sequence string
+			seriesList := metadata["series"].([]interface{})
+			for _, rawSeries := range seriesList {
+				seriesMap := rawSeries.(map[string]interface{})
+				if seriesMap["id"] == seriesID {
+					if seq, ok := seriesMap["sequence"].(string); ok {
+						sequence = seq
+					}
+				}
+			}
+
+			if title == "Fellowship (Narrated by Rob Inglis)" || title == "Fellowship (Narrated by Andy Serkis)" {
+				if sequence != "1" {
+					t.Errorf("Expected sequence '1' for title %q, got %q", title, sequence)
+				}
+			} else if title == "Intro Track" {
+				if sequence != "2" {
+					t.Errorf("Expected sequence '2' for title %q, got %q", title, sequence)
+				}
+			}
+		}
+	})
 }
+
