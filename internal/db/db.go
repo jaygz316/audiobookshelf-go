@@ -542,6 +542,21 @@ func migrateDatabase(db *sql.DB) error {
 		}
 	}
 
+	// Migrate to create customMetadataProviders table if missing
+	var cmpExists int
+	err = db.QueryRow("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='customMetadataProviders'").Scan(&cmpExists)
+	if err != nil {
+		return fmt.Errorf("failed to check if customMetadataProviders table exists: %w", err)
+	}
+
+	if cmpExists == 0 {
+		log.Printf("[DB] Table customMetadataProviders does not exist, creating table")
+		_, err = db.Exec("CREATE TABLE customMetadataProviders (id TEXT PRIMARY KEY, name TEXT, mediaType TEXT, url TEXT, authHeaderValue TEXT, extraData TEXT, createdAt INTEGER, updatedAt INTEGER)")
+		if err != nil {
+			return fmt.Errorf("failed to create customMetadataProviders table: %w", err)
+		}
+	}
+
 	return nil
 }
 

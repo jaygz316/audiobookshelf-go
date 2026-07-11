@@ -34,6 +34,7 @@ func setupTestDB(t testing.TB) *sql.DB {
 		`CREATE TABLE collections (id TEXT PRIMARY KEY, name TEXT NOT NULL, description TEXT, createdAt TEXT, updatedAt TEXT, libraryId TEXT, displayOrder INTEGER)`,
 		`CREATE TABLE collectionBooks (id TEXT PRIMARY KEY, "order" INTEGER, createdAt TEXT, bookId TEXT, collectionId TEXT)`,
 		`CREATE TABLE feeds (id TEXT PRIMARY KEY, type TEXT, entityId TEXT, userId TEXT, serverAddress TEXT, createdAt TEXT, updatedAt TEXT)`,
+		`CREATE TABLE IF NOT EXISTS customMetadataProviders (id TEXT PRIMARY KEY, name TEXT, mediaType TEXT, url TEXT, authHeaderValue TEXT, extraData TEXT, createdAt INTEGER, updatedAt INTEGER)`,
 	}
 
 	for _, q := range queries {

@@ -41,7 +41,7 @@ func handleGetCustomMetadataProviders(db *sql.DB) http.HandlerFunc {
 		}
 		defer rows.Close()
 
-		var list []map[string]interface{}
+		list := []map[string]interface{}{}
 		for rows.Next() {
 			var id, name, mediaType, url string
 			var authHeaderVal, extraData, createdAt, updatedAt sql.NullString
