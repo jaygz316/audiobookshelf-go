@@ -5,7 +5,7 @@ export function getBasePath() {
   const segments = path.split('/');
   let basePath = '';
   // If path is e.g. "/audiobookshelf/" or "/audiobookshelf/index.html", segments[1] is "audiobookshelf"
-  if (segments.length > 1 && segments[1] && !segments[1].includes('.') && segments[1] !== 'index.html') {
+  if (segments.length > 1 && segments[1] && !segments[1].includes('.') && segments[1] !== 'index.html' && segments[1] !== 's') {
     basePath = '/' + segments[1];
   }
   return basePath;

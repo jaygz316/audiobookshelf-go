@@ -106,3 +106,42 @@ func handleDeleteShare(db *sql.DB, id string) http.HandlerFunc {
 		w.WriteHeader(http.StatusNoContent)
 	}
 }
+
+func handleGetShares(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		initManagers(db)
+
+		list, err := globalShareManager.GetShares(r.Context())
+		if err != nil {
+			log.Printf("[Share] GetShares failed: %v", err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		// Hydrate with audiobook/podcast media titles if possible!
+		type HydratedShare struct {
+			*share.ShareLink
+			MediaTitle string `json:"mediaTitle"`
+			MediaType  string `json:"mediaType"`
+		}
+
+		hydratedList := make([]HydratedShare, 0, len(list))
+		for _, s := range list {
+			var title, mediaType string
+			err := db.QueryRowContext(r.Context(), "SELECT title, mediaType FROM libraryItems WHERE id = ?", s.LibraryItemID).Scan(&title, &mediaType)
+			if err != nil {
+				title = "Unknown Item"
+			}
+			hydratedList = append(hydratedList, HydratedShare{
+				ShareLink:  s,
+				MediaTitle: title,
+				MediaType:  mediaType,
+			})
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(hydratedList)
+	}
+}
+

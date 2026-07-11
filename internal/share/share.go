@@ -147,6 +147,43 @@ func (m *ShareManager) GetShare(ctx context.Context, id string) (*ShareLink, err
 	return &s, nil
 }
 
+// GetShares retrieves all share links.
+func (m *ShareManager) GetShares(ctx context.Context) ([]*ShareLink, error) {
+	query := `
+		SELECT id, libraryItemId, createdBy, expiresAt, isDownloadable, pash, createdAt, updatedAt
+		FROM shares
+		ORDER BY createdAt DESC
+	`
+	rows, err := m.db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query share links: %w", err)
+	}
+	defer rows.Close()
+
+	var list []*ShareLink
+	for rows.Next() {
+		var s ShareLink
+		var expiresAtStr sql.NullString
+		var createdAtStr, updatedAtStr string
+		var isDownloadableInt int
+
+		err := rows.Scan(&s.ID, &s.LibraryItemID, &s.CreatedBy, &expiresAtStr, &isDownloadableInt, &s.PasswordHash, &createdAtStr, &updatedAtStr)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan share link row: %w", err)
+		}
+
+		s.IsDownloadable = isDownloadableInt != 0
+		s.CreatedAt, _ = parseTimeStr(createdAtStr)
+		s.UpdatedAt, _ = parseTimeStr(updatedAtStr)
+		if expiresAtStr.Valid && expiresAtStr.String != "" {
+			s.ExpiresAt, _ = parseTimeStr(expiresAtStr.String)
+		}
+
+		list = append(list, &s)
+	}
+	return list, nil
+}
+
 // ValidateSharePassword matches a plaintext password with the hashed credentials.
 func (m *ShareManager) ValidateSharePassword(ctx context.Context, id, password string) (bool, error) {
 	s, err := m.GetShare(ctx, id)
