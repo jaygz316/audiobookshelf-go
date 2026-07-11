@@ -221,27 +221,49 @@ func TestF4AuthorsAndSeries(t *testing.T) {
 		}
 	})
 
-	t.Run("POST /api/authors/:id/match - Verify stub", func(t *testing.T) {
+	t.Run("POST /api/authors/:id/match - Verify request validation", func(t *testing.T) {
 		if authorID == "" {
 			t.Skip("No author ID found from scan")
 		}
 
+		// 1. Test empty body
 		reqMatch, _ := http.NewRequest("POST", h.BaseURL+"/api/authors/"+authorID+"/match", nil)
 		reqMatch.Header.Set("Authorization", "Bearer "+adminToken)
 		respMatch, err := client.Do(reqMatch)
 		if err != nil {
 			t.Fatalf("POST author match failed: %v", err)
 		}
-		defer respMatch.Body.Close()
-
-		if respMatch.StatusCode != http.StatusOK {
-			t.Fatalf("POST author match status: %d", respMatch.StatusCode)
+		respMatch.Body.Close()
+		if respMatch.StatusCode != http.StatusBadRequest {
+			t.Errorf("Expected 400 Bad Request for empty body, got %d", respMatch.StatusCode)
 		}
 
-		var matchResp map[string]interface{}
-		json.NewDecoder(respMatch.Body).Decode(&matchResp)
-		if matchResp["updated"] != false {
-			t.Errorf("Expected updated=false from stub, got %v", matchResp["updated"])
+		// 2. Test missing ASIN in JSON
+		emptyJSON := bytes.NewBufferString(`{"provider": "audnexus"}`)
+		reqMatch2, _ := http.NewRequest("POST", h.BaseURL+"/api/authors/"+authorID+"/match", emptyJSON)
+		reqMatch2.Header.Set("Authorization", "Bearer "+adminToken)
+		reqMatch2.Header.Set("Content-Type", "application/json")
+		respMatch2, err := client.Do(reqMatch2)
+		if err != nil {
+			t.Fatalf("POST author match failed: %v", err)
+		}
+		respMatch2.Body.Close()
+		if respMatch2.StatusCode != http.StatusBadRequest {
+			t.Errorf("Expected 400 Bad Request for missing ASIN, got %d", respMatch2.StatusCode)
+		}
+
+		// 3. Test invalid ASIN format (should fail with internal error / invalid ASIN format)
+		badASINJSON := bytes.NewBufferString(`{"asin": "short", "provider": "audnexus"}`)
+		reqMatch3, _ := http.NewRequest("POST", h.BaseURL+"/api/authors/"+authorID+"/match", badASINJSON)
+		reqMatch3.Header.Set("Authorization", "Bearer "+adminToken)
+		reqMatch3.Header.Set("Content-Type", "application/json")
+		respMatch3, err := client.Do(reqMatch3)
+		if err != nil {
+			t.Fatalf("POST author match failed: %v", err)
+		}
+		respMatch3.Body.Close()
+		if respMatch3.StatusCode != http.StatusInternalServerError {
+			t.Errorf("Expected 500 Internal Server Error for invalid ASIN format, got %d", respMatch3.StatusCode)
 		}
 	})
 
