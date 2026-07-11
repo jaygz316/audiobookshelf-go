@@ -10,10 +10,23 @@ import { loadPlaylists } from './playlists.js';
 import { loadCollections } from './collections.js';
 import { loadAuthors, loadSeries, loadAuthorDetails, loadSeriesDetails } from './authors.js';
 import { loadStats } from './stats.js';
+import { initPublicShare } from './publicShare.js';
 
 document.addEventListener('DOMContentLoaded', () => {
   setupEventHandlers();
   
+  // Check if this is a public share path (/s/slug)
+  const path = window.location.pathname;
+  const segments = path.split('/');
+  const sIdx = segments.indexOf('s');
+  if (sIdx !== -1 && sIdx < segments.length - 1) {
+    const slug = segments[sIdx + 1];
+    if (slug) {
+      initPublicShare(slug);
+      return;
+    }
+  }
+
   // Initialize Auth on page load
   initAuth().then(payload => {
     if (payload) {

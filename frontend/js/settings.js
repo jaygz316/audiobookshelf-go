@@ -78,6 +78,7 @@ export async function loadSettings() {
         <button class="px-4 py-2 border-b-2 border-transparent hover:text-white text-black-50 focus:outline-none" data-tab="notifications">Notifications</button>
         <button class="px-4 py-2 border-b-2 border-transparent hover:text-white text-black-50 focus:outline-none" data-tab="feeds">RSS Feeds</button>
         <button class="px-4 py-2 border-b-2 border-transparent hover:text-white text-black-50 focus:outline-none" data-tab="emails">Email (E-Readers)</button>
+        <button class="px-4 py-2 border-b-2 border-transparent hover:text-white text-black-50 focus:outline-none" data-tab="shares">Public Shares</button>
       </div>
 
       <!-- Tab Contents -->
@@ -94,6 +95,7 @@ export async function loadSettings() {
         <div id="tab-notifications" class="space-y-6 hidden"></div>
         <div id="tab-feeds" class="space-y-6 hidden"></div>
         <div id="tab-emails" class="space-y-6 hidden"></div>
+        <div id="tab-shares" class="space-y-6 hidden"></div>
       </div>
     </div>
   `;
@@ -133,7 +135,8 @@ export async function loadSettings() {
     renderLogsTab(),
     renderNotificationsTab(),
     renderFeedsTab(),
-    renderEmailsTab()
+    renderEmailsTab(),
+    renderSharesTab()
   ]);
 }
 
@@ -2691,4 +2694,90 @@ function triggerEreaderDeviceModal(device = null, devices, users, settings) {
     }
   };
 }
+
+async function renderSharesTab() {
+  const container = document.getElementById('tab-shares');
+  if (!container) return;
+
+  container.innerHTML = `<div class="animate-spin rounded-full h-8 w-8 border-b-2 border-accent mx-auto"></div>`;
+
+  try {
+    const shares = await request('GET', '/api/shares');
+
+    container.innerHTML = `
+      <div class="space-y-4 text-left">
+        <div class="flex justify-between items-center">
+          <h3 class="text-lg font-semibold text-white">Active Share Links</h3>
+        </div>
+
+        <div class="border border-black-300 rounded-md bg-primary overflow-x-auto">
+          <table class="w-full text-left text-sm">
+            <thead>
+              <tr class="border-b border-black-400 text-black-100 text-xs uppercase">
+                <th class="px-4 py-3">Shared Item ID</th>
+                <th class="px-4 py-3">Slug / Link</th>
+                <th class="px-4 py-3">Downloadable</th>
+                <th class="px-4 py-3">Password Protected</th>
+                <th class="px-4 py-3">Expires At</th>
+                <th class="px-4 py-3 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="shares-list-rows" class="divide-y divide-black-400">
+              ${shares.length === 0 ? `
+                <tr>
+                  <td colspan="6" class="px-4 py-8 text-center text-black-100 text-xs">No active public share links found.</td>
+                </tr>
+              ` : shares.map(s => {
+                const shareUrl = `${window.location.origin}/s/${s.id}`;
+                const expiresStr = s.expiresAt ? (window.formatDateTime ? window.formatDateTime(s.expiresAt) : new Date(s.expiresAt).toLocaleString()) : 'Never';
+                return `
+                  <tr class="hover:bg-black-600/20 text-xs text-white">
+                    <td class="px-4 py-3 font-mono text-black-100">${escapeHtml(s.libraryItemId)}</td>
+                    <td class="px-4 py-3">
+                      <a href="${shareUrl}" target="_blank" class="text-accent hover:underline flex items-center space-x-1">
+                        <span>/s/${escapeHtml(s.id)}</span>
+                        <span class="material-symbols text-xs">open_in_new</span>
+                      </a>
+                    </td>
+                    <td class="px-4 py-3">${s.isDownloadable ? 'Yes' : 'No'}</td>
+                    <td class="px-4 py-3">${s.hasPassword ? 'Yes' : 'No'}</td>
+                    <td class="px-4 py-3 text-black-100">${expiresStr}</td>
+                    <td class="px-4 py-3 text-right">
+                      <button data-id="${s.id}" class="delete-share-btn bg-red-950 hover:bg-red-900 border border-red-500/50 hover:border-red-500 text-red-100 px-2.5 py-1 rounded text-xs transition-colors flex items-center space-x-1 ml-auto">
+                        <span class="material-symbols text-xs">delete</span>
+                        <span>Revoke</span>
+                      </button>
+                    </td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `;
+
+    // Bind delete events
+    container.querySelectorAll('.delete-share-btn').forEach(btn => {
+      btn.onclick = async () => {
+        const id = btn.getAttribute('data-id');
+        if (!confirm('Are you sure you want to revoke and delete this public share link? Any existing links will immediately stop working.')) {
+          return;
+        }
+        try {
+          await request('DELETE', `/api/share/mediaitem/${id}`);
+          alert('Share link revoked successfully');
+          renderSharesTab();
+        } catch (err) {
+          alert('Failed to revoke share link: ' + err.message);
+        }
+      };
+    });
+
+  } catch (err) {
+    console.error(err);
+    container.innerHTML = `<div class="text-red-500 text-xs text-center py-4">Failed to load public shares: ${err.message}</div>`;
+  }
+}
+
 

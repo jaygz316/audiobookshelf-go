@@ -84,6 +84,60 @@
     </div>
   </div>
 
+  <!-- Public Share Viewer -->
+  <div id="public-share-screen" class="w-full h-screen flex items-center justify-center bg-bg relative z-50 hidden">
+    <!-- Outer Card -->
+    <div id="public-share-card" class="w-full max-w-2xl bg-primary rounded-lg shadow-2xl border border-black-600/50 p-8 flex flex-col md:flex-row items-center md:items-start space-y-6 md:space-y-0 md:space-x-8">
+      
+      <!-- Left side: Cover Image -->
+      <div class="w-48 h-72 flex-shrink-0 bg-black-700 rounded-md overflow-hidden shadow-md border border-black-600 flex items-center justify-center relative">
+        <img id="public-share-cover" src="" alt="Book Cover" class="w-full h-full object-cover hidden">
+        <span id="public-share-cover-placeholder" class="material-symbols text-6xl text-black-400">book</span>
+      </div>
+
+      <!-- Right side: Book Metadata & Controls -->
+      <div class="flex-grow flex flex-col h-full justify-between w-full">
+        <div>
+          <h2 id="public-share-title" class="text-3xl font-bold tracking-wide mb-1 text-center md:text-left">Book Title</h2>
+          <p id="public-share-author" class="text-lg text-accent font-medium mb-4 text-center md:text-left">Author Name</p>
+          <div id="public-share-narrator-div" class="text-sm text-black-100 mb-4 text-center md:text-left hidden">
+            <span>Narrated by: </span><span id="public-share-narrator" class="font-medium text-white">Narrators</span>
+          </div>
+          <p id="public-share-description" class="text-sm text-black-100 line-clamp-6 mb-6 leading-relaxed text-center md:text-left">No description available.</p>
+        </div>
+
+        <!-- Password Screen inside Card if not authorized -->
+        <div id="public-share-lock-container" class="w-full hidden">
+          <p class="text-xs font-semibold text-black-100 uppercase tracking-wider mb-2">This share is password protected</p>
+          <form id="public-share-password-form" class="flex space-x-2">
+            <input type="password" id="public-share-password-input" placeholder="Enter password" required
+              class="flex-grow bg-black-500 text-white px-3 py-2 rounded border border-black-300 focus:outline-none focus:border-accent text-sm">
+            <button type="submit" class="bg-accent hover:opacity-90 text-primary font-bold px-5 py-2 rounded transition duration-150 text-sm">
+              Unlock
+            </button>
+          </form>
+          <p id="public-share-password-error" class="text-red-500 text-xs mt-2 hidden">Incorrect password. Please try again.</p>
+        </div>
+
+        <!-- Action Controls -->
+        <div id="public-share-actions-container" class="w-full flex flex-col space-y-3 hidden">
+          <!-- Download Button -->
+          <a id="public-share-download-btn" href="" download class="w-full bg-accent hover:opacity-90 text-primary font-bold py-3 rounded flex items-center justify-center space-x-2 transition duration-150">
+            <span class="material-symbols">download</span>
+            <span>Download Book</span>
+          </a>
+
+          <!-- Simple Audio Preview/Player -->
+          <div id="public-share-audio-player-container" class="w-full bg-black-600 rounded p-4 flex flex-col space-y-2.5 hidden">
+            <audio id="public-share-audio" class="w-full focus:outline-none" controls></audio>
+            <div class="text-xs text-black-200 text-center">In-browser Streaming</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
   <!-- Main Application Wrapper -->
   <div id="app-container" class="hidden h-full flex flex-col">
     <!-- Top Appbar -->
