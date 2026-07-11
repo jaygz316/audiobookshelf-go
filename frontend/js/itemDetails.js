@@ -405,6 +405,48 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
                 <div id="bookmarks-list-container"></div>
               </div>
             ` : ''}
+
+            <!-- Other Versions / Narrators Section -->
+            ${item.otherVersions && item.otherVersions.length > 0 ? `
+              <div id="details-other-versions-section" class="space-y-2 mt-4 text-left">
+                <div class="flex items-center justify-between border-b border-black-400 pb-1">
+                  <h3 class="font-bold text-sm text-white flex items-center space-x-1">
+                    <span class="material-symbols text-sm text-accent font-bold">library_books</span>
+                    <span>Other Versions / Narrators (${item.otherVersions.length})</span>
+                  </h3>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                  ${item.otherVersions.map(v => {
+                    const token = localStorage.getItem('token');
+                    const ts = Date.now();
+                    const vCoverUrl = v.coverPath 
+                      ? resolvePath(`/api/items/${v.id}/cover?token=${token}&ts=${ts}`)
+                      : 'assets/images/logo.png';
+                    const narratorsStr = v.narrators && v.narrators.length > 0 
+                      ? v.narrators.join(', ') 
+                      : 'Unknown Narrator';
+                    const durationStr = formatDuration(v.duration);
+                    return `
+                      <div class="other-version-card flex items-center space-x-3 p-2.5 rounded-md border border-black-400/50 bg-primary/10 hover:bg-black-500/40 cursor-pointer transition-all duration-200" data-id="${v.id}">
+                        <img src="${vCoverUrl}" class="w-10 h-14 object-cover rounded border border-black-400/60 flex-shrink-0" onerror="this.onerror=null; this.src='assets/images/logo.png'">
+                        <div class="min-w-0 flex-grow text-xs text-left">
+                          <p class="font-bold text-white truncate text-sm">${escapeHtml(v.title)}</p>
+                          ${v.subtitle ? `<p class="text-black-100 truncate mt-0.5">${escapeHtml(v.subtitle)}</p>` : ''}
+                          <p class="text-black-50 mt-1 flex items-center space-x-1">
+                            <span class="material-symbols text-[11px] text-accent">record_voice_over</span>
+                            <span class="truncate">${escapeHtml(narratorsStr)}</span>
+                          </p>
+                          <p class="text-black-100 mt-0.5 flex items-center space-x-1">
+                            <span class="material-symbols text-[11px] text-black-100">schedule</span>
+                            <span>${durationStr}</span>
+                          </p>
+                        </div>
+                      </div>
+                    `;
+                  }).join('')}
+                </div>
+              </div>
+            ` : ''}
           </div>
         </div>
       </div>
@@ -412,6 +454,12 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
 
     // Hook click events
     document.getElementById('details-back-btn').onclick = backCallback;
+
+    container.querySelectorAll('.other-version-card').forEach(card => {
+      card.onclick = () => {
+        loadItemDetails(card.dataset.id, libraryId, backCallback);
+      };
+    });
 
     container.querySelectorAll('.author-link').forEach(link => {
       link.onclick = (e) => {

@@ -1292,6 +1292,12 @@ func handleSeriesDispatch(db *sql.DB, cfg *core.Config) http.HandlerFunc {
 				AuthMiddlewareWrapper(db, http.HandlerFunc(handleUpdateSeries(db, seriesID))).ServeHTTP(w, r)
 				return
 			}
+		} else if len(parts) == 2 && parts[1] == "auto-number" {
+			seriesID := parts[0]
+			if r.Method == http.MethodPost {
+				AuthMiddlewareWrapper(db, http.HandlerFunc(handleAutoNumberSeries(db, seriesID))).ServeHTTP(w, r)
+				return
+			}
 		}
 
 		http.NotFound(w, r)
