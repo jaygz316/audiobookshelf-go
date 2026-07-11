@@ -1,5 +1,5 @@
 // js/stats.js
-import { request, resolvePath } from './api.js';
+import { request } from './api.js';
 
 export async function loadStats() {
   const opmlBtn = document.getElementById('opml-btn');
@@ -13,25 +13,50 @@ export async function loadStats() {
   const bookCount = document.getElementById('book-count');
   if (bookCount) bookCount.textContent = '';
 
-  container.innerHTML = `<div class="animate-spin rounded-full h-12 w-12 border-b-2 border-accent mx-auto mt-20"></div>`;
-
+  let activeTab = 'my';
+  let user = null;
   try {
-    const stats = await request('GET', '/api/me/listening-stats');
-    
-    // Format duration helper
-    const formatDuration = (seconds) => {
-      if (!seconds || seconds <= 0) return '0m';
-      const hours = Math.floor(seconds / 3600);
-      const minutes = Math.floor((seconds % 3600) / 60);
-      if (hours > 0) {
-        return `${hours}h ${minutes}m`;
-      }
-      if (minutes > 0) {
-        return `${minutes}m`;
-      }
-      return `${Math.round(seconds)}s`;
-    };
+    user = await request('GET', '/api/me');
+  } catch (e) {
+    console.error('Failed to get current user details', e);
+  }
+  const isAdmin = user && (user.type === 'root' || user.type === 'admin');
 
+  // Format duration helper
+  const formatDuration = (seconds) => {
+    if (!seconds || seconds <= 0) return '0m';
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    if (hours > 0) {
+      return `${hours}h ${minutes}m`;
+    }
+    if (minutes > 0) {
+      return `${minutes}m`;
+    }
+    return `${Math.round(seconds)}s`;
+  };
+
+  const fetchAndRender = async () => {
+    container.innerHTML = `<div class="animate-spin rounded-full h-12 w-12 border-b-2 border-accent mx-auto mt-20"></div>`;
+    try {
+      const url = activeTab === 'server' ? '/api/server-listening-stats' : '/api/me/listening-stats';
+      const stats = await request('GET', url);
+      renderUI(stats);
+    } catch (err) {
+      container.innerHTML = `
+        <div class="text-center py-20">
+          <span class="material-symbols text-5xl text-error mb-2">error</span>
+          <p class="text-white text-lg">Failed to load statistics</p>
+          <p class="text-black-100 text-sm mt-1">${err.message}</p>
+          <button id="retry-stats-btn" class="mt-6 bg-accent hover:opacity-90 text-primary font-bold px-4 py-2 rounded text-sm">Retry</button>
+        </div>
+      `;
+      const retryBtn = document.getElementById('retry-stats-btn');
+      if (retryBtn) retryBtn.onclick = fetchAndRender;
+    }
+  };
+
+  const renderUI = (stats) => {
     const totalTimeStr = formatDuration(stats.totalTime);
     const todayTimeStr = formatDuration(stats.today);
     
@@ -40,17 +65,52 @@ export async function loadStats() {
 
     // Calculate maximum time for normalization
     const maxDayOfWeek = Math.max(...Object.values(stats.dayOfWeek || {}), 1);
-    const daysList = Object.entries(stats.days || {}).sort((a, b) => b[0].localeCompare(a[0]));
-
+    
     // Day names mapping
     const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
+    // Group stats.days by Month
+    const monthsMap = {};
+    Object.entries(stats.days || {}).forEach(([dateStr, seconds]) => {
+      const monthStr = dateStr.substring(0, 7); // YYYY-MM
+      monthsMap[monthStr] = (monthsMap[monthStr] || 0) + seconds;
+    });
+    const monthsList = Object.entries(monthsMap).sort((a, b) => a[0].localeCompare(b[0])).slice(-6); // last 6 months
+    const maxMonthVal = Math.max(...monthsList.map(m => m[1]), 1);
+
+    // Top authors sorted
+    const topAuthorsList = Object.entries(stats.topAuthors || {})
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5);
+
+    // Top genres sorted
+    const topGenresList = Object.entries(stats.topGenres || {})
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5);
+
+    // Top users sorted (server wide)
+    const topUsersList = Object.entries(stats.topUsers || {})
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5);
+
+    let tabsHtml = '';
+    if (isAdmin) {
+      tabsHtml = `
+        <div class="flex space-x-4 border-b border-black-400 pb-2 mb-6">
+          <button id="tab-my-stats" class="px-4 py-2 text-sm font-semibold rounded-md transition-colors ${activeTab === 'my' ? 'bg-accent text-primary font-bold' : 'text-white hover:bg-black-500'}" data-tab="my">My Stats</button>
+          <button id="tab-server-stats" class="px-4 py-2 text-sm font-semibold rounded-md transition-colors ${activeTab === 'server' ? 'bg-accent text-primary font-bold' : 'text-white hover:bg-black-500'}" data-tab="server">Server Stats</button>
+        </div>
+      `;
+    }
+
     container.innerHTML = `
       <div class="p-6 max-w-6xl mx-auto space-y-8 text-white">
+        ${tabsHtml}
+
         <!-- 1. Header Overview Cards -->
         <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
           <div class="bg-primary border border-black-400 p-5 rounded-lg flex items-center space-x-4 shadow-md hover:shadow-lg transition-shadow">
-            <div class="p-3 bg-accent/10 rounded-full text-accent">
+            <div class="p-3 bg-accent/10 rounded-full text-accent flex items-center justify-center">
               <span class="material-symbols text-3xl">schedule</span>
             </div>
             <div>
@@ -60,7 +120,7 @@ export async function loadStats() {
           </div>
 
           <div class="bg-primary border border-black-400 p-5 rounded-lg flex items-center space-x-4 shadow-md hover:shadow-lg transition-shadow">
-            <div class="p-3 bg-accent/10 rounded-full text-accent">
+            <div class="p-3 bg-accent/10 rounded-full text-accent flex items-center justify-center">
               <span class="material-symbols text-3xl">today</span>
             </div>
             <div>
@@ -70,7 +130,7 @@ export async function loadStats() {
           </div>
 
           <div class="bg-primary border border-black-400 p-5 rounded-lg flex items-center space-x-4 shadow-md hover:shadow-lg transition-shadow">
-            <div class="p-3 bg-accent/10 rounded-full text-accent">
+            <div class="p-3 bg-accent/10 rounded-full text-accent flex items-center justify-center">
               <span class="material-symbols text-3xl">headphones</span>
             </div>
             <div>
@@ -80,7 +140,7 @@ export async function loadStats() {
           </div>
 
           <div class="bg-primary border border-black-400 p-5 rounded-lg flex items-center space-x-4 shadow-md hover:shadow-lg transition-shadow">
-            <div class="p-3 bg-accent/10 rounded-full text-accent">
+            <div class="p-3 bg-accent/10 rounded-full text-accent flex items-center justify-center">
               <span class="material-symbols text-3xl">history</span>
             </div>
             <div>
@@ -90,7 +150,7 @@ export async function loadStats() {
           </div>
         </div>
 
-        <!-- 2. Charts and Lists section -->
+        <!-- 2. Charts section -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
           <!-- Day of Week Chart -->
           <div class="bg-primary border border-black-400 p-6 rounded-lg shadow-md flex flex-col justify-between">
@@ -122,16 +182,52 @@ export async function loadStats() {
             </div>
           </div>
 
-          <!-- Top Items List -->
+          <!-- Monthly Listening Chart -->
+          <div class="bg-primary border border-black-400 p-6 rounded-lg shadow-md flex flex-col justify-between">
+            <div>
+              <h3 class="text-lg font-semibold mb-6 flex items-center space-x-2">
+                <span class="material-symbols text-accent text-xl">insights</span>
+                <span>Monthly Listening Trend</span>
+              </h3>
+              <div class="flex items-end justify-between h-48 pt-4 px-2">
+                ${monthsList.length === 0 ? `
+                  <div class="w-full text-center text-black-100 py-10">No monthly trends.</div>
+                ` : monthsList.map(([monthStr, val]) => {
+                  const pct = Math.max((val / maxMonthVal) * 100, 3);
+                  const formatted = formatDuration(val);
+                  const date = new Date(monthStr + '-02');
+                  const formattedMonth = isNaN(date.getTime()) ? monthStr : date.toLocaleDateString(undefined, { month: 'short', year: '2-digit' });
+                  return `
+                    <div class="flex flex-col items-center flex-1 group">
+                      <div class="relative w-full flex justify-center">
+                        <!-- Tooltip -->
+                        <span class="absolute bottom-full mb-2 bg-black-500 text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10">
+                          ${formatted}
+                        </span>
+                        <!-- Bar -->
+                        <div class="w-6 sm:w-8 bg-accent rounded-t transition-all duration-500 hover:bg-opacity-80" style="height: ${pct}px; max-height: 120px;"></div>
+                      </div>
+                      <span class="text-xs text-black-100 mt-2 font-mono">${formattedMonth}</span>
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. Top Stats Lists section -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <!-- Most Listened Items -->
           <div class="bg-primary border border-black-400 p-6 rounded-lg shadow-md">
             <h3 class="text-lg font-semibold mb-4 flex items-center space-x-2">
               <span class="material-symbols text-accent text-xl">grade</span>
               <span>Most Listened Items</span>
             </h3>
-            <div class="space-y-4 max-h-[220px] overflow-y-auto pr-2 no-scroll">
+            <div class="space-y-4 max-h-[250px] overflow-y-auto pr-2 no-scroll">
               ${itemsList.length === 0 ? `
                 <div class="text-center text-black-100 py-10">No items in history.</div>
-              ` : itemsList.sort((a, b) => b.timeListened - a.timeListened).map((item, idx) => {
+              ` : itemsList.sort((a, b) => b.timeListened - a.timeListened).slice(0, 5).map((item) => {
                 const totalSec = stats.totalTime || 1;
                 const progressPct = Math.round((item.timeListened / totalSec) * 100);
                 return `
@@ -151,9 +247,91 @@ export async function loadStats() {
               }).join('')}
             </div>
           </div>
+
+          <!-- Top Authors -->
+          <div class="bg-primary border border-black-400 p-6 rounded-lg shadow-md">
+            <h3 class="text-lg font-semibold mb-4 flex items-center space-x-2">
+              <span class="material-symbols text-accent text-xl">person</span>
+              <span>Top Authors</span>
+            </h3>
+            <div class="space-y-4 max-h-[250px] overflow-y-auto pr-2 no-scroll">
+              ${topAuthorsList.length === 0 ? `
+                <div class="text-center text-black-100 py-10">No author stats.</div>
+              ` : topAuthorsList.map(([author, seconds]) => {
+                const totalSec = stats.totalTime || 1;
+                const progressPct = Math.round((seconds / totalSec) * 100);
+                return `
+                  <div class="space-y-1">
+                    <div class="flex justify-between items-center text-sm">
+                      <span class="font-medium text-white truncate max-w-[70%]">${author}</span>
+                      <span class="text-xs font-mono text-accent">${formatDuration(seconds)}</span>
+                    </div>
+                    <div class="w-full bg-black-500 h-1.5 rounded-full overflow-hidden">
+                      <div class="bg-accent h-full rounded-full" style="width: ${progressPct}%"></div>
+                    </div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          </div>
+
+          <!-- Top Genres / Top Users -->
+          ${activeTab === 'server' ? `
+            <div class="bg-primary border border-black-400 p-6 rounded-lg shadow-md">
+              <h3 class="text-lg font-semibold mb-4 flex items-center space-x-2">
+                <span class="material-symbols text-accent text-xl">group</span>
+                <span>Top Users</span>
+              </h3>
+              <div class="space-y-4 max-h-[250px] overflow-y-auto pr-2 no-scroll">
+                ${topUsersList.length === 0 ? `
+                  <div class="text-center text-black-100 py-10">No user stats.</div>
+                ` : topUsersList.map(([username, seconds]) => {
+                  const totalSec = stats.totalTime || 1;
+                  const progressPct = Math.round((seconds / totalSec) * 100);
+                  return `
+                    <div class="space-y-1">
+                      <div class="flex justify-between items-center text-sm">
+                        <span class="font-medium text-white truncate max-w-[70%]">${username}</span>
+                        <span class="text-xs font-mono text-accent">${formatDuration(seconds)}</span>
+                      </div>
+                      <div class="w-full bg-black-500 h-1.5 rounded-full overflow-hidden">
+                        <div class="bg-accent h-full rounded-full" style="width: ${progressPct}%"></div>
+                      </div>
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+            </div>
+          ` : `
+            <div class="bg-primary border border-black-400 p-6 rounded-lg shadow-md">
+              <h3 class="text-lg font-semibold mb-4 flex items-center space-x-2">
+                <span class="material-symbols text-accent text-xl">sell</span>
+                <span>Top Genres</span>
+              </h3>
+              <div class="space-y-4 max-h-[250px] overflow-y-auto pr-2 no-scroll">
+                ${topGenresList.length === 0 ? `
+                  <div class="text-center text-black-100 py-10">No genre stats.</div>
+                ` : topGenresList.map(([genre, seconds]) => {
+                  const totalSec = stats.totalTime || 1;
+                  const progressPct = Math.round((seconds / totalSec) * 100);
+                  return `
+                    <div class="space-y-1">
+                      <div class="flex justify-between items-center text-sm">
+                        <span class="font-medium text-white truncate max-w-[70%]">${genre}</span>
+                        <span class="text-xs font-mono text-accent">${formatDuration(seconds)}</span>
+                      </div>
+                      <div class="w-full bg-black-500 h-1.5 rounded-full overflow-hidden">
+                        <div class="bg-accent h-full rounded-full" style="width: ${progressPct}%"></div>
+                      </div>
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+            </div>
+          `}
         </div>
 
-        <!-- 3. Recent Sessions List with pagination -->
+        <!-- 4. Recent Sessions List with pagination -->
         <div class="bg-primary border border-black-400 p-6 rounded-lg shadow-md">
           <div class="flex justify-between items-center mb-6">
             <h3 class="text-lg font-semibold flex items-center space-x-2">
@@ -167,6 +345,7 @@ export async function loadStats() {
               <thead>
                 <tr class="border-b border-black-400 text-black-100 font-medium">
                   <th class="pb-3 pr-4">Item</th>
+                  ${activeTab === 'server' ? '<th class="pb-3 pr-4">User</th>' : ''}
                   <th class="pb-3 pr-4">Date</th>
                   <th class="pb-3 pr-4">Device</th>
                   <th class="pb-3 pr-4">Play Method</th>
@@ -191,6 +370,18 @@ export async function loadStats() {
       </div>
     `;
 
+    // Hook tabs events
+    if (isAdmin) {
+      document.getElementById('tab-my-stats').onclick = () => {
+        activeTab = 'my';
+        fetchAndRender();
+      };
+      document.getElementById('tab-server-stats').onclick = () => {
+        activeTab = 'server';
+        fetchAndRender();
+      };
+    }
+
     // Paginate functions
     let currentPage = 0;
     const itemsPerPage = 10;
@@ -199,10 +390,11 @@ export async function loadStats() {
       const tableBody = document.getElementById('sessions-table-body');
       if (!tableBody) return;
 
-      tableBody.innerHTML = `<tr><td colspan="5" class="py-10 text-center"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-accent mx-auto"></div></td></tr>`;
+      tableBody.innerHTML = `<tr><td colspan="${activeTab === 'server' ? 6 : 5}" class="py-10 text-center"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-accent mx-auto"></div></td></tr>`;
 
       try {
-        const paginated = await request('GET', `/api/me/listening-sessions?page=${page}&itemsPerPage=${itemsPerPage}`);
+        const sessionsUrl = activeTab === 'server' ? `/api/server-listening-sessions?page=${page}&itemsPerPage=${itemsPerPage}` : `/api/me/listening-sessions?page=${page}&itemsPerPage=${itemsPerPage}`;
+        const paginated = await request('GET', sessionsUrl);
         const sessions = paginated.sessions || [];
         const total = paginated.total || 0;
         const totalPages = Math.max(Math.ceil(total / itemsPerPage), 1);
@@ -212,7 +404,7 @@ export async function loadStats() {
         document.getElementById('sessions-next-btn').disabled = (page >= totalPages - 1);
 
         if (sessions.length === 0) {
-          tableBody.innerHTML = `<tr><td colspan="5" class="py-10 text-center text-black-100">No sessions recorded yet. Start listening to generate stats!</td></tr>`;
+          tableBody.innerHTML = `<tr><td colspan="${activeTab === 'server' ? 6 : 5}" class="py-10 text-center text-black-100">No sessions recorded yet. Start listening to generate stats!</td></tr>`;
           return;
         }
 
@@ -235,6 +427,7 @@ export async function loadStats() {
                 ${sess.title || 'Unknown Item'}
                 ${sess.author ? `<span class="text-xs text-black-100 block truncate">by ${sess.author}</span>` : ''}
               </td>
+              ${activeTab === 'server' ? `<td class="py-3 pr-4 text-black-50">${sess.username || 'Unknown User'}</td>` : ''}
               <td class="py-3 pr-4 text-black-50">${dateStr}</td>
               <td class="py-3 pr-4 text-black-50">${sess.deviceInfo || 'Web Client'}</td>
               <td class="py-3 pr-4"><span class="bg-black-500 px-2 py-0.5 rounded text-xs border border-black-400 font-mono">${sess.playMethod || 'HLS'}</span></td>
@@ -243,7 +436,7 @@ export async function loadStats() {
           `;
         }).join('');
       } catch (err) {
-        tableBody.innerHTML = `<tr><td colspan="5" class="py-10 text-center text-error">Failed to load playback sessions.</td></tr>`;
+        tableBody.innerHTML = `<tr><td colspan="${activeTab === 'server' ? 6 : 5}" class="py-10 text-center text-error">Failed to load playback sessions.</td></tr>`;
       }
     };
 
@@ -261,17 +454,8 @@ export async function loadStats() {
 
     // Load initial table
     renderSessionsTable(0);
+  };
 
-  } catch (err) {
-    container.innerHTML = `
-      <div class="text-center py-20">
-        <span class="material-symbols text-5xl text-error mb-2">error</span>
-        <p class="text-white text-lg">Failed to load statistics</p>
-        <p class="text-black-100 text-sm mt-1">${err.message}</p>
-        <button id="retry-stats-btn" class="mt-6 bg-accent hover:opacity-90 text-primary font-bold px-4 py-2 rounded text-sm">Retry</button>
-      </div>
-    `;
-    const retryBtn = document.getElementById('retry-stats-btn');
-    if (retryBtn) retryBtn.onclick = loadStats;
-  }
+  // Initial load
+  await fetchAndRender();
 }

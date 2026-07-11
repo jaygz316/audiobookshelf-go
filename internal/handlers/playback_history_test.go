@@ -134,4 +134,39 @@ func TestListeningStatsAndHistory(t *testing.T) {
 			t.Errorf("Expected 200 OK, got %d", rr2.Code)
 		}
 	})
+
+	t.Run("GET /api/server-listening-stats permissions and result", func(t *testing.T) {
+		// Normal user tries to access server stats -> Forbidden
+		req := httptest.NewRequest("GET", "/api/server-listening-stats", nil)
+		req = req.WithContext(context.WithValue(req.Context(), core.UserContextKey, normalSession))
+		rr := httptest.NewRecorder()
+		handleGetServerListeningStats(db).ServeHTTP(rr, req)
+		if rr.Code != http.StatusForbidden {
+			t.Errorf("Expected 403 Forbidden, got %d", rr.Code)
+		}
+
+		// Admin/Root user tries to access server stats -> Success
+		req2 := httptest.NewRequest("GET", "/api/server-listening-stats", nil)
+		req2 = req2.WithContext(context.WithValue(req2.Context(), core.UserContextKey, rootSession))
+		rr2 := httptest.NewRecorder()
+		handleGetServerListeningStats(db).ServeHTTP(rr2, req2)
+		if rr2.Code != http.StatusOK {
+			t.Errorf("Expected 200 OK, got %d", rr2.Code)
+		}
+
+		var stats ServerListeningStatsResponse
+		if err := json.NewDecoder(rr2.Body).Decode(&stats); err != nil {
+			t.Fatalf("Failed to decode response: %v", err)
+		}
+
+		// TotalTime should be 180 (user-normal has 180, user-other has 0, root has 0)
+		if stats.TotalTime != 180.0 {
+			t.Errorf("Expected TotalTime 180.0, got %f", stats.TotalTime)
+		}
+
+		// TopUsers should contain normaluser with 180.0
+		if stats.TopUsers["normaluser"] != 180.0 {
+			t.Errorf("Expected top user normaluser 180.0, got %v", stats.TopUsers)
+		}
+	})
 }
