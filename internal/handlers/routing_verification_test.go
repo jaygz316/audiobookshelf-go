@@ -112,6 +112,34 @@ func TestRoutingAndEmbeddingDefaultBase(t *testing.T) {
 			t.Errorf("Expected fallback body to contain 'Audiobookshelf'")
 		}
 	}
+
+	// Test case F: Request manifest.json
+	{
+		req := httptest.NewRequest("GET", "/manifest.json", nil)
+		rr := httptest.NewRecorder()
+		handler.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusOK {
+			t.Errorf("Expected 200 OK for /manifest.json, got %d", rr.Code)
+		}
+		if !strings.Contains(rr.Header().Get("Content-Type"), "json") {
+			t.Errorf("Expected Content-Type containing json, got %q", rr.Header().Get("Content-Type"))
+		}
+	}
+
+	// Test case G: Request sw.js
+	{
+		req := httptest.NewRequest("GET", "/sw.js", nil)
+		rr := httptest.NewRecorder()
+		handler.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusOK {
+			t.Errorf("Expected 200 OK for /sw.js, got %d", rr.Code)
+		}
+		if !strings.Contains(rr.Header().Get("Content-Type"), "javascript") {
+			t.Errorf("Expected Content-Type javascript, got %q", rr.Header().Get("Content-Type"))
+		}
+	}
 }
 
 func TestRoutingAndEmbeddingCustomBase(t *testing.T) {
@@ -242,6 +270,34 @@ func TestRoutingAndEmbeddingCustomBase(t *testing.T) {
 		contentType := rr.Header().Get("Content-Type")
 		if !strings.Contains(contentType, "font/woff2") && !strings.Contains(contentType, "application/octet-stream") && !strings.Contains(contentType, "application/x-font-woff") {
 			t.Errorf("Expected woff2 content type, got %q", contentType)
+		}
+	}
+
+	// Test case H: Request /mybase/manifest.json (with custom base path prefix)
+	{
+		req := httptest.NewRequest("GET", "/mybase/manifest.json", nil)
+		rr := httptest.NewRecorder()
+		handler.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusOK {
+			t.Errorf("Expected 200 OK for /mybase/manifest.json, got %d", rr.Code)
+		}
+		if !strings.Contains(rr.Header().Get("Content-Type"), "json") {
+			t.Errorf("Expected Content-Type containing json, got %q", rr.Header().Get("Content-Type"))
+		}
+	}
+
+	// Test case I: Request /mybase/sw.js (with custom base path prefix)
+	{
+		req := httptest.NewRequest("GET", "/mybase/sw.js", nil)
+		rr := httptest.NewRecorder()
+		handler.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusOK {
+			t.Errorf("Expected 200 OK for /mybase/sw.js, got %d", rr.Code)
+		}
+		if !strings.Contains(rr.Header().Get("Content-Type"), "javascript") {
+			t.Errorf("Expected Content-Type javascript, got %q", rr.Header().Get("Content-Type"))
 		}
 	}
 }

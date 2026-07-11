@@ -9,6 +9,9 @@
   <link rel="stylesheet" href="css/styles.css">
   <!-- Google Cast Sender SDK -->
   <script src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1"></script>
+  
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#e88024">
 </head>
 <body class="text-white max-h-screen h-screen overflow-hidden bg-bg font-sans">
 
@@ -503,5 +506,18 @@
 
   <!-- Load JavaScript App Script -->
   <script type="module" src="js/app.js"></script>
+  
+  <!-- Service Worker registration -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        const basePath = window.location.pathname.endsWith('/') ? window.location.pathname : window.location.pathname + '/';
+        // Account for any potential subpath hosting context
+        navigator.serviceWorker.register('sw.js')
+          .then(reg => console.log('ServiceWorker registered successfully:', reg.scope))
+          .catch(err => console.error('ServiceWorker registration failed:', err));
+      });
+    }
+  </script>
 </body>
 </html>
