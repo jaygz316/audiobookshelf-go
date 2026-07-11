@@ -279,6 +279,21 @@ function bootstrapApp(payload) {
         }
       };
     }
+
+    const uploadBtn = document.getElementById('upload-btn');
+    if (uploadBtn) {
+      uploadBtn.classList.remove('hidden');
+      uploadBtn.onclick = () => {
+        const libId = getActiveLibraryId();
+        if (!libId) {
+          showToast('No active library selected to upload to', 'warning');
+          return;
+        }
+        import('./upload.js').then(module => {
+          module.openUploadModal(libId);
+        });
+      };
+    }
   }
 
   // Initialize library dropdown
@@ -419,4 +434,107 @@ window.formatDateTime = function(dateStr) {
 
   return `${datePart} ${timePart}`;
 };
+
+// Global Drag & Drop Handler for file/folder upload
+let dragOverlay = null;
+
+const showDragOverlay = () => {
+  if (dragOverlay) return;
+  dragOverlay = document.createElement('div');
+  dragOverlay.className = 'fixed inset-0 bg-accent/10 border-4 border-dashed border-accent z-50 flex flex-col items-center justify-center pointer-events-none backdrop-blur-[2px] transition-all';
+  dragOverlay.innerHTML = `
+    <div class="bg-primary/95 border border-black-300 rounded-lg p-6 shadow-2xl flex flex-col items-center max-w-sm text-center">
+      <span class="material-symbols text-5xl text-accent mb-2 animate-bounce">cloud_upload</span>
+      <h3 class="text-lg font-bold text-white mb-1">Upload to Audiobookshelf</h3>
+      <p class="text-xs text-black-100">Drop files or folders here to add them to your active library.</p>
+    </div>
+  `;
+  document.body.appendChild(dragOverlay);
+};
+
+const hideDragOverlay = () => {
+  if (dragOverlay) {
+    dragOverlay.remove();
+    dragOverlay = null;
+  }
+};
+
+window.addEventListener('dragover', (e) => {
+  const token = localStorage.getItem('token');
+  const userJson = localStorage.getItem('user');
+  let user = null;
+  try { user = userJson ? JSON.parse(userJson) : null; } catch(_) {}
+  if (!token || !user || (user.type !== 'root' && user.type !== 'admin')) return;
+
+  e.preventDefault();
+  showDragOverlay();
+});
+
+window.addEventListener('dragleave', (e) => {
+  if (e.clientX <= 0 || e.clientY <= 0 || e.clientX >= window.innerWidth || e.clientY >= window.innerHeight) {
+    hideDragOverlay();
+  }
+});
+
+async function getFilesFromEntry(entry, path = '') {
+  if (entry.isFile) {
+    const file = await new Promise((resolve, reject) => entry.file(resolve, reject));
+    return [{ file, path: path + file.name }];
+  } else if (entry.isDirectory) {
+    const dirReader = entry.createReader();
+    const entries = await new Promise((resolve, reject) => {
+      dirReader.readEntries(resolve, reject);
+    });
+    const filePromises = entries.map(childEntry => 
+      getFilesFromEntry(childEntry, path + entry.name + '/')
+    );
+    const results = await Promise.all(filePromises);
+    return results.flat();
+  }
+  return [];
+}
+
+window.addEventListener('drop', async (e) => {
+  const token = localStorage.getItem('token');
+  const userJson = localStorage.getItem('user');
+  let user = null;
+  try { user = userJson ? JSON.parse(userJson) : null; } catch(_) {}
+  if (!token || !user || (user.type !== 'root' && user.type !== 'admin')) return;
+
+  e.preventDefault();
+  hideDragOverlay();
+
+  const libId = getActiveLibraryId();
+  if (!libId) {
+    showToast('No active library selected to upload to', 'warning');
+    return;
+  }
+
+  const items = e.dataTransfer.items;
+  if (!items || items.length === 0) return;
+
+  const fileEntries = [];
+  for (let i = 0; i < items.length; i++) {
+    const entry = items[i].webkitGetAsEntry();
+    if (entry) {
+      fileEntries.push(entry);
+    }
+  }
+
+  if (fileEntries.length > 0) {
+    showToast('Processing dropped items...', 'info');
+    const filesList = [];
+    for (const entry of fileEntries) {
+      const files = await getFilesFromEntry(entry);
+      filesList.push(...files);
+    }
+    
+    if (filesList.length > 0) {
+      import('./upload.js').then(module => {
+        module.openUploadModal(libId, filesList);
+      });
+    }
+  }
+});
+
 
