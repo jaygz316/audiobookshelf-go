@@ -1,34 +1,30 @@
-# Plan: Implement Device & Session Management
+# Plan: Storage Path Isolation
 
 ## Objective
-Implement Device & Session Management to allow administrators and users to view, manage, and revoke active login sessions and authorized device tokens.
+Implement Storage Path Isolation feature, ensuring that metadata (e.g. `metadata.json`) and covers (e.g. `cover.jpg`) are saved to the centralized metadata directory rather than local ebook/audiobook directories if `MetadataMarkdownWithItem` or `MetadataCoverWithItem` are disabled.
 
-## Tasks
+## Status
+- **State**: Completed and verified.
+- **Verification**: Fully covered by `TestStoragePathIsolation` in `internal/scanner/scanner_test.go` and comprehensive package/E2E test suite.
 
-### 1. Database Helpers (Go)
-- Update `internal/db/users.go` to add:
-  - `GetUserSessions(db *sql.DB, userID string) ([]UserSessionDB, error)`: Query active sessions for a user from the `sessions` table.
-  - `DeleteSessionByID(db *sql.DB, sessionID string) error`: Remove a session from the `sessions` table.
+## Tasks & Changes
 
-### 2. Backend API Handlers (Go)
-- Update `internal/handlers/users.go` to implement:
-  - `GET /api/users/{id}/sessions` (or `GET /api/me/sessions` if ID is "me"): Returns a list of active login sessions for the specified user. Includes IP address, User-Agent, Created time, and whether it represents the current active connection.
-  - `DELETE /api/users/{id}/sessions/{sessionId}`: Revokes the specified session. If the revoked session is the current caller's session, they are logged out.
-- Update `internal/handlers/routes.go` to register the new endpoints under `registerAuthAndUserRoutes`.
+### 1. Centralized Metadata Path Injection
+- In `internal/handlers/routes.go`, captured the global `cfg.MetadataPath` into a package-level variable and exported/passed it to the scanner package as `scanner.MetadataPath` during application initialization.
 
-### 3. Frontend UI (HTML/JS)
-- Update `frontend/index.html` to add a new tab button/pane for **Login Sessions**.
-- Update `frontend/js/settings.js` to:
-  - Add navigation support for the `login-sessions` tab.
-  - Implement `renderLoginSessionsTab()` to fetch and display the user's active sessions in a clean tabular view.
-  - Support administrative filtering (viewing other users' sessions if the logged-in user is root/admin).
-  - Add a **Revoke** button next to each session with confirmation. If they revoke their own session, trigger a logout.
+### 2. Scanner Isolation Compliance
+- In `internal/scanner/scanner.go`:
+  - Imported `idb "audiobookshelf/internal/db"` to retrieve dynamic server settings.
+  - Declared package-level `var MetadataPath string`.
+  - Updated `parseMetadataForGroup` signature and implementation to accept `itemID string` to support item-scoped folder creation.
+  - Retrieved `metadataCoverWithItem` server settings. If disabled, saved extracted covers under `/metadata/items/{itemID}/cover.jpg` instead of local media directory.
+  - Updated scanner call sites in `scanNewLibraryItem` and `scanExistingLibraryItem` to propagate `itemID`.
 
-### 4. Testing & Verification
-- Create `internal/handlers/users_sessions_test.go` with unit tests for the GET and DELETE sessions endpoints.
-- Create `e2e/f21_login_sessions_test.go` to verify the E2E lifecycle:
-  - Log in to create a session.
-  - Fetch active sessions and check current session indicator.
-  - Revoke a session and verify it is removed.
-  - Try accessing protected endpoints with a revoked session and verify access is denied.
-- Run `go test ./...` and `go test ./e2e/...`.
+### 3. API Handlers Compliance
+- In `internal/handlers/authors_series.go`:
+  - Updated single metadata updates to check `MetadataMarkdownWithItem` server settings. If disabled, read and wrote metadata sidecars at `/metadata/items/{itemID}/metadata.json` instead of local book directory.
+- In `internal/handlers/batch_edit.go`:
+  - Updated batch metadata updates to check `MetadataMarkdownWithItem`. If disabled, stored metadata sidecars under `/metadata/items/{itemID}/metadata.json`.
+
+### 4. Verification
+- Created and executed `TestStoragePathIsolation` inside `internal/scanner/scanner_test.go` verifying compliance with both folder-based and isolated/centralized storage scenarios.

@@ -35,6 +35,8 @@ func SetDocsFS(f fs.FS) {
 	docsFS = f
 }
 
+var MetadataPath string
+
 func joinPath(basePath, routePath string) string {
 	if basePath == "" {
 		basePath = "/"
@@ -62,6 +64,8 @@ func trimBasePath(p, base string) string {
 
 func SetupHandler(db *sql.DB, cfg *core.Config, dbConnected bool, appRoot string, version string) http.Handler {
 	globalDB = db
+	MetadataPath = cfg.MetadataPath
+	iscanner.MetadataPath = cfg.MetadataPath
 	mux := http.NewServeMux()
 
 	registerBaseRoutes(mux, cfg, db, dbConnected, version)

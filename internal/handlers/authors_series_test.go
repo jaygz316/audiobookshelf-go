@@ -527,6 +527,10 @@ func TestServeEbook(t *testing.T) {
 }
 
 func TestUpdateLibraryItem(t *testing.T) {
+	oldMetaPath := MetadataPath
+	MetadataPath = t.TempDir()
+	defer func() { MetadataPath = oldMetaPath }()
+
 	db := setupTestDBShared(t)
 	defer db.Close()
 
@@ -756,6 +760,10 @@ func TestUpdateCoverFromURL(t *testing.T) {
 }
 
 func TestUpdateAuthor(t *testing.T) {
+	oldMetaPath := MetadataPath
+	MetadataPath = t.TempDir()
+	defer func() { MetadataPath = oldMetaPath }()
+
 	db := setupTestDBShared(t)
 	defer db.Close()
 

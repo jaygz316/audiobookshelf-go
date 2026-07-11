@@ -23,10 +23,13 @@ import (
 	"github.com/google/uuid"
 
 	"audiobookshelf/internal/core"
+	idb "audiobookshelf/internal/db"
 	"audiobookshelf/internal/metadata"
 	inotification "audiobookshelf/internal/notification"
 	isocket "audiobookshelf/internal/socket"
 )
+
+var MetadataPath string
 
 // FileItem represents a file found during library scanning.
 type FileItem struct {
@@ -750,7 +753,7 @@ type PodcastEpisodeScanData struct {
 	AudioFile interface{}
 }
 
-func parseMetadataForGroup(dbConn *sql.DB, groupFiles []FileItem, mediaType, itemPath, itemRelPath string, audiobooksOnly bool) *GroupMetadata {
+func parseMetadataForGroup(dbConn *sql.DB, itemID string, groupFiles []FileItem, mediaType, itemPath, itemRelPath string, audiobooksOnly bool) *GroupMetadata {
 	meta := &GroupMetadata{}
 
 	scannerParseSubtitles := true
@@ -1024,7 +1027,22 @@ func parseMetadataForGroup(dbConn *sql.DB, groupFiles []FileItem, mediaType, ite
 
 		// Extract cover from ebook if no cover image was found in the folder
 		if scannerFindCovers && meta.CoverPath == "" {
-			destCover := filepath.Join(filepath.Dir(eb.Path), "cover.jpg")
+			metadataCoverWithItem := true
+			if dbConn != nil {
+				if settings, err := idb.GetServerSettings(dbConn); err == nil && settings != nil {
+					metadataCoverWithItem = settings.MetadataCoverWithItem
+				}
+			}
+
+			var destCover string
+			if metadataCoverWithItem {
+				destCover = filepath.Join(filepath.Dir(eb.Path), "cover.jpg")
+			} else {
+				itemDir := filepath.Join(MetadataPath, "items", itemID)
+				_ = os.MkdirAll(itemDir, 0755)
+				destCover = filepath.Join(itemDir, "cover.jpg")
+			}
+
 			var extractErr error
 			log.Printf("[Scanner] [%s] Extracting ebook cover from: %s to %s", itemPath, eb.Path, destCover)
 			if strings.ToLower(eb.Extension) == ".epub" {
@@ -1359,7 +1377,7 @@ func scanNewLibraryItem(db *sql.DB, libraryID, folderID, itemPath string, groupF
 	}
 
 	log.Printf("[Scanner] [%s] scanNewLibraryItem: Parsing metadata", itemPath)
-	meta := parseMetadataForGroup(db, groupFiles, mediaType, itemPath, itemRelPath, audiobooksOnly)
+	meta := parseMetadataForGroup(db, itemID, groupFiles, mediaType, itemPath, itemRelPath, audiobooksOnly)
 
 	var title, authorNamesFirstLast, authorNamesLastFirst string
 	title = meta.Title
@@ -1654,7 +1672,7 @@ func scanExistingLibraryItem(db *sql.DB, itemID, libraryID, folderID, itemPath s
 	}
 
 	log.Printf("[Scanner] [%s] scanExistingLibraryItem: Parsing metadata", itemPath)
-	meta := parseMetadataForGroup(db, groupFiles, mediaType, itemPath, itemRelPath, audiobooksOnly)
+	meta := parseMetadataForGroup(db, itemID, groupFiles, mediaType, itemPath, itemRelPath, audiobooksOnly)
 
 	var title, authorNamesFirstLast, authorNamesLastFirst string
 	title = meta.Title
