@@ -1,6 +1,6 @@
 // frontend/js/settings.js (Proposed Implementation)
 import { request, resolvePath } from './api.js';
-import { getActiveLibraryId, getLibrariesList } from './library.js';
+import { getActiveLibraryId, getLibrariesList, initLibrary } from './library.js';
 import { onEvent } from './socket.js';
 import { logout } from './auth.js';
 
@@ -66,8 +66,9 @@ export async function loadSettings() {
   // Render settings structure with tabs
   container.innerHTML = `
     <div class="max-w-4xl mx-auto p-4">
-      <div class="flex border-b border-black-400 mb-6" id="settings-tabs">
+      <div class="flex border-b border-black-400 mb-6 overflow-x-auto whitespace-nowrap" id="settings-tabs">
         <button class="px-4 py-2 border-b-2 border-accent text-accent font-semibold focus:outline-none" data-tab="users">Users</button>
+        <button class="px-4 py-2 border-b-2 border-transparent hover:text-white text-black-50 focus:outline-none" data-tab="libraries">Libraries</button>
         <button class="px-4 py-2 border-b-2 border-transparent hover:text-white text-black-50 focus:outline-none" data-tab="server">Server Settings</button>
         <button class="px-4 py-2 border-b-2 border-transparent hover:text-white text-black-50 focus:outline-none" data-tab="auth">Authentication (OIDC)</button>
         <button class="px-4 py-2 border-b-2 border-transparent hover:text-white text-black-50 focus:outline-none" data-tab="backups">Backups</button>
@@ -86,6 +87,7 @@ export async function loadSettings() {
       <!-- Tab Contents -->
       <div id="settings-tab-content">
         <div id="tab-users" class="space-y-6"></div>
+        <div id="tab-libraries" class="space-y-6 hidden"></div>
         <div id="tab-server" class="space-y-6 hidden"></div>
         <div id="tab-auth" class="space-y-6 hidden"></div>
         <div id="tab-backups" class="space-y-6 hidden"></div>
@@ -128,6 +130,7 @@ export async function loadSettings() {
   // Load respective tab details
   await Promise.all([
     renderUsersTab(),
+    renderLibrariesTab(),
     renderServerSettingsTab(),
     renderAuthSettingsTab(),
     renderBackupsTab(),
@@ -2930,6 +2933,301 @@ async function loadAndRenderLoginSessions(userId) {
       </tr>
     `;
   }
+}
+
+async function renderLibrariesTab() {
+  const container = document.getElementById('tab-libraries');
+  if (!container) return;
+
+  container.innerHTML = `<div class="animate-spin rounded-full h-8 w-8 border-b-2 border-accent mx-auto"></div>`;
+
+  try {
+    const res = await request('GET', '/api/libraries?include=stats');
+    const libs = res.libraries || [];
+
+    let html = `
+      <div class="space-y-6 bg-primary border border-black-300 p-6 rounded-md">
+        <div class="flex justify-between items-center border-b border-black-400 pb-4">
+          <div>
+            <h3 class="text-lg font-semibold">Libraries</h3>
+            <p class="text-xs text-black-100 mt-1">Configure and manage separate folders/categories for audiobooks and podcasts.</p>
+          </div>
+          <button type="button" id="btn-create-library" class="bg-accent hover:opacity-90 text-primary font-bold px-4 py-2 rounded text-sm transition-opacity flex items-center space-x-1">
+            <span class="material-symbols text-sm">add</span>
+            <span>Add Library</span>
+          </button>
+        </div>
+
+        <div class="space-y-4">
+    `;
+
+    if (libs.length === 0) {
+      html += `
+        <div class="text-center py-8 text-black-100">
+          <p>No libraries configured. Click "Add Library" to get started.</p>
+        </div>
+      `;
+    } else {
+      libs.forEach(lib => {
+        let mediaIcon = lib.icon === 'podcasts' || lib.mediaType === 'podcast' ? 'podcasts' : 'local_library';
+        let foldersList = (lib.folders || []).map(f => f.path || f.fullPath).join(', ');
+        if (!foldersList) foldersList = 'No folders configured';
+
+        html += `
+          <div class="border border-black-455 bg-black-500 rounded p-4 flex flex-col md:flex-row justify-between items-start md:items-center space-y-4 md:space-y-0">
+            <div class="space-y-1">
+              <div class="flex items-center space-x-2">
+                <span class="material-symbols text-lg text-accent">${mediaIcon}</span>
+                <span class="font-bold text-white">${escapeHtml(lib.name)}</span>
+                <span class="bg-black-400 text-black-50 text-[10px] px-1.5 py-0.5 rounded font-semibold uppercase">${lib.mediaType}</span>
+              </div>
+              <p class="text-xs text-black-100"><span class="font-semibold">Folders:</span> ${escapeHtml(foldersList)}</p>
+              <p class="text-xs text-black-100"><span class="font-semibold">Provider:</span> ${escapeHtml(lib.provider || 'local')}</p>
+            </div>
+            <div class="flex items-center space-x-2 w-full md:w-auto justify-end">
+              <button type="button" class="btn-scan-lib bg-accent/10 hover:bg-accent/20 border border-accent/30 text-accent text-xs font-semibold px-3 py-1.5 rounded transition-colors" data-id="${lib.id}">Scan</button>
+              <button type="button" class="btn-edit-lib bg-black-400 hover:bg-black-350 text-white text-xs font-semibold px-3 py-1.5 rounded transition-colors" data-id="${lib.id}">Edit</button>
+              <button type="button" class="btn-delete-lib bg-red-900/50 hover:bg-red-800/50 border border-red-900 text-red-200 text-xs font-semibold px-3 py-1.5 rounded transition-colors" data-id="${lib.id}">Delete</button>
+            </div>
+          </div>
+        `;
+      });
+    }
+
+    html += `
+        </div>
+      </div>
+    `;
+
+    container.innerHTML = html;
+
+    // Attach Event Listeners
+    const createBtn = document.getElementById('btn-create-library');
+    if (createBtn) {
+      createBtn.onclick = () => showLibraryModal(null);
+    }
+
+    container.querySelectorAll('.btn-scan-lib').forEach(btn => {
+      btn.onclick = async () => {
+        const id = btn.dataset.id;
+        try {
+          await request('POST', `/api/libraries/${id}/scan`);
+          alert('Library scan requested successfully.');
+        } catch (err) {
+          alert('Failed to scan library: ' + err.message);
+        }
+      };
+    });
+
+    container.querySelectorAll('.btn-edit-lib').forEach(btn => {
+      btn.onclick = () => {
+        const id = btn.dataset.id;
+        const lib = libs.find(l => l.id === id);
+        if (lib) showLibraryModal(lib);
+      };
+    });
+
+    container.querySelectorAll('.btn-delete-lib').forEach(btn => {
+      btn.onclick = async () => {
+        const id = btn.dataset.id;
+        const lib = libs.find(l => l.id === id);
+        if (!lib) return;
+        if (confirm(`Are you sure you want to delete the library "${lib.name}"? This action cannot be undone.`)) {
+          try {
+            await request('DELETE', `/api/libraries/${id}`);
+            alert('Library deleted successfully.');
+            // Re-render tab and update dropdown
+            await renderLibrariesTab();
+            const updated = await request('GET', '/api/libraries');
+            initLibrary(updated);
+          } catch (err) {
+            alert('Failed to delete library: ' + err.message);
+          }
+        }
+      };
+    });
+
+  } catch (err) {
+    container.innerHTML = `
+      <div class="bg-red-900/25 border border-red-900 text-red-200 p-4 rounded text-sm">
+        Failed to load libraries: ${err.message}
+      </div>
+    `;
+  }
+}
+
+function showLibraryModal(lib) {
+  const isEdit = !!lib;
+  const modal = document.createElement('div');
+  modal.className = 'fixed inset-0 bg-black-900/80 z-50 flex items-center justify-center p-4 overflow-y-auto';
+
+  // Extract settings
+  const libSettings = lib?.settings || {};
+  const coverAspectRatio = libSettings.coverAspectRatio || 1;
+
+  modal.innerHTML = `
+    <div class="bg-primary border border-black-300 w-full max-w-lg p-6 rounded-md shadow-lg space-y-4 my-8">
+      <h3 class="text-lg font-bold border-b border-black-400 pb-2">${isEdit ? 'Edit Library' : 'Add Library'}</h3>
+      
+      <form id="library-form" class="space-y-4">
+        <div>
+          <label class="block text-xs text-black-100 mb-1">Library Name</label>
+          <input type="text" id="lib-name" required value="${isEdit ? escapeHtml(lib.name) : ''}" class="w-full bg-black-500 text-white px-3 py-1.5 rounded border border-black-300 focus:outline-none focus:border-accent text-sm">
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs text-black-100 mb-1">Media Type</label>
+            <select id="lib-mediatype" class="w-full bg-black-500 text-white px-3 py-1.5 rounded border border-black-300 focus:outline-none focus:border-accent text-sm" ${isEdit ? 'disabled' : ''}>
+              <option value="book" ${isEdit && lib.mediaType === 'book' ? 'selected' : ''}>Book (Audiobooks / E-Books)</option>
+              <option value="podcast" ${isEdit && lib.mediaType === 'podcast' ? 'selected' : ''}>Podcast</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs text-black-100 mb-1">Icon</label>
+            <select id="lib-icon" class="w-full bg-black-500 text-white px-3 py-1.5 rounded border border-black-300 focus:outline-none focus:border-accent text-sm">
+              <option value="local_library" ${isEdit && lib.icon === 'local_library' ? 'selected' : ''}>Book/Library Icon</option>
+              <option value="podcasts" ${isEdit && lib.icon === 'podcasts' ? 'selected' : ''}>Podcast Icon</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs text-black-100 mb-1">Provider</label>
+            <select id="lib-provider" class="w-full bg-black-500 text-white px-3 py-1.5 rounded border border-black-300 focus:outline-none focus:border-accent text-sm">
+              <option value="local" ${isEdit && lib.provider === 'local' ? 'selected' : ''}>Local Metadata Only</option>
+              <option value="audible" ${isEdit && lib.provider === 'audible' ? 'selected' : ''}>Audible</option>
+              <option value="google" ${isEdit && lib.provider === 'google' ? 'selected' : ''}>Google Books</option>
+              <option value="openlibrary" ${isEdit && lib.provider === 'openlibrary' ? 'selected' : ''}>Open Library</option>
+              <option value="itunes" ${isEdit && lib.provider === 'itunes' ? 'selected' : ''}>iTunes</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs text-black-100 mb-1">Cover Aspect Ratio</label>
+            <select id="lib-cover-aspect-ratio" class="w-full bg-black-500 text-white px-3 py-1.5 rounded border border-black-300 focus:outline-none focus:border-accent text-sm">
+              <option value="1" ${coverAspectRatio == 1 ? 'selected' : ''}>Square (1:1) - Podcasts/Audible</option>
+              <option value="1.6" ${coverAspectRatio == 1.6 ? 'selected' : ''}>Standard Book (1.6:1)</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs text-black-100 mb-1 flex justify-between items-center">
+            <span>Library Folders</span>
+            <button type="button" id="btn-add-folder-row" class="text-accent hover:underline text-xs font-semibold">Add Folder Path</button>
+          </label>
+          <div id="library-folders-container" class="space-y-2">
+            <!-- Folder inputs go here -->
+          </div>
+          <p class="text-xs text-black-100 mt-1">Paths must be absolute, or relative to the server workspace (e.g. "/audiobooks" or "./audiobooks").</p>
+        </div>
+
+        <div class="flex justify-end space-x-2 pt-4 border-t border-black-400">
+          <button type="button" id="close-lib-modal-btn" class="bg-black-400 hover:bg-black-350 px-4 py-2 rounded text-sm font-semibold text-white transition-colors">Cancel</button>
+          <button type="submit" class="bg-accent hover:opacity-90 text-primary px-4 py-2 rounded text-sm font-semibold transition-opacity">Save</button>
+        </div>
+      </form>
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+
+  const foldersContainer = modal.querySelector('#library-folders-container');
+  const closeModal = () => modal.remove();
+  modal.querySelector('#close-lib-modal-btn').onclick = closeModal;
+
+  // Add folder row helper
+  function addFolderRow(val = '', id = '') {
+    const row = document.createElement('div');
+    row.className = 'flex items-center space-x-2';
+    row.innerHTML = `
+      <input type="text" class="lib-folder-path flex-grow bg-black-500 text-white px-3 py-1.5 rounded border border-black-300 focus:outline-none focus:border-accent text-sm" placeholder="e.g. /path/to/media" value="${escapeHtml(val)}" data-id="${id}">
+      <button type="button" class="btn-remove-folder-row text-red-500 hover:text-red-400 material-symbols text-lg focus:outline-none">delete</button>
+    `;
+    row.querySelector('.btn-remove-folder-row').onclick = () => row.remove();
+    foldersContainer.appendChild(row);
+  }
+
+  // Populate existing folders
+  if (isEdit && lib.folders && lib.folders.length > 0) {
+    lib.folders.forEach(f => {
+      addFolderRow(f.path || f.fullPath, f.id);
+    });
+  } else {
+    addFolderRow('');
+  }
+
+  // Hook add folder button
+  modal.querySelector('#btn-add-folder-row').onclick = () => addFolderRow('');
+
+  // Handle Form Submission
+  const form = modal.querySelector('#library-form');
+  form.onsubmit = async (e) => {
+    e.preventDefault();
+
+    const name = modal.querySelector('#lib-name').value;
+    const mediaType = modal.querySelector('#lib-mediatype').value;
+    const icon = modal.querySelector('#lib-icon').value;
+    const provider = modal.querySelector('#lib-provider').value;
+    const coverAspectRatioVal = parseFloat(modal.querySelector('#lib-cover-aspect-ratio').value);
+
+    // Get folders
+    const folderRows = modal.querySelectorAll('.lib-folder-path');
+    const folders = [];
+    let foldersValid = true;
+    folderRows.forEach(row => {
+      const pathVal = row.value.trim();
+      const folderId = row.dataset.id || '';
+      if (!pathVal) {
+        foldersValid = false;
+        return;
+      }
+      if (isEdit) {
+        folders.push({
+          id: folderId,
+          path: pathVal,
+          fullPath: pathVal
+        });
+      } else {
+        folders.push({
+          path: pathVal,
+          fullPath: pathVal
+        });
+      }
+    });
+
+    if (!foldersValid || folders.length === 0) {
+      alert('Please specify at least one valid folder path.');
+      return;
+    }
+
+    const payload = {
+      name,
+      mediaType,
+      icon,
+      provider,
+      settings: {
+        coverAspectRatio: coverAspectRatioVal
+      },
+      folders
+    };
+
+    try {
+      if (isEdit) {
+        await request('PATCH', `/api/libraries/${lib.id}`, payload);
+      } else {
+        await request('POST', '/api/libraries', payload);
+      }
+      closeModal();
+      // Re-render tab and rebuild library dropdown
+      await renderLibrariesTab();
+      const res = await request('GET', '/api/libraries');
+      initLibrary(res);
+    } catch (err) {
+      alert('Failed to save library: ' + err.message);
+    }
+  };
 }
 
 
