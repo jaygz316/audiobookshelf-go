@@ -2,6 +2,7 @@
 import { request, resolvePath } from './api.js';
 import { getActiveLibraryId, getLibrariesList } from './library.js';
 import { onEvent } from './socket.js';
+import { logout } from './auth.js';
 
 let currentSessions = [];
 let selectedUserIdFilter = '';
@@ -74,6 +75,7 @@ export async function loadSettings() {
         <button class="px-4 py-2 border-b-2 border-transparent hover:text-white text-black-50 focus:outline-none" data-tab="upload">Upload Media</button>
         <button class="px-4 py-2 border-b-2 border-transparent hover:text-white text-black-50 focus:outline-none" data-tab="apikeys">API Keys</button>
         <button class="px-4 py-2 border-b-2 border-transparent hover:text-white text-black-50 focus:outline-none" data-tab="listening-sessions">Listening Sessions</button>
+        <button class="px-4 py-2 border-b-2 border-transparent hover:text-white text-black-50 focus:outline-none" data-tab="login-sessions">Login Sessions</button>
         <button class="px-4 py-2 border-b-2 border-transparent hover:text-white text-black-50 focus:outline-none" data-tab="logs">Logs</button>
         <button class="px-4 py-2 border-b-2 border-transparent hover:text-white text-black-50 focus:outline-none" data-tab="notifications">Notifications</button>
         <button class="px-4 py-2 border-b-2 border-transparent hover:text-white text-black-50 focus:outline-none" data-tab="feeds">RSS Feeds</button>
@@ -91,6 +93,7 @@ export async function loadSettings() {
         <div id="tab-upload" class="space-y-6 hidden"></div>
         <div id="tab-apikeys" class="space-y-6 hidden"></div>
         <div id="tab-listening-sessions" class="space-y-6 hidden"></div>
+        <div id="tab-login-sessions" class="space-y-6 hidden"></div>
         <div id="tab-logs" class="space-y-6 hidden"></div>
         <div id="tab-notifications" class="space-y-6 hidden"></div>
         <div id="tab-feeds" class="space-y-6 hidden"></div>
@@ -132,6 +135,7 @@ export async function loadSettings() {
     renderUploadTab(),
     renderApiKeysTab(),
     renderListeningSessionsTab(),
+    renderLoginSessionsTab(),
     renderLogsTab(),
     renderNotificationsTab(),
     renderFeedsTab(),
@@ -2777,6 +2781,154 @@ async function renderSharesTab() {
   } catch (err) {
     console.error(err);
     container.innerHTML = `<div class="text-red-500 text-xs text-center py-4">Failed to load public shares: ${err.message}</div>`;
+  }
+}
+
+/**
+ * Render the Active Login Sessions tab.
+ * Displays all active refresh token/login sessions for the selected user, and allows revocation.
+ */
+async function renderLoginSessionsTab() {
+  const container = document.getElementById('tab-login-sessions');
+  if (!container) return;
+
+  container.innerHTML = `<div class="animate-spin rounded-full h-8 w-8 border-b-2 border-accent mx-auto"></div>`;
+
+  try {
+    const users = await request('GET', '/api/users');
+    const curUserId = window.currentUser ? window.currentUser.id : '';
+
+    container.innerHTML = `
+      <div class="space-y-4">
+        <div class="flex justify-between items-center">
+          <h3 class="text-lg font-semibold text-white">Active Login Sessions</h3>
+          <div class="flex items-center space-x-2">
+            <label for="filter-login-session-user" class="text-xs text-black-100 uppercase tracking-wider">User:</label>
+            <select id="filter-login-session-user" class="bg-black-500 text-white px-3 py-1.5 rounded border border-black-300 focus:outline-none focus:border-accent text-sm">
+              ${users.map(u => `<option value="${u.id}" ${u.id === curUserId ? 'selected' : ''}>${escapeHtml(u.username)}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+
+        <div class="border border-black-300 rounded-md bg-primary overflow-x-auto">
+          <table class="w-full text-left text-sm">
+            <thead>
+              <tr class="border-b border-black-400 text-black-100 text-xs uppercase">
+                <th class="px-4 py-3">Device / User Agent</th>
+                <th class="px-4 py-3">IP Address</th>
+                <th class="px-4 py-3">Created At</th>
+                <th class="px-4 py-3">Last Active</th>
+                <th class="px-4 py-3 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="login-sessions-list-rows" class="divide-y divide-black-400">
+              <!-- Rows will be injected here -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `;
+
+    const select = container.querySelector('#filter-login-session-user');
+    select.onchange = () => {
+      loadAndRenderLoginSessions(select.value);
+    };
+
+    // Load initial sessions for default selected user
+    await loadAndRenderLoginSessions(select.value);
+
+  } catch (err) {
+    container.innerHTML = `<div class="text-red-500 text-center py-4">Failed to load active login sessions: ${escapeHtml(err.message)}</div>`;
+  }
+}
+
+async function loadAndRenderLoginSessions(userId) {
+  const tbody = document.getElementById('login-sessions-list-rows');
+  if (!tbody) return;
+
+  tbody.innerHTML = `
+    <tr>
+      <td colspan="5" class="px-4 py-8 text-center text-black-100">
+        <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-accent mx-auto"></div>
+      </td>
+    </tr>
+  `;
+
+  try {
+    const sessions = await request('GET', `/api/users/${userId}/sessions`);
+    tbody.innerHTML = '';
+
+    if (sessions.length === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="5" class="px-4 py-8 text-center text-black-100">
+            No active login sessions found for this user.
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    sessions.forEach(session => {
+      const tr = document.createElement('tr');
+      tr.className = 'hover:bg-black-500/30';
+
+      const createdAtFormatted = session.createdAt ? (window.formatDateTime ? window.formatDateTime(session.createdAt) : new Date(session.createdAt).toLocaleString()) : 'Unknown';
+      const updatedAtFormatted = session.updatedAt ? (window.formatDateTime ? window.formatDateTime(session.updatedAt) : new Date(session.updatedAt).toLocaleString()) : 'Unknown';
+
+      const badgeHtml = session.isCurrent ? `
+        <span class="ml-2 px-2 py-0.5 rounded text-xs bg-accent text-primary font-bold">Current</span>
+      ` : '';
+
+      const actionButtonHtml = `
+        <button class="revoke-login-session-btn text-red-500 hover:text-red-400 font-semibold text-xs transition-colors duration-150" data-id="${session.id}">
+          Revoke
+        </button>
+      `;
+
+      tr.innerHTML = `
+        <td class="px-4 py-3 text-white font-medium">
+          <span class="font-mono text-xs break-all">${escapeHtml(session.userAgent || 'Unknown')}</span>
+          ${badgeHtml}
+        </td>
+        <td class="px-4 py-3 text-black-100">${escapeHtml(session.ipAddress || 'Unknown')}</td>
+        <td class="px-4 py-3 text-black-100 font-mono text-xs">${escapeHtml(createdAtFormatted)}</td>
+        <td class="px-4 py-3 text-black-100 font-mono text-xs">${escapeHtml(updatedAtFormatted)}</td>
+        <td class="px-4 py-3 text-right">${actionButtonHtml}</td>
+      `;
+
+      const revokeBtn = tr.querySelector('.revoke-login-session-btn');
+      revokeBtn.onclick = async () => {
+        const confirmMsg = session.isCurrent
+          ? 'Are you sure you want to revoke your CURRENT login session? This will immediately log you out of this browser.'
+          : 'Are you sure you want to revoke this login session?';
+
+        if (confirm(confirmMsg)) {
+          try {
+            await request('DELETE', `/api/users/${userId}/sessions/${session.id}`);
+            if (session.isCurrent) {
+              await logout();
+              window.location.reload();
+            } else {
+              loadAndRenderLoginSessions(userId);
+            }
+          } catch (err) {
+            alert('Failed to revoke session: ' + err.message);
+          }
+        }
+      };
+
+      tbody.appendChild(tr);
+    });
+
+  } catch (err) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="5" class="px-4 py-8 text-center text-red-500">
+          Failed to load sessions: ${escapeHtml(err.message)}
+        </td>
+      </tr>
+    `;
   }
 }
 

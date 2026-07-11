@@ -1014,6 +1014,22 @@ func handleMeDispatch(db *sql.DB, cfg *core.Config) http.HandlerFunc {
 				AuthMiddlewareWrapper(db, handleGetMeListeningSessions(db)).ServeHTTP(w, r)
 				return
 			}
+		} else if len(parts) == 1 && parts[0] == "sessions" {
+			if r.Method == http.MethodGet {
+				AuthMiddlewareWrapper(db, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					userSess := r.Context().Value(core.UserContextKey).(*core.UserSession)
+					handleGetUserLoginSessions(db, userSess.ID)(w, r)
+				})).ServeHTTP(w, r)
+				return
+			}
+		} else if len(parts) == 2 && parts[0] == "sessions" {
+			if r.Method == http.MethodDelete {
+				AuthMiddlewareWrapper(db, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					userSess := r.Context().Value(core.UserContextKey).(*core.UserSession)
+					handleDeleteUserLoginSession(db, userSess.ID, parts[1])(w, r)
+				})).ServeHTTP(w, r)
+				return
+			}
 		} else if len(parts) == 1 && parts[0] == "items-in-progress" {
 			if r.Method == http.MethodGet {
 				AuthMiddlewareWrapper(db, handleGetAllLibraryItemsInProgress(db)).ServeHTTP(w, r)
