@@ -40,7 +40,7 @@ func initManagers(db *sql.DB) {
 	}
 
 	if globalFinder == nil {
-		globalFinder = finders.NewFinder([]providers.Provider{
+		globalFinder = finders.NewFinder(db, []providers.Provider{
 			&providers.AudibleProvider{},
 			&providers.AudnexusProvider{},
 			&providers.FantLabProvider{},
