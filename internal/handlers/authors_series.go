@@ -1716,9 +1716,16 @@ func handleAutoNumberSeries(db *sql.DB, seriesID string) http.HandlerFunc {
 			return strings.ToLower(books[i].title) < strings.ToLower(books[j].title)
 		})
 
-		// Update sequences sequentially: 1, 2, 3...
-		for idx, b := range books {
-			seqStr := strconv.Itoa(idx + 1)
+		// Update sequences grouping by normalized title
+		seqCounter := 0
+		lastNormTitle := ""
+		for _, b := range books {
+			normTitle := utils.NormalizeTitleForSeries(b.title)
+			if lastNormTitle == "" || normTitle != lastNormTitle {
+				seqCounter++
+				lastNormTitle = normTitle
+			}
+			seqStr := strconv.Itoa(seqCounter)
 			_, err = tx.Exec(`
 				UPDATE bookSeries
 				SET sequence = ?

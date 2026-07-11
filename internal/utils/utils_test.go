@@ -79,3 +79,27 @@ func TestGetClientIP(t *testing.T) {
 		})
 	}
 }
+
+func TestNormalizeTitleForSeries(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"The Hobbit", "the hobbit"},
+		{"The Hobbit (Narrated by Andy Serkis)", "the hobbit"},
+		{"The Hobbit [Unabridged]", "the hobbit"},
+		{"The Hobbit - Read by Rob Inglis", "the hobbit"},
+		{"The Hobbit - Special Edition", "the hobbit"},
+		{"The Fellowship of the Ring (Book 1 of Lord of the Rings)", "the fellowship of the ring book 1 of lord of the rings"},
+		{"Harry Potter and the Sorcerer's Stone: Unabridged Audiobook", "harry potter and the sorcerer's stone"},
+		{"  The Hobbit  ", "the hobbit"},
+	}
+
+	for _, tt := range tests {
+		got := NormalizeTitleForSeries(tt.input)
+		if got != tt.expected {
+			t.Errorf("NormalizeTitleForSeries(%q) = %q, want %q", tt.input, got, tt.expected)
+		}
+	}
+}
+

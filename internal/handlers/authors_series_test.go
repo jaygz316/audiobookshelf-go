@@ -891,14 +891,17 @@ func TestHandleAutoNumberSeries(t *testing.T) {
 	// book1: pubYear 2020, title "B book"
 	// book2: pubYear 2010, title "A book"
 	// book3: pubYear 2020, title "C book"
+	// book4: pubYear 2020, title "C book (Narrated by Narrator)"
 	_, _ = db.Exec(`INSERT INTO books (id, title, publishedYear) VALUES ('book1', 'B book', '2020')`)
 	_, _ = db.Exec(`INSERT INTO books (id, title, publishedYear) VALUES ('book2', 'A book', '2010')`)
 	_, _ = db.Exec(`INSERT INTO books (id, title, publishedYear) VALUES ('book3', 'C book', '2020')`)
+	_, _ = db.Exec(`INSERT INTO books (id, title, publishedYear) VALUES ('book4', 'C book (Narrated by Narrator)', '2020')`)
 
 	// Link books to series in bookSeries
 	_, _ = db.Exec(`INSERT INTO bookSeries (bookId, seriesId, sequence) VALUES ('book1', 'series1', '99')`)
 	_, _ = db.Exec(`INSERT INTO bookSeries (bookId, seriesId, sequence) VALUES ('book2', 'series1', '98')`)
 	_, _ = db.Exec(`INSERT INTO bookSeries (bookId, seriesId, sequence) VALUES ('book3', 'series1', '97')`)
+	_, _ = db.Exec(`INSERT INTO bookSeries (bookId, seriesId, sequence) VALUES ('book4', 'series1', '96')`)
 
 	// 3. Make auto-number request
 	handler := handleAutoNumberSeries(db, "series1")
@@ -925,10 +928,12 @@ func TestHandleAutoNumberSeries(t *testing.T) {
 	// - book2 (2010) => sequence should be "1"
 	// - book1 (2020, title "B book") => sequence should be "2"
 	// - book3 (2020, title "C book") => sequence should be "3"
-	var seq1, seq2, seq3 string
+	// - book4 (2020, title "C book (Narrated by Narrator)") => normalized to "c book", sequence should be "3"
+	var seq1, seq2, seq3, seq4 string
 	_ = db.QueryRow("SELECT sequence FROM bookSeries WHERE bookId = 'book2' AND seriesId = 'series1'").Scan(&seq1)
 	_ = db.QueryRow("SELECT sequence FROM bookSeries WHERE bookId = 'book1' AND seriesId = 'series1'").Scan(&seq2)
 	_ = db.QueryRow("SELECT sequence FROM bookSeries WHERE bookId = 'book3' AND seriesId = 'series1'").Scan(&seq3)
+	_ = db.QueryRow("SELECT sequence FROM bookSeries WHERE bookId = 'book4' AND seriesId = 'series1'").Scan(&seq4)
 
 	if seq1 != "1" {
 		t.Errorf("Expected book2 sequence to be '1', got %q", seq1)
@@ -938,5 +943,8 @@ func TestHandleAutoNumberSeries(t *testing.T) {
 	}
 	if seq3 != "3" {
 		t.Errorf("Expected book3 sequence to be '3', got %q", seq3)
+	}
+	if seq4 != "3" {
+		t.Errorf("Expected book4 sequence to be '3', got %q", seq4)
 	}
 }
