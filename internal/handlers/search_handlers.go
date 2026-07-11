@@ -87,3 +87,35 @@ func handleGetSearchProviders(w http.ResponseWriter, r *http.Request) {
 		}
 	}`))
 }
+
+func handleSearchAuthors(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		initManagers(db)
+
+		q := r.URL.Query()
+		provider := q.Get("provider")
+		if provider == "" {
+			provider = "audnexus"
+		}
+		name := q.Get("name")
+		if name == "" {
+			name = q.Get("q")
+		}
+
+		if name == "" {
+			http.Error(w, `{"error": "name parameter is required"}`, http.StatusBadRequest)
+			return
+		}
+
+		results, err := globalFinder.SearchAuthors(r.Context(), provider, name)
+		if err != nil {
+			log.Printf("[Search] SearchAuthors failed: %v", err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(results)
+	}
+}
+

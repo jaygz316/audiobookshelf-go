@@ -21,6 +21,12 @@ import (
 )
 
 func setupTestDBShared(t *testing.T) *sql.DB {
+	globalFinder = nil
+	globalPlaylistManager = nil
+	globalShareManager = nil
+	globalFeedManager = nil
+	globalPodcastManager = nil
+
 	dsn := fmt.Sprintf("file:%s?mode=memory&cache=shared", t.Name())
 	db, err := sql.Open("sqlite", dsn)
 	if err != nil {

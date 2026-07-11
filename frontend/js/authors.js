@@ -242,6 +242,9 @@ export async function loadAuthorDetails(authorId) {
                   <button id="edit-author-btn" class="px-3 py-1 bg-accent/20 text-accent hover:bg-accent/30 border border-accent/40 rounded text-xs font-semibold self-center transition-colors">
                     Edit
                   </button>
+                  <button id="match-author-direct-btn" class="px-3 py-1 bg-accent/20 text-accent hover:bg-accent/30 border border-accent/40 rounded text-xs font-semibold self-center transition-colors ml-2">
+                    Match
+                  </button>
                 ` : ''}
               </div>
               ${lastFirst ? `<p class="text-sm text-black-100 mt-1">Sorting Name: ${escapeHtml(lastFirst)}</p>` : ''}
@@ -353,6 +356,11 @@ export async function loadAuthorDetails(authorId) {
     const editBtn = document.getElementById('edit-author-btn');
     if (editBtn) {
       editBtn.onclick = () => openEditAuthorModal(author);
+    }
+
+    const matchBtn = document.getElementById('match-author-direct-btn');
+    if (matchBtn) {
+      matchBtn.onclick = () => openMatchAuthorModal(author, null);
     }
 
   } catch (err) {
@@ -615,7 +623,10 @@ function openEditAuthorModal(author) {
         </div>
         <div>
           <label class="block text-xs uppercase font-semibold text-black-100 mb-1.5">ASIN</label>
-          <input type="text" id="edit-author-asin" class="w-full bg-black-500 text-white px-3 py-2 rounded border border-black-300 focus:outline-none focus:border-accent text-xs" value="${escapeHtml(author.asin || '')}">
+          <div class="flex space-x-2">
+            <input type="text" id="edit-author-asin" class="flex-grow bg-black-500 text-white px-3 py-2 rounded border border-black-300 focus:outline-none focus:border-accent text-xs" value="${escapeHtml(author.asin || '')}">
+            <button id="match-author-btn" class="bg-accent hover:bg-accent-hover text-black px-4 py-2 rounded text-xs font-semibold whitespace-nowrap">Match</button>
+          </div>
         </div>
         <div>
           <label class="block text-xs uppercase font-semibold text-black-100 mb-1.5">Biography</label>
@@ -634,6 +645,11 @@ function openEditAuthorModal(author) {
   const closeModal = () => modal.remove();
   document.getElementById('close-author-modal').onclick = closeModal;
   document.getElementById('cancel-author-edit').onclick = closeModal;
+
+  document.getElementById('match-author-btn').onclick = (e) => {
+    e.preventDefault();
+    openMatchAuthorModal(author, closeModal);
+  };
 
   document.getElementById('save-author-edit').onclick = async () => {
     const name = document.getElementById('edit-author-name').value.trim();
@@ -661,6 +677,128 @@ function openEditAuthorModal(author) {
     }
   };
 }
+
+function openMatchAuthorModal(author, parentCloseModal) {
+  const modal = document.createElement('div');
+  modal.className = 'fixed inset-0 bg-black-900/80 z-[60] flex items-center justify-center p-4';
+  
+  modal.innerHTML = `
+    <div class="bg-black-600 border border-black-400 rounded-lg max-w-2xl w-full flex flex-col overflow-hidden max-h-[90vh] text-left">
+      <div class="px-6 py-4 border-b border-black-400 flex items-center justify-between">
+        <h3 class="text-lg font-bold text-white">Match Author</h3>
+        <button id="close-match-modal" class="text-black-100 hover:text-white font-bold text-xl">&times;</button>
+      </div>
+      <div class="p-6 overflow-y-auto space-y-4 flex-grow">
+        <div class="flex space-x-3 items-end">
+          <div class="flex-grow">
+            <label class="block text-xs uppercase font-semibold text-black-100 mb-1.5">Search Author Name</label>
+            <input type="text" id="match-search-query" class="w-full bg-black-500 text-white px-3 py-2 rounded border border-black-300 focus:outline-none focus:border-accent text-xs" value="${escapeHtml(author.name)}">
+          </div>
+          <div>
+            <label class="block text-xs uppercase font-semibold text-black-100 mb-1.5">Provider</label>
+            <select id="match-provider" class="bg-black-500 text-white px-3 py-2 rounded border border-black-300 focus:outline-none focus:border-accent text-xs h-[34px]">
+              <option value="audnexus">Audnexus</option>
+            </select>
+          </div>
+          <button id="match-search-btn" class="bg-accent hover:bg-accent-hover text-black px-5 py-2 rounded text-xs font-semibold h-[34px]">Search</button>
+        </div>
+
+        <div id="match-results-container" class="space-y-3 pt-4 border-t border-black-400 overflow-y-auto max-h-[50vh]">
+          <p class="text-black-100 text-xs italic">Enter search query and click search.</p>
+        </div>
+      </div>
+      <div class="px-6 py-4 border-t border-black-400 flex justify-end">
+        <button id="cancel-match" class="bg-black-400 hover:bg-black-300 text-white px-4 py-2 rounded text-xs font-semibold">Close</button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+
+  const closeMatch = () => modal.remove();
+  document.getElementById('close-match-modal').onclick = closeMatch;
+  document.getElementById('cancel-match').onclick = closeMatch;
+
+  const performSearch = async () => {
+    const query = document.getElementById('match-search-query').value.trim();
+    if (!query) {
+      showToast('Search query cannot be empty', 'error');
+      return;
+    }
+
+    const container = document.getElementById('match-results-container');
+    container.innerHTML = `
+      <div class="flex items-center justify-center py-8">
+        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-accent"></div>
+      </div>
+    `;
+
+    try {
+      const results = await request('GET', `/api/search/authors?name=${encodeURIComponent(query)}`);
+      
+      if (!results || results.length === 0) {
+        container.innerHTML = '<p class="text-black-100 text-xs py-4 text-center">No results found.</p>';
+        return;
+      }
+
+      container.innerHTML = '';
+      results.forEach(res => {
+        const item = document.createElement('div');
+        item.className = 'bg-black-500 border border-black-400 rounded p-4 flex items-start justify-between space-x-4 hover:border-black-300 transition-colors';
+        
+        const avatar = res.image ? `<img src="${escapeHtml(res.image)}" class="w-12 h-12 rounded-full object-cover bg-black-400 flex-shrink-0" alt="avatar">` : `<div class="w-12 h-12 rounded-full bg-black-400 flex items-center justify-center text-white font-bold flex-shrink-0 text-sm">${escapeHtml(res.name.charAt(0))}</div>`;
+        
+        item.innerHTML = `
+          <div class="flex items-start space-x-3 flex-grow min-w-0">
+            ${avatar}
+            <div class="min-w-0 flex-grow">
+              <h4 class="text-white text-xs font-bold truncate">${escapeHtml(res.name)}</h4>
+              <p class="text-black-100 text-[10px] uppercase font-semibold">ASIN: ${escapeHtml(res.asin)}</p>
+              ${res.description ? `<p class="text-black-100 text-xs mt-1 line-clamp-2 leading-relaxed">${escapeHtml(res.description)}</p>` : ''}
+            </div>
+          </div>
+          <button class="select-match-btn bg-accent hover:bg-accent-hover text-black px-3 py-1.5 rounded text-[11px] font-bold flex-shrink-0">Select Match</button>
+        `;
+
+        item.querySelector('.select-match-btn').onclick = async () => {
+          try {
+            item.querySelector('.select-match-btn').disabled = true;
+            item.querySelector('.select-match-btn').innerText = 'Matching...';
+            
+            await request('POST', `/api/authors/${author.id}/match`, {
+              asin: res.asin,
+              provider: 'audnexus'
+            });
+
+            showToast('Author successfully matched!', 'success');
+            closeMatch();
+            if (parentCloseModal) parentCloseModal();
+            loadAuthorDetails(author.id);
+          } catch (err) {
+            showToast('Failed to match author: ' + err.message, 'error');
+            item.querySelector('.select-match-btn').disabled = false;
+            item.querySelector('.select-match-btn').innerText = 'Select Match';
+          }
+        };
+
+        container.appendChild(item);
+      });
+    } catch (err) {
+      container.innerHTML = `<p class="text-red-500 text-xs py-4 text-center">Failed to fetch search results: ${escapeHtml(err.message)}</p>`;
+    }
+  };
+
+  document.getElementById('match-search-btn').onclick = performSearch;
+  document.getElementById('match-search-query').addEventListener('keyup', (e) => {
+    if (e.key === 'Enter') {
+      performSearch();
+    }
+  });
+
+  // Perform initial search automatically
+  performSearch();
+}
+
 
 function openEditSeriesModal(series) {
   const modal = document.createElement('div');
