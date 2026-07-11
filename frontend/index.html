@@ -7,6 +7,8 @@
   <link rel="icon" type="image/x-icon" href="assets/favicon.ico">
   <!-- Stylesheet compiled via Tailwind CSS -->
   <link rel="stylesheet" href="css/styles.css">
+  <!-- Google Cast Sender SDK -->
+  <script src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1"></script>
 </head>
 <body class="text-white max-h-screen h-screen overflow-hidden bg-bg font-sans">
 
@@ -395,6 +397,9 @@
           </button>
           <input id="player-volume-slider" type="range" min="0" max="100" value="100" class="w-16 accent-accent bg-black-500 h-1 rounded-lg cursor-pointer">
         </div>
+
+        <!-- Chromecast button -->
+        <google-cast-launcher id="player-cast-btn" class="w-7 h-7 text-black-50 hover:text-white cursor-pointer self-center flex items-center justify-center"></google-cast-launcher>
 
         <!-- Close button -->
         <button id="player-close" class="p-1.5 hover:bg-black-500 rounded text-black-50 hover:text-white" title="Close Player">

@@ -5,9 +5,154 @@ import { request, resolvePath } from './api.js';
 let audio = null;
 let hls = null;
 let currentItem = null;
+let currentPlaylistUri = null;
 let progressInterval = null;
 let isMuted = false;
 let previousVolume = 1.0;
+
+// Google Cast fields
+let castContext = null;
+let remotePlayer = null;
+let remotePlayerController = null;
+
+// Initialize Cast API
+function initializeCastApi() {
+  if (!window.cast || !window.cast.framework) {
+    console.warn('Cast framework not available yet');
+    return;
+  }
+  
+  castContext = window.cast.framework.CastContext.getInstance();
+  castContext.setOptions({
+    receiverApplicationId: chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID,
+    autoJoinPolicy: chrome.cast.AutoJoinPolicy.ORIGINAL_SESSION_RESTRICTION
+  });
+
+  remotePlayer = new window.cast.framework.RemotePlayer();
+  remotePlayerController = new window.cast.framework.RemotePlayerController(remotePlayer);
+
+  // Listen for connection status changes
+  remotePlayerController.addEventListener(
+    window.cast.framework.RemotePlayerEventType.IS_CONNECTED_CHANGED,
+    onCastConnectionChanged
+  );
+
+  // Listen for media status changes (play/pause state, time, etc.)
+  remotePlayerController.addEventListener(
+    window.cast.framework.RemotePlayerEventType.PLAYER_STATE_CHANGED,
+    onCastStateChanged
+  );
+
+  remotePlayerController.addEventListener(
+    window.cast.framework.RemotePlayerEventType.CURRENT_TIME_CHANGED,
+    onCastTimeChanged
+  );
+
+  remotePlayerController.addEventListener(
+    window.cast.framework.RemotePlayerEventType.DURATION_CHANGED,
+    onCastDurationChanged
+  );
+}
+
+// Attach callback to window
+window.__onGCastApiAvailable = function(isAvailable) {
+  if (isAvailable) {
+    initializeCastApi();
+  }
+};
+
+// Check if already available (safeguard)
+if (window.cast && window.cast.framework) {
+  initializeCastApi();
+}
+
+function onCastConnectionChanged() {
+  if (remotePlayer && remotePlayer.isConnected) {
+    console.log('Chromecast connected');
+    const localTime = audio ? audio.currentTime : 0;
+    if (audio) {
+      audio.pause();
+      audio.src = '';
+    }
+    if (currentItem && currentPlaylistUri) {
+      castPlayItem(currentItem, localTime, currentPlaylistUri);
+    }
+  } else {
+    console.log('Chromecast disconnected');
+    if (currentItem && remotePlayer) {
+      const remoteTime = remotePlayer.currentTime || 0;
+      playItem(currentItem, remoteTime);
+    }
+  }
+}
+
+function onCastStateChanged() {
+  if (!remotePlayer) return;
+  const state = remotePlayer.playerState;
+  const isPlaying = state === chrome.cast.media.PlayerState.PLAYING;
+  updatePlayPauseButton(isPlaying);
+
+  if (state === chrome.cast.media.PlayerState.IDLE && remotePlayer.idleReason === chrome.cast.media.IdleReason.FINISHED) {
+    onPlaybackEnded();
+  }
+}
+
+function onCastTimeChanged() {
+  updateTimelineUI();
+}
+
+function onCastDurationChanged() {
+  updateTimelineUI();
+}
+
+function castPlayItem(item, startTime = 0, clientPlaylistUri) {
+  if (!castContext) return;
+  const session = castContext.getCurrentSession();
+  if (!session) return;
+
+  // Build the absolute streaming URL
+  let streamUrl = window.location.origin + resolvePath(clientPlaylistUri);
+
+  const mediaInfo = new chrome.cast.media.MediaInfo(streamUrl, 'application/vnd.apple.mpegurl');
+  mediaInfo.metadata = new chrome.cast.media.GenericMediaMetadata();
+  mediaInfo.metadata.metadataType = chrome.cast.media.MetadataType.MUSIC_TRACK;
+  
+  let title = '';
+  let author = '';
+  if (item.mediaType === 'book') {
+    const metadata = item.media?.metadata || {};
+    title = metadata.title || item.title || 'Untitled';
+    author = metadata.authorName || 'Unknown';
+  } else if (item.mediaType === 'podcast') {
+    const metadata = item.media?.metadata || {};
+    title = metadata.title || item.title || 'Untitled';
+    author = metadata.author || 'Unknown';
+  } else {
+    title = item.title || 'Untitled';
+    author = 'Unknown';
+  }
+
+  mediaInfo.metadata.title = title;
+  mediaInfo.metadata.artist = author;
+  
+  const token = localStorage.getItem('token');
+  const ts = item.updatedAt || item.addedAt || Date.now();
+  const coverUrl = window.location.origin + resolvePath(`/api/items/${item.id}/cover?token=${token}&ts=${ts}`);
+  mediaInfo.metadata.images = [{ url: coverUrl }];
+
+  const requestObj = new chrome.cast.media.LoadRequest(mediaInfo);
+  requestObj.currentTime = startTime;
+
+  session.loadMedia(requestObj).then(
+    function() {
+      console.log('Chromecast: loadMedia success');
+      updatePlayPauseButton(true);
+    },
+    function(err) {
+      console.error('Chromecast: loadMedia error', err);
+    }
+  );
+}
 
 // Initialize audio and elements
 function initAudio() {
@@ -19,9 +164,11 @@ function initAudio() {
   audio.addEventListener('durationchange', updateTimelineUI);
   audio.addEventListener('ended', onPlaybackEnded);
   audio.addEventListener('play', () => {
+    if (remotePlayer && remotePlayer.isConnected) return;
     updatePlayPauseButton(true);
   });
   audio.addEventListener('pause', () => {
+    if (remotePlayer && remotePlayer.isConnected) return;
     updatePlayPauseButton(false);
   });
   
@@ -46,6 +193,7 @@ export async function playItem(item, startTime = 0) {
     }
     
     currentItem = item;
+    currentPlaylistUri = clientPlaylistUri;
     
     // Stop any existing playback and progress reporting
     stopProgressReporting();
@@ -57,57 +205,65 @@ export async function playItem(item, startTime = 0) {
     // Set metadata on UI
     updateMetadataUI(item);
     
-    // Check HLS support
-    const isNativeHlsSupported = audio.canPlayType('application/vnd.apple.mpegurl') || 
-                                 audio.canPlayType('application/x-mpegURL');
-    
-    if (isNativeHlsSupported) {
-      audio.src = resolvePath(clientPlaylistUri);
-      audio.currentTime = startTime;
-      audio.play().catch(err => console.error('Playback start failed:', err));
-    } else {
-      await loadHlsScript();
-      if (hls) {
-        hls.destroy();
+    if (remotePlayer && remotePlayer.isConnected) {
+      if (audio) {
+        audio.pause();
+        audio.src = '';
       }
-      hls = new Hls();
-      hls.loadSource(resolvePath(clientPlaylistUri));
-      hls.attachMedia(audio);
+      castPlayItem(item, startTime, clientPlaylistUri);
+    } else {
+      // Check HLS support
+      const isNativeHlsSupported = audio.canPlayType('application/vnd.apple.mpegurl') || 
+                                   audio.canPlayType('application/x-mpegURL');
       
-      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+      if (isNativeHlsSupported) {
+        audio.src = resolvePath(clientPlaylistUri);
         audio.currentTime = startTime;
-        audio.play().catch(err => console.error('Hls.js playback start failed:', err));
-      });
-      
-      hls.on(Hls.Events.ERROR, (event, data) => {
-        if (data.fatal) {
-          switch (data.type) {
-            case Hls.ErrorTypes.NETWORK_ERROR:
-              console.error('Fatal network error, trying to recover...', data);
-              hls.startLoad();
-              break;
-            case Hls.ErrorTypes.MEDIA_ERROR:
-              console.error('Fatal media error, trying to recover...', data);
-              hls.recoverMediaError();
-              break;
-            default:
-              console.error('Unrecoverable Hls.js error:', data);
-              destroyPlayer();
-              break;
-          }
+        audio.play().catch(err => console.error('Playback start failed:', err));
+      } else {
+        await loadHlsScript();
+        if (hls) {
+          hls.destroy();
         }
-      });
-    }
-    
-    // Apply speed and volume from controls
-    const speedSelect = document.getElementById('player-speed');
-    if (speedSelect) {
-      audio.playbackRate = parseFloat(speedSelect.value) || 1.0;
-    }
-    
-    const volumeSlider = document.getElementById('player-volume-slider');
-    if (volumeSlider) {
-      audio.volume = parseFloat(volumeSlider.value) / 100;
+        hls = new Hls();
+        hls.loadSource(resolvePath(clientPlaylistUri));
+        hls.attachMedia(audio);
+        
+        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+          audio.currentTime = startTime;
+          audio.play().catch(err => console.error('Hls.js playback start failed:', err));
+        });
+        
+        hls.on(Hls.Events.ERROR, (event, data) => {
+          if (data.fatal) {
+            switch (data.type) {
+              case Hls.ErrorTypes.NETWORK_ERROR:
+                console.error('Fatal network error, trying to recover...', data);
+                hls.startLoad();
+                break;
+              case Hls.ErrorTypes.MEDIA_ERROR:
+                console.error('Fatal media error, trying to recover...', data);
+                hls.recoverMediaError();
+                break;
+              default:
+                console.error('Unrecoverable Hls.js error:', data);
+                destroyPlayer();
+                break;
+            }
+          }
+        });
+      }
+      
+      // Apply speed and volume from controls
+      const speedSelect = document.getElementById('player-speed');
+      if (speedSelect) {
+        audio.playbackRate = parseFloat(speedSelect.value) || 1.0;
+      }
+      
+      const volumeSlider = document.getElementById('player-volume-slider');
+      if (volumeSlider) {
+        audio.volume = parseFloat(volumeSlider.value) / 100;
+      }
     }
     
     // Show player bar
@@ -141,11 +297,22 @@ function stopProgressReporting() {
 }
 
 async function reportProgress(isFinished = false) {
-  if (!currentItem || !audio) return;
+  if (!currentItem) return;
+  
+  let currentTime = 0;
+  let duration = 0;
+  if (remotePlayer && remotePlayer.isConnected) {
+    currentTime = remotePlayer.currentTime || 0;
+    duration = remotePlayer.duration || 0;
+  } else {
+    if (!audio) return;
+    currentTime = audio.currentTime || 0;
+    duration = audio.duration || 0;
+  }
   
   const payload = {
-    currentTime: audio.currentTime || 0,
-    duration: audio.duration || 0,
+    currentTime: currentTime,
+    duration: duration,
     isFinished: isFinished
   };
   
@@ -169,61 +336,104 @@ function setupUIEventListeners() {
   
   if (playPauseBtn) {
     playPauseBtn.onclick = () => {
-      if (!audio) return;
-      if (audio.paused) {
-        audio.play().catch(err => console.error('Play failed:', err));
+      if (remotePlayer && remotePlayer.isConnected) {
+        remotePlayerController.playOrPause();
       } else {
-        audio.pause();
+        if (!audio) return;
+        if (audio.paused) {
+          audio.play().catch(err => console.error('Play failed:', err));
+        } else {
+          audio.pause();
+        }
       }
     };
   }
   
   if (seekBackBtn) {
     seekBackBtn.onclick = () => {
-      if (!audio) return;
-      audio.currentTime = Math.max(audio.currentTime - 10, 0);
+      if (remotePlayer && remotePlayer.isConnected) {
+        const newTime = Math.max(remotePlayer.currentTime - 10, 0);
+        remotePlayer.currentTime = newTime;
+        remotePlayerController.seek();
+      } else {
+        if (!audio) return;
+        audio.currentTime = Math.max(audio.currentTime - 10, 0);
+      }
     };
   }
   
   if (seekForwardBtn) {
     seekForwardBtn.onclick = () => {
-      if (!audio) return;
-      audio.currentTime = Math.min(audio.currentTime + 10, audio.duration || 0);
+      if (remotePlayer && remotePlayer.isConnected) {
+        const newTime = Math.min(remotePlayer.currentTime + 10, remotePlayer.duration || 0);
+        remotePlayer.currentTime = newTime;
+        remotePlayerController.seek();
+      } else {
+        if (!audio) return;
+        audio.currentTime = Math.min(audio.currentTime + 10, audio.duration || 0);
+      }
     };
   }
   
   if (timeline) {
     timeline.oninput = () => {
-      if (!audio || !audio.duration) return;
-      const pct = parseFloat(timeline.value) / 100;
-      audio.currentTime = pct * audio.duration;
+      if (remotePlayer && remotePlayer.isConnected) {
+        if (!remotePlayer.duration) return;
+        const pct = parseFloat(timeline.value) / 100;
+        remotePlayer.currentTime = pct * remotePlayer.duration;
+        remotePlayerController.seek();
+      } else {
+        if (!audio || !audio.duration) return;
+        const pct = parseFloat(timeline.value) / 100;
+        audio.currentTime = pct * audio.duration;
+      }
     };
   }
   
   if (volumeBtn) {
     volumeBtn.onclick = () => {
-      if (!audio) return;
       isMuted = !isMuted;
-      if (isMuted) {
-        previousVolume = audio.volume;
-        audio.volume = 0;
-        updateVolumeIcon(0);
-        if (volumeSlider) volumeSlider.value = 0;
+      if (remotePlayer && remotePlayer.isConnected) {
+        if (isMuted) {
+          previousVolume = remotePlayer.volumeLevel;
+          remotePlayer.volumeLevel = 0;
+          remotePlayerController.setVolumeLevel();
+          updateVolumeIcon(0);
+          if (volumeSlider) volumeSlider.value = 0;
+        } else {
+          remotePlayer.volumeLevel = previousVolume;
+          remotePlayerController.setVolumeLevel();
+          updateVolumeIcon(previousVolume);
+          if (volumeSlider) volumeSlider.value = Math.round(previousVolume * 100);
+        }
       } else {
-        audio.volume = previousVolume;
-        updateVolumeIcon(previousVolume);
-        if (volumeSlider) volumeSlider.value = Math.round(previousVolume * 100);
+        if (!audio) return;
+        if (isMuted) {
+          previousVolume = audio.volume;
+          audio.volume = 0;
+          updateVolumeIcon(0);
+          if (volumeSlider) volumeSlider.value = 0;
+        } else {
+          audio.volume = previousVolume;
+          updateVolumeIcon(previousVolume);
+          if (volumeSlider) volumeSlider.value = Math.round(previousVolume * 100);
+        }
       }
     };
   }
   
   if (volumeSlider) {
     volumeSlider.oninput = () => {
-      if (!audio) return;
       const val = parseFloat(volumeSlider.value) / 100;
-      audio.volume = val;
       isMuted = val === 0;
       updateVolumeIcon(val);
+      if (remotePlayer && remotePlayer.isConnected) {
+        remotePlayer.volumeLevel = val;
+        remotePlayerController.setVolumeLevel();
+      } else {
+        if (!audio) return;
+        audio.volume = val;
+      }
     };
   }
   
@@ -265,10 +475,17 @@ function formatTime(secs) {
 
 // Update UI Helpers
 function updateTimelineUI() {
-  if (!audio || !audio.duration) return;
+  let elapsed = 0;
+  let duration = 0;
   
-  const elapsed = audio.currentTime || 0;
-  const duration = audio.duration;
+  if (remotePlayer && remotePlayer.isConnected) {
+    elapsed = remotePlayer.currentTime || 0;
+    duration = remotePlayer.duration || 0;
+  } else {
+    if (!audio || !audio.duration) return;
+    elapsed = audio.currentTime || 0;
+    duration = audio.duration;
+  }
   
   const elapsedEl = document.getElementById('player-time-elapsed');
   const remainingEl = document.getElementById('player-time-remaining');
@@ -281,7 +498,7 @@ function updateTimelineUI() {
     remainingEl.textContent = formatTime(duration - elapsed);
   }
   if (timeline) {
-    timeline.value = Math.round((elapsed / duration) * 100);
+    timeline.value = duration > 0 ? Math.round((elapsed / duration) * 100) : 0;
   }
 }
 
@@ -350,7 +567,14 @@ function destroyPlayer() {
     hls.destroy();
     hls = null;
   }
+  if (remotePlayer && remotePlayer.isConnected && castContext) {
+    const session = castContext.getCurrentSession();
+    if (session) {
+      session.endSession(true);
+    }
+  }
   currentItem = null;
+  currentPlaylistUri = null;
   
   const playerBar = document.getElementById('player-bar');
   if (playerBar) {
@@ -390,8 +614,14 @@ function escapeHtml(str) {
 }
 
 function triggerAddBookmarkModal() {
-  if (!currentItem || !audio) return;
-  const time = audio.currentTime || 0;
+  if (!currentItem) return;
+  let time = 0;
+  if (remotePlayer && remotePlayer.isConnected) {
+    time = remotePlayer.currentTime || 0;
+  } else {
+    if (!audio) return;
+    time = audio.currentTime || 0;
+  }
   
   // Format current position to HH:MM:SS format as placeholder
   let hrs = Math.floor(time / 3600);
@@ -484,5 +714,8 @@ export function getCurrentPlayingItem() {
 }
 
 export function getCurrentPlaybackTime() {
+  if (remotePlayer && remotePlayer.isConnected) {
+    return remotePlayer.currentTime || 0;
+  }
   return audio ? audio.currentTime : 0;
 }
