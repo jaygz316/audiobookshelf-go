@@ -9,6 +9,7 @@ import { loadSettings, applyServerThemeAndCss } from './settings.js';
 import { loadPlaylists } from './playlists.js';
 import { loadCollections } from './collections.js';
 import { loadAuthors, loadSeries, loadAuthorDetails, loadSeriesDetails } from './authors.js';
+import { loadNarrators } from './narrators.js';
 import { loadStats } from './stats.js';
 import { initPublicShare } from './publicShare.js';
 
@@ -143,6 +144,8 @@ function setupEventHandlers() {
         if (activeLibId) loadAuthors(activeLibId);
       } else if (pageName === 'Series') {
         if (activeLibId) loadSeries(activeLibId);
+      } else if (pageName === 'Narrators') {
+        if (activeLibId) loadNarrators(activeLibId);
       } else if (pageName === 'Stats') {
         loadStats();
       }
@@ -170,6 +173,8 @@ function setupEventHandlers() {
       loadAuthors(libraryId);
     } else if (pageName === 'Series') {
       loadSeries(libraryId);
+    } else if (pageName === 'Narrators') {
+      loadNarrators(libraryId);
     } else {
       loadDashboard(libraryId);
     }

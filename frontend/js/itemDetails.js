@@ -226,12 +226,19 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
                   </div>
                 ` : '')
               }
-              ${narratorName ? `
+              ${(item.media?.metadata?.narrators && item.media.metadata.narrators.length > 0) ? `
                 <div class="flex items-center space-x-1">
                   <span class="material-symbols text-base text-accent">record_voice_over</span>
-                  <span>Narrator: <span class="font-medium text-white">${escapeHtml(narratorName)}</span></span>
+                  <span>Narrator: ${item.media.metadata.narrators.map((narrator, idx) => `
+                    <span class="narrator-link font-medium text-white hover:text-accent cursor-pointer transition-colors hover:underline" data-name="${escapeHtml(narrator)}">${escapeHtml(narrator)}</span>${idx < item.media.metadata.narrators.length - 1 ? '<span class="text-black-100">, </span>' : ''}
+                  `).join('')}</span>
                 </div>
-              ` : ''}
+              ` : (narratorName ? `
+                <div class="flex items-center space-x-1">
+                  <span class="material-symbols text-base text-accent">record_voice_over</span>
+                  <span>Narrator: <span class="narrator-link font-medium text-white hover:text-accent cursor-pointer transition-colors hover:underline" data-name="${escapeHtml(narratorName)}">${escapeHtml(narratorName)}</span></span>
+                </div>
+              ` : '')}
             </div>
 
             <!-- Description -->
@@ -480,6 +487,18 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
           detail: {
             seriesId: link.dataset.id,
             seriesName: link.dataset.name
+          }
+        }));
+      };
+    });
+
+    container.querySelectorAll('.narrator-link').forEach(link => {
+      link.onclick = (e) => {
+        e.preventDefault();
+        window.dispatchEvent(new CustomEvent('navigate-to-dashboard', {
+          detail: {
+            filterBy: `narrators.${link.dataset.name}`,
+            filterLabel: `Narrator: ${link.dataset.name}`
           }
         }));
       };
