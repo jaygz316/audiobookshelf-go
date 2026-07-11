@@ -10,6 +10,20 @@ let progressInterval = null;
 let isMuted = false;
 let previousVolume = 1.0;
 
+// Sleep Timer variables
+let sleepTimerId = null;
+let sleepTimerDuration = 0;
+let sleepTimerTimeRemaining = 0;
+let sleepTimerEndTimestamp = 0;
+let sleepTimerType = 'off';
+let sleepTimerAutoRestart = false;
+let sleepTimerShakeToReset = true;
+let userVolume = 1.0;
+let isFading = false;
+let isSleepTimerActive = false;
+let lastShakeTime = 0;
+
+
 // Google Cast fields
 let castContext = null;
 let remotePlayer = null;
@@ -166,14 +180,25 @@ function initAudio() {
   audio.addEventListener('play', () => {
     if (remotePlayer && remotePlayer.isConnected) return;
     updatePlayPauseButton(true);
+    
+    // Auto-restart sleep timer if enabled
+    if (sleepTimerAutoRestart && sleepTimerType !== 'off' && !isSleepTimerActive) {
+      startSleepTimer(sleepTimerType);
+    }
   });
   audio.addEventListener('pause', () => {
     if (remotePlayer && remotePlayer.isConnected) return;
     updatePlayPauseButton(false);
+    
+    // Clear/stop sleep timer on pause, but preserve sleepTimerType for auto-restart
+    if (isSleepTimerActive) {
+      stopSleepTimer(false); // false means don't clear the saved type
+    }
   });
   
   setupUIEventListeners();
 }
+
 
 export async function playItem(item, startTime = 0) {
   initAudio();
@@ -262,8 +287,10 @@ export async function playItem(item, startTime = 0) {
       
       const volumeSlider = document.getElementById('player-volume-slider');
       if (volumeSlider) {
-        audio.volume = parseFloat(volumeSlider.value) / 100;
+        userVolume = parseFloat(volumeSlider.value) / 100;
+        audio.volume = userVolume;
       }
+
     }
     
     // Show player bar
@@ -409,14 +436,20 @@ function setupUIEventListeners() {
       } else {
         if (!audio) return;
         if (isMuted) {
-          previousVolume = audio.volume;
-          audio.volume = 0;
+          previousVolume = userVolume;
+          userVolume = 0;
+          if (!isFading) {
+            audio.volume = 0;
+          }
           updateVolumeIcon(0);
           if (volumeSlider) volumeSlider.value = 0;
         } else {
-          audio.volume = previousVolume;
-          updateVolumeIcon(previousVolume);
-          if (volumeSlider) volumeSlider.value = Math.round(previousVolume * 100);
+          userVolume = previousVolume;
+          if (!isFading) {
+            audio.volume = userVolume;
+          }
+          updateVolumeIcon(userVolume);
+          if (volumeSlider) volumeSlider.value = Math.round(userVolume * 100);
         }
       }
     };
@@ -432,7 +465,10 @@ function setupUIEventListeners() {
         remotePlayerController.setVolumeLevel();
       } else {
         if (!audio) return;
-        audio.volume = val;
+        userVolume = val;
+        if (!isFading) {
+          audio.volume = val;
+        }
       }
     };
   }
@@ -454,6 +490,13 @@ function setupUIEventListeners() {
   if (bookmarkBtn) {
     bookmarkBtn.onclick = () => {
       triggerAddBookmarkModal();
+    };
+  }
+
+  const sleepBtn = document.getElementById('player-sleep-btn');
+  if (sleepBtn) {
+    sleepBtn.onclick = () => {
+      triggerSleepTimerModal();
     };
   }
 }
@@ -559,10 +602,13 @@ async function onPlaybackEnded() {
 
 function destroyPlayer() {
   stopProgressReporting();
+  stopSleepTimer(true);
+  window.removeEventListener('devicemotion', handleDeviceMotion);
   if (audio) {
     audio.pause();
     audio.src = '';
   }
+
   if (hls) {
     hls.destroy();
     hls = null;
@@ -719,3 +765,394 @@ export function getCurrentPlaybackTime() {
   }
   return audio ? audio.currentTime : 0;
 }
+
+// ==========================================
+// Sleep Timer Implementation
+// ==========================================
+
+function startSleepTimer(type) {
+  stopSleepTimer(false); // Clear any existing active timer first
+  
+  sleepTimerType = type;
+  if (type === 'off') {
+    updateSleepTimerUI();
+    saveSleepTimerSettings();
+    return;
+  }
+  
+  let durationInSeconds = 0;
+  if (type === 'chapter') {
+    // Find remaining time in current chapter
+    const currentSecs = audio ? audio.currentTime : 0;
+    const chapters = currentItem?.media?.chapters || [];
+    const activeChapter = chapters.find(c => currentSecs >= c.start && currentSecs < c.end);
+    if (activeChapter) {
+      durationInSeconds = Math.max(activeChapter.end - currentSecs, 0);
+    } else {
+      durationInSeconds = 0;
+    }
+  } else {
+    durationInSeconds = parseInt(type, 10) * 60;
+  }
+  
+  if (durationInSeconds <= 0) {
+    console.warn('Sleep timer duration is 0 or negative');
+    return;
+  }
+  
+  isSleepTimerActive = true;
+  sleepTimerTimeRemaining = durationInSeconds;
+  sleepTimerEndTimestamp = Date.now() + durationInSeconds * 1000;
+  
+  if (audio) {
+    userVolume = audio.volume;
+  }
+  isFading = false;
+  
+  sleepTimerId = setInterval(tickSleepTimer, 1000);
+  
+  updateSleepTimerUI();
+  saveSleepTimerSettings();
+  
+  if (sleepTimerShakeToReset) {
+    enableShakeDetection();
+  }
+}
+
+function tickSleepTimer() {
+  if (!isSleepTimerActive || !audio || audio.paused) {
+    stopSleepTimer(false);
+    return;
+  }
+  
+  const now = Date.now();
+  const remaining = Math.max(Math.round((sleepTimerEndTimestamp - now) / 1000), 0);
+  sleepTimerTimeRemaining = remaining;
+  
+  // Update badge UI
+  const badge = document.getElementById('player-sleep-badge');
+  if (badge) {
+    badge.classList.remove('hidden');
+    if (remaining > 60) {
+      badge.textContent = `${Math.ceil(remaining / 60)}m`;
+    } else {
+      badge.textContent = `${remaining}s`;
+    }
+  }
+  
+  // Fade-out handling (last 30 seconds)
+  if (remaining <= 30) {
+    if (!isFading) {
+      isFading = true;
+      console.log('Sleep timer starting volume fade-out');
+    }
+    const fadeFactor = remaining / 30; // goes from 1.0 down to 0.0
+    audio.volume = userVolume * fadeFactor;
+  } else {
+    if (isFading) {
+      isFading = false;
+      audio.volume = userVolume;
+    }
+  }
+  
+  if (remaining <= 0) {
+    console.log('Sleep timer expired. Pausing playback.');
+    audio.pause();
+    stopSleepTimer(false);
+    if (audio) {
+      audio.volume = userVolume;
+    }
+  }
+}
+
+function stopSleepTimer(clearType = true) {
+  if (sleepTimerId) {
+    clearInterval(sleepTimerId);
+    sleepTimerId = null;
+  }
+  isSleepTimerActive = false;
+  
+  if (audio && isFading) {
+    audio.volume = userVolume;
+  }
+  isFading = false;
+  
+  if (clearType) {
+    sleepTimerType = 'off';
+  }
+  
+  const badge = document.getElementById('player-sleep-badge');
+  if (badge) {
+    badge.classList.add('hidden');
+  }
+  
+  const sleepIcon = document.getElementById('player-sleep-icon');
+  if (sleepIcon) {
+    sleepIcon.classList.remove('text-accent');
+  }
+  
+  saveSleepTimerSettings();
+}
+
+function updateSleepTimerUI() {
+  const sleepIcon = document.getElementById('player-sleep-icon');
+  const badge = document.getElementById('player-sleep-badge');
+  
+  if (isSleepTimerActive) {
+    if (sleepIcon) {
+      sleepIcon.classList.add('text-accent');
+    }
+    if (badge) {
+      badge.classList.remove('hidden');
+      if (sleepTimerTimeRemaining > 60) {
+        badge.textContent = `${Math.ceil(sleepTimerTimeRemaining / 60)}m`;
+      } else {
+        badge.textContent = `${sleepTimerTimeRemaining}s`;
+      }
+    }
+  } else {
+    if (sleepIcon) {
+      sleepIcon.classList.remove('text-accent');
+    }
+    if (badge) {
+      badge.classList.add('hidden');
+    }
+  }
+}
+
+function resetSleepTimer() {
+  if (!isSleepTimerActive) return;
+  console.log('Resetting sleep timer');
+  
+  startSleepTimer(sleepTimerType);
+  
+  const sleepIcon = document.getElementById('player-sleep-icon');
+  if (sleepIcon) {
+    sleepIcon.classList.add('animate-bounce');
+    setTimeout(() => {
+      sleepIcon.classList.remove('animate-bounce');
+    }, 1000);
+  }
+}
+
+function saveSleepTimerSettings() {
+  const settings = {
+    autoRestart: sleepTimerAutoRestart,
+    shakeToReset: sleepTimerShakeToReset,
+    lastDuration: sleepTimerType
+  };
+  localStorage.setItem('abs-sleep-timer-settings', JSON.stringify(settings));
+}
+
+function handleDeviceMotion(event) {
+  const acc = event.accelerationIncludingGravity;
+  if (!acc) return;
+  const threshold = 15;
+  const deltaX = Math.abs(acc.x || 0);
+  const deltaY = Math.abs(acc.y || 0);
+  const deltaZ = Math.abs(acc.z || 0);
+  if (deltaX > threshold || deltaY > threshold || deltaZ > threshold) {
+    const now = Date.now();
+    if (now - lastShakeTime > 2000) {
+      lastShakeTime = now;
+      resetSleepTimer();
+      showNotification('Sleep timer extended via shake!');
+    }
+  }
+}
+
+async function enableShakeDetection() {
+  if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+    try {
+      const permissionState = await DeviceMotionEvent.requestPermission();
+      if (permissionState === 'granted') {
+        window.addEventListener('devicemotion', handleDeviceMotion);
+      }
+    } catch (err) {
+      console.warn('DeviceMotion permission request rejected:', err);
+    }
+  } else {
+    window.addEventListener('devicemotion', handleDeviceMotion);
+  }
+}
+
+function showNotification(message) {
+  let container = document.getElementById('notification-container');
+  if (!container) {
+    container = document.createElement('div');
+    container.id = 'notification-container';
+    container.className = 'fixed bottom-24 right-6 z-50 space-y-2 pointer-events-none';
+    document.body.appendChild(container);
+  }
+  const toast = document.createElement('div');
+  toast.className = 'bg-accent text-primary font-bold px-4 py-2 rounded shadow-lg text-xs transition-all transform translate-y-10 opacity-0 duration-300 pointer-events-none';
+  toast.textContent = message;
+  container.appendChild(toast);
+  
+  setTimeout(() => {
+    toast.classList.remove('translate-y-10', 'opacity-0');
+  }, 10);
+  
+  setTimeout(() => {
+    toast.classList.add('translate-y-10', 'opacity-0');
+    setTimeout(() => toast.remove(), 300);
+  }, 2500);
+}
+
+function triggerSleepTimerModal() {
+  if (!currentItem) return;
+
+  const chapters = currentItem?.media?.chapters || [];
+  const currentSecs = audio ? audio.currentTime : 0;
+  const activeChapter = chapters.find(c => currentSecs >= c.start && currentSecs < c.end);
+
+  // Create Modal element using native dialog for light-dismiss support and semantic styling
+  const dialog = document.createElement('dialog');
+  dialog.id = 'sleep-timer-dialog';
+  dialog.setAttribute('closedby', 'any');
+  dialog.className = 'bg-primary border border-black-400 rounded-lg max-w-md w-full p-6 shadow-2xl space-y-4 focus:outline-none select-none text-white backdrop:bg-black-900/80 backdrop:backdrop-blur-sm open:flex open:flex-col open:items-stretch';
+  dialog.innerHTML = `
+    <div class="flex items-center justify-between border-b border-black-500 pb-3">
+      <h3 class="text-sm font-bold text-white uppercase tracking-wider flex items-center space-x-1.5">
+        <span class="material-symbols text-base text-accent">bedtime</span>
+        <span>Sleep Timer</span>
+      </h3>
+      <button id="close-sleep-modal" class="text-black-100 hover:text-white transition-colors">
+        <span class="material-symbols text-lg">close</span>
+      </button>
+    </div>
+
+    <div class="space-y-4 text-left">
+      <div>
+        <label class="text-[0.65rem] uppercase font-bold text-black-100 tracking-wider block mb-2">Duration</label>
+        <div class="grid grid-cols-3 gap-2">
+          <button class="sleep-opt-btn bg-black-500 hover:bg-black-400 border border-black-300 text-white rounded py-2 text-xs transition-colors" data-value="off">Off</button>
+          <button class="sleep-opt-btn bg-black-500 hover:bg-black-400 border border-black-300 text-white rounded py-2 text-xs transition-colors" data-value="5">5m</button>
+          <button class="sleep-opt-btn bg-black-500 hover:bg-black-400 border border-black-300 text-white rounded py-2 text-xs transition-colors" data-value="15">15m</button>
+          <button class="sleep-opt-btn bg-black-500 hover:bg-black-400 border border-black-300 text-white rounded py-2 text-xs transition-colors" data-value="30">30m</button>
+          <button class="sleep-opt-btn bg-black-500 hover:bg-black-400 border border-black-300 text-white rounded py-2 text-xs transition-colors" data-value="45">45m</button>
+          <button class="sleep-opt-btn bg-black-500 hover:bg-black-400 border border-black-300 text-white rounded py-2 text-xs transition-colors" data-value="60">60m</button>
+        </div>
+        ${activeChapter ? `
+        <button class="sleep-opt-btn w-full mt-2 bg-black-500 hover:bg-black-400 border border-black-300 text-white rounded py-2 text-xs transition-colors flex items-center justify-center space-x-1" data-value="chapter">
+          <span class="material-symbols text-sm">menu_book</span>
+          <span>End of Chapter: ${escapeHtml(activeChapter.title || 'Current Chapter')}</span>
+        </button>
+        ` : ''}
+      </div>
+
+      <div class="space-y-3 pt-2">
+        <label class="text-[0.65rem] uppercase font-bold text-black-100 tracking-wider block">Settings</label>
+        
+        <label class="flex items-center space-x-2.5 cursor-pointer select-none">
+          <input type="checkbox" id="sleep-autorestart-input" class="rounded text-accent bg-black-500 border-black-300 focus:ring-0 focus:ring-offset-0">
+          <div class="text-left">
+            <span class="text-xs text-white font-medium block">Auto-Restart Timer on Play</span>
+            <span class="text-[0.65rem] text-black-100">Automatically restart timer when resuming playback</span>
+          </div>
+        </label>
+
+        <label class="flex items-center space-x-2.5 cursor-pointer select-none">
+          <input type="checkbox" id="sleep-shaketoreset-input" class="rounded text-accent bg-black-500 border-black-300 focus:ring-0 focus:ring-offset-0">
+          <div class="text-left">
+            <span class="text-xs text-white font-medium block">Shake-to-Reset</span>
+            <span class="text-[0.65rem] text-black-100">Shake device in the last 30s to extend/reset timer</span>
+          </div>
+        </label>
+      </div>
+    </div>
+
+    <div class="flex items-center justify-end space-x-3 pt-3 border-t border-black-500">
+      <button id="cancel-sleep-btn" class="bg-transparent hover:bg-black-500 text-white px-4 py-2 rounded text-xs transition-colors">
+        Cancel
+      </button>
+      <button id="save-sleep-btn" class="bg-accent text-primary font-bold px-4 py-2 rounded text-xs hover:opacity-90 transition-opacity">
+        Start Timer
+      </button>
+    </div>
+  `;
+
+  document.body.appendChild(dialog);
+
+  // Set checkbox states from configuration variables
+  const autoRestartInput = dialog.querySelector('#sleep-autorestart-input');
+  const shakeToResetInput = dialog.querySelector('#sleep-shaketoreset-input');
+  autoRestartInput.checked = sleepTimerAutoRestart;
+  shakeToResetInput.checked = sleepTimerShakeToReset;
+
+  let selectedValue = isSleepTimerActive ? sleepTimerType : 'off';
+  const optButtons = dialog.querySelectorAll('.sleep-opt-btn');
+  const highlightSelected = () => {
+    optButtons.forEach(btn => {
+      if (btn.getAttribute('data-value') === selectedValue) {
+        btn.classList.add('border-accent', 'text-accent', 'bg-accent/10');
+        btn.classList.remove('border-black-300', 'text-white');
+      } else {
+        btn.classList.remove('border-accent', 'text-accent', 'bg-accent/10');
+        btn.classList.add('border-black-300', 'text-white');
+      }
+    });
+  };
+
+  optButtons.forEach(btn => {
+    btn.onclick = () => {
+      selectedValue = btn.getAttribute('data-value');
+      highlightSelected();
+    };
+  });
+  highlightSelected();
+
+  const closeModal = () => {
+    dialog.close();
+    dialog.remove();
+  };
+
+  // Implement the fallback for light-dismiss on unsupported browsers (e.g. Safari)
+  if (!('closedBy' in HTMLDialogElement.prototype)) {
+    dialog.addEventListener('click', (event) => {
+      if (event.target !== dialog) return;
+      const rect = dialog.getBoundingClientRect();
+      const isDialogContent = (
+        rect.top <= event.clientY &&
+        event.clientY <= rect.top + rect.height &&
+        rect.left <= event.clientX &&
+        event.clientX <= rect.left + rect.width
+      );
+      if (isDialogContent) return;
+      closeModal();
+    });
+  }
+
+  dialog.querySelector('#close-sleep-modal').onclick = closeModal;
+  dialog.querySelector('#cancel-sleep-btn').onclick = closeModal;
+
+  dialog.querySelector('#save-sleep-btn').onclick = () => {
+    sleepTimerAutoRestart = autoRestartInput.checked;
+    sleepTimerShakeToReset = shakeToResetInput.checked;
+    
+    if (selectedValue === 'off') {
+      stopSleepTimer(true);
+    } else {
+      startSleepTimer(selectedValue);
+    }
+    closeModal();
+  };
+
+  dialog.showModal();
+}
+
+// Initial initialization of settings from localStorage
+(function initSleepTimerSettings() {
+  const storedSettings = localStorage.getItem('abs-sleep-timer-settings');
+  if (storedSettings) {
+    try {
+      const parsed = JSON.parse(storedSettings);
+      sleepTimerAutoRestart = parsed.autoRestart ?? false;
+      sleepTimerShakeToReset = parsed.shakeToReset ?? true;
+      sleepTimerType = parsed.lastDuration ?? 'off';
+    } catch (e) {
+      console.warn('Failed to parse sleep timer settings', e);
+    }
+  }
+})();
+
