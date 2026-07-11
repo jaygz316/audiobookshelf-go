@@ -281,7 +281,16 @@ async function renderServerSettingsTab() {
             </label>
           </div>
 
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label class="block text-xs font-semibold text-black-100 uppercase tracking-wider mb-2">Theme</label>
+              <select id="setting-theme" class="w-full bg-black-500 text-white px-3 py-2 rounded border border-black-300 focus:outline-none focus:border-accent">
+                <option value="dark" ${settings.theme === 'dark' ? 'selected' : ''}>Dark (Default)</option>
+                <option value="light" ${settings.theme === 'light' ? 'selected' : ''}>Light</option>
+                <option value="sepia" ${settings.theme === 'sepia' ? 'selected' : ''}>Sepia</option>
+              </select>
+            </div>
+
             <div>
               <label class="block text-xs font-semibold text-black-100 uppercase tracking-wider mb-2">Date Format</label>
               <select id="setting-date-format" class="w-full bg-black-500 text-white px-3 py-2 rounded border border-black-300 focus:outline-none focus:border-accent">
@@ -311,6 +320,19 @@ async function renderServerSettingsTab() {
             <label class="block text-xs font-semibold text-black-100 uppercase tracking-wider mb-2">Allowed CORS Origins</label>
             <textarea id="setting-allowed-cors-origins" rows="3" placeholder="e.g. http://localhost:3000, https://myabs.com (comma- or newline-separated)" class="w-full bg-black-500 text-white px-3 py-2 rounded border border-black-300 focus:outline-none focus:border-accent font-mono text-sm">${escapeHtml(corsValue)}</textarea>
             <p class="text-xs text-black-100 mt-1">Cross-Origin Resource Sharing domains allowed to access this server API.</p>
+          </div>
+        </div>
+
+        <hr class="border-black-400">
+
+        <!-- Category 6: Custom Styling & CSS -->
+        <div class="space-y-4">
+          <h4 class="text-md font-semibold text-accent">Custom Styling & CSS</h4>
+
+          <div>
+            <label class="block text-xs font-semibold text-black-100 uppercase tracking-wider mb-2">Custom CSS</label>
+            <textarea id="setting-custom-css" rows="6" placeholder="/* Custom CSS rule overrides e.g. :root { --color-accent: #ff00ff; } */" class="w-full bg-black-500 text-white px-3 py-2 rounded border border-black-300 focus:outline-none focus:border-accent font-mono text-sm">${escapeHtml(settings.customCss || '')}</textarea>
+            <p class="text-xs text-black-100 mt-1">Inject custom CSS styling rules into the web client.</p>
           </div>
         </div>
 
@@ -374,6 +396,8 @@ async function renderServerSettingsTab() {
           libraryBookshelfView: document.getElementById('setting-library-bookshelf-view').checked,
           dateFormat: document.getElementById('setting-date-format').value,
           timeFormat: document.getElementById('setting-time-format').value,
+          theme: document.getElementById('setting-theme').value,
+          customCss: document.getElementById('setting-custom-css').value,
           
           allowedCorsOrigins: allowedCorsOrigins
         };
@@ -381,6 +405,7 @@ async function renderServerSettingsTab() {
         const res = await request('PATCH', '/api/settings', payload);
         if (res && res.serverSettings) {
           window.serverSettings = res.serverSettings;
+          applyServerThemeAndCss(res.serverSettings);
         }
         alert('Server settings saved successfully!');
       } catch (err) {
@@ -3229,5 +3254,24 @@ function showLibraryModal(lib) {
     }
   };
 }
+
+export function applyServerThemeAndCss(settings) {
+  if (!settings) return;
+  const theme = settings.theme || 'dark';
+  document.documentElement.setAttribute('data-theme', theme);
+
+  let styleEl = document.getElementById('custom-css-style');
+  if (settings.customCss) {
+    if (!styleEl) {
+      styleEl = document.createElement('style');
+      styleEl.id = 'custom-css-style';
+      document.head.appendChild(styleEl);
+    }
+    styleEl.textContent = settings.customCss;
+  } else if (styleEl) {
+    styleEl.remove();
+  }
+}
+
 
 

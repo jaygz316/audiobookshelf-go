@@ -5,7 +5,7 @@ import { initLibrary, getActiveLibraryId } from './library.js';
 import { loadDashboard } from './dashboard.js';
 import { request } from './api.js';
 import { connectSocket, disconnectSocket, onEvent } from './socket.js';
-import { loadSettings } from './settings.js';
+import { loadSettings, applyServerThemeAndCss } from './settings.js';
 import { loadPlaylists } from './playlists.js';
 import { loadCollections } from './collections.js';
 import { loadAuthors, loadSeries, loadAuthorDetails, loadSeriesDetails } from './authors.js';
@@ -229,10 +229,17 @@ function setupEventHandlers() {
 }
 
 function bootstrapApp(payload) {
+  // Apply initial theme and custom CSS from login/authorization payload if available
+  if (payload && payload.serverSettings) {
+    window.serverSettings = payload.serverSettings;
+    applyServerThemeAndCss(payload.serverSettings);
+  }
+
   // On bootstrap, fetch server settings (GET /api/settings) and save to window.serverSettings
   request('GET', '/api/settings')
     .then(settings => {
       window.serverSettings = settings;
+      applyServerThemeAndCss(settings);
     })
     .catch(err => {
       console.warn('Could not fetch server settings:', err);
