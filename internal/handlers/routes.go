@@ -1280,6 +1280,9 @@ func handleAuthorsDispatch(db *sql.DB, cfg *core.Config) http.HandlerFunc {
 			if r.Method == http.MethodGet {
 				handleGetAuthorImage(db, cfg.MetadataPath, authorID)(w, r)
 				return
+			} else if r.Method == http.MethodDelete {
+				AuthMiddlewareWrapper(db, http.HandlerFunc(handleDeleteAuthorImage(db, cfg, authorID))).ServeHTTP(w, r)
+				return
 			}
 		} else if len(parts) == 2 && parts[1] == "match" {
 			authorID := parts[0]

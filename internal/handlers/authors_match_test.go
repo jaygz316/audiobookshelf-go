@@ -157,4 +157,55 @@ func TestAuthorsSearchAndMatch(t *testing.T) {
 	if _, err := os.Stat(expectedImgPath); os.IsNotExist(err) {
 		t.Errorf("Author image file not downloaded to %s", expectedImgPath)
 	}
+
+	// 5b. Test handleSearchAuthors with an ASIN (direct lookup)
+	asinSearchReq := httptest.NewRequest("GET", "/api/search/authors?name=B000AP9U0C", nil)
+	asinSearchReq = asinSearchReq.WithContext(context.WithValue(asinSearchReq.Context(), core.UserContextKey, &core.UserSession{
+		ID:       "user1",
+		Username: "admin",
+		Type:     "admin",
+	}))
+	asinSearchRec := httptest.NewRecorder()
+	searchHandler.ServeHTTP(asinSearchRec, asinSearchReq)
+
+	if asinSearchRec.Code != http.StatusOK {
+		t.Errorf("Expected ASIN search response 200, got %d, body: %s", asinSearchRec.Code, asinSearchRec.Body.String())
+	}
+
+	var asinSearchResults []*providers.AudnexusAuthorDetails
+	if err := json.Unmarshal(asinSearchRec.Body.Bytes(), &asinSearchResults); err != nil {
+		t.Fatalf("Failed to unmarshal ASIN search results: %v", err)
+	}
+	if len(asinSearchResults) != 1 || asinSearchResults[0].ASIN != "B000AP9U0C" {
+		t.Errorf("Expected search results for B000AP9U0C, got: %+v", asinSearchResults)
+	}
+
+	// 6. Test handleDeleteAuthorImage
+	deleteHandler := handleDeleteAuthorImage(db, cfg, "author_king")
+	deleteReq := httptest.NewRequest("DELETE", "/api/authors/author_king/image", nil)
+	deleteReq = deleteReq.WithContext(context.WithValue(deleteReq.Context(), core.UserContextKey, &core.UserSession{
+		ID:       "user1",
+		Username: "admin",
+		Type:     "admin",
+	}))
+	deleteRec := httptest.NewRecorder()
+	deleteHandler.ServeHTTP(deleteRec, deleteReq)
+
+	if deleteRec.Code != http.StatusOK {
+		t.Errorf("Expected delete image response 200, got %d, body: %s", deleteRec.Code, deleteRec.Body.String())
+	}
+
+	// Verify DB is cleared
+	err = db.QueryRow("SELECT imagePath FROM authors WHERE id = ?", "author_king").Scan(&dbImg)
+	if err != nil {
+		t.Fatalf("Failed to query author db after delete: %v", err)
+	}
+	if dbImg.String != "" {
+		t.Errorf("Expected imagePath to be empty, got %q", dbImg.String)
+	}
+
+	// Verify physical image file is deleted
+	if _, err := os.Stat(expectedImgPath); !os.IsNotExist(err) {
+		t.Errorf("Author image file still exists at %s", expectedImgPath)
+	}
 }
