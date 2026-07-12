@@ -120,6 +120,7 @@ func handleUpdateServerSettings(db *sql.DB) http.HandlerFunc {
 			http.Error(w, `{"error": "Failed to update settings"}`, http.StatusInternalServerError)
 			return
 		}
+		InvalidateAllowIframeCache()
 
 		if newWatch != oldWatch {
 			if watcher.GlobalWatcher != nil {

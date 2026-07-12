@@ -363,15 +363,6 @@ export async function loadAuthorDetails(authorId) {
       matchBtn.onclick = () => openMatchAuthorModal(author, null);
     }
 
-    const detailImg = document.getElementById('author-detail-img');
-    if (detailImg) {
-      detailImg.onerror = function() {
-        const parent = this.parentElement;
-        if (parent) {
-          parent.innerHTML = '<span class="material-symbols text-6xl text-black-100">person</span>';
-        }
-      };
-    }
 
   } catch (err) {
     console.error('Failed to load author details:', err);

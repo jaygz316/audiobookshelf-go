@@ -77,6 +77,7 @@ function renderCollectionsGrid(collections, libraryId) {
     card.innerHTML = `
       <div class="space-y-2">
         <div class="h-28 w-full bg-black-500 rounded flex items-center justify-center text-accent/80 border border-black-400 mb-2 relative">
+          ${c.isSmart ? `<span class="absolute top-2 left-2 bg-accent/20 text-accent border border-accent/30 px-1.5 py-0.5 text-[0.65rem] rounded font-bold uppercase tracking-wide">Smart</span>` : ''}
           <span class="material-symbols text-4xl">collections_bookmark</span>
           <span class="absolute bottom-2 right-2 bg-black-600/80 px-2 py-0.5 text-xs text-white rounded font-semibold">${count} books</span>
         </div>
@@ -140,9 +141,16 @@ async function triggerCreateCollectionModal(libraryId) {
           <label class="block text-xs text-black-100 mb-1">Description</label>
           <textarea id="new-coll-desc" placeholder="A short description of this collection" class="w-full bg-black-500 text-white px-3 py-1.5 rounded border border-black-300 focus:outline-none focus:border-accent text-sm h-16 resize-none"></textarea>
         </div>
-        
+
         <div>
-          <label class="block text-xs text-black-100 mb-1">Add Books</label>
+          <label class="flex items-center space-x-2 text-xs font-semibold text-white cursor-pointer my-2">
+            <input type="checkbox" id="new-coll-smart-toggle" class="rounded text-accent bg-black-600 border-black-300">
+            <span>Smart Collection (rules-based)</span>
+          </label>
+        </div>
+        
+        <div id="new-coll-manual-books-container">
+          <label class="block text-xs text-black-100 mb-1">Select Books</label>
           <div class="max-h-48 overflow-y-auto border border-black-300 rounded p-2 bg-black-500 space-y-1.5" id="coll-book-selector">
             ${items.length === 0 ? '<p class="text-xs text-black-100">No items available</p>' : items.map(item => `
               <label class="flex items-center space-x-2 text-xs cursor-pointer hover:bg-black-400 p-1 rounded">
@@ -150,6 +158,37 @@ async function triggerCreateCollectionModal(libraryId) {
                 <span class="truncate">${escapeHtml(item.media?.metadata?.title || item.title || 'Untitled')}</span>
               </label>
             `).join('')}
+          </div>
+        </div>
+
+        <div id="new-coll-smart-rules-container" class="hidden space-y-3 border border-black-300 rounded p-3 bg-black-500/50">
+          <p class="text-[0.7rem] text-accent/80 flex items-center space-x-1 mb-2 font-semibold">
+            <span class="material-symbols text-xs">info</span>
+            <span>Books matching any of the rules below will be automatically added.</span>
+          </p>
+          <div>
+            <label class="block text-[0.65rem] text-black-100 uppercase tracking-wider mb-1">Genres (comma separated)</label>
+            <input type="text" id="new-coll-rules-genres" placeholder="e.g. Fantasy, Sci-Fi" class="w-full bg-black-500 text-white px-3 py-1 rounded border border-black-300 focus:outline-none focus:border-accent text-xs">
+          </div>
+          <div>
+            <label class="block text-[0.65rem] text-black-100 uppercase tracking-wider mb-1">Tags (comma separated)</label>
+            <input type="text" id="new-coll-rules-tags" placeholder="e.g. Favorite, Unfinished" class="w-full bg-black-500 text-white px-3 py-1 rounded border border-black-300 focus:outline-none focus:border-accent text-xs">
+          </div>
+          <div>
+            <label class="block text-[0.65rem] text-black-100 uppercase tracking-wider mb-1">Narrators (comma separated)</label>
+            <input type="text" id="new-coll-rules-narrators" placeholder="e.g. Stephen Fry" class="w-full bg-black-500 text-white px-3 py-1 rounded border border-black-300 focus:outline-none focus:border-accent text-xs">
+          </div>
+          <div>
+            <label class="block text-[0.65rem] text-black-100 uppercase tracking-wider mb-1">Authors (comma separated)</label>
+            <input type="text" id="new-coll-rules-authors" placeholder="e.g. J.K. Rowling, J.R.R. Tolkien" class="w-full bg-black-500 text-white px-3 py-1 rounded border border-black-300 focus:outline-none focus:border-accent text-xs">
+          </div>
+          <div>
+            <label class="block text-[0.65rem] text-black-100 uppercase tracking-wider mb-1">Published Years (comma separated)</label>
+            <input type="text" id="new-coll-rules-published-years" placeholder="e.g. 1997, 2001" class="w-full bg-black-500 text-white px-3 py-1 rounded border border-black-300 focus:outline-none focus:border-accent text-xs">
+          </div>
+          <div>
+            <label class="block text-[0.65rem] text-black-100 uppercase tracking-wider mb-1">Search Query</label>
+            <input type="text" id="new-coll-rules-search" placeholder="e.g. Harry Potter" class="w-full bg-black-500 text-white px-3 py-1 rounded border border-black-300 focus:outline-none focus:border-accent text-xs">
           </div>
         </div>
       </div>
@@ -163,6 +202,20 @@ async function triggerCreateCollectionModal(libraryId) {
 
   document.body.appendChild(modal);
 
+  const smartToggle = modal.querySelector('#new-coll-smart-toggle');
+  const manualContainer = modal.querySelector('#new-coll-manual-books-container');
+  const smartContainer = modal.querySelector('#new-coll-smart-rules-container');
+
+  smartToggle.onchange = (e) => {
+    if (e.target.checked) {
+      manualContainer.classList.add('hidden');
+      smartContainer.classList.remove('hidden');
+    } else {
+      manualContainer.classList.remove('hidden');
+      smartContainer.classList.add('hidden');
+    }
+  };
+
   const closeModal = () => modal.remove();
   modal.querySelector('#close-coll-modal-btn').onclick = closeModal;
 
@@ -174,15 +227,31 @@ async function triggerCreateCollectionModal(libraryId) {
       return;
     }
 
-    const checkboxes = modal.querySelectorAll('.coll-book-checkbox:checked');
-    const selectedIds = Array.from(checkboxes).map(cb => cb.value);
+    const isSmart = smartToggle.checked;
+    let books = [];
+    let rulesStr = "";
+
+    if (isSmart) {
+      const genres = document.getElementById('new-coll-rules-genres').value.split(',').map(s => s.trim()).filter(Boolean);
+      const tags = document.getElementById('new-coll-rules-tags').value.split(',').map(s => s.trim()).filter(Boolean);
+      const narrators = document.getElementById('new-coll-rules-narrators').value.split(',').map(s => s.trim()).filter(Boolean);
+      const authors = document.getElementById('new-coll-rules-authors').value.split(',').map(s => s.trim()).filter(Boolean);
+      const publishedYears = document.getElementById('new-coll-rules-published-years').value.split(',').map(s => s.trim()).filter(Boolean);
+      const search = document.getElementById('new-coll-rules-search').value.trim();
+      rulesStr = JSON.stringify({ genres, tags, narrators, authors, publishedYears, search });
+    } else {
+      const checkboxes = modal.querySelectorAll('.coll-book-checkbox:checked');
+      books = Array.from(checkboxes).map(cb => cb.value);
+    }
 
     try {
       await request('POST', '/api/collections', {
         name,
         description,
         libraryId,
-        books: selectedIds
+        isSmart,
+        rules: rulesStr,
+        books
       });
       closeModal();
       loadCollections(libraryId);
@@ -228,7 +297,10 @@ async function loadCollectionDetails(collectionId, libraryId) {
         <div class="bg-primary border border-black-300 p-6 rounded-md space-y-4">
           <div class="flex justify-between items-start border-b border-black-400 pb-4">
             <div>
-              <h2 class="text-2xl font-bold text-white mb-1" id="coll-details-title">${escapeHtml(collection.name)}</h2>
+              <div class="flex items-center space-x-2 mb-1">
+                <h2 class="text-2xl font-bold text-white" id="coll-details-title">${escapeHtml(collection.name)}</h2>
+                ${collection.isSmart ? `<span class="bg-accent/20 text-accent border border-accent/30 px-2 py-0.5 text-xs rounded font-bold uppercase tracking-wide">Smart</span>` : ''}
+              </div>
               <p class="text-xs text-black-50 mb-2" id="coll-details-desc">${escapeHtml(collection.description) || 'No description provided.'}</p>
               <p class="text-xs text-black-100">Created: ${window.formatDateTime ? window.formatDateTime(collection.createdAt) : new Date(collection.createdAt).toLocaleString()}</p>
             </div>
@@ -394,6 +466,7 @@ function renderCollectionBooksRows(collection, booksDetails, libraryId) {
   emptyState.classList.add('hidden');
 
   const bookIds = collection.books || collection.itemIds || [];
+  const isSmart = !!collection.isSmart;
 
   booksDetails.forEach((item, index) => {
     const li = document.createElement('li');
@@ -412,6 +485,7 @@ function renderCollectionBooksRows(collection, booksDetails, libraryId) {
         </div>
       </div>
 
+      ${!isSmart ? `
       <div class="flex items-center space-x-3 ml-4">
         <!-- Reorder triggers -->
         <button class="up-btn text-black-50 hover:text-white p-1" ${index === 0 ? 'disabled opacity-20' : ''}>
@@ -424,6 +498,7 @@ function renderCollectionBooksRows(collection, booksDetails, libraryId) {
           <span class="material-symbols text-lg">close</span>
         </button>
       </div>
+      ` : ''}
     `;
 
     // Click cover/title views item details
@@ -431,45 +506,47 @@ function renderCollectionBooksRows(collection, booksDetails, libraryId) {
       loadItemDetails(item.id, libraryId, () => loadCollectionDetails(collection.id, libraryId));
     };
 
-    // Reorder actions
-    li.querySelector('.up-btn').onclick = async () => {
-      const newOrderIds = [...bookIds];
-      const temp = newOrderIds[index];
-      newOrderIds[index] = newOrderIds[index - 1];
-      newOrderIds[index - 1] = temp;
-      
-      try {
-        await request('PATCH', `/api/collections/${collection.id}`, { books: newOrderIds });
-        loadCollectionDetails(collection.id, libraryId);
-      } catch (err) {
-        alert('Failed to reorder collection books: ' + err.message);
-      }
-    };
+    if (!isSmart) {
+      // Reorder actions
+      li.querySelector('.up-btn').onclick = async () => {
+        const newOrderIds = [...bookIds];
+        const temp = newOrderIds[index];
+        newOrderIds[index] = newOrderIds[index - 1];
+        newOrderIds[index - 1] = temp;
+        
+        try {
+          await request('PATCH', `/api/collections/${collection.id}`, { books: newOrderIds });
+          loadCollectionDetails(collection.id, libraryId);
+        } catch (err) {
+          alert('Failed to reorder collection books: ' + err.message);
+        }
+      };
 
-    li.querySelector('.down-btn').onclick = async () => {
-      const newOrderIds = [...bookIds];
-      const temp = newOrderIds[index];
-      newOrderIds[index] = newOrderIds[index + 1];
-      newOrderIds[index + 1] = temp;
+      li.querySelector('.down-btn').onclick = async () => {
+        const newOrderIds = [...bookIds];
+        const temp = newOrderIds[index];
+        newOrderIds[index] = newOrderIds[index + 1];
+        newOrderIds[index + 1] = temp;
 
-      try {
-        await request('PATCH', `/api/collections/${collection.id}`, { books: newOrderIds });
-        loadCollectionDetails(collection.id, libraryId);
-      } catch (err) {
-        alert('Failed to reorder collection books: ' + err.message);
-      }
-    };
+        try {
+          await request('PATCH', `/api/collections/${collection.id}`, { books: newOrderIds });
+          loadCollectionDetails(collection.id, libraryId);
+        } catch (err) {
+          alert('Failed to reorder collection books: ' + err.message);
+        }
+      };
 
-    li.querySelector('.remove-btn').onclick = async () => {
-      if (!confirm(`Remove "${title}" from collection?`)) return;
-      const newOrderIds = bookIds.filter(id => id !== item.id);
-      try {
-        await request('PATCH', `/api/collections/${collection.id}`, { books: newOrderIds });
-        loadCollectionDetails(collection.id, libraryId);
-      } catch (err) {
-        alert('Failed to remove book: ' + err.message);
-      }
-    };
+      li.querySelector('.remove-btn').onclick = async () => {
+        if (!confirm(`Remove "${title}" from collection?`)) return;
+        const newOrderIds = bookIds.filter(id => id !== item.id);
+        try {
+          await request('PATCH', `/api/collections/${collection.id}`, { books: newOrderIds });
+          loadCollectionDetails(collection.id, libraryId);
+        } catch (err) {
+          alert('Failed to remove book: ' + err.message);
+        }
+      };
+    }
 
     list.appendChild(li);
   });
@@ -485,6 +562,13 @@ async function triggerEditCollectionDetailsModal(collection, libraryId) {
   }
 
   const bookIds = collection.books || collection.itemIds || [];
+
+  let rules = {};
+  try {
+    rules = typeof collection.rules === 'string' && collection.rules ? JSON.parse(collection.rules) : (collection.rules || {});
+  } catch (e) {
+    console.error('Failed to parse collection rules:', e);
+  }
 
   const modal = document.createElement('div');
   modal.className = 'fixed inset-0 bg-black-900/80 z-50 flex items-center justify-center p-4';
@@ -502,8 +586,15 @@ async function triggerEditCollectionDetailsModal(collection, libraryId) {
           <label class="block text-xs text-black-100 mb-1">Description</label>
           <textarea id="edit-coll-desc" class="w-full bg-black-500 text-white px-3 py-1.5 rounded border border-black-300 focus:outline-none focus:border-accent text-sm h-16 resize-none">${escapeHtml(collection.description || '')}</textarea>
         </div>
-        
+
         <div>
+          <label class="flex items-center space-x-2 text-xs font-semibold text-white cursor-pointer my-2">
+            <input type="checkbox" id="edit-coll-smart-toggle" ${collection.isSmart ? 'checked' : ''} class="rounded text-accent bg-black-600 border-black-300">
+            <span>Smart Collection (rules-based)</span>
+          </label>
+        </div>
+
+        <div id="edit-coll-manual-books-container" class="${collection.isSmart ? 'hidden' : ''}">
           <label class="block text-xs text-black-100 mb-1">Select Books</label>
           <div class="max-h-48 overflow-y-auto border border-black-300 rounded p-2 bg-black-500 space-y-1.5" id="edit-coll-book-selector">
             ${items.length === 0 ? '<p class="text-xs text-black-100">No items available</p>' : items.map(item => `
@@ -512,6 +603,37 @@ async function triggerEditCollectionDetailsModal(collection, libraryId) {
                 <span class="truncate">${escapeHtml(item.media?.metadata?.title || item.title || 'Untitled')}</span>
               </label>
             `).join('')}
+          </div>
+        </div>
+
+        <div id="edit-coll-smart-rules-container" class="${collection.isSmart ? '' : 'hidden'} space-y-3 border border-black-300 rounded p-3 bg-black-500/50">
+          <p class="text-[0.7rem] text-accent/80 flex items-center space-x-1 mb-2 font-semibold">
+            <span class="material-symbols text-xs">info</span>
+            <span>Books matching any of the rules below will be automatically added.</span>
+          </p>
+          <div>
+            <label class="block text-[0.65rem] text-black-100 uppercase tracking-wider mb-1">Genres (comma separated)</label>
+            <input type="text" id="edit-coll-rules-genres" value="${escapeHtml(rules.genres?.join(', ') || '')}" placeholder="e.g. Fantasy, Sci-Fi" class="w-full bg-black-500 text-white px-3 py-1 rounded border border-black-300 focus:outline-none focus:border-accent text-xs">
+          </div>
+          <div>
+            <label class="block text-[0.65rem] text-black-100 uppercase tracking-wider mb-1">Tags (comma separated)</label>
+            <input type="text" id="edit-coll-rules-tags" value="${escapeHtml(rules.tags?.join(', ') || '')}" placeholder="e.g. Favorite, Unfinished" class="w-full bg-black-500 text-white px-3 py-1 rounded border border-black-300 focus:outline-none focus:border-accent text-xs">
+          </div>
+          <div>
+            <label class="block text-[0.65rem] text-black-100 uppercase tracking-wider mb-1">Narrators (comma separated)</label>
+            <input type="text" id="edit-coll-rules-narrators" value="${escapeHtml(rules.narrators?.join(', ') || '')}" placeholder="e.g. Stephen Fry" class="w-full bg-black-500 text-white px-3 py-1 rounded border border-black-300 focus:outline-none focus:border-accent text-xs">
+          </div>
+          <div>
+            <label class="block text-[0.65rem] text-black-100 uppercase tracking-wider mb-1">Authors (comma separated)</label>
+            <input type="text" id="edit-coll-rules-authors" value="${escapeHtml(rules.authors?.join(', ') || '')}" placeholder="e.g. J.K. Rowling, J.R.R. Tolkien" class="w-full bg-black-500 text-white px-3 py-1 rounded border border-black-300 focus:outline-none focus:border-accent text-xs">
+          </div>
+          <div>
+            <label class="block text-[0.65rem] text-black-100 uppercase tracking-wider mb-1">Published Years (comma separated)</label>
+            <input type="text" id="edit-coll-rules-published-years" value="${escapeHtml(rules.publishedYears?.join(', ') || '')}" placeholder="e.g. 1997, 2001" class="w-full bg-black-500 text-white px-3 py-1 rounded border border-black-300 focus:outline-none focus:border-accent text-xs">
+          </div>
+          <div>
+            <label class="block text-[0.65rem] text-black-100 uppercase tracking-wider mb-1">Search Query</label>
+            <input type="text" id="edit-coll-rules-search" value="${escapeHtml(rules.search || '')}" placeholder="e.g. Harry Potter" class="w-full bg-black-500 text-white px-3 py-1 rounded border border-black-300 focus:outline-none focus:border-accent text-xs">
           </div>
         </div>
       </div>
@@ -525,6 +647,20 @@ async function triggerEditCollectionDetailsModal(collection, libraryId) {
 
   document.body.appendChild(modal);
 
+  const smartToggle = modal.querySelector('#edit-coll-smart-toggle');
+  const manualContainer = modal.querySelector('#edit-coll-manual-books-container');
+  const smartContainer = modal.querySelector('#edit-coll-smart-rules-container');
+
+  smartToggle.onchange = (e) => {
+    if (e.target.checked) {
+      manualContainer.classList.add('hidden');
+      smartContainer.classList.remove('hidden');
+    } else {
+      manualContainer.classList.remove('hidden');
+      smartContainer.classList.add('hidden');
+    }
+  };
+
   const closeModal = () => modal.remove();
   modal.querySelector('#close-edit-modal-btn').onclick = closeModal;
 
@@ -536,14 +672,30 @@ async function triggerEditCollectionDetailsModal(collection, libraryId) {
       return;
     }
 
-    const checkboxes = modal.querySelectorAll('.edit-coll-book-checkbox:checked');
-    const selectedIds = Array.from(checkboxes).map(cb => cb.value);
+    const isSmart = smartToggle.checked;
+    let books = [];
+    let rulesStr = "";
+
+    if (isSmart) {
+      const genres = document.getElementById('edit-coll-rules-genres').value.split(',').map(s => s.trim()).filter(Boolean);
+      const tags = document.getElementById('edit-coll-rules-tags').value.split(',').map(s => s.trim()).filter(Boolean);
+      const narrators = document.getElementById('edit-coll-rules-narrators').value.split(',').map(s => s.trim()).filter(Boolean);
+      const authors = document.getElementById('edit-coll-rules-authors').value.split(',').map(s => s.trim()).filter(Boolean);
+      const publishedYears = document.getElementById('edit-coll-rules-published-years').value.split(',').map(s => s.trim()).filter(Boolean);
+      const search = document.getElementById('edit-coll-rules-search').value.trim();
+      rulesStr = JSON.stringify({ genres, tags, narrators, authors, publishedYears, search });
+    } else {
+      const checkboxes = modal.querySelectorAll('.edit-coll-book-checkbox:checked');
+      books = Array.from(checkboxes).map(cb => cb.value);
+    }
 
     try {
       await request('PATCH', `/api/collections/${collection.id}`, {
         name,
         description,
-        books: selectedIds
+        isSmart,
+        rules: rulesStr,
+        books
       });
       closeModal();
       loadCollectionDetails(collection.id, libraryId);

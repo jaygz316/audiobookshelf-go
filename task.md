@@ -1,29 +1,43 @@
-# Task: Author Metadata Scraping & Matching Enhancement
+# Task: Smart Collections Implementation (Completed)
 
 ## Objective
-Improve and enhance the Author Metadata Scraping & Matching feature with:
-1. **ASIN Direct Query**: Enable search by a 10-character ASIN directly in the search field to bypass name matching and fetch details immediately.
-2. **Author Image Deletion**: Implement a `DELETE /api/authors/{id}/image` endpoint on the Go backend to delete the profile photo file and clear it from the database.
-3. **Frontend Management**:
-   - Add a fallback placeholder image if an author's image fails to load.
-   - Embed a "Remove Image" button in the Edit Author modal allowing admins to delete the profile picture directly.
+Implement **Smart Collections**, which automatically group library books based on user-defined dynamic rules (genres, tags, authors, series, narrators, search query) rather than manual curation.
 
 ## Proposed Changes
 
-### 1. Go Backend: ASIN Detection in Search
-- Update `SearchAuthors` in `internal/finders/finders.go` to detect if the query is a valid 10-character ASIN.
-- If it is a valid ASIN, directly request the author details from Audnexus instead of listing matches.
+### 1. Database Schema Migration
+- [x] In `internal/db/db.go`:
+  - [x] Update `bootstrapSchema` to create the `collections` table with two additional columns: `isSmart INTEGER DEFAULT 0` and `rules TEXT` (JSON representation of the rules).
+  - [x] Update `migrateDatabase` to check if `isSmart` and `rules` columns exist in `collections` table, and run `ALTER TABLE collections ADD COLUMN ...` if they do not.
 
-### 2. Go Backend: Delete Image Endpoint
-- Register a DELETE handler for `/api/authors/{id}/image` in `handleAuthorsDispatch` inside `internal/handlers/routes.go`.
-- Implement `handleDeleteAuthorImage` in `internal/handlers/authors_series.go` to:
-  - Verify admin/root privileges.
-  - Delete the physical image file from the `<metadata-path>/authors` directory.
-  - Clear the `imagePath` in the database for the author.
+### 2. Playlist Manager & Backend Logic
+- [x] In `internal/playlist/playlist.go`:
+  - [x] Update `Collection` struct to add `IsSmart bool json:"isSmart"` and `Rules string json:"rules"`.
+  - [x] In `CreateCollection` and `UpdateCollection`, read and write `isSmart` and `rules` to the database.
+  - [x] In `GetCollection`, read `isSmart` and `rules`. If `isSmart` is true, dynamically query matched item IDs from the database using a helper `ResolveSmartCollectionItems` instead of querying from `collectionBooks`.
+  - [x] Implement `ResolveSmartCollectionItems` which:
+    - [x] Parses the JSON rules.
+    - [x] Dynamically builds a SQLite query with parameter bindings to fetch matching `books.id` values.
+    - [x] Supports rules for `genres`, `tags`, `authors`, `series`, `narrators`, and `search`.
 
-### 3. Frontend UI Updates
-- Update `loadAuthorDetails` in `frontend/js/authors.js` to handle image loading errors gracefully on the details page.
-- Update `openEditAuthorModal` in `frontend/js/authors.js` to render the author image and provide a "Remove Image" action if a profile image is present.
+### 3. API Handlers Update
+- [x] In `internal/handlers/playlist_handlers.go`:
+  - [x] Update `queryCollectionsForLibrary` to query `isSmart` and `rules`. If `isSmart` is true, dynamically evaluate the rules using `ResolveSmartCollectionItems` (or the equivalent logic) to populate the collections' book lists.
+  - [x] Update `handleCreateCollection` and `handleUpdateCollection` to parse `isSmart` and `rules` from the JSON request payload and save them.
 
-### 4. Verification
-- Create unit tests for deleting author images and searching via ASIN.
+### 4. Frontend UI Updates
+- [x] In `frontend/js/collections.js`:
+  - [x] Add a "Smart Collection" toggle in the Create and Edit Collection modals.
+  - [x] If "Smart Collection" is enabled, hide the manual books selector checklist and instead display rule inputs:
+    - [x] Genres (comma-separated list)
+    - [x] Tags (comma-separated list)
+    - [x] Narrators (comma-separated list)
+    - [x] Search Query (text input)
+  - [x] Display a "Smart" badge on smart collection cards in the grid.
+  - [x] For smart collections in the detail view:
+    - [x] Display a banner/badge noting that it is a smart/dynamic collection.
+    - [x] Hide manual item reordering/removal buttons (Up, Down, Close) since the membership is dynamically generated.
+
+### 5. Verification
+- [x] Add integration/unit tests in `internal/playlist/playlist_test.go` and `internal/handlers/playlist_handlers_test.go` to test creating, updating, resolving, and deleting smart collections with various rules.
+- [x] Run tests and verify success.

@@ -167,7 +167,9 @@ func prepareOPDSTestDB(t *testing.T) *sql.DB {
 			id TEXT PRIMARY KEY,
 			name TEXT NOT NULL,
 			description TEXT,
-			libraryId TEXT
+			libraryId TEXT,
+			isSmart INTEGER DEFAULT 0,
+			rules TEXT
 		)
 	`)
 	if err != nil {

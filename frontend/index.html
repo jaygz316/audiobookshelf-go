@@ -1,6 +1,51 @@
 <!DOCTYPE html>
 <html lang="en" class="h-full">
 <head>
+  <!-- Global Client Error Banner Capture -->
+  <script>
+    window.addEventListener('error', function(e) {
+      var errDiv = document.getElementById('debug-error-banner');
+      if (!errDiv) {
+        errDiv = document.createElement('div');
+        errDiv.id = 'debug-error-banner';
+        errDiv.style.position = 'fixed';
+        errDiv.style.top = '0';
+        errDiv.style.left = '0';
+        errDiv.style.width = '100%';
+        errDiv.style.background = '#dc2626';
+        errDiv.style.color = '#ffffff';
+        errDiv.style.padding = '12px';
+        errDiv.style.zIndex = '999999';
+        errDiv.style.fontSize = '14px';
+        errDiv.style.fontFamily = 'monospace';
+        errDiv.style.whiteSpace = 'pre-wrap';
+        errDiv.style.borderBottom = '4px solid #7f1d1d';
+        document.body.appendChild(errDiv);
+      }
+      errDiv.textContent += '\nGlobal JS Error: ' + e.message + ' at ' + e.filename + ':' + e.lineno + ':' + e.colno + '\nStack: ' + (e.error ? e.error.stack : 'none');
+    });
+    window.addEventListener('unhandledrejection', function(e) {
+      var errDiv = document.getElementById('debug-error-banner');
+      if (!errDiv) {
+        errDiv = document.createElement('div');
+        errDiv.id = 'debug-error-banner';
+        errDiv.style.position = 'fixed';
+        errDiv.style.top = '0';
+        errDiv.style.left = '0';
+        errDiv.style.width = '100%';
+        errDiv.style.background = '#ea580c';
+        errDiv.style.color = '#ffffff';
+        errDiv.style.padding = '12px';
+        errDiv.style.zIndex = '999999';
+        errDiv.style.fontSize = '14px';
+        errDiv.style.fontFamily = 'monospace';
+        errDiv.style.whiteSpace = 'pre-wrap';
+        errDiv.style.borderBottom = '4px solid #7c2d12';
+        document.body.appendChild(errDiv);
+      }
+      errDiv.textContent += '\nUnhandled Promise Rejection: ' + e.reason + '\nStack: ' + (e.reason && e.reason.stack ? e.reason.stack : 'none');
+    });
+  </script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Audiobookshelf</title>
@@ -16,7 +61,7 @@
 <body class="text-white max-h-screen h-screen overflow-hidden bg-bg font-sans">
 
   <!-- Login Screen Wrapper -->
-  <div id="login-screen" class="w-full h-screen flex items-center justify-center bg-bg relative z-50">
+  <div id="login-screen" class="w-full h-screen flex items-center justify-center bg-bg relative z-50 hidden">
     <div class="w-full max-w-md bg-primary rounded-md shadow-lg border border-black-600/50 p-6 flex flex-col items-center">
       <!-- Logo -->
       <img src="assets/images/logo.png" alt="Audiobookshelf Logo" class="h-16 w-auto mb-4 select-none">
@@ -511,12 +556,35 @@
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        const basePath = window.location.pathname.endsWith('/') ? window.location.pathname : window.location.pathname + '/';
-        // Account for any potential subpath hosting context
-        navigator.serviceWorker.register('sw.js')
-          .then(reg => console.log('ServiceWorker registered successfully:', reg.scope))
-          .catch(err => console.error('ServiceWorker registration failed:', err));
+        const CURRENT_VERSION = 'v3'; // Increment when sw.js changes to force cleanup
+        const cachedVersion = localStorage.getItem('sw_version');
+        
+        if (cachedVersion !== CURRENT_VERSION) {
+          navigator.serviceWorker.getRegistrations().then(registrations => {
+            const promises = registrations.map(r => r.unregister());
+            Promise.all(promises).then(() => {
+              if (registrations.length > 0) {
+                console.log('Cleaned up outdated service workers.');
+              }
+              if ('caches' in window) {
+                caches.keys().then(keys => {
+                  keys.forEach(key => caches.delete(key));
+                });
+              }
+              localStorage.setItem('sw_version', CURRENT_VERSION);
+              registerSW();
+            });
+          });
+        } else {
+          registerSW();
+        }
       });
+    }
+
+    function registerSW() {
+      navigator.serviceWorker.register('sw.js')
+        .then(reg => console.log('ServiceWorker registered successfully:', reg.scope))
+        .catch(err => console.error('ServiceWorker registration failed:', err));
     }
   </script>
 </body>

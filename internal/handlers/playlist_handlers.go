@@ -132,16 +132,16 @@ func queryCollectionsForLibrary(ctx context.Context, db *sql.DB, libraryID strin
 	var args []interface{}
 	if libraryID != "" {
 		if hasDisplayOrder {
-			query = "SELECT id, name, description, libraryId, displayOrder, createdAt, updatedAt FROM collections WHERE libraryId = ?"
+			query = "SELECT id, name, description, libraryId, displayOrder, isSmart, rules, createdAt, updatedAt FROM collections WHERE libraryId = ?"
 		} else {
-			query = "SELECT id, name, description, libraryId, createdAt, updatedAt FROM collections WHERE libraryId = ?"
+			query = "SELECT id, name, description, libraryId, isSmart, rules, createdAt, updatedAt FROM collections WHERE libraryId = ?"
 		}
 		args = append(args, libraryID)
 	} else {
 		if hasDisplayOrder {
-			query = "SELECT id, name, description, libraryId, displayOrder, createdAt, updatedAt FROM collections"
+			query = "SELECT id, name, description, libraryId, displayOrder, isSmart, rules, createdAt, updatedAt FROM collections"
 		} else {
-			query = "SELECT id, name, description, libraryId, createdAt, updatedAt FROM collections"
+			query = "SELECT id, name, description, libraryId, isSmart, rules, createdAt, updatedAt FROM collections"
 		}
 	}
 
@@ -157,12 +157,14 @@ func queryCollectionsForLibrary(ctx context.Context, db *sql.DB, libraryID strin
 		var description, libraryIDCol sql.NullString
 		var createdAtStr, updatedAtStr string
 		var displayOrder int
+		var isSmartVal sql.NullInt64
+		var rulesVal sql.NullString
 
 		var err error
 		if hasDisplayOrder {
-			err = rows.Scan(&id, &name, &description, &libraryIDCol, &displayOrder, &createdAtStr, &updatedAtStr)
+			err = rows.Scan(&id, &name, &description, &libraryIDCol, &displayOrder, &isSmartVal, &rulesVal, &createdAtStr, &updatedAtStr)
 		} else {
-			err = rows.Scan(&id, &name, &description, &libraryIDCol, &createdAtStr, &updatedAtStr)
+			err = rows.Scan(&id, &name, &description, &libraryIDCol, &isSmartVal, &rulesVal, &createdAtStr, &updatedAtStr)
 		}
 		if err != nil {
 			return nil, err
@@ -173,6 +175,8 @@ func queryCollectionsForLibrary(ctx context.Context, db *sql.DB, libraryID strin
 			"name":        name,
 			"description": description.String,
 			"libraryId":   libraryIDCol.String,
+			"isSmart":     isSmartVal.Int64 != 0,
+			"rules":       rulesVal.String,
 			"createdAt":   parseMsFromDBStr(createdAtStr),
 			"updatedAt":   parseMsFromDBStr(updatedAtStr),
 		}
@@ -187,24 +191,36 @@ func queryCollectionsForLibrary(ctx context.Context, db *sql.DB, libraryID strin
 
 	for _, c := range collections {
 		cID := c["id"].(string)
-		itemRows, err := db.QueryContext(ctx, `SELECT bookId FROM collectionBooks WHERE collectionId = ? ORDER BY "order" ASC`, cID)
-		if err != nil {
-			return nil, err
-		}
+		isSmart := c["isSmart"].(bool)
+		rules := c["rules"].(string)
 		var items []string
-		for itemRows.Next() {
-			var bookID string
-			if err := itemRows.Scan(&bookID); err != nil {
+
+		if isSmart {
+			initManagers(db)
+			dynamicIDs, err := globalPlaylistManager.ResolveSmartCollectionItems(ctx, c["libraryId"].(string), rules)
+			if err != nil {
+				return nil, err
+			}
+			items = dynamicIDs
+		} else {
+			itemRows, err := db.QueryContext(ctx, `SELECT bookId FROM collectionBooks WHERE collectionId = ? ORDER BY "order" ASC`, cID)
+			if err != nil {
+				return nil, err
+			}
+			for itemRows.Next() {
+				var bookID string
+				if err := itemRows.Scan(&bookID); err != nil {
+					itemRows.Close()
+					return nil, err
+				}
+				items = append(items, bookID)
+			}
+			if err := itemRows.Err(); err != nil {
 				itemRows.Close()
 				return nil, err
 			}
-			items = append(items, bookID)
-		}
-		if err := itemRows.Err(); err != nil {
 			itemRows.Close()
-			return nil, err
 		}
-		itemRows.Close()
 		c["books"] = items
 		c["itemIds"] = items
 	}
@@ -484,14 +500,29 @@ func handleCreateCollection(db *sql.DB) http.HandlerFunc {
 		initManagers(db)
 
 		var req struct {
-			Name        string   `json:"name"`
-			Description string   `json:"description"`
-			LibraryID   string   `json:"libraryId"`
-			Books       []string `json:"books"`
+			Name        string      `json:"name"`
+			Description string      `json:"description"`
+			LibraryID   string      `json:"libraryId"`
+			Books       []string    `json:"books"`
+			IsSmart     bool        `json:"isSmart"`
+			Rules       interface{} `json:"rules"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
+		}
+
+		var rulesStr string
+		if req.Rules != nil {
+			switch v := req.Rules.(type) {
+			case string:
+				rulesStr = v
+			default:
+				bytes, err := json.Marshal(v)
+				if err == nil {
+					rulesStr = string(bytes)
+				}
+			}
 		}
 
 		c := &playlist.Collection{
@@ -500,6 +531,8 @@ func handleCreateCollection(db *sql.DB) http.HandlerFunc {
 			Description: req.Description,
 			LibraryID:   req.LibraryID,
 			ItemIDs:     req.Books,
+			IsSmart:     req.IsSmart,
+			Rules:       rulesStr,
 		}
 
 		if err := globalPlaylistManager.CreateCollection(r.Context(), c); err != nil {
@@ -534,10 +567,12 @@ func handleUpdateCollection(db *sql.DB, id string) http.HandlerFunc {
 		}
 
 		var req struct {
-			Name        string   `json:"name"`
-			Description string   `json:"description"`
-			LibraryID   string   `json:"libraryId"`
-			Books       []string `json:"books"`
+			Name        string      `json:"name"`
+			Description string      `json:"description"`
+			LibraryID   string      `json:"libraryId"`
+			Books       []string    `json:"books"`
+			IsSmart     *bool       `json:"isSmart"`
+			Rules       interface{} `json:"rules"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
@@ -555,6 +590,22 @@ func handleUpdateCollection(db *sql.DB, id string) http.HandlerFunc {
 		}
 		if req.Books != nil {
 			c.ItemIDs = req.Books
+		}
+		if req.IsSmart != nil {
+			c.IsSmart = *req.IsSmart
+		}
+		if req.Rules != nil {
+			var rulesStr string
+			switch v := req.Rules.(type) {
+			case string:
+				rulesStr = v
+			default:
+				bytes, err := json.Marshal(v)
+				if err == nil {
+					rulesStr = string(bytes)
+				}
+			}
+			c.Rules = rulesStr
 		}
 
 		if err := globalPlaylistManager.UpdateCollection(r.Context(), c); err != nil {
