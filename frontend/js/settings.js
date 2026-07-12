@@ -2265,7 +2265,7 @@ async function renderFeedsTab() {
               <!-- Rows will be injected here -->
             </tbody>
           </table>
-          \${feeds.length === 0 ? \`<div class="p-8 text-center text-black-100">No active RSS feeds. You can open a feed from any item's details view.</div>\` : ''}
+          ${feeds.length === 0 ? `<div class="p-8 text-center text-black-100">No active RSS feeds. You can open a feed from any item's details view.</div>` : ''}
         </div>
       </div>
     `;
@@ -2301,18 +2301,18 @@ async function renderFeedsTab() {
       const tr = document.createElement('tr');
       tr.className = 'hover:bg-primary-light';
       tr.innerHTML = `
-        <td class="px-4 py-3 font-medium text-white">\${escapeHtml(feed.title || feed.entityId)}</td>
-        <td class="px-4 py-3 text-black-50 uppercase text-xs">\${escapeHtml(feed.type)}</td>
+        <td class="px-4 py-3 font-medium text-white">${escapeHtml(feed.title || feed.entityId)}</td>
+        <td class="px-4 py-3 text-black-50 uppercase text-xs">${escapeHtml(feed.type)}</td>
         <td class="px-4 py-3 text-black-100">
           <div class="flex items-center gap-2">
-            <span class="truncate max-w-xs font-mono text-xs select-all">\${escapeHtml(feed.feedUrl)}</span>
-            <button class="copy-feed-btn text-accent hover:underline text-xs" data-url="\${escapeHtml(feed.feedUrl)}">
+            <span class="truncate max-w-xs font-mono text-xs select-all">${escapeHtml(feed.feedUrl)}</span>
+            <button class="copy-feed-btn text-accent hover:underline text-xs" data-url="${escapeHtml(feed.feedUrl)}">
               Copy
             </button>
           </div>
         </td>
         <td class="px-4 py-3 text-right">
-          <button class="delete-feed-btn text-error hover:underline text-xs" data-id="\${escapeHtml(feed.id)}">
+          <button class="delete-feed-btn text-error hover:underline text-xs" data-id="${escapeHtml(feed.id)}">
             Close Feed
           </button>
         </td>
@@ -2333,7 +2333,7 @@ async function renderFeedsTab() {
         if (!confirm('Are you sure you want to close this RSS feed?')) return;
         const btn = e.target;
         try {
-          await request('DELETE', \`/api/feeds/\${btn.dataset.id}\`);
+          await request('DELETE', `/api/feeds/${btn.dataset.id}`);
           renderFeedsTab();
         } catch (err) {
           alert('Failed to close feed: ' + err.message);

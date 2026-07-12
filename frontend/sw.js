@@ -1,4 +1,4 @@
-const CACHE_NAME = 'audiobookshelf-v1';
+const CACHE_NAME = 'audiobookshelf-v3';
 const ASSETS = [
   '/',
   '/index.html',
@@ -49,6 +49,10 @@ self.addEventListener('fetch', (event) => {
     url.pathname.startsWith('/hls/') ||
     url.pathname.startsWith('/feed/') ||
     url.pathname.startsWith('/opds/') ||
+    url.pathname.endsWith('/status') ||
+    url.pathname.endsWith('/login') ||
+    url.pathname.endsWith('/logout') ||
+    url.pathname.endsWith('/init') ||
     event.request.method !== 'GET'
   ) {
     return;

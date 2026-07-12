@@ -177,11 +177,12 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
                     <span class="material-symbols text-sm">call_merge</span>
                     <span>Merge Audio Files</span>
                   </button>
+                ` : ''}
+                <button id="details-share-btn" class="w-full bg-black-500 hover:bg-black-400 border border-black-300 text-white font-semibold py-2 px-4 rounded-md transition-all flex items-center justify-center space-x-2 text-xs shadow hover:scale-[1.02] duration-200 mt-2">
+                  <span class="material-symbols text-sm">share</span>
+                  <span>Share Link</span>
+                </button>
               ` : ''}
-              <button id="details-share-btn" class="w-full bg-black-500 hover:bg-black-400 border border-black-300 text-white font-semibold py-2 px-4 rounded-md transition-all flex items-center justify-center space-x-2 text-xs shadow hover:scale-[1.02] duration-200 mt-2">
-                <span class="material-symbols text-sm">share</span>
-                <span>Share Link</span>
-              </button>
             </div>
 
             <!-- RSS Feed Status & Management Section -->

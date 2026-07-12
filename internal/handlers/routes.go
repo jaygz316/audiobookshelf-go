@@ -81,7 +81,16 @@ func SetupHandler(db *sql.DB, cfg *core.Config, dbConnected bool, appRoot string
 	registerFallbackRoutes(mux, cfg, db, appRoot)
 
 	mainHandler := BasePathRewriteMiddleware(cfg.RouterBasePath, mux)
-	return CORSMiddleware(db, mainHandler)
+	handlerWithCORS := CORSMiddleware(db, mainHandler)
+	return LoggingMiddleware(handlerWithCORS)
+}
+
+func LoggingMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("[HTTP] Request: %s %s from %s (User-Agent: %s)", r.Method, r.URL.Path, r.RemoteAddr, r.UserAgent())
+		log.Printf("[HTTP] Request Headers: %v", r.Header)
+		next.ServeHTTP(w, r)
+	})
 }
 
 type corsResponseWriter struct {

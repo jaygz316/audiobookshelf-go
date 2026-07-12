@@ -13,7 +13,7 @@ import { loadNarrators } from './narrators.js';
 import { loadStats } from './stats.js';
 import { initPublicShare } from './publicShare.js';
 
-document.addEventListener('DOMContentLoaded', () => {
+function initApp() {
   setupEventHandlers();
   
   // Check if this is a public share path (/s/slug)
@@ -34,7 +34,13 @@ document.addEventListener('DOMContentLoaded', () => {
       bootstrapApp(payload);
     }
   });
-});
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initApp);
+} else {
+  initApp();
+}
 
 function highlightSidebarLink(pageName) {
   const sidebarLinks = document.querySelectorAll('#siderail-buttons-container a');
@@ -163,7 +169,7 @@ function setupEventHandlers() {
     if (!libraryId) return;
     
     // Reload the current active page
-    const activeLink = document.querySelector('#siderail-buttons-container a.bg-primary/80');
+    const activeLink = document.querySelector('#siderail-buttons-container a.bg-primary\\/80');
     const pageName = activeLink ? activeLink.querySelector('p').textContent : 'Home';
     if (pageName === 'Playlists') {
       loadPlaylists(libraryId);
@@ -400,7 +406,7 @@ export function showToast(message, type = 'info') {
 }
 
 function isDashboardActive() {
-  const activeLink = document.querySelector('#siderail-buttons-container a.bg-primary/80');
+  const activeLink = document.querySelector('#siderail-buttons-container a.bg-primary\\/80');
   if (!activeLink) return false;
   const pageName = activeLink.querySelector('p').textContent.trim();
   const hasDetailsBtn = !!document.getElementById('details-back-btn');

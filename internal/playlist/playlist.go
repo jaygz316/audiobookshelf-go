@@ -3,6 +3,7 @@ package playlist
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -28,6 +29,8 @@ type Collection struct {
 	LibraryID    string   `json:"libraryId"`
 	ItemIDs      []string `json:"itemIds"`
 	DisplayOrder int      `json:"displayOrder"`
+	IsSmart      bool     `json:"isSmart"`
+	Rules        string   `json:"rules"`
 	CreatedAt    int64    `json:"createdAt"`
 	UpdatedAt    int64    `json:"updatedAt"`
 }
@@ -353,33 +356,40 @@ func (m *PlaylistManager) CreateCollection(ctx context.Context, c *Collection) e
 	}
 	defer tx.Rollback()
 
+	isSmartInt := 0
+	if c.IsSmart {
+		isSmartInt = 1
+	}
+
 	if hasDisplayOrder {
 		_, err = tx.ExecContext(ctx, `
-			INSERT INTO collections (id, name, description, createdAt, updatedAt, libraryId, displayOrder)
-			VALUES (?, ?, ?, ?, ?, ?, ?)`,
-			c.ID, c.Name, c.Description, createdAtStr, updatedAtStr, c.LibraryID, c.DisplayOrder)
+			INSERT INTO collections (id, name, description, createdAt, updatedAt, libraryId, displayOrder, isSmart, rules)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			c.ID, c.Name, c.Description, createdAtStr, updatedAtStr, c.LibraryID, c.DisplayOrder, isSmartInt, c.Rules)
 	} else {
 		_, err = tx.ExecContext(ctx, `
-			INSERT INTO collections (id, name, description, createdAt, updatedAt, libraryId)
-			VALUES (?, ?, ?, ?, ?, ?)`,
-			c.ID, c.Name, c.Description, createdAtStr, updatedAtStr, c.LibraryID)
+			INSERT INTO collections (id, name, description, createdAt, updatedAt, libraryId, isSmart, rules)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+			c.ID, c.Name, c.Description, createdAtStr, updatedAtStr, c.LibraryID, isSmartInt, c.Rules)
 	}
 	if err != nil {
 		return fmt.Errorf("failed to insert collection: %w", err)
 	}
 
-	// Insert items into collectionBooks
+	// Insert items into collectionBooks if not smart
 	// PORT: Automatically compute/reorder display order for collectionBooks by indexing them starting from 1.
-	for i, itemID := range c.ItemIDs {
-		cbUUID := uuid.New().String()
-		order := i + 1
+	if !c.IsSmart {
+		for i, itemID := range c.ItemIDs {
+			cbUUID := uuid.New().String()
+			order := i + 1
 
-		_, err = tx.ExecContext(ctx, `
-			INSERT INTO collectionBooks (id, "order", createdAt, bookId, collectionId)
-			VALUES (?, ?, ?, ?, ?)`,
-			cbUUID, order, createdAtStr, itemID, c.ID)
-		if err != nil {
-			return fmt.Errorf("failed to insert collection book: %w", err)
+			_, err = tx.ExecContext(ctx, `
+				INSERT INTO collectionBooks (id, "order", createdAt, bookId, collectionId)
+				VALUES (?, ?, ?, ?, ?)`,
+				cbUUID, order, createdAtStr, itemID, c.ID)
+			if err != nil {
+				return fmt.Errorf("failed to insert collection book: %w", err)
+			}
 		}
 	}
 
@@ -389,22 +399,164 @@ func (m *PlaylistManager) CreateCollection(ctx context.Context, c *Collection) e
 	return nil
 }
 
+// SmartCollectionRules defines the matching rules for a Smart Collection.
+type SmartCollectionRules struct {
+	Genres         []string `json:"genres,omitempty"`
+	Tags           []string `json:"tags,omitempty"`
+	Authors        []string `json:"authors,omitempty"`
+	Series         []string `json:"series,omitempty"`
+	Narrators      []string `json:"narrators,omitempty"`
+	PublishedYears []string `json:"publishedYears,omitempty"`
+	Search         string   `json:"search,omitempty"`
+}
+
+// ResolveSmartCollectionItems dynamically queries library items matching smart rules.
+func (m *PlaylistManager) ResolveSmartCollectionItems(ctx context.Context, libraryID string, rulesJSON string) ([]string, error) {
+	if rulesJSON == "" {
+		return []string{}, nil
+	}
+
+	var rules SmartCollectionRules
+	if err := json.Unmarshal([]byte(rulesJSON), &rules); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal rules: %w", err)
+	}
+
+	query := `
+		SELECT li.mediaId
+		FROM libraryItems li
+		JOIN books b ON li.mediaId = b.id AND li.mediaType = 'book'
+		WHERE li.libraryId = ? AND li.isMissing = 0 AND li.isInvalid = 0
+	`
+	args := []interface{}{libraryID}
+
+	if len(rules.Genres) > 0 {
+		var placeholders []string
+		for _, genre := range rules.Genres {
+			if g := strings.TrimSpace(genre); g != "" {
+				placeholders = append(placeholders, "?")
+				args = append(args, g)
+			}
+		}
+		if len(placeholders) > 0 {
+			query += fmt.Sprintf(" AND EXISTS (SELECT 1 FROM json_each(b.genres) WHERE json_valid(b.genres) AND json_each.value COLLATE NOCASE IN (%s))", strings.Join(placeholders, ","))
+		}
+	}
+
+	if len(rules.Tags) > 0 {
+		var placeholders []string
+		for _, tag := range rules.Tags {
+			if t := strings.TrimSpace(tag); t != "" {
+				placeholders = append(placeholders, "?")
+				args = append(args, t)
+			}
+		}
+		if len(placeholders) > 0 {
+			query += fmt.Sprintf(" AND EXISTS (SELECT 1 FROM json_each(b.tags) WHERE json_valid(b.tags) AND json_each.value COLLATE NOCASE IN (%s))", strings.Join(placeholders, ","))
+		}
+	}
+
+	if len(rules.Authors) > 0 {
+		var placeholders []string
+		for _, author := range rules.Authors {
+			if a := strings.TrimSpace(author); a != "" {
+				placeholders = append(placeholders, "?")
+				args = append(args, a)
+			}
+		}
+		if len(placeholders) > 0 {
+			query += fmt.Sprintf(" AND EXISTS (SELECT 1 FROM bookAuthors ba JOIN authors a ON ba.authorId = a.id WHERE ba.bookId = b.id AND a.name COLLATE NOCASE IN (%s))", strings.Join(placeholders, ","))
+		}
+	}
+
+	if len(rules.Series) > 0 {
+		var placeholders []string
+		for _, ser := range rules.Series {
+			if s := strings.TrimSpace(ser); s != "" {
+				placeholders = append(placeholders, "?")
+				args = append(args, s)
+			}
+		}
+		if len(placeholders) > 0 {
+			query += fmt.Sprintf(" AND EXISTS (SELECT 1 FROM bookSeries bs JOIN series s ON bs.seriesId = s.id WHERE bs.bookId = b.id AND s.name COLLATE NOCASE IN (%s))", strings.Join(placeholders, ","))
+		}
+	}
+
+	if len(rules.Narrators) > 0 {
+		var placeholders []string
+		for _, narrator := range rules.Narrators {
+			if n := strings.TrimSpace(narrator); n != "" {
+				placeholders = append(placeholders, "?")
+				args = append(args, n)
+			}
+		}
+		if len(placeholders) > 0 {
+			query += fmt.Sprintf(" AND EXISTS (SELECT 1 FROM json_each(b.narrators) WHERE json_valid(b.narrators) AND json_each.value COLLATE NOCASE IN (%s))", strings.Join(placeholders, ","))
+		}
+	}
+
+	if len(rules.PublishedYears) > 0 {
+		var placeholders []string
+		for _, year := range rules.PublishedYears {
+			if y := strings.TrimSpace(year); y != "" {
+				placeholders = append(placeholders, "?")
+				args = append(args, y)
+			}
+		}
+		if len(placeholders) > 0 {
+			query += fmt.Sprintf(" AND b.publishedYear COLLATE NOCASE IN (%s)", strings.Join(placeholders, ","))
+		}
+	}
+
+	if rules.Search != "" {
+		searchTerm := "%" + rules.Search + "%"
+		query += ` AND (
+			b.title LIKE ? OR 
+			b.subtitle LIKE ? OR 
+			b.description LIKE ? OR 
+			EXISTS (SELECT 1 FROM bookAuthors ba JOIN authors a ON ba.authorId = a.id WHERE ba.bookId = b.id AND a.name LIKE ?)
+		)`
+		args = append(args, searchTerm, searchTerm, searchTerm, searchTerm)
+	}
+
+	rows, err := m.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query smart collection books: %w", err)
+	}
+	defer rows.Close()
+
+	var bookIDs []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("failed to scan book id: %w", err)
+		}
+		bookIDs = append(bookIDs, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error in rows iteration: %w", err)
+	}
+
+	return bookIDs, nil
+}
+
 // GetCollection retrieves a collection and its associated book IDs by ID from the database.
 func (m *PlaylistManager) GetCollection(ctx context.Context, id string) (*Collection, error) {
 	var name, description, libraryID, createdAtStr, updatedAtStr string
 	var displayOrder int
+	var isSmart sql.NullInt64
+	var rules sql.NullString
 
 	hasDisplayOrder := hasColumn(ctx, m.db, "collections", "displayOrder")
 
 	var err error
 	if hasDisplayOrder {
 		err = m.db.QueryRowContext(ctx, `
-			SELECT name, description, libraryId, displayOrder, createdAt, updatedAt FROM collections WHERE id = ?`, id).
-			Scan(&name, &description, &libraryID, &displayOrder, &createdAtStr, &updatedAtStr)
+			SELECT name, description, libraryId, displayOrder, createdAt, updatedAt, isSmart, rules FROM collections WHERE id = ?`, id).
+			Scan(&name, &description, &libraryID, &displayOrder, &createdAtStr, &updatedAtStr, &isSmart, &rules)
 	} else {
 		err = m.db.QueryRowContext(ctx, `
-			SELECT name, description, libraryId, createdAt, updatedAt FROM collections WHERE id = ?`, id).
-			Scan(&name, &description, &libraryID, &createdAtStr, &updatedAtStr)
+			SELECT name, description, libraryId, createdAt, updatedAt, isSmart, rules FROM collections WHERE id = ?`, id).
+			Scan(&name, &description, &libraryID, &createdAtStr, &updatedAtStr, &isSmart, &rules)
 	}
 
 	if err == sql.ErrNoRows {
@@ -419,28 +571,38 @@ func (m *PlaylistManager) GetCollection(ctx context.Context, id string) (*Collec
 		Description:  description,
 		LibraryID:    libraryID,
 		DisplayOrder: displayOrder,
+		IsSmart:      isSmart.Int64 != 0,
+		Rules:        rules.String,
 		CreatedAt:    parseMsFromDBStr(createdAtStr),
 		UpdatedAt:    parseMsFromDBStr(updatedAtStr),
 		ItemIDs:      []string{},
 	}
 
-	// Get collection books in display order
-	rows, err := m.db.QueryContext(ctx, `
-		SELECT bookId FROM collectionBooks WHERE collectionId = ? ORDER BY "order" ASC`, id)
-	if err != nil {
-		return nil, fmt.Errorf("failed to query collection books: %w", err)
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var bookID string
-		if err := rows.Scan(&bookID); err != nil {
-			return nil, fmt.Errorf("failed to scan collection book: %w", err)
+	if c.IsSmart {
+		dynamicIDs, err := m.ResolveSmartCollectionItems(ctx, c.LibraryID, c.Rules)
+		if err != nil {
+			return nil, fmt.Errorf("failed to resolve smart collection items: %w", err)
 		}
-		c.ItemIDs = append(c.ItemIDs, bookID)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("error during collection books iteration: %w", err)
+		c.ItemIDs = dynamicIDs
+	} else {
+		// Get collection books in display order
+		rows, err := m.db.QueryContext(ctx, `
+			SELECT bookId FROM collectionBooks WHERE collectionId = ? ORDER BY "order" ASC`, id)
+		if err != nil {
+			return nil, fmt.Errorf("failed to query collection books: %w", err)
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			var bookID string
+			if err := rows.Scan(&bookID); err != nil {
+				return nil, fmt.Errorf("failed to scan collection book: %w", err)
+			}
+			c.ItemIDs = append(c.ItemIDs, bookID)
+		}
+		if err := rows.Err(); err != nil {
+			return nil, fmt.Errorf("error during collection books iteration: %w", err)
+		}
 	}
 
 	return c, nil
@@ -459,14 +621,19 @@ func (m *PlaylistManager) UpdateCollection(ctx context.Context, c *Collection) e
 	}
 	defer tx.Rollback()
 
+	isSmartInt := 0
+	if c.IsSmart {
+		isSmartInt = 1
+	}
+
 	if hasDisplayOrder {
 		_, err = tx.ExecContext(ctx, `
-			UPDATE collections SET name = ?, description = ?, libraryId = ?, displayOrder = ?, updatedAt = ? WHERE id = ?`,
-			c.Name, c.Description, c.LibraryID, c.DisplayOrder, updatedAtStr, c.ID)
+			UPDATE collections SET name = ?, description = ?, libraryId = ?, displayOrder = ?, isSmart = ?, rules = ?, updatedAt = ? WHERE id = ?`,
+			c.Name, c.Description, c.LibraryID, c.DisplayOrder, isSmartInt, c.Rules, updatedAtStr, c.ID)
 	} else {
 		_, err = tx.ExecContext(ctx, `
-			UPDATE collections SET name = ?, description = ?, libraryId = ?, updatedAt = ? WHERE id = ?`,
-			c.Name, c.Description, c.LibraryID, updatedAtStr, c.ID)
+			UPDATE collections SET name = ?, description = ?, libraryId = ?, isSmart = ?, rules = ?, updatedAt = ? WHERE id = ?`,
+			c.Name, c.Description, c.LibraryID, isSmartInt, c.Rules, updatedAtStr, c.ID)
 	}
 	if err != nil {
 		return fmt.Errorf("failed to update collection: %w", err)
@@ -479,18 +646,20 @@ func (m *PlaylistManager) UpdateCollection(ctx context.Context, c *Collection) e
 		return fmt.Errorf("failed to delete collection books: %w", err)
 	}
 
-	// Insert items into collectionBooks
+	// Insert items into collectionBooks if not smart
 	// PORT: Automatically compute/reorder display order for collectionBooks by indexing them starting from 1.
-	for i, itemID := range c.ItemIDs {
-		cbUUID := uuid.New().String()
-		order := i + 1
+	if !c.IsSmart {
+		for i, itemID := range c.ItemIDs {
+			cbUUID := uuid.New().String()
+			order := i + 1
 
-		_, err = tx.ExecContext(ctx, `
-			INSERT INTO collectionBooks (id, "order", createdAt, bookId, collectionId)
-			VALUES (?, ?, ?, ?, ?)`,
-			cbUUID, order, updatedAtStr, itemID, c.ID)
-		if err != nil {
-			return fmt.Errorf("failed to insert collection book: %w", err)
+			_, err = tx.ExecContext(ctx, `
+				INSERT INTO collectionBooks (id, "order", createdAt, bookId, collectionId)
+				VALUES (?, ?, ?, ?, ?)`,
+				cbUUID, order, updatedAtStr, itemID, c.ID)
+			if err != nil {
+				return fmt.Errorf("failed to insert collection book: %w", err)
+			}
 		}
 	}
 

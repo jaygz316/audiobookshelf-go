@@ -563,6 +563,46 @@ func migrateDatabase(db *sql.DB) error {
 		}
 	}
 
+	// Migrate collections table to include isSmart and rules if missing
+	var collExists int
+	err = db.QueryRow("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='collections'").Scan(&collExists)
+	if err == nil && collExists > 0 {
+		rows, err := db.Query("PRAGMA table_info(collections)")
+		if err == nil {
+			defer rows.Close()
+			hasIsSmart := false
+			hasRules := false
+			for rows.Next() {
+				var cid int
+				var name string
+				var typeStr string
+				var notnull int
+				var dfltValue sql.NullString
+				var pk int
+				if err := rows.Scan(&cid, &name, &typeStr, &notnull, &dfltValue, &pk); err == nil {
+					if name == "isSmart" {
+						hasIsSmart = true
+					}
+					if name == "rules" {
+						hasRules = true
+					}
+				}
+			}
+			if !hasIsSmart {
+				log.Printf("[DB] Migrating collections table: adding isSmart column")
+				if _, err := db.Exec("ALTER TABLE collections ADD COLUMN isSmart INTEGER DEFAULT 0"); err != nil {
+					return fmt.Errorf("failed to add isSmart column to collections: %w", err)
+				}
+			}
+			if !hasRules {
+				log.Printf("[DB] Migrating collections table: adding rules column")
+				if _, err := db.Exec("ALTER TABLE collections ADD COLUMN rules TEXT"); err != nil {
+					return fmt.Errorf("failed to add rules column to collections: %w", err)
+				}
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -584,7 +624,7 @@ func bootstrapSchema(db *sql.DB) error {
 		`CREATE TABLE IF NOT EXISTS podcastEpisodes (id TEXT PRIMARY KEY, podcastId TEXT, title TEXT, audioFile TEXT)`,
 		`CREATE TABLE IF NOT EXISTS playlists (id TEXT PRIMARY KEY, name TEXT NOT NULL, description TEXT, createdAt TEXT, updatedAt TEXT, libraryId TEXT, userId TEXT)`,
 		`CREATE TABLE IF NOT EXISTS playlistMediaItems (id TEXT PRIMARY KEY, mediaItemId TEXT, mediaItemType TEXT, "order" INTEGER, createdAt TEXT, playlistId TEXT)`,
-		`CREATE TABLE IF NOT EXISTS collections (id TEXT PRIMARY KEY, libraryId TEXT, name TEXT, description TEXT, createdAt TEXT, updatedAt TEXT)`,
+		`CREATE TABLE IF NOT EXISTS collections (id TEXT PRIMARY KEY, libraryId TEXT, name TEXT, description TEXT, createdAt TEXT, updatedAt TEXT, isSmart INTEGER DEFAULT 0, rules TEXT)`,
 		`CREATE TABLE IF NOT EXISTS collectionBooks (id TEXT PRIMARY KEY, "order" INTEGER, createdAt TEXT, bookId TEXT, collectionId TEXT)`,
 		`CREATE TABLE IF NOT EXISTS customMetadataProviders (id TEXT PRIMARY KEY, name TEXT, mediaType TEXT, url TEXT, authHeaderValue TEXT, extraData TEXT, createdAt INTEGER, updatedAt INTEGER)`,
 		`CREATE TABLE IF NOT EXISTS authors (id TEXT PRIMARY KEY, name TEXT, lastFirst TEXT, asin TEXT, description TEXT, imagePath TEXT, createdAt TEXT, updatedAt TEXT, libraryId TEXT)`,

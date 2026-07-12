@@ -16,6 +16,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/doyensec/safeurl"
@@ -26,6 +27,44 @@ import (
 	isocket "audiobookshelf/internal/socket"
 )
 
+var (
+	allowIframeCache   bool
+	allowIframeCached  bool
+	allowIframeCacheMu sync.RWMutex
+)
+
+func getAllowIframeSetting(db *sql.DB) bool {
+	allowIframeCacheMu.RLock()
+	if allowIframeCached {
+		val := allowIframeCache
+		allowIframeCacheMu.RUnlock()
+		return val
+	}
+	allowIframeCacheMu.RUnlock()
+
+	allowIframeCacheMu.Lock()
+	defer allowIframeCacheMu.Unlock()
+	if allowIframeCached {
+		return allowIframeCache
+	}
+
+	allowIframe := false
+	if db != nil {
+		if settings, err := idb.GetServerSettings(db); err == nil && settings != nil {
+			allowIframe = settings.AllowIframe
+		}
+	}
+	allowIframeCache = allowIframe
+	allowIframeCached = true
+	return allowIframeCache
+}
+
+func InvalidateAllowIframeCache() {
+	allowIframeCacheMu.Lock()
+	allowIframeCached = false
+	allowIframeCacheMu.Unlock()
+}
+
 func serveStaticOrSPA(fSys fs.FS, routerBasePath string) http.HandlerFunc {
 	if fSys == nil {
 		// Fallback to frontend directory FS if subFS is nil
@@ -34,12 +73,7 @@ func serveStaticOrSPA(fSys fs.FS, routerBasePath string) http.HandlerFunc {
 
 	fileServer := http.FileServer(http.FS(fSys))
 	return func(w http.ResponseWriter, r *http.Request) {
-		allowIframe := false
-		if globalDB != nil {
-			if settings, err := idb.GetServerSettings(globalDB); err == nil && settings != nil {
-				allowIframe = settings.AllowIframe
-			}
-		}
+		allowIframe := getAllowIframeSetting(globalDB)
 		if !allowIframe {
 			w.Header().Set("X-Frame-Options", "SAMEORIGIN")
 			w.Header().Set("Content-Security-Policy", "frame-ancestors 'self'")
