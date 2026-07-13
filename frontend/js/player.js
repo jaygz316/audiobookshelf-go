@@ -9,6 +9,7 @@ let currentPlaylistUri = null;
 let progressInterval = null;
 let isMuted = false;
 let previousVolume = 1.0;
+let currentWaveform = null;
 
 // Sleep Timer variables
 let sleepTimerId = null;
@@ -219,6 +220,7 @@ export async function playItem(item, startTime = 0) {
     
     currentItem = item;
     currentPlaylistUri = clientPlaylistUri;
+    fetchWaveform(item.id);
     
     // Stop any existing playback and progress reporting
     stopProgressReporting();
@@ -414,6 +416,7 @@ function setupUIEventListeners() {
         const pct = parseFloat(timeline.value) / 100;
         audio.currentTime = pct * audio.duration;
       }
+      drawWaveform();
     };
   }
   
@@ -543,6 +546,7 @@ function updateTimelineUI() {
   if (timeline) {
     timeline.value = duration > 0 ? Math.round((elapsed / duration) * 100) : 0;
   }
+  drawWaveform();
 }
 
 function updatePlayPauseButton(isPlaying) {
@@ -1155,4 +1159,100 @@ function triggerSleepTimerModal() {
     }
   }
 })();
+
+async function fetchWaveform(itemId) {
+  currentWaveform = null;
+  drawWaveform();
+  try {
+    const token = localStorage.getItem('token');
+    const resp = await fetch(resolvePath(`/api/items/${itemId}/waveform`), {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    if (resp.ok) {
+      const data = await resp.json();
+      if (data.itemId === itemId) {
+        currentWaveform = data.peaks;
+        drawWaveform();
+      }
+    }
+  } catch (err) {
+    console.warn('Failed to fetch waveform:', err);
+  }
+}
+
+function drawWaveform() {
+  const canvas = document.getElementById('player-waveform-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+
+  const rect = canvas.getBoundingClientRect();
+  if (rect.width === 0 || rect.height === 0) return;
+
+  canvas.width = rect.width * window.devicePixelRatio;
+  canvas.height = rect.height * window.devicePixelRatio;
+  ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+
+  const width = rect.width;
+  const height = rect.height;
+
+  ctx.clearRect(0, 0, width, height);
+
+  if (!currentWaveform || currentWaveform.length === 0) {
+    ctx.strokeStyle = '#2d2d2d';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(0, height / 2);
+    ctx.lineTo(width, height / 2);
+    ctx.stroke();
+    return;
+  }
+
+  const timeline = document.getElementById('player-timeline');
+  const pct = timeline ? parseFloat(timeline.value) / 100 : 0;
+
+  const barCount = currentWaveform.length;
+  const gap = 2;
+  const totalGapWidth = gap * (barCount - 1);
+  const barWidth = (width - totalGapWidth) / barCount;
+
+  for (let i = 0; i < barCount; i++) {
+    const peak = currentWaveform[i];
+    const barHeight = (peak / 255) * height * 0.8;
+    const x = i * (barWidth + gap);
+    const y = (height - barHeight) / 2;
+
+    const isPlayed = (i / barCount) <= pct;
+
+    if (isPlayed) {
+      ctx.fillStyle = '#f59e0b';
+    } else {
+      ctx.fillStyle = '#4b5563';
+    }
+
+    drawRoundedRect(ctx, x, y, barWidth, barHeight, 1);
+  }
+}
+
+function drawRoundedRect(ctx, x, y, width, height, radius) {
+  if (width <= 0 || height <= 0) return;
+  if (radius > width / 2) radius = width / 2;
+  if (radius > height / 2) radius = height / 2;
+  ctx.beginPath();
+  ctx.moveTo(x + radius, y);
+  ctx.lineTo(x + width - radius, y);
+  ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+  ctx.lineTo(x + width, y + height - radius);
+  ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+  ctx.lineTo(x + radius, y + height);
+  ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+  ctx.lineTo(x, y + radius);
+  ctx.quadraticCurveTo(x, y, x + radius, y);
+  ctx.closePath();
+  ctx.fill();
+}
+
+window.addEventListener('resize', drawWaveform);
 

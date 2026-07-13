@@ -1212,6 +1212,12 @@ func HandleItemsDispatch(db *sql.DB, cfg *core.Config) http.HandlerFunc {
 				AuthMiddlewareWrapper(db, http.HandlerFunc(handleUpdateLibraryItemByID(db, itemID))).ServeHTTP(w, r)
 				return
 			}
+		} else if len(parts) == 2 && parts[1] == "waveform" {
+			itemID := parts[0]
+			if r.Method == http.MethodGet {
+				AuthMiddlewareWrapper(db, http.HandlerFunc(handleGetWaveform(db, cfg, itemID))).ServeHTTP(w, r)
+				return
+			}
 		} else if len(parts) == 2 && parts[1] == "ebook" {
 			itemID := parts[0]
 			if r.Method == http.MethodGet {
