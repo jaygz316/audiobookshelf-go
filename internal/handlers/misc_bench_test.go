@@ -1,15 +1,15 @@
 package handlers
 
 import (
+	"context"
 	"database/sql"
 	"encoding/base64"
 	"fmt"
-	"log"
 	"io"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"context"
 
 	"audiobookshelf/internal/core"
 	_ "modernc.org/sqlite"
@@ -61,7 +61,7 @@ func BenchmarkDeleteTag(b *testing.B) {
 
 		handler := handleDeleteTag(db)
 		tagParam := base64.StdEncoding.EncodeToString([]byte(tagToDel))
-		req := httptest.NewRequest("DELETE", "/api/tags/" + tagParam, nil)
+		req := httptest.NewRequest("DELETE", "/api/tags/"+tagParam, nil)
 
 		userSess := &core.UserSession{
 			Type: "admin",

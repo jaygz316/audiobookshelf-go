@@ -391,7 +391,7 @@ func TestF4AuthorsAndSeries(t *testing.T) {
 			media := item["media"].(map[string]interface{})
 			metadata := media["metadata"].(map[string]interface{})
 			title := metadata["title"].(string)
-			
+
 			// Find series sequence in the series list of this item
 			var sequence string
 			seriesList := metadata["series"].([]interface{})
@@ -416,4 +416,3 @@ func TestF4AuthorsAndSeries(t *testing.T) {
 		}
 	})
 }
-

@@ -660,7 +660,6 @@ func handleDeleteFeed(db *sql.DB) http.HandlerFunc {
 	}
 }
 
-
 // handleGetPlaybackSessions retrieves the list of playback sessions joined with users and media details.
 func handleGetPlaybackSessions(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -842,7 +841,7 @@ func handleSendTestNotification(db *sql.DB) http.HandlerFunc {
 		id := trimPathPrefix(r.URL.Path, "/api/notifications/")
 		id = strings.TrimSuffix(id, "/test")
 		log.Printf("[Notifications] GET /api/notifications/%s/test", id)
-		
+
 		userVal := r.Context().Value(core.UserContextKey)
 		if userVal == nil {
 			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
@@ -1139,4 +1138,3 @@ func handleClosePlaybackSession(db *sql.DB, sessionID string) http.HandlerFunc {
 		w.WriteHeader(http.StatusNoContent)
 	}
 }
-

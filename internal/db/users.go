@@ -667,4 +667,3 @@ func DeleteSessionByID(ctx context.Context, db *sql.DB, sessionID string) error 
 	_, err := db.ExecContext(ctx, "DELETE FROM sessions WHERE id = ?", sessionID)
 	return err
 }
-

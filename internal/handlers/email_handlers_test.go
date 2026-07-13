@@ -283,7 +283,7 @@ func TestEmailHandlers_SendEBookToDevice(t *testing.T) {
 
 	t.Run("SpecificUsersAllowedDevice", func(t *testing.T) {
 		payload := `{"libraryItemId":"item-1","deviceName":"Kindle-Specific"}`
-		
+
 		// Allowed User
 		req1 := httptest.NewRequest("POST", "/api/emails/send-ebook-to-device", strings.NewReader(payload))
 		req1 = req1.WithContext(context.WithValue(req1.Context(), core.UserContextKey, allowedUserSession))

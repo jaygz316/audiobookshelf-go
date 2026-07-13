@@ -69,14 +69,14 @@ type fantLabEditionBlock struct {
 }
 
 type fantLabWorkExtended struct {
-	WorkID          int                             `json:"work_id"`
-	WorkName        string                          `json:"work_name"`
-	WorkNameAlts    []string                        `json:"work_name_alts"`
-	WorkYear        int                             `json:"work_year"`
-	WorkDescription string                          `json:"work_description"`
-	Image           string                          `json:"image"`
-	Authors         []fantLabAuthor                 `json:"authors"`
-	Classificatory  *fantLabClassificatory          `json:"classificatory"`
+	WorkID          int                            `json:"work_id"`
+	WorkName        string                         `json:"work_name"`
+	WorkNameAlts    []string                       `json:"work_name_alts"`
+	WorkYear        int                            `json:"work_year"`
+	WorkDescription string                         `json:"work_description"`
+	Image           string                         `json:"image"`
+	Authors         []fantLabAuthor                `json:"authors"`
+	Classificatory  *fantLabClassificatory         `json:"classificatory"`
 	EditionsBlocks  map[string]fantLabEditionBlock `json:"editions_blocks"`
 }
 

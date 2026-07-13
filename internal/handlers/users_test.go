@@ -2,11 +2,11 @@ package handlers
 
 import (
 	"bytes"
+	"database/sql"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"database/sql"
-	"fmt"
 
 	_ "modernc.org/sqlite"
 )

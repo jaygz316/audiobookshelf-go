@@ -367,84 +367,84 @@ func handleBatchUpdateLibraryItems(db *sql.DB, cfg *core.Config) http.HandlerFun
 
 			if metadataPath != "" {
 				if info.mediaType == "book" {
-						var title, subtitle, publisher, publishedYear, publishedDate, description, isbn, asin, language, narratorsRaw, tagsRaw, genresRaw string
-						var explicitVal, abridgedVal int
-						dbErr = db.QueryRow(`
+					var title, subtitle, publisher, publishedYear, publishedDate, description, isbn, asin, language, narratorsRaw, tagsRaw, genresRaw string
+					var explicitVal, abridgedVal int
+					dbErr = db.QueryRow(`
 							SELECT COALESCE(title, ''), COALESCE(subtitle, ''), COALESCE(publishedYear, ''), COALESCE(publishedDate, ''), COALESCE(publisher, ''), COALESCE(description, ''), COALESCE(isbn, ''), COALESCE(asin, ''), COALESCE(language, ''), explicit, abridged, COALESCE(narrators, '[]'), COALESCE(tags, '[]'), COALESCE(genres, '[]')
 							FROM books WHERE id = ?
 						`, info.mediaID).Scan(&title, &subtitle, &publishedYear, &publishedDate, &publisher, &description, &isbn, &asin, &language, &explicitVal, &abridgedVal, &narratorsRaw, &tagsRaw, &genresRaw)
-						if dbErr == nil {
-							var narrators, tags, genres []string
-							_ = json.Unmarshal([]byte(narratorsRaw), &narrators)
-							_ = json.Unmarshal([]byte(tagsRaw), &tags)
-							_ = json.Unmarshal([]byte(genresRaw), &genres)
+					if dbErr == nil {
+						var narrators, tags, genres []string
+						_ = json.Unmarshal([]byte(narratorsRaw), &narrators)
+						_ = json.Unmarshal([]byte(tagsRaw), &tags)
+						_ = json.Unmarshal([]byte(genresRaw), &genres)
 
-							var authors []string
-							rows, authorErr := db.Query(`
+						var authors []string
+						rows, authorErr := db.Query(`
 								SELECT COALESCE(a.name, '') FROM authors a
 								JOIN bookAuthors ba ON a.id = ba.authorId
 								WHERE ba.bookId = ?
 							`, info.mediaID)
-							if authorErr == nil {
-								defer rows.Close()
-								for rows.Next() {
-									var name string
-									if errScan := rows.Scan(&name); errScan == nil {
-										authors = append(authors, name)
-									}
+						if authorErr == nil {
+							defer rows.Close()
+							for rows.Next() {
+								var name string
+								if errScan := rows.Scan(&name); errScan == nil {
+									authors = append(authors, name)
 								}
 							}
-
-							metaData := map[string]interface{}{
-								"title":         title,
-								"subtitle":      subtitle,
-								"authors":       authors,
-								"narrators":     narrators,
-								"publisher":     publisher,
-								"publishedYear": publishedYear,
-								"publishedDate": publishedDate,
-								"description":   description,
-								"isbn":          isbn,
-								"asin":          asin,
-								"language":      language,
-								"explicit":      explicitVal != 0,
-								"abridged":      abridgedVal != 0,
-								"tags":          tags,
-								"genres":        genres,
-							}
-							metaJSON, marshalErr := json.MarshalIndent(metaData, "", "  ")
-							if marshalErr == nil {
-								_ = os.WriteFile(metadataPath, metaJSON, 0644)
-							}
 						}
-					} else if info.mediaType == "podcast" {
-						var title, author, description, language, tagsRaw, genresRaw string
-						var explicitVal int
-						dbErr = db.QueryRow(`
+
+						metaData := map[string]interface{}{
+							"title":         title,
+							"subtitle":      subtitle,
+							"authors":       authors,
+							"narrators":     narrators,
+							"publisher":     publisher,
+							"publishedYear": publishedYear,
+							"publishedDate": publishedDate,
+							"description":   description,
+							"isbn":          isbn,
+							"asin":          asin,
+							"language":      language,
+							"explicit":      explicitVal != 0,
+							"abridged":      abridgedVal != 0,
+							"tags":          tags,
+							"genres":        genres,
+						}
+						metaJSON, marshalErr := json.MarshalIndent(metaData, "", "  ")
+						if marshalErr == nil {
+							_ = os.WriteFile(metadataPath, metaJSON, 0644)
+						}
+					}
+				} else if info.mediaType == "podcast" {
+					var title, author, description, language, tagsRaw, genresRaw string
+					var explicitVal int
+					dbErr = db.QueryRow(`
 							SELECT COALESCE(title, ''), COALESCE(author, ''), COALESCE(description, ''), COALESCE(language, ''), explicit, COALESCE(tags, '[]'), COALESCE(genres, '[]')
 							FROM podcasts WHERE id = ?
 						`, info.mediaID).Scan(&title, &author, &description, &language, &explicitVal, &tagsRaw, &genresRaw)
-						if dbErr == nil {
-							var tags, genres []string
-							_ = json.Unmarshal([]byte(tagsRaw), &tags)
-							_ = json.Unmarshal([]byte(genresRaw), &genres)
+					if dbErr == nil {
+						var tags, genres []string
+						_ = json.Unmarshal([]byte(tagsRaw), &tags)
+						_ = json.Unmarshal([]byte(genresRaw), &genres)
 
-							metaData := map[string]interface{}{
-								"title":       title,
-								"author":      author,
-								"description": description,
-								"language":    language,
-								"explicit":    explicitVal != 0,
-								"tags":        tags,
-								"genres":      genres,
-							}
-							metaJSON, marshalErr := json.MarshalIndent(metaData, "", "  ")
-							if marshalErr == nil {
-								_ = os.WriteFile(metadataPath, metaJSON, 0644)
-							}
+						metaData := map[string]interface{}{
+							"title":       title,
+							"author":      author,
+							"description": description,
+							"language":    language,
+							"explicit":    explicitVal != 0,
+							"tags":        tags,
+							"genres":      genres,
+						}
+						metaJSON, marshalErr := json.MarshalIndent(metaData, "", "  ")
+						if marshalErr == nil {
+							_ = os.WriteFile(metadataPath, metaJSON, 0644)
 						}
 					}
 				}
+			}
 
 			if isocket.GlobalAuth != nil {
 				if minItem, err := idb.GetLibraryItemMinifiedByID(db, info.itemID); err == nil {

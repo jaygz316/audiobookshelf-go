@@ -1154,7 +1154,7 @@ func handleGetLibraryItemByID(db *sql.DB, itemID string) http.HandlerFunc {
 						if err := vrows.Scan(&vID, &vTitle, &vSubtitle, &vNarrators, &vDuration, &vCoverPath); err == nil {
 							var narrators []string
 							_ = json.Unmarshal(vNarrators, &narrators)
-							
+
 							otherVersions = append(otherVersions, map[string]interface{}{
 								"id":        vID,
 								"title":     vTitle,
@@ -1290,13 +1290,13 @@ func handleGetLibraryItemByID(db *sql.DB, itemID string) http.HandlerFunc {
 					"tags":      tags,
 					"episodes":  episodes,
 					"metadata": map[string]interface{}{
-						"title":       pTitle.String,
-						"author":      pAuthor.String,
-						"description": utils.NullIfEmpty(pDescription.String),
-						"language":    utils.NullIfEmpty(pLanguage.String),
-						"podcastType": utils.NullIfEmpty(pPodcastType.String),
-						"explicit":    pExplicit.Valid && pExplicit.Int64 != 0,
-						"genres":      genres,
+						"title":        pTitle.String,
+						"author":       pAuthor.String,
+						"description":  utils.NullIfEmpty(pDescription.String),
+						"language":     utils.NullIfEmpty(pLanguage.String),
+						"podcastType":  utils.NullIfEmpty(pPodcastType.String),
+						"explicit":     pExplicit.Valid && pExplicit.Int64 != 0,
+						"genres":       genres,
 						"lockedFields": lockedFields,
 					},
 				}

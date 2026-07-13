@@ -40,7 +40,7 @@ func TestPublicShareHandlers(t *testing.T) {
 
 	// Create share links
 	ctx := context.Background()
-	
+
 	// 1. Valid non-password public share
 	slug1 := "slug-nopass"
 	s1 := &share.ShareLink{

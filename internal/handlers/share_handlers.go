@@ -144,4 +144,3 @@ func handleGetShares(db *sql.DB) http.HandlerFunc {
 		json.NewEncoder(w).Encode(hydratedList)
 	}
 }
-

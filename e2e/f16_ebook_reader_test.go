@@ -57,7 +57,7 @@ func TestF16EbookReader(t *testing.T) {
 
 	// 2. Write fake EPUB and PDF files to test paths
 	tempDir := t.TempDir()
-	
+
 	fakeEpubPath := filepath.Join(tempDir, "test.epub")
 	epubContent := []byte("fake epub data")
 	if err := os.WriteFile(fakeEpubPath, epubContent, 0644); err != nil {

@@ -79,7 +79,6 @@ func (sa *Authority) SetDB(database *sql.DB) {
 	sa.database = database
 }
 
-
 // AuthenticateSocket validates the JWT token and binds the user session to the socket.
 func (sa *Authority) AuthenticateSocket(client *gosocket.Socket, token string) {
 	userSession, err := sa.resolveUserSession(token)
@@ -614,4 +613,3 @@ func (sa *Authority) BroadcastPlaybackSessionRemoved(userID string, sessionID st
 	sa.ClientEmitter(userID, "playback_session_removed", payload)
 	sa.AdminEmitter("playback_session_removed", payload)
 }
-

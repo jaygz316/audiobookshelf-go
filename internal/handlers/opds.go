@@ -847,14 +847,14 @@ func writeItemEntries(sb *strings.Builder, items []*idb.LibraryItemMinifiedJSON,
 		sb.WriteString(fmt.Sprintf("    <title>%s</title>\n", html.EscapeString(title)))
 		sb.WriteString(fmt.Sprintf("    <id>urn:uuid:%s</id>\n", item.ID))
 		sb.WriteString(fmt.Sprintf("    <updated>%s</updated>\n", updatedTime))
-		
+
 		if author != "" {
 			sb.WriteString(fmt.Sprintf("    <author><name>%s</name></author>\n", html.EscapeString(author)))
 		}
 		if narrator != "" {
 			sb.WriteString(fmt.Sprintf("    <contributor role=\"nrt\"><name>%s</name></contributor>\n", html.EscapeString(narrator)))
 		}
-		
+
 		if description != "" {
 			sb.WriteString(fmt.Sprintf("    <content type=\"text\">%s</content>\n", html.EscapeString(description)))
 		} else {
