@@ -500,7 +500,12 @@
         <!-- Timeline -->
         <div class="flex items-center w-full space-x-2 text-xs text-black-50">
           <span id="player-time-elapsed">0:00</span>
-          <input id="player-timeline" type="range" min="0" max="100" value="0" class="flex-grow accent-accent bg-black-500 h-1 rounded-lg cursor-pointer">
+          <div class="flex-grow relative h-6 flex items-center">
+            <div id="player-waveform-container" class="absolute inset-0 w-full h-full pointer-events-none flex items-center z-0">
+              <canvas id="player-waveform-canvas" class="w-full h-full opacity-60"></canvas>
+            </div>
+            <input id="player-timeline" type="range" min="0" max="100" value="0" class="w-full absolute inset-0 accent-accent bg-transparent h-1 cursor-pointer z-10">
+          </div>
           <span id="player-time-remaining">0:00</span>
         </div>
       </div>
