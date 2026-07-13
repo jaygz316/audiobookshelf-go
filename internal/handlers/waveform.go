@@ -241,13 +241,27 @@ func GenerateWaveformForFile(path string, targetPoints int) ([]int, error) {
 
 	var rawSamples []int16
 	buf := make([]byte, 4096)
+	var leftover byte
+	hasLeftover := false
+
 	for {
 		n, err := stdout.Read(buf)
 		if n > 0 {
-			for i := 0; i < n; i += 2 {
+			startIdx := 0
+			if hasLeftover {
+				val := int16(leftover) | (int16(buf[0]) << 8)
+				rawSamples = append(rawSamples, val)
+				startIdx = 1
+				hasLeftover = false
+			}
+
+			for i := startIdx; i < n; i += 2 {
 				if i+1 < n {
 					val := int16(buf[i]) | (int16(buf[i+1]) << 8)
 					rawSamples = append(rawSamples, val)
+				} else {
+					leftover = buf[i]
+					hasLeftover = true
 				}
 			}
 		}
@@ -262,20 +276,18 @@ func GenerateWaveformForFile(path string, targetPoints int) ([]int, error) {
 	}
 
 	peaks := make([]int, targetPoints)
-	chunkSize := len(rawSamples) / targetPoints
-	if chunkSize == 0 {
-		chunkSize = 1
-	}
-
 	maxVal := 0
 	for i := 0; i < targetPoints; i++ {
-		start := i * chunkSize
-		end := start + chunkSize
-		if i == targetPoints-1 {
-			end = len(rawSamples)
-		}
+		start := (i * len(rawSamples)) / targetPoints
+		end := ((i + 1) * len(rawSamples)) / targetPoints
 		if start >= len(rawSamples) {
 			break
+		}
+		if end > len(rawSamples) {
+			end = len(rawSamples)
+		}
+		if start == end {
+			end = start + 1
 		}
 
 		localMax := 0
