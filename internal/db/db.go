@@ -366,6 +366,12 @@ func InitDB(dbPath string) (*sql.DB, error) {
 		return nil, err
 	}
 
+	// Configure DB Connection Pooling for optimized SQLite WAL concurrency
+	db.SetMaxOpenConns(25)
+	db.SetMaxIdleConns(10)
+	db.SetConnMaxLifetime(time.Hour)
+	db.SetConnMaxIdleTime(30 * time.Minute)
+
 	if isNew {
 		if err := bootstrapSchema(db); err != nil {
 			db.Close()

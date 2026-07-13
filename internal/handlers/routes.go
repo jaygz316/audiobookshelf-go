@@ -82,13 +82,24 @@ func SetupHandler(db *sql.DB, cfg *core.Config, dbConnected bool, appRoot string
 
 	mainHandler := BasePathRewriteMiddleware(cfg.RouterBasePath, mux)
 	handlerWithCORS := CORSMiddleware(db, mainHandler)
-	return LoggingMiddleware(handlerWithCORS)
+	handlerWithLogging := LoggingMiddleware(handlerWithCORS)
+	return MetricsMiddleware(handlerWithLogging)
 }
 
 func LoggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[HTTP] Request: %s %s from %s (User-Agent: %s)", r.Method, r.URL.Path, r.RemoteAddr, r.UserAgent())
-		log.Printf("[HTTP] Request Headers: %v", r.Header)
+
+		sanitizedHeaders := make(http.Header)
+		for k, v := range r.Header {
+			lowerK := strings.ToLower(k)
+			if lowerK == "authorization" || lowerK == "cookie" || lowerK == "x-auth-token" || lowerK == "set-cookie" {
+				sanitizedHeaders[k] = []string{"[REDACTED]"}
+			} else {
+				sanitizedHeaders[k] = v
+			}
+		}
+		log.Printf("[HTTP] Request Headers: %v", sanitizedHeaders)
 		next.ServeHTTP(w, r)
 	})
 }
@@ -245,7 +256,7 @@ func registerBaseRoutes(mux *http.ServeMux, cfg *core.Config, db *sql.DB, dbConn
 func registerAuthAndUserRoutes(mux *http.ServeMux, cfg *core.Config, db *sql.DB, appRoot string) {
 	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/login"), func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPost {
-			handleLogin(db)(w, r)
+			RateLimitMiddleware(LoginRateLimiter)(http.HandlerFunc(handleLogin(db))).ServeHTTP(w, r)
 		} else if r.Method == http.MethodGet {
 			r.URL.Path = joinPath(cfg.RouterBasePath, "/index.html")
 			serveStaticOrSPA(subFS, cfg.RouterBasePath)(w, r)
@@ -265,7 +276,7 @@ func registerAuthAndUserRoutes(mux *http.ServeMux, cfg *core.Config, db *sql.DB,
 	})
 	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/init"), func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPost {
-			handleInit(db)(w, r)
+			RateLimitMiddleware(LoginRateLimiter)(http.HandlerFunc(handleInit(db))).ServeHTTP(w, r)
 		} else if r.Method == http.MethodGet {
 			r.URL.Path = joinPath(cfg.RouterBasePath, "/index.html")
 			serveStaticOrSPA(subFS, cfg.RouterBasePath)(w, r)
@@ -570,7 +581,7 @@ func registerMockAndFeedRoutes(mux *http.ServeMux, cfg *core.Config, db *sql.DB)
 		if r.Method == http.MethodGet {
 			AuthMiddlewareWrapper(db, handleGetApiKeys(db)).ServeHTTP(w, r)
 		} else if r.Method == http.MethodPost {
-			AuthMiddlewareWrapper(db, handlePostApiKey(db)).ServeHTTP(w, r)
+			RateLimitMiddleware(LoginRateLimiter)(AuthMiddlewareWrapper(db, handlePostApiKey(db))).ServeHTTP(w, r)
 		} else {
 			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
 		}
@@ -838,6 +849,9 @@ func registerMiscRoutes(mux *http.ServeMux, cfg *core.Config, db *sql.DB, appRoo
 	// OPDS Catalog routes
 	mux.Handle(joinPath(cfg.RouterBasePath, "/opds"), AuthMiddlewareWrapper(db, ServeOPDS(db)))
 	mux.Handle(joinPath(cfg.RouterBasePath, "/opds/"), AuthMiddlewareWrapper(db, ServeOPDS(db)))
+
+	// Metrics route (Prometheus scraper endpoint)
+	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/metrics"), handleMetrics(db))
 }
 
 func registerEmailRoutes(mux *http.ServeMux, cfg *core.Config, db *sql.DB) {
