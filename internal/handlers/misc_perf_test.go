@@ -1,13 +1,13 @@
 package handlers
 
 import (
-	"context"
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"testing"
 	"strconv"
+	"testing"
 
 	"audiobookshelf/internal/core"
 )
@@ -37,7 +37,7 @@ func BenchmarkRenameTag(b *testing.B) {
 		db.Exec("UPDATE books SET tags = '[\"fantasy\", \"sci-fi\"]'")
 
 		reqBody := map[string]string{
-			"tag": "fantasy",
+			"tag":    "fantasy",
 			"newTag": "epic-fantasy",
 		}
 		bodyBytes, _ := json.Marshal(reqBody)

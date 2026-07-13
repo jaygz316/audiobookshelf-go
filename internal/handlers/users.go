@@ -1173,4 +1173,3 @@ func handleDeleteUserLoginSession(db *sql.DB, targetUserID string, sessionID str
 		json.NewEncoder(w).Encode(map[string]interface{}{"success": true})
 	}
 }
-

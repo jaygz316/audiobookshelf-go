@@ -161,14 +161,14 @@ func (c *CustomProvider) SearchPodcasts(ctx context.Context, query string) ([]*M
 
 	var result struct {
 		Matches []struct {
-			Title         string   `json:"title"`
-			Subtitle      string   `json:"subtitle"`
-			Author        string   `json:"author"`
-			Publisher     string   `json:"publisher"`
-			PublishedYear string   `json:"publishedYear"`
-			Description   string   `json:"description"`
-			Cover         string   `json:"cover"`
-			Language      string   `json:"language"`
+			Title         string `json:"title"`
+			Subtitle      string `json:"subtitle"`
+			Author        string `json:"author"`
+			Publisher     string `json:"publisher"`
+			PublishedYear string `json:"publishedYear"`
+			Description   string `json:"description"`
+			Cover         string `json:"cover"`
+			Language      string `json:"language"`
 		} `json:"matches"`
 	}
 

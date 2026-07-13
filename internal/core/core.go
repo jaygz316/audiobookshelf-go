@@ -153,4 +153,3 @@ type Config struct {
 	LegacyURL      string
 	RouterBasePath string
 }
-

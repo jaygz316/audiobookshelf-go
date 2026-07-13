@@ -322,5 +322,3 @@ func (f *Finder) SearchAuthors(ctx context.Context, providerName, query string) 
 func (f *Finder) Providers() map[string]providers.Provider {
 	return f.providers
 }
-
-

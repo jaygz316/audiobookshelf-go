@@ -1292,4 +1292,3 @@ func handleUpload(db *sql.DB) http.HandlerFunc {
 		})
 	}
 }
-

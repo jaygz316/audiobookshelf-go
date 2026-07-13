@@ -42,7 +42,7 @@ func main() {
 
 	// Token from screenshot
 	token := "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI3NDMzMzZiZi1hNGY2LTRkYTItOGE1Zi05YTFlYjNmYTc0ZmQiLCJ1c2VybmFtZSI6InJvb3QiLCJ0eXBlIjoicm9vdCIsImlhdCI6MTc4MTExNDU4MSwiZXhwIjoxNzgxOTc4NTgxfQ.FBL99emR_P6bUtECfsC5ZppB4_kg2HnRRpiN3KCZnSY"
-	
+
 	// Create mock request
 	url := fmt.Sprintf("/audiobookshelf/hls/7c0a8a89-3d4f-4dc3-9d4a-98b11535e538/output-0.ts?token=%s", token)
 	req := httptest.NewRequest("GET", url, nil)

@@ -120,7 +120,7 @@ func TestChallenger_ConcurrentReadWriteStress(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	dbPath := filepath.Join(tmpDir, "abs.db")
-	
+
 	// Open using InitDB to set the WAL and busy_timeout settings
 	db, err := idb.InitDB(dbPath)
 	if err != nil {
@@ -167,7 +167,7 @@ func TestChallenger_ConcurrentReadWriteStress(t *testing.T) {
 		wg.Add(1)
 		go func(workerID int) {
 			defer wg.Done()
-			
+
 			for j := 0; j < opsPerWorker; j++ {
 				opType := (workerID + j) % 5
 				switch opType {
@@ -396,7 +396,7 @@ func TestChallenger_ConcurrentPrefixRecompute(t *testing.T) {
 	// Spawn multiple concurrent recomputes
 	var wg sync.WaitGroup
 	numConcurrently := 10
-	
+
 	for i := 0; i < numConcurrently; i++ {
 		wg.Add(1)
 		go func(workerID int) {
@@ -422,4 +422,3 @@ func TestChallenger_ConcurrentPrefixRecompute(t *testing.T) {
 	}
 	t.Logf("Final titleIgnorePrefix: %s", titleIgnorePrefix)
 }
-

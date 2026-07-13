@@ -388,7 +388,7 @@ func TriggerEvent(ctx context.Context, dbConn *sql.DB, eventName string, library
 				subCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 				defer cancel()
 				err := notifier.Send(subCtx, payload)
-				
+
 				// Update database with status
 				var currentValStr string
 				var currentSettings NotificationSettings
@@ -433,4 +433,3 @@ func FormatTemplate(tpl string, title, message, event string, extraData map[stri
 	}
 	return res
 }
-

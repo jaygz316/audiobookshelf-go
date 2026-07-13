@@ -832,4 +832,3 @@ func RestoreMetadataFilesExported(metadataPath, zipPath string) error {
 func PruneOldBackupsExported(db *sql.DB, backupDir string) error {
 	return pruneOldBackups(db, backupDir)
 }
-

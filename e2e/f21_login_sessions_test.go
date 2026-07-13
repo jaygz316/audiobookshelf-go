@@ -41,7 +41,6 @@ func TestLoginSessionsE2E(t *testing.T) {
 	json.NewDecoder(resp.Body).Decode(&loginResp2)
 	_ = loginResp2["user"].(map[string]interface{})["accessToken"].(string)
 
-
 	// 1. Get all active sessions using Client 1
 	req, _ := http.NewRequest("GET", h.BaseURL+"/api/me/sessions", nil)
 	req.Header.Set("Authorization", "Bearer "+adminToken1)

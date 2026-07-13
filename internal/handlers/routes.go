@@ -880,7 +880,6 @@ func registerEmailRoutes(mux *http.ServeMux, cfg *core.Config, db *sql.DB) {
 	})
 }
 
-
 func registerFallbackRoutes(mux *http.ServeMux, cfg *core.Config, db *sql.DB, appRoot string) {
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Path
@@ -1449,4 +1448,3 @@ func handleNotificationsDispatch(db *sql.DB, cfg *core.Config) http.HandlerFunc 
 		http.Error(w, `{"error": "Not Found"}`, http.StatusNotFound)
 	}
 }
-

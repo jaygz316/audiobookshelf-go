@@ -346,4 +346,3 @@ func TestStoragePathIsolation(t *testing.T) {
 		t.Errorf("Expected local cover file NOT to exist when metadataCoverWithItem is false")
 	}
 }
-

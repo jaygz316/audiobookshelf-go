@@ -552,7 +552,7 @@ func TestSocketPlaybackSynchronization(t *testing.T) {
 
 	// Seed user and session data
 	insertTestUser(t, db, "sync-user", "syncuser", "user", true, true, true, true, true, false, nil, nil)
-	
+
 	// Create Authority
 	sa := NewAuthority(db)
 	defer sa.Close()

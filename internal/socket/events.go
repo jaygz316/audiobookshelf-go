@@ -11,7 +11,11 @@ import (
 )
 
 // InitAuthority initializes the global Socket.IO server and handlers.
-func InitAuthority(database interface{ QueryRow(query string, args ...interface{}) interface{ Scan(dest ...interface{}) error } }) http.Handler {
+func InitAuthority(database interface {
+	QueryRow(query string, args ...interface{}) interface {
+		Scan(dest ...interface{}) error
+	}
+}) http.Handler {
 	return nil // placeholder
 }
 

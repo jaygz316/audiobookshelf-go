@@ -138,5 +138,3 @@ func DownloadURL(ctx context.Context, urlStr string) ([]byte, error) {
 func SetSafeHTTPClientForTest(client *safeurl.WrappedClient) {
 	safeHTTPClient = client
 }
-
-

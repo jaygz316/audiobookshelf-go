@@ -460,7 +460,7 @@ func TestF5PlaybackSessionsAndHLS(t *testing.T) {
 	t.Run("DELETE /api/playback-sessions/:id - Close playback session", func(t *testing.T) {
 		sessID1 := "test-del-sess-1"
 		sessID2 := "test-del-sess-2"
-		
+
 		// Insert sessions into DB
 		_, err := db.Exec(`INSERT INTO playbackSessions (id, userId, mediaItemId, mediaItemType, startTime, libraryId, extraData, createdAt, updatedAt)
 			VALUES (?, ?, ?, 'book', 0.0, ?, '{}', datetime('now'), datetime('now'))`,
@@ -468,7 +468,7 @@ func TestF5PlaybackSessionsAndHLS(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to insert mock session: %v", err)
 		}
-		
+
 		_, err = db.Exec(`INSERT INTO playbackSessions (id, userId, mediaItemId, mediaItemType, startTime, libraryId, extraData, createdAt, updatedAt)
 			VALUES (?, ?, ?, 'book', 0.0, ?, '{}', datetime('now'), datetime('now'))`,
 			sessID2, restrictedUserID, bookID, libraryID)

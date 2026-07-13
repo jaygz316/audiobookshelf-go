@@ -589,11 +589,11 @@ func TestUpdateLibraryItem(t *testing.T) {
 	}
 
 	bodyBytes, _ := json.Marshal(payload)
-	
+
 	// 3. Make request
 	handler := handleUpdateLibraryItemByID(db, "item1")
 	req := httptest.NewRequest("PATCH", "/api/items/item1", strings.NewReader(string(bodyBytes)))
-	
+
 	user := &core.UserSession{
 		ID:                 "user1",
 		Username:           "admin",

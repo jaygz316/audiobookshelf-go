@@ -10,4 +10,3 @@ func TestMain(m *testing.M) {
 	CleanupTestBinary()
 	os.Exit(code)
 }
-

@@ -39,7 +39,6 @@ type MergeAudioFile struct {
 	} `json:"metadata"`
 }
 
-
 func escapeConcatPath(path string) string {
 	return strings.ReplaceAll(path, "'", "'\\''")
 }
