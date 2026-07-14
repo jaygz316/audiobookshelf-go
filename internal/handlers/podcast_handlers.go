@@ -1206,8 +1206,12 @@ func handleDeleteEpisode(db *sql.DB, id, episodeId string) http.HandlerFunc {
 			if json.Unmarshal([]byte(audioFileStr), &af) == nil && af != nil {
 				if meta, ok := af["metadata"].(map[string]interface{}); ok && meta != nil {
 					if path, ok := meta["path"].(string); ok && path != "" {
-						if err := os.Remove(path); err != nil {
-							log.Errorf("[DeleteEpisode] Failed to remove file %s: %v", path, err)
+						if utils.IsSafeFilePath(db, MetadataPath, path) {
+							if err := os.Remove(path); err != nil {
+								log.Errorf("[DeleteEpisode] Failed to remove file %s: %v", path, err)
+							}
+						} else {
+							log.Warnf("[DeleteEpisode] Deletion of unsafe path blocked: %s", path)
 						}
 					}
 				}

@@ -184,8 +184,17 @@ func handleGetPublicShareCover(db *sql.DB, metadataPath string) http.HandlerFunc
 			return
 		}
 
+		if strings.Contains(s.LibraryItemID, "..") || strings.Contains(s.LibraryItemID, "/") || strings.Contains(s.LibraryItemID, "\\") {
+			http.Error(w, "Forbidden", http.StatusForbidden)
+			return
+		}
+
 		cachePath, err := getCoverFromCache(metadataPath, s.LibraryItemID, width, height, format)
 		if err == nil {
+			if !utils.IsSafeFilePath(db, metadataPath, cachePath) {
+				http.Error(w, "Forbidden", http.StatusForbidden)
+				return
+			}
 			if r.URL.Query().Get("ts") != "" {
 				w.Header().Set("Cache-Control", "private, max-age=86400")
 			}

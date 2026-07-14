@@ -263,6 +263,11 @@ func TestEmailHandlers_SendEBookToDevice(t *testing.T) {
 		t.Fatalf("failed to seed library item: %v", err)
 	}
 
+	_, err = db.Exec(`INSERT INTO libraryFolders (id, path, libraryId) VALUES ('folder-ebook-test', ?, 'lib-ebook-test')`, tempDir)
+	if err != nil {
+		t.Fatalf("failed to seed libraryFolders: %v", err)
+	}
+
 	// Set up user sessions
 	adminSession := &core.UserSession{ID: "admin-user", Username: "admin", Type: "admin", IsActive: true}
 	allowedUserSession := &core.UserSession{ID: "allowed-user", Username: "user1", Type: "user", IsActive: true}

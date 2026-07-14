@@ -22,6 +22,7 @@ import (
 
 	"audiobookshelf/internal/core"
 	idb "audiobookshelf/internal/db"
+	"audiobookshelf/internal/utils"
 )
 
 type EreaderDevice struct {
@@ -394,6 +395,12 @@ func handleSendEBookToDevice(db *sql.DB) http.HandlerFunc {
 		filePath := ebook.Metadata.Path
 		if filePath == "" {
 			http.Error(w, `{"error": "E-book file path is not configured"}`, http.StatusBadRequest)
+			return
+		}
+
+		if !utils.IsSafeFilePath(db, MetadataPath, filePath) {
+			log.Warnf("[SMTP] Unsafe ebook file path traversal blocked: %s", filePath)
+			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
 			return
 		}
 

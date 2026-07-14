@@ -23,6 +23,7 @@ import (
 	"audiobookshelf/internal/core"
 	log "audiobookshelf/internal/logger"
 	isocket "audiobookshelf/internal/socket"
+	"audiobookshelf/internal/utils"
 )
 
 // Track represents an audio track inside the audiobook.
@@ -113,6 +114,10 @@ func (sm *StreamManager) LoadOrCreateStream(db *sql.DB, streamID string, metadat
 	sm.streamsMu.Lock()
 	defer sm.streamsMu.Unlock()
 
+	if strings.Contains(streamID, "..") || strings.Contains(streamID, "/") || strings.Contains(streamID, "\\") {
+		return nil, fmt.Errorf("invalid stream ID")
+	}
+
 	// Return cached stream if it exists
 	if s, ok := sm.streams[streamID]; ok {
 		return s, nil
@@ -166,6 +171,9 @@ func (sm *StreamManager) LoadOrCreateStream(db *sql.DB, streamID string, metadat
 		}
 		var audioFile AudioFileStruct
 		if err := json.Unmarshal([]byte(audioFileJSONStr), &audioFile); err == nil {
+			if !utils.IsSafeFilePath(db, metadataPath, audioFile.Metadata.Path) {
+				return nil, fmt.Errorf("forbidden: unsafe audio file path: %s", audioFile.Metadata.Path)
+			}
 			tracks = append(tracks, Track{
 				Index:    0,
 				Duration: audioFile.Duration,
@@ -197,6 +205,9 @@ func (sm *StreamManager) LoadOrCreateStream(db *sql.DB, streamID string, metadat
 		if err := json.Unmarshal([]byte(audioFilesJSONStr), &audioFiles); err == nil {
 			for _, af := range audioFiles {
 				if !af.Exclude {
+					if !utils.IsSafeFilePath(db, metadataPath, af.Metadata.Path) {
+						return nil, fmt.Errorf("forbidden: unsafe audio file path: %s", af.Metadata.Path)
+					}
 					tracks = append(tracks, Track{
 						Index:    af.Index,
 						Duration: af.Duration,
@@ -890,10 +901,17 @@ func HandlePlayItem(db *sql.DB, sm *StreamManager) http.HandlerFunc {
 			}
 		}
 
-		if itemID == "" {
+		if itemID == "" || strings.Contains(itemID, "..") || strings.Contains(itemID, "/") || strings.Contains(itemID, "\\") {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusBadRequest)
 			w.Write([]byte(`{"error": "Invalid Item ID"}`))
+			return
+		}
+
+		if episodeID != "" && (strings.Contains(episodeID, "..") || strings.Contains(episodeID, "/") || strings.Contains(episodeID, "\\")) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte(`{"error": "Invalid Episode ID"}`))
 			return
 		}
 

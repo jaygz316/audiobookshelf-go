@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"audiobookshelf/internal/core"
+	"audiobookshelf/internal/utils"
 )
 
 type MergeChapter struct {
@@ -73,6 +74,11 @@ func handleMergeAudioFiles(db *sql.DB) http.HandlerFunc {
 		}
 		itemID := parts[len(parts)-2]
 
+		if strings.Contains(itemID, "..") || strings.Contains(itemID, "/") || strings.Contains(itemID, "\\") {
+			http.Error(w, `{"error": "Invalid item ID"}`, http.StatusBadRequest)
+			return
+		}
+
 		log.Infof("[Go] POST /api/items/%s/merge", itemID)
 
 		// Fetch mediaId, mediaType, and item details
@@ -118,8 +124,12 @@ func handleMergeAudioFiles(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		// Verify all active files exist on disk
+		// Verify all active files exist on disk and are safe paths
 		for _, af := range activeFiles {
+			if !utils.IsSafeFilePath(db, MetadataPath, af.Metadata.Path) {
+				http.Error(w, `{"error": "Forbidden: unsafe audio file path"}`, http.StatusForbidden)
+				return
+			}
 			if _, err := os.Stat(af.Metadata.Path); os.IsNotExist(err) {
 				http.Error(w, fmt.Sprintf(`{"error": "Audio file not found on disk: %s"}`, filepath.Base(af.Metadata.Path)), http.StatusBadRequest)
 				return
@@ -130,6 +140,10 @@ func handleMergeAudioFiles(db *sql.DB) http.HandlerFunc {
 		targetDir := filepath.Dir(activeFiles[0].Metadata.Path)
 		outputFilename := fmt.Sprintf("%s_merged.m4b", sanitizeFilename(title))
 		outputPath := filepath.Join(targetDir, outputFilename)
+		if !utils.IsSafeFilePath(db, MetadataPath, outputPath) {
+			http.Error(w, `{"error": "Forbidden: unsafe output path"}`, http.StatusForbidden)
+			return
+		}
 
 		// Create a temporary concat file
 		concatFile, err := os.CreateTemp("", "ffmpeg-concat-*.txt")
@@ -247,8 +261,12 @@ func handleMergeAudioFiles(db *sql.DB) http.HandlerFunc {
 
 		// Delete the original audio files
 		for _, af := range activeFiles {
-			if err := os.Remove(af.Metadata.Path); err != nil {
-				log.Warnf("[Warning] Failed to delete original file %s: %v", af.Metadata.Path, err)
+			if utils.IsSafeFilePath(db, MetadataPath, af.Metadata.Path) {
+				if err := os.Remove(af.Metadata.Path); err != nil {
+					log.Warnf("[Warning] Failed to delete original file %s: %v", af.Metadata.Path, err)
+				}
+			} else {
+				log.Warnf("[Warning] Blocked delete of unsafe original file %s", af.Metadata.Path)
 			}
 		}
 
