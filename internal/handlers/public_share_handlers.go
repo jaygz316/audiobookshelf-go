@@ -136,6 +136,12 @@ func handleGetPublicShareCover(db *sql.DB, metadataPath string) http.HandlerFunc
 			return
 		}
 
+		if !utils.IsSafeFilePath(db, metadataPath, coverPath) {
+			log.Warnf("[PublicShareCover] Cover path traversal blocked: %s", coverPath)
+			http.Error(w, "Forbidden", http.StatusForbidden)
+			return
+		}
+
 		// Serve raw or thumbnail
 		raw := r.URL.Query().Get("raw") == "1"
 		if raw {
@@ -261,6 +267,11 @@ func handleGetPublicShareDownload(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
+		if !utils.IsSafeFilePath(db, MetadataPath, info.Path) {
+			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
+			return
+		}
+
 		if info.IsFile {
 			w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", filepath.Base(info.RelPath)))
 			http.ServeFile(w, r, info.Path)
@@ -316,6 +327,11 @@ func handleGetPublicShareStream(db *sql.DB) http.HandlerFunc {
 		info, err := idb.GetLibraryItemDownloadInfo(db, s.LibraryItemID)
 		if err != nil {
 			http.Error(w, `{"error": "Library item not found"}`, http.StatusNotFound)
+			return
+		}
+
+		if !utils.IsSafeFilePath(db, MetadataPath, info.Path) {
+			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
 			return
 		}
 

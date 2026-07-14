@@ -652,6 +652,12 @@ func handleGetAuthorImage(db *sql.DB, metadataPath string, authorID string) http
 			return
 		}
 
+		if !utils.IsSafeFilePath(db, metadataPath, fullPath) {
+			log.Warnf("[Go] Author image path traversal blocked: %s", fullPath)
+			http.Error(w, "Forbidden", http.StatusForbidden)
+			return
+		}
+
 		if r.URL.Query().Get("ts") != "" {
 			w.Header().Set("Cache-Control", "private, max-age=86400")
 		}
@@ -1344,6 +1350,12 @@ func handleServeEbook(db *sql.DB, itemID string, fileID string) http.HandlerFunc
 		if _, err := os.Stat(filePath); err != nil {
 			log.Warnf("[Go] Ebook file not found: %s", filePath)
 			http.NotFound(w, r)
+			return
+		}
+
+		if !utils.IsSafeFilePath(db, MetadataPath, filePath) {
+			log.Warnf("[Go] Ebook file path traversal blocked: %s", filePath)
+			http.Error(w, "Forbidden", http.StatusForbidden)
 			return
 		}
 

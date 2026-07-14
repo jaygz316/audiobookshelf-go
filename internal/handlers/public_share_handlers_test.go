@@ -18,6 +18,9 @@ func TestPublicShareHandlers(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
 
+	testTempDir := t.TempDir()
+	MetadataPath = testTempDir
+
 	// Initialize managers
 	reinitManagers(db)
 
@@ -140,7 +143,7 @@ func TestPublicShareHandlers(t *testing.T) {
 
 	t.Run("Get public share download - serves file if allowed", func(t *testing.T) {
 		// Create a temporary file to mock download
-		tmpFile, err := os.CreateTemp("", "dummy-audio-*.m4b")
+		tmpFile, err := os.CreateTemp(testTempDir, "dummy-audio-*.m4b")
 		if err != nil {
 			t.Fatalf("Failed to create temp file: %v", err)
 		}
@@ -193,7 +196,7 @@ func TestPublicShareHandlers(t *testing.T) {
 	})
 
 	// Create a dummy cover image file for tests
-	tmpCover, err := os.CreateTemp("", "test-cover-*.jpg")
+	tmpCover, err := os.CreateTemp(testTempDir, "test-cover-*.jpg")
 	if err != nil {
 		t.Fatalf("Failed to create temp cover file: %v", err)
 	}
@@ -210,7 +213,7 @@ func TestPublicShareHandlers(t *testing.T) {
 		// Test invalid width
 		req := httptest.NewRequest(http.MethodGet, "/api/s/"+slug1+"/cover?width=123a", nil)
 		w := httptest.NewRecorder()
-		handleGetPublicShareCover(db, t.TempDir()).ServeHTTP(w, req)
+		handleGetPublicShareCover(db, testTempDir).ServeHTTP(w, req)
 		if w.Code != http.StatusBadRequest {
 			t.Errorf("Expected status 400 for invalid width, got %d", w.Code)
 		}
@@ -218,7 +221,7 @@ func TestPublicShareHandlers(t *testing.T) {
 		// Test invalid height
 		req = httptest.NewRequest(http.MethodGet, "/api/s/"+slug1+"/cover?height=abc", nil)
 		w = httptest.NewRecorder()
-		handleGetPublicShareCover(db, t.TempDir()).ServeHTTP(w, req)
+		handleGetPublicShareCover(db, testTempDir).ServeHTTP(w, req)
 		if w.Code != http.StatusBadRequest {
 			t.Errorf("Expected status 400 for invalid height, got %d", w.Code)
 		}
@@ -226,7 +229,7 @@ func TestPublicShareHandlers(t *testing.T) {
 		// Test invalid format
 		req = httptest.NewRequest(http.MethodGet, "/api/s/"+slug1+"/cover?format=gif", nil)
 		w = httptest.NewRecorder()
-		handleGetPublicShareCover(db, t.TempDir()).ServeHTTP(w, req)
+		handleGetPublicShareCover(db, testTempDir).ServeHTTP(w, req)
 		if w.Code != http.StatusBadRequest {
 			t.Errorf("Expected status 400 for invalid format, got %d", w.Code)
 		}
@@ -234,7 +237,7 @@ func TestPublicShareHandlers(t *testing.T) {
 		// Test path traversal in width
 		req = httptest.NewRequest(http.MethodGet, "/api/s/"+slug1+"/cover?width=../../", nil)
 		w = httptest.NewRecorder()
-		handleGetPublicShareCover(db, t.TempDir()).ServeHTTP(w, req)
+		handleGetPublicShareCover(db, testTempDir).ServeHTTP(w, req)
 		if w.Code != http.StatusBadRequest {
 			t.Errorf("Expected status 400 for path traversal in width, got %d", w.Code)
 		}
@@ -243,7 +246,7 @@ func TestPublicShareHandlers(t *testing.T) {
 	t.Run("Get public share cover - serves raw cover", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/api/s/"+slug1+"/cover?raw=1", nil)
 		w := httptest.NewRecorder()
-		handleGetPublicShareCover(db, t.TempDir()).ServeHTTP(w, req)
+		handleGetPublicShareCover(db, testTempDir).ServeHTTP(w, req)
 
 		if w.Code != http.StatusOK {
 			t.Errorf("Expected status 200, got %d. Body: %s", w.Code, w.Body.String())

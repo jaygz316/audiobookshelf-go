@@ -491,6 +491,11 @@ func TestServeEbook(t *testing.T) {
 		t.Fatalf("Failed to insert book: %v", err)
 	}
 
+	_, err = db.Exec(`INSERT INTO libraryFolders (id, path, libraryId) VALUES ('folder1', ?, 'lib1')`, tempDir)
+	if err != nil {
+		t.Fatalf("Failed to insert libraryFolder: %v", err)
+	}
+
 	_, err = db.Exec(`INSERT INTO libraryItems (
 		id, ino, libraryId, libraryFolderId, path, relPath, isFile, 
 		mtime, ctime, birthtime, createdAt, updatedAt, 

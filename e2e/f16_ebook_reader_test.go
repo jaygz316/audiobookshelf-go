@@ -82,6 +82,11 @@ func TestF16EbookReader(t *testing.T) {
 		t.Fatalf("Failed to insert library: %v", err)
 	}
 
+	_, err = db.Exec(`INSERT INTO libraryFolders (id, path, libraryId) VALUES ('folder-ebook', ?, 'lib-ebook')`, tempDir)
+	if err != nil {
+		t.Fatalf("Failed to insert library folder: %v", err)
+	}
+
 	// Insert EPUB Book
 	epubEbookJSON := `{"ebookFormat":"epub", "metadata":{"filename":"test.epub", "ext":".epub", "path":"` + filepath.ToSlash(fakeEpubPath) + `", "size":14}}`
 	_, err = db.Exec(`INSERT INTO books (id, title, duration, coverPath, narrators, audioFiles, ebookFile, chapters, tags, genres) VALUES 

@@ -57,7 +57,7 @@ func initManagers(db *sql.DB) {
 		globalPlaylistManager = playlist.NewPlaylistManager(db)
 	}
 	if globalFeedManager == nil {
-		globalFeedManager = feed.NewFeedManager(db)
+		globalFeedManager = feed.NewFeedManager(db, MetadataPath)
 	}
 	if globalPodcastManager == nil {
 		globalPodcastManager = podcast.NewPodcastManager(db)
@@ -76,6 +76,6 @@ func reinitManagers(db *sql.DB) {
 	log.Println("[Info] reinitManagers: updating database connection for managers.")
 	globalShareManager = share.NewShareManager(db)
 	globalPlaylistManager = playlist.NewPlaylistManager(db)
-	globalFeedManager = feed.NewFeedManager(db)
+	globalFeedManager = feed.NewFeedManager(db, MetadataPath)
 	globalPodcastManager = podcast.NewPodcastManager(db)
 }

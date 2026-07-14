@@ -315,7 +315,7 @@ func TestGenerateOPML(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
 
-	mgr := NewFeedManager(db)
+	mgr := NewFeedManager(db, t.TempDir())
 	ctx := context.Background()
 
 	// 1. User not found
@@ -413,7 +413,7 @@ func TestServeRSSFeed_Podcast(t *testing.T) {
 	audioJSON := makeAudioFileJSON(audioPath, "track.mp3", ".mp3", "audio/mpeg", int64(len(audioContent)), 120.0)
 	insertPodcastEpisode(t, db, "ep1", podcastID, "Episode 1", audioJSON, "2026-06-09 12:00:00", "Episode 1 Description", "1", "2", "full")
 
-	mgr := NewFeedManager(db)
+	mgr := NewFeedManager(db, tempDir)
 	handler := mgr.ServeRSSFeed(libraryItemID)
 
 	// 3. Test XML Feed response
@@ -605,7 +605,7 @@ func TestServeRSSFeed_Book(t *testing.T) {
 
 	insertBook(t, db, bookID, "The Book", "A great book", "en", 0, coverPath, 60.0, audioFilesJSON, chaptersJSON)
 
-	mgr := NewFeedManager(db)
+	mgr := NewFeedManager(db, tempDir)
 	handler := mgr.ServeRSSFeed(libraryItemID)
 
 	// 1. Test RSS Feed XML
@@ -796,7 +796,7 @@ func TestServeRSSFeed_Playlist(t *testing.T) {
 	audioJSON := makeAudioFileJSON(audioPathPodcast, "play_podcast_track.mp3", ".mp3", "audio/mpeg", int64(len(audioContentPodcast)), 90.0)
 	insertPodcastEpisode(t, db, episodeID, podcastID, "Playlist Episode 1", audioJSON, "2026-06-09 12:00:00", "Ep in playlist", "1", "1", "full")
 
-	mgr := NewFeedManager(db)
+	mgr := NewFeedManager(db, tempDir)
 	handler := mgr.ServeRSSFeed(playlistID)
 
 	// 3. Test Playlist Cover (should skip book with empty cover and resolve to podcast cover)
@@ -890,7 +890,7 @@ func TestServeRSSFeed_AccessControl(t *testing.T) {
 		t.Fatalf("failed to insert book: %v", err)
 	}
 
-	manager := NewFeedManager(db)
+	manager := NewFeedManager(db, t.TempDir())
 
 	// 1. Without feed in feeds table, query using a random slug -> should 404
 	req404 := httptest.NewRequest("GET", "/feed/non_existent_slug", nil)
@@ -981,7 +981,7 @@ func TestServeRSSFeed_Collection(t *testing.T) {
 	insertLibraryItem(t, db, "libitem_collbook", "lib1", "book", bookID)
 	_, _ = db.Exec("UPDATE libraryItems SET createdAt = ? WHERE id = ?", "2026-06-09T00:00:00Z", "libitem_collbook")
 
-	mgr := NewFeedManager(db)
+	mgr := NewFeedManager(db, tempDir)
 	handler := mgr.ServeRSSFeed(collectionID)
 
 	// Test Cover (should resolve to the first book's cover)
@@ -1070,7 +1070,7 @@ func TestServeRSSFeed_Series(t *testing.T) {
 	insertLibraryItem(t, db, "libitem_seriesbook", "lib1", "book", bookID)
 	_, _ = db.Exec("UPDATE libraryItems SET createdAt = ? WHERE id = ?", "2026-06-09T00:00:00Z", "libitem_seriesbook")
 
-	mgr := NewFeedManager(db)
+	mgr := NewFeedManager(db, tempDir)
 	handler := mgr.ServeRSSFeed(seriesID)
 
 	// Test Cover
