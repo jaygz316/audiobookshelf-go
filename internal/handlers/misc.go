@@ -878,29 +878,15 @@ func handleGetFilesystem(appRoot string) http.HandlerFunc {
 			}
 		}
 
-		// Default path if empty
 		if relpath == "" {
 			relpath = "/"
 		}
+		relpath = filepath.Clean(relpath)
 
-		// Validate path. Must be absolute and must exist
+		// Validate path. Must be absolute
 		if !filepath.IsAbs(relpath) {
 			log.Warnf("[FileSystem] Path is not absolute: %s", relpath)
 			http.Error(w, `Invalid "path" query string`, http.StatusBadRequest)
-			return
-		}
-
-		fi, err := os.Stat(relpath)
-		if err != nil || !fi.IsDir() {
-			log.Warnf("[FileSystem] Path does not exist or is not a directory: %s", relpath)
-			http.Error(w, `Invalid "path" query string`, http.StatusBadRequest)
-			return
-		}
-
-		entries, err := os.ReadDir(relpath)
-		if err != nil {
-			log.Errorf("[FileSystem] Failed to read directory %s: %v", relpath, err)
-			http.Error(w, `Failed to read directory`, http.StatusInternalServerError)
 			return
 		}
 
@@ -919,6 +905,29 @@ func handleGetFilesystem(appRoot string) http.HandlerFunc {
 		// Always exclude /sys and /proc on Linux as well
 		excludedPaths["/sys"] = true
 		excludedPaths["/proc"] = true
+
+		posixPath := filepath.ToSlash(relpath)
+		for excl := range excludedPaths {
+			if utils.IsSameOrSubPath(excl, posixPath) {
+				log.Warnf("[FileSystem] Direct or nested access to excluded path blocked: %s", posixPath)
+				http.Error(w, "Forbidden", http.StatusForbidden)
+				return
+			}
+		}
+
+		fi, err := os.Stat(relpath)
+		if err != nil || !fi.IsDir() {
+			log.Warnf("[FileSystem] Path does not exist or is not a directory: %s", relpath)
+			http.Error(w, `Invalid "path" query string`, http.StatusBadRequest)
+			return
+		}
+
+		entries, err := os.ReadDir(relpath)
+		if err != nil {
+			log.Errorf("[FileSystem] Failed to read directory %s: %v", relpath, err)
+			http.Error(w, `Failed to read directory`, http.StatusInternalServerError)
+			return
+		}
 
 		var directories []DirectoryInfo
 		for _, entry := range entries {
