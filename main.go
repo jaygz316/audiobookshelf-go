@@ -80,7 +80,16 @@ func init() {
 }
 
 func main() {
-	log.SetOutput(&logger.LogWriter{Stdout: os.Stdout})
+	logFormat := os.Getenv("LOG_FORMAT")
+	if logFormat == "" {
+		logFormat = "json"
+	}
+	logLevel := os.Getenv("LOG_LEVEL")
+	if logLevel == "" {
+		logLevel = "info"
+	}
+	logger.InitLogger(logFormat, logLevel)
+
 	cfg := parseConfig()
 
 	var err error

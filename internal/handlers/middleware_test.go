@@ -2,12 +2,13 @@ package handlers
 
 import (
 	"bytes"
-	"log"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
+
+	ilogger "audiobookshelf/internal/logger"
 )
 
 func TestBasePathRewriteMiddleware(t *testing.T) {
@@ -25,7 +26,7 @@ func TestBasePathRewriteMiddleware(t *testing.T) {
 		t.Errorf("expected /audiobookshelf/ping, got %s", rr1.Body.String())
 	}
 
-	// Case 2: path does not start with RouterBasePath
+	// Case 2: path needs RouterBasePath prefix
 	req2 := httptest.NewRequest("GET", "/ping", nil)
 	rr2 := httptest.NewRecorder()
 	mw.ServeHTTP(rr2, req2)
@@ -36,9 +37,9 @@ func TestBasePathRewriteMiddleware(t *testing.T) {
 
 func TestLoggingMiddlewareRedactsHeaders(t *testing.T) {
 	var buf bytes.Buffer
-	oldOutput := log.Writer()
-	log.SetOutput(&buf)
-	defer log.SetOutput(oldOutput)
+	oldOutput := ilogger.Writer()
+	ilogger.SetOutput(&buf)
+	defer ilogger.SetOutput(oldOutput)
 
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {})
 	mw := LoggingMiddleware(handler)

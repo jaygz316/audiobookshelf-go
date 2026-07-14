@@ -2,12 +2,13 @@ package socket
 
 import (
 	"context"
-	"log"
 	"net/http"
 	"time"
 
 	"github.com/zishang520/engine.io/v2/types"
 	gosocket "github.com/zishang520/socket.io/v2/socket"
+
+	log "audiobookshelf/internal/logger"
 )
 
 // InitAuthority initializes the global Socket.IO server and handlers.

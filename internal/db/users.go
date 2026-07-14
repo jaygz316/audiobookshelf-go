@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 	"strconv"
 	"strings"
@@ -15,6 +14,7 @@ import (
 	"github.com/google/uuid"
 
 	"audiobookshelf/internal/core"
+	log "audiobookshelf/internal/logger"
 )
 
 // User represents the full user structure matching the SQLite table

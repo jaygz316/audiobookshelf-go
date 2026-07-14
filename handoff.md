@@ -1,19 +1,34 @@
 # Handoff: Audiobookshelf Go Port
 
-## Targeted Feature & Accomplishments
-- **Feature Target**: Post-Parity Infrastructure & Security Hardening + Docker Packaging.
-- **Accomplishments**:
-  - **Auth/Cookie Logging Sanitize**: Redacted sensitive header keys (`Authorization`, `Cookie`, `X-Auth-Token`, `Set-Cookie`) in `LoggingMiddleware` to prevent credential exposure in log streams. Added `TestLoggingMiddlewareRedactsHeaders` unit test.
-  - **Brute Force Defense**: Implemented high-performance, IP-isolated `RateLimiter` and `RateLimitMiddleware` in `internal/handlers/middleware.go`. Applied it to protect sensitive endpoints (`POST /login`, `POST /init`, `POST /api/api-keys`). Added comprehensive unit tests in `middleware_test.go`.
-  - **Database Connection Pooling**: Configured connection pool variables (`MaxOpenConns=25`, `MaxIdleConns=10`, `ConnMaxLifetime=1h`, `ConnMaxIdleTime=30m`) in `InitDB` to scale SQLite WAL mode performance.
-  - **Prometheus Observability**: Created a new metrics package in `internal/handlers/metrics.go` exposing `/metrics` with standard Go runtime gauges and real-time application metrics (active request gauges, total user/library count). Covered with `TestMetricsEndpointAndMiddleware` unit test.
-  - **Developer Automation**: Added a root `Makefile` exposing `build`, `test`, `lint`, `docker-build`, and `clean` targets.
-  - **CI/CD Integration**: Configured a complete `.github/workflows/ci.yml` GitHub Actions pipeline running `go mod verify`, `go vet`, `go test`, and standard compilations.
-  - **Docker Hub Distribution**: Successfully built the multi-stage Docker image and pushed it to Docker Hub as `jaygz/audiobookshelf-go:latest`.
-  - **Go Compatibility Tuning**: Configured `go.mod` to target `go 1.25.0` and upgraded the Dockerfile's compilation base to `golang:alpine` for compatibility with advanced toolchains.
+## 1. Accomplishments & Work Completed
+- **Structured Logging Foundation**:
+  - Integrated `internal/logger` using Go's `log/slog` library for JSON-structured and level-filtered logs.
+  - Initialized the logger at application startup in [main.go](file:///home/jay/projects/audiobookshelf-go/main.go) using environment variables `LOG_FORMAT` and `LOG_LEVEL` (defaulting to JSON and Info).
+  - Redirected the standard library's default `log` output to the custom `slog` handler to maintain compatibility for dependencies that use the legacy `log` package.
+- **WebSocket Console Integration**:
+  - Connected `ilogger.LogCallback` in [internal/handlers/routes.go](file:///home/jay/projects/audiobookshelf-go/internal/handlers/routes.go) to `isocket.GlobalAuth.BroadcastLog` to ensure the WebSocket UI console receives real-time logs.
+- **Migration & Testing**:
+  - Refactored `LoggingMiddleware` and Auth Middleware inside [internal/handlers/middleware.go](file:///home/jay/projects/audiobookshelf-go/internal/handlers/middleware.go) to use structured logs (`log.Info`, `log.Warn`, `log.Error`) with key-value attributes (e.g. `method`, `path`, `remote`, `error`).
+  - Added support for capturing logger outputs in tests. Updated the redirect mechanisms in [internal/handlers/middleware_test.go](file:///home/jay/projects/audiobookshelf-go/internal/handlers/middleware_test.go).
+- **Bug Fixes**:
+  - Fixed a critical stack overflow recursion bug in `logger.Writer()`. It now correctly returns the underlying `io.Writer` via `globalSafeWriter.Get()` rather than returning the wrapper struct itself, preventing self-referential writing loops when test runners restore output streams.
+- **Packaging and Distribution**:
+  - Validated formatting with `go fmt`, dependency integrity with `go mod tidy`, and correctness with `go vet`.
+  - Re-built and successfully pushed the production Docker image to Docker Hub: `jaygz/audiobookshelf-go:latest`.
 
-## Outstanding Work
-- All completed successfully.
+## 2. Technical Architecture Summary
+- **Logger Package**: Built around `slog.Handler` wrapping a dynamic thread-safe `SafeWriter`.
+- **Dynamic Stream Redirection**: Log level and format changes, as well as the active output stream, are safe to change concurrently at runtime.
+- **WebSocket Callback**: `LogCallback` intercepts all log records matching formatting constraints and broadcasts them to the active socket connections for the UI log display.
 
-## Next Steps
-- Proceed with performance profiling (pprof) or explore adding other deployment/production configurations.
+## 3. Outstanding Work & Next Steps
+- **Logging Migration Cleanup**:
+  - Continue scanning and migrating legacy `log.Printf`, `log.Fatalf` calls in backend subpackages (`internal/scanner`, `internal/watcher`, `internal/backup`, `internal/db`) to direct custom log calls via the structured `logger` package.
+- **Commands to Verify Progress**:
+  ```bash
+  # Check for remaining standard log package usages:
+  grep -rn "log\." internal/
+  
+  # Run test suite to ensure regressions are avoided:
+  go test -count=1 ./...
+  ```

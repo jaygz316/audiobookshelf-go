@@ -1,10 +1,10 @@
 package handlers
 
 import (
+	log "audiobookshelf/internal/logger"
 	"context"
 	"database/sql"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"regexp"
@@ -61,7 +61,7 @@ func AuthMiddleware(db *sql.DB, tokenSecret string, next http.Handler) http.Hand
 		}
 
 		if db == nil {
-			log.Printf("[Auth] Database is not connected")
+			log.Error("Database is not connected")
 			http.Error(w, `{"error": "Database not connected"}`, http.StatusInternalServerError)
 			return
 		}
@@ -98,7 +98,7 @@ func AuthMiddleware(db *sql.DB, tokenSecret string, next http.Handler) http.Hand
 				_, _ = w.Write([]byte("Unauthorized"))
 				return
 			}
-			log.Printf("[Auth] Unauthorized: No token found for %s %s", r.Method, r.URL.Path)
+			log.Warn("Unauthorized: No token found", "method", r.Method, "path", r.URL.Path)
 			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
 			return
 		}
@@ -122,7 +122,7 @@ func AuthMiddleware(db *sql.DB, tokenSecret string, next http.Handler) http.Hand
 		})
 
 		if err != nil || !token.Valid {
-			log.Printf("[Auth] Unauthorized: Invalid JWT signature or expired for %s %s: %v", r.Method, r.URL.Path, err)
+			log.Warn("Unauthorized: Invalid JWT signature or expired", "method", r.Method, "path", r.URL.Path, "error", err)
 			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
 			return
 		}
@@ -135,7 +135,7 @@ func AuthMiddleware(db *sql.DB, tokenSecret string, next http.Handler) http.Hand
 			// API Key based authentication
 			userSession, authErr = idb.CheckAPIKey(db, claims.KeyID)
 			if authErr != nil {
-				log.Printf("[Auth] API key auth failed: %v", authErr)
+				log.Warn("API key auth failed", "error", authErr)
 				http.Error(w, fmt.Sprintf(`{"error": "%s"}`, authErr.Error()), http.StatusUnauthorized)
 				return
 			}
@@ -143,12 +143,12 @@ func AuthMiddleware(db *sql.DB, tokenSecret string, next http.Handler) http.Hand
 			// Standard JWT authentication
 			userSession, authErr = idb.GetUserByIDOrOldID(db, claims.UserID)
 			if authErr != nil {
-				log.Printf("[Auth] User lookup failed for ID %s: %v", claims.UserID, authErr)
+				log.Error("User lookup failed", "userID", claims.UserID, "error", authErr)
 				http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
 				return
 			}
 			if !userSession.IsActive {
-				log.Printf("[Auth] User %s is inactive", userSession.Username)
+				log.Warn("User is inactive", "username", userSession.Username)
 				http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
 				return
 			}
@@ -156,7 +156,7 @@ func AuthMiddleware(db *sql.DB, tokenSecret string, next http.Handler) http.Hand
 			var sessionExists int
 			err := db.QueryRow("SELECT COUNT(*) FROM sessions WHERE userId = ?", claims.UserID).Scan(&sessionExists)
 			if err != nil || sessionExists == 0 {
-				log.Printf("[Auth] Unauthorized: No active sessions for user ID %s", claims.UserID)
+				log.Warn("Unauthorized: No active sessions for user ID", "userID", claims.UserID)
 				http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
 				return
 			}

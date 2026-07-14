@@ -7,7 +7,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"log"
 	"mime/multipart"
 	"net"
 	"net/http"
@@ -18,6 +17,8 @@ import (
 	"time"
 
 	"github.com/doyensec/safeurl"
+
+	log "audiobookshelf/internal/logger"
 )
 
 // NotificationPayload represents the standardized data structure sent via notifiers.

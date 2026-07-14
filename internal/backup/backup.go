@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -17,6 +16,7 @@ import (
 	"time"
 
 	"audiobookshelf/internal/core"
+	log "audiobookshelf/internal/logger"
 	inotification "audiobookshelf/internal/notification"
 )
 

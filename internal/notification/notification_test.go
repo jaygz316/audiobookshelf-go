@@ -1,6 +1,7 @@
 package notification
 
 import (
+	log "audiobookshelf/internal/logger"
 	"bufio"
 	"bytes"
 	"context"
@@ -15,7 +16,6 @@ import (
 	"encoding/pem"
 	"fmt"
 	"io"
-	"log"
 	"math/big"
 	"mime/multipart"
 	"net"

@@ -2,6 +2,7 @@ package logger
 
 import (
 	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -47,5 +48,49 @@ func TestLogBufferCircular(t *testing.T) {
 		if msgs[i].Message != exp {
 			t.Errorf("expected index %d to be %q, got %q", i, exp, msgs[i].Message)
 		}
+	}
+}
+
+func TestSlogIntegration(t *testing.T) {
+	// Initialize with text format and debug level to capture everything
+	InitLogger("text", "debug")
+
+	var callbackCalled bool
+	var callbackMsg LogMessage
+	LogCallback = func(msg LogMessage) {
+		callbackCalled = true
+		callbackMsg = msg
+	}
+	defer func() {
+		LogCallback = nil
+	}()
+
+	// Log a debug message
+	Debug("test debug log message", "key1", "val1")
+
+	if !callbackCalled {
+		t.Fatal("expected LogCallback to be called")
+	}
+	if callbackMsg.LevelName != "DEBUG" {
+		t.Errorf("expected LevelName to be DEBUG, got %s", callbackMsg.LevelName)
+	}
+	if !strings.Contains(callbackMsg.Message, "test debug log message") {
+		t.Errorf("expected message to contain the log, got %s", callbackMsg.Message)
+	}
+	if !strings.Contains(callbackMsg.Message, "key1=val1") {
+		t.Errorf("expected message to contain attribute key1=val1, got %s", callbackMsg.Message)
+	}
+
+	// Verify standard Printf goes through slog too
+	callbackCalled = false
+	Printf("formatted message: %d", 42)
+	if !callbackCalled {
+		t.Fatal("expected LogCallback to be called for Printf")
+	}
+	if callbackMsg.LevelName != "INFO" {
+		t.Errorf("expected LevelName to be INFO for Printf, got %s", callbackMsg.LevelName)
+	}
+	if callbackMsg.Message != "formatted message: 42" {
+		t.Errorf("expected message to be 'formatted message: 42', got %q", callbackMsg.Message)
 	}
 }

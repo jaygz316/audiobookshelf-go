@@ -1,13 +1,13 @@
 package handlers
 
 import (
+	log "audiobookshelf/internal/logger"
 	"context"
 	"crypto/rand"
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"net/url"
 	"strings"

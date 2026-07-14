@@ -1,9 +1,9 @@
 package handlers
 
 import (
+	log "audiobookshelf/internal/logger"
 	"database/sql"
 	"encoding/json"
-	"log"
 	"net/http"
 
 	"audiobookshelf/internal/core"

@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	log "audiobookshelf/internal/logger"
 	"bytes"
 	"context"
 	"crypto/tls"
@@ -8,7 +9,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"log"
 	"mime/multipart"
 	"net"
 	"net/http"
