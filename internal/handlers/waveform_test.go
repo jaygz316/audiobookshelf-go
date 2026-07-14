@@ -43,6 +43,11 @@ func TestGetWaveform_Book(t *testing.T) {
 		t.Fatalf("Failed to seed library item: %v", err)
 	}
 
+	_, err = db.Exec(`INSERT INTO libraryFolders (id, path, libraryId) VALUES ('folder-1', '/nonexistent', 'lib-1')`)
+	if err != nil {
+		t.Fatalf("Failed to seed library folder: %v", err)
+	}
+
 	userSess := &core.UserSession{
 		ID:       "user-1",
 		Username: "testuser",
@@ -136,6 +141,11 @@ func TestGetWaveform_Podcast(t *testing.T) {
 	_, err = db.Exec(`INSERT INTO libraryItems (id, mediaId, mediaType) VALUES ('item-1', 'podcast-1', 'podcast')`)
 	if err != nil {
 		t.Fatalf("Failed to seed library item: %v", err)
+	}
+
+	_, err = db.Exec(`INSERT INTO libraryFolders (id, path, libraryId) VALUES ('folder-1', '/nonexistent', 'lib-1')`)
+	if err != nil {
+		t.Fatalf("Failed to seed library folder: %v", err)
 	}
 
 	userSess := &core.UserSession{

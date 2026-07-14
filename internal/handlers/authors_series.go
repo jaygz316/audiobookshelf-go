@@ -694,7 +694,11 @@ func handleDeleteAuthorImage(db *sql.DB, cfg *core.Config, authorID string) http
 			} else {
 				fullPath = filepath.Join(cfg.MetadataPath, imagePath)
 			}
-			_ = os.Remove(fullPath)
+			if utils.IsSafeFilePath(db, cfg.MetadataPath, fullPath) {
+				_ = os.Remove(fullPath)
+			} else {
+				log.Warnf("[DeleteAuthorImage] Blocked deletion of unsafe author image path: %s", fullPath)
+			}
 		}
 
 		nowStr := time.Now().Format("2006-01-02 15:04:05.000")
@@ -771,6 +775,11 @@ func handleMatchAuthor(db *sql.DB, cfg *core.Config, authorID string) http.Handl
 				imgBytes, downloadErr := providers.DownloadURL(r.Context(), details.Image)
 				if downloadErr == nil {
 					destFile := filepath.Join(authorsDir, authorID+".jpg")
+					if !utils.IsSafeFilePath(db, cfg.MetadataPath, destFile) {
+						log.Warnf("[MatchAuthor] Blocked unsafe author image path traversal: %s", destFile)
+						http.Error(w, "Forbidden", http.StatusForbidden)
+						return
+					}
 					if writeErr := os.WriteFile(destFile, imgBytes, 0644); writeErr == nil {
 						localImagePath = "authors/" + authorID + ".jpg"
 					} else {
@@ -1630,6 +1639,8 @@ func handleUpdateAuthor(db *sql.DB, authorID string) http.HandlerFunc {
 			return
 		}
 
+		srvSettings, srvErr := idb.GetServerSettings(db)
+
 		tx, err := db.Begin()
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -1649,6 +1660,14 @@ func handleUpdateAuthor(db *sql.DB, authorID string) http.HandlerFunc {
 			http.Error(w, "failed to update author: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
+
+		type BookUpdate struct {
+			bid          string
+			itemID       string
+			authorNames  []string
+			metadataPath string
+		}
+		var booksToUpdate []BookUpdate
 
 		// Fetch all books linked to this author in bookAuthors
 		rows, err := tx.Query("SELECT bookId FROM bookAuthors WHERE authorId = ?", authorID)
@@ -1693,11 +1712,10 @@ func handleUpdateAuthor(db *sql.DB, authorID string) http.HandlerFunc {
 					WHERE mediaId = ? AND mediaType = 'book'
 				`, authorNamesStr, authorLastFirstsStr, nowStr, bid)
 
-				// Also edit metadata.json files
-				srvSettings, srvErr := idb.GetServerSettings(db)
-				var metadataPath string
 				var itemID string
 				_ = tx.QueryRow("SELECT id FROM libraryItems WHERE mediaId = ? AND mediaType = 'book'", bid).Scan(&itemID)
+
+				var metadataPath string
 				if srvErr == nil && srvSettings != nil && srvSettings.MetadataMarkdownWithItem {
 					var itemPath string
 					var isFile int
@@ -1713,30 +1731,12 @@ func handleUpdateAuthor(db *sql.DB, authorID string) http.HandlerFunc {
 					metadataPath = filepath.Join(MetadataPath, "items", itemID, "metadata.json")
 				}
 
-				if metadataPath != "" {
-					if _, err := os.Stat(metadataPath); err == nil {
-						var metadata map[string]interface{}
-						if mBytes, err := os.ReadFile(metadataPath); err == nil {
-							if json.Unmarshal(mBytes, &metadata) == nil {
-								metadata["authors"] = authorNames
-								if mJSON, err := json.MarshalIndent(metadata, "", "  "); err == nil {
-									_ = os.WriteFile(metadataPath, mJSON, 0644)
-								}
-							}
-						}
-					}
-				}
-
-				// Emit real-time update
-				if isocket.GlobalAuth != nil {
-					var itemID string
-					_ = tx.QueryRow("SELECT id FROM libraryItems WHERE mediaId = ? AND mediaType = 'book'", bid).Scan(&itemID)
-					if itemID != "" {
-						if minItem, err := idb.GetLibraryItemMinifiedByID(db, itemID); err == nil {
-							EmitLibraryItemEvent("item_updated", minItem)
-						}
-					}
-				}
+				booksToUpdate = append(booksToUpdate, BookUpdate{
+					bid:          bid,
+					itemID:       itemID,
+					authorNames:  authorNames,
+					metadataPath: metadataPath,
+				})
 			}
 		}
 
@@ -1744,6 +1744,30 @@ func handleUpdateAuthor(db *sql.DB, authorID string) http.HandlerFunc {
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
+		}
+
+		// Perform post-commit disk writes and websocket events
+		for _, b := range booksToUpdate {
+			if b.metadataPath != "" && utils.IsSafeFilePath(db, MetadataPath, b.metadataPath) {
+				if _, err := os.Stat(b.metadataPath); err == nil {
+					var metadata map[string]interface{}
+					if mBytes, err := os.ReadFile(b.metadataPath); err == nil {
+						if json.Unmarshal(mBytes, &metadata) == nil {
+							metadata["authors"] = b.authorNames
+							if mJSON, err := json.MarshalIndent(metadata, "", "  "); err == nil {
+								_ = os.WriteFile(b.metadataPath, mJSON, 0644)
+							}
+						}
+					}
+				}
+			}
+
+			// Emit real-time update
+			if isocket.GlobalAuth != nil && b.itemID != "" {
+				if minItem, err := idb.GetLibraryItemMinifiedByID(db, b.itemID); err == nil {
+					EmitLibraryItemEvent("item_updated", minItem)
+				}
+			}
 		}
 
 		w.Header().Set("Content-Type", "application/json")
