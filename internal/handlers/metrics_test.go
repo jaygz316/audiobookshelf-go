@@ -12,6 +12,11 @@ func TestMetricsEndpointAndMiddleware(t *testing.T) {
 	// Reset atomic counters first so test is deterministic
 	metricHTTPRequestsTotal = 0
 	metricHTTPActiveRequests = 0
+	metricHTTPRequests2xx = 0
+	metricHTTPRequests3xx = 0
+	metricHTTPRequests4xx = 0
+	metricHTTPRequests5xx = 0
+	metricHTTPRequestsOther = 0
 
 	// 1. Check direct metrics handler output
 	handler := handleMetrics(nil) // Pass nil db for isolated runtime/middleware test

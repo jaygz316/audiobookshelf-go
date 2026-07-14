@@ -35,8 +35,7 @@ func AuthMiddlewareWrapper(db *sql.DB, next http.Handler) http.Handler {
 }
 
 var (
-	coverRegex  = regexp.MustCompile(`^/audiobookshelf/api/items/[^/]+/cover$`)
-	authorRegex = regexp.MustCompile(`^/audiobookshelf/api/authors/[^/]+/image$`)
+	coverRegex = regexp.MustCompile(`(?i)/api/items/[^/]+/cover/?$`)
 
 	// LoginRateLimiter limits login and initialization attempts (5 requests per minute per IP)
 	LoginRateLimiter = NewRateLimiter(5, time.Minute)
@@ -50,8 +49,7 @@ func authNotNeeded(r *http.Request) bool {
 	if r.Method != http.MethodGet {
 		return false
 	}
-	path := r.URL.Path
-	return coverRegex.MatchString(path) || authorRegex.MatchString(path)
+	return coverRegex.MatchString(r.URL.Path)
 }
 
 // AuthMiddleware authenticates incoming requests
