@@ -283,4 +283,3 @@ func TestUpdateAuthor_PathTraversalAdversarial(t *testing.T) {
 		t.Error("VULNERABILITY: Metadata file outside metadata path was successfully updated/modified!")
 	}
 }
-
