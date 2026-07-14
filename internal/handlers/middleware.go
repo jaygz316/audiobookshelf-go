@@ -330,4 +330,3 @@ func getDB(db *sql.DB) *sql.DB {
 	}
 	return globalDB
 }
-

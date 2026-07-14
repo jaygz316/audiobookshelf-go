@@ -5411,4 +5411,58 @@ google-cast-launcher {
   color: #5b4636 !important;
 }
 
+/* Enhanced Dynamic Bookshelf Sizing, Shadows and Cover Reflections */
+:root {
+  --bookshelf-card-width: 120px;
+  --bookshelf-card-height: calc(var(--bookshelf-card-width) * 1.5);
+  --bookshelf-row-height: calc(var(--bookshelf-card-height) + 50px);
+}
+
+.bookshelfRow {
+  height: var(--bookshelf-row-height) !important;
+  background-image: var(--bookshelf-texture-img) !important;
+}
+
+.bookshelfRow > div {
+  align-items: flex-end !important;
+  padding-bottom: 8px !important; /* leaves a tiny visual gap for shadows/reflection to start nicely */
+}
+
+.bookshelfRow .bookshelf-card,
+.bookshelfRow .group {
+  width: var(--bookshelf-card-width) !important;
+  height: var(--bookshelf-card-height) !important;
+  margin-right: 2rem !important;
+  overflow: visible !important;
+  position: relative;
+}
+
+.bookshelfRow .bookshelf-card img,
+.bookshelfRow .group img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover;
+  border-radius: 4px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5), 0 2px 4px rgba(0, 0, 0, 0.4);
+  -webkit-box-reflect: below 4px linear-gradient(transparent, transparent 65%, rgba(0, 0, 0, 0.2));
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* Card hover effect adjustments */
+.bookshelfRow .bookshelf-card:hover img,
+.bookshelfRow .group:hover img {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.6), 0 4px 8px rgba(0, 0, 0, 0.4);
+}
+
+/* Keep hover details matching card dimensions */
+.bookshelfRow .bookshelf-card .absolute.inset-0,
+.bookshelfRow .group .absolute.inset-0 {
+  border-radius: 4px;
+  overflow: hidden;
+  height: 100% !important;
+  width: 100% !important;
+}
+
+
 

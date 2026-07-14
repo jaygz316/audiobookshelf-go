@@ -237,6 +237,118 @@ function setupEventHandlers() {
   window.addEventListener('popstate', () => {
     navigateTo(window.location.pathname, false);
   });
+
+  // Shelf Sizing and Sorting/Filtering controls initialization
+  const initShelfSizing = () => {
+    const decBtn = document.getElementById('shelf-size-dec');
+    const incBtn = document.getElementById('shelf-size-inc');
+    const valSpan = document.getElementById('shelf-size-val');
+    if (!decBtn || !incBtn || !valSpan) return;
+
+    let currentSize = parseInt(localStorage.getItem('bookshelf-card-width')) || 120;
+    currentSize = Math.max(80, Math.min(240, currentSize));
+
+    const updateSize = (newSize) => {
+      currentSize = Math.max(80, Math.min(240, newSize));
+      localStorage.setItem('bookshelf-card-width', currentSize);
+      valSpan.textContent = currentSize;
+      document.documentElement.style.setProperty('--bookshelf-card-width', `${currentSize}px`);
+    };
+
+    updateSize(currentSize);
+
+    decBtn.onclick = (e) => {
+      e.stopPropagation();
+      updateSize(currentSize - 10);
+    };
+
+    incBtn.onclick = (e) => {
+      e.stopPropagation();
+      updateSize(currentSize + 10);
+    };
+  };
+
+  initShelfSizing();
+
+  // Sorting/Filtering dropdown handlers
+  const filterSelect = document.getElementById('filter-select');
+  const sortSelect = document.getElementById('sort-select');
+  const sortOrderToggle = document.getElementById('sort-order-toggle-btn');
+
+  // Load from localStorage on initialization
+  if (filterSelect) {
+    const persistedFilter = localStorage.getItem('library-filterBy') || '';
+    filterSelect.value = persistedFilter;
+    filterSelect.onchange = () => {
+      localStorage.setItem('library-filterBy', filterSelect.value);
+      const activeLibId = getActiveLibraryId();
+      if (activeLibId) loadDashboard(activeLibId);
+    };
+  }
+
+  if (sortSelect) {
+    const persistedSort = localStorage.getItem('library-sortBy') || 'media.metadata.title';
+    sortSelect.value = persistedSort;
+    sortSelect.onchange = () => {
+      localStorage.setItem('library-sortBy', sortSelect.value);
+      const activeLibId = getActiveLibraryId();
+      if (activeLibId) loadDashboard(activeLibId);
+    };
+  }
+
+  if (sortOrderToggle) {
+    const persistedDesc = localStorage.getItem('library-sortDesc') === 'true';
+    const icon = document.getElementById('sort-order-icon');
+    if (icon) {
+      icon.textContent = persistedDesc ? 'arrow_downward' : 'arrow_upward';
+    }
+    sortOrderToggle.onclick = () => {
+      const icon = document.getElementById('sort-order-icon');
+      if (icon) {
+        const isDesc = icon.textContent === 'arrow_downward';
+        icon.textContent = isDesc ? 'arrow_upward' : 'arrow_downward';
+        localStorage.setItem('library-sortDesc', (!isDesc).toString());
+      }
+      const activeLibId = getActiveLibraryId();
+      if (activeLibId) loadDashboard(activeLibId);
+    };
+  }
+
+  // Style switcher initialization
+  const styleBtnShelf = document.getElementById('style-btn-shelf');
+  const styleBtnGrid = document.getElementById('style-btn-grid');
+  const styleBtnList = document.getElementById('style-btn-list');
+
+  const updateStyleSwitcherUI = (activeStyle) => {
+    [styleBtnShelf, styleBtnGrid, styleBtnList].forEach(btn => {
+      if (!btn) return;
+      btn.classList.remove('text-accent', 'bg-black-500');
+      btn.classList.add('text-black-100');
+    });
+
+    let activeBtn = styleBtnShelf;
+    if (activeStyle === 'grid') activeBtn = styleBtnGrid;
+    else if (activeStyle === 'list') activeBtn = styleBtnList;
+
+    if (activeBtn) {
+      activeBtn.classList.remove('text-black-100');
+      activeBtn.classList.add('text-accent', 'bg-black-500');
+    }
+  };
+
+  const currentStyle = localStorage.getItem('library-style') || 'shelf';
+  updateStyleSwitcherUI(currentStyle);
+
+  const setStyle = (newStyle) => {
+    localStorage.setItem('library-style', newStyle);
+    updateStyleSwitcherUI(newStyle);
+    const activeLibId = getActiveLibraryId();
+    if (activeLibId) loadDashboard(activeLibId);
+  };
+
+  if (styleBtnShelf) styleBtnShelf.onclick = () => setStyle('shelf');
+  if (styleBtnGrid) styleBtnGrid.onclick = () => setStyle('grid');
+  if (styleBtnList) styleBtnList.onclick = () => setStyle('list');
 }
 
 function bootstrapApp(payload) {
@@ -260,11 +372,15 @@ function bootstrapApp(payload) {
   const user = payload.user || {};
   window.currentUser = user;
   const userInitials = document.getElementById('user-initials');
+  const userMenuUsername = document.getElementById('user-menu-username');
   const userDisplayName = document.getElementById('user-display-name');
   const userDisplayRole = document.getElementById('user-display-role');
   
   if (userInitials) {
     userInitials.textContent = (user.username || 'U').substring(0, 2).toUpperCase();
+  }
+  if (userMenuUsername) {
+    userMenuUsername.textContent = user.username || 'User';
   }
   if (userDisplayName) {
     userDisplayName.textContent = user.username || 'User';
@@ -273,12 +389,28 @@ function bootstrapApp(payload) {
     userDisplayRole.textContent = user.type || 'User';
   }
 
+  // Wire header activity button
+  const activityBtn = document.getElementById('header-activity-btn');
+  if (activityBtn) {
+    activityBtn.onclick = () => {
+      navigateTo('/stats');
+    };
+  }
+
   // Setup Admin / Root only features
   if (user.type === 'root' || user.type === 'admin') {
     const settingsBtn = document.getElementById('user-menu-settings-btn');
     const adminBtn = document.getElementById('user-menu-admin-btn');
     if (settingsBtn) settingsBtn.classList.remove('hidden');
     if (adminBtn) adminBtn.classList.remove('hidden');
+
+    const headerSettingsBtn = document.getElementById('header-settings-btn');
+    if (headerSettingsBtn) {
+      headerSettingsBtn.classList.remove('hidden');
+      headerSettingsBtn.onclick = () => {
+        navigateTo('/settings');
+      };
+    }
 
     const batchToggleBtn = document.getElementById('batch-edit-toggle-btn');
     if (batchToggleBtn) batchToggleBtn.classList.remove('hidden');
@@ -295,6 +427,21 @@ function bootstrapApp(payload) {
         } catch (err) {
           showToast('Failed to trigger scan: ' + err.message, 'error');
         }
+      };
+    }
+
+    const headerUploadBtn = document.getElementById('header-upload-btn');
+    if (headerUploadBtn) {
+      headerUploadBtn.classList.remove('hidden');
+      headerUploadBtn.onclick = () => {
+        const libId = getActiveLibraryId();
+        if (!libId) {
+          showToast('No active library selected to upload to', 'warning');
+          return;
+        }
+        import('./upload.js').then(module => {
+          module.openUploadModal(libId);
+        });
       };
     }
 
@@ -382,6 +529,35 @@ function navigateTo(path, pushState = true) {
   }
   if (!relPath.startsWith('/')) {
     relPath = '/' + relPath;
+  }
+
+  const filterSelect = document.getElementById('filter-select');
+  const sortSelect = document.getElementById('sort-select');
+  const sortOrderToggle = document.getElementById('sort-order-toggle-btn');
+  const shelfSizeControl = document.getElementById('shelf-size-control');
+  const styleSwitcher = document.getElementById('style-switcher');
+
+  const showControls = (relPath === '/' || relPath === '/library');
+  
+  if (filterSelect) {
+    if (showControls) filterSelect.parentElement.classList.remove('hidden');
+    else filterSelect.parentElement.classList.add('hidden');
+  }
+  if (sortSelect) {
+    if (showControls) sortSelect.parentElement.classList.remove('hidden');
+    else sortSelect.parentElement.classList.add('hidden');
+  }
+  if (sortOrderToggle) {
+    if (showControls) sortOrderToggle.classList.remove('hidden');
+    else sortOrderToggle.classList.add('hidden');
+  }
+  if (shelfSizeControl) {
+    if (showControls) shelfSizeControl.classList.remove('hidden');
+    else shelfSizeControl.classList.add('hidden');
+  }
+  if (styleSwitcher) {
+    if (showControls) styleSwitcher.classList.remove('hidden');
+    else styleSwitcher.classList.add('hidden');
   }
 
   const activeLibId = getActiveLibraryId();

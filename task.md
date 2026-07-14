@@ -1,43 +1,87 @@
-# Task: Smart Collections Implementation (Completed)
+# Audiobookshelf Go: Task List & Feature Parity Checklist
 
-## Objective
-Implement **Smart Collections**, which automatically group library books based on user-defined dynamic rules (genres, tags, authors, series, narrators, search query) rather than manual curation.
+This document tracks the tasks and missing features of the `audiobookshelf-go` project compared to the original Audiobookshelf web client.
 
-## Proposed Changes
+## Completed Tasks
 
-### 1. Database Schema Migration
-- [x] In `internal/db/db.go`:
-  - [x] Update `bootstrapSchema` to create the `collections` table with two additional columns: `isSmart INTEGER DEFAULT 0` and `rules TEXT` (JSON representation of the rules).
-  - [x] Update `migrateDatabase` to check if `isSmart` and `rules` columns exist in `collections` table, and run `ALTER TABLE collections ADD COLUMN ...` if they do not.
+### Smart Collections Implementation
+- [x] Database Schema Migration: Add `isSmart` and `rules` columns to the `collections` table.
+- [x] Playlist Manager & Backend Logic: Parse and query SQLite dynamically based on rules.
+- [x] API Handlers Update: Load and update collections with JSON payloads.
+- [x] Frontend UI Updates: Create rule inputs and hide manual actions for smart collections.
+- [x] Verification: Integration/unit tests for smart collection rules.
 
-### 2. Playlist Manager & Backend Logic
-- [x] In `internal/playlist/playlist.go`:
-  - [x] Update `Collection` struct to add `IsSmart bool json:"isSmart"` and `Rules string json:"rules"`.
-  - [x] In `CreateCollection` and `UpdateCollection`, read and write `isSmart` and `rules` to the database.
-  - [x] In `GetCollection`, read `isSmart` and `rules`. If `isSmart` is true, dynamically query matched item IDs from the database using a helper `ResolveSmartCollectionItems` instead of querying from `collectionBooks`.
-  - [x] Implement `ResolveSmartCollectionItems` which:
-    - [x] Parses the JSON rules.
-    - [x] Dynamically builds a SQLite query with parameter bindings to fetch matching `books.id` values.
-    - [x] Supports rules for `genres`, `tags`, `authors`, `series`, `narrators`, and `search`.
+### UI/UX Visual Alignment & Layout Symmetry
+- [x] Bookshelf shelf size adjuster slider (`- 120 +`) in bottom-right corner.
+- [x] Bookshelf style switcher (wooden shelf graphic vs. flat grid vs. detail list) with custom shadow/reflection styling.
+- [x] Series View overlapping cascading/fanned cards with book count badge.
+- [x] Top header bar with logo, brand label, library dropdown, cast icon, server stats/activity icon, upload icon, settings gear, and user profile pill badge with username and initials.
+- [x] Siderail left navigation layout and icon symmetry.
 
-### 3. API Handlers Update
-- [x] In `internal/handlers/playlist_handlers.go`:
-  - [x] Update `queryCollectionsForLibrary` to query `isSmart` and `rules`. If `isSmart` is true, dynamically evaluate the rules using `ResolveSmartCollectionItems` (or the equivalent logic) to populate the collections' book lists.
-  - [x] Update `handleCreateCollection` and `handleUpdateCollection` to parse `isSmart` and `rules` from the JSON request payload and save them.
+## Missing UI Features (Feature Parity Roadmap)
 
-### 4. Frontend UI Updates
-- [x] In `frontend/js/collections.js`:
-  - [x] Add a "Smart Collection" toggle in the Create and Edit Collection modals.
-  - [x] If "Smart Collection" is enabled, hide the manual books selector checklist and instead display rule inputs:
-    - [x] Genres (comma-separated list)
-    - [x] Tags (comma-separated list)
-    - [x] Narrators (comma-separated list)
-    - [x] Search Query (text input)
-  - [x] Display a "Smart" badge on smart collection cards in the grid.
-  - [x] For smart collections in the detail view:
-    - [x] Display a banner/badge noting that it is a smart/dynamic collection.
-    - [x] Hide manual item reordering/removal buttons (Up, Down, Close) since the membership is dynamically generated.
+### 1. Playback & Player Interface (Web Client)
+- [ ] **Interactive Visual Waveforms**: Generate and render dynamic SVGs/canvas waveforms in the player bar for seeking.
+- [ ] **Advanced Playback Speed Controls**: Add a fine-tuned slider/preset menu (0.5x to 3.0x in 0.05x increments) and speed persistence (global vs. per-book).
+- [ ] **Volume Boost & Equalizer Controls**: Implement volume booster slider and preset EQ controls.
+- [ ] **Comprehensive Sleep Timer Settings**:
+  - [ ] Sleep timer duration selector (minutes or end-of-chapter).
+  - [ ] Shake-to-extend toggle and sensitivity control.
+  - [ ] Gradual audio fade-out timer customization.
+- [ ] **Play History Panel**: Track and render detailed timelines of previous listening sessions, showing device name, duration, and exact timestamps.
+- [ ] **Active Playback Queue Manager**: UI to view, append, reorder (via drag handles), and clear current tracks or books queue.
+- [ ] **Bookmarks Manager Panel**: Bookmark creation with custom text notes, color tags, and export/import bookmarks.
 
-### 5. Verification
-- [x] Add integration/unit tests in `internal/playlist/playlist_test.go` and `internal/handlers/playlist_handlers_test.go` to test creating, updating, resolving, and deleting smart collections with various rules.
-- [x] Run tests and verify success.
+### 2. E-Book Reader UI
+- [ ] **Flow vs. Paginated Layouts**: Add toggle for continuous vertical scroll vs. page-by-page view.
+- [ ] **Reader Typography & Themes Panel**: Custom settings for font size, line spacing, margins, font family (including OpenDyslexic), and color profiles (sepia, dark, warm, light).
+- [ ] **Reader Bookmarks & Highlights Side-Panel**: View, navigate, and search within user-saved highlights and notes in the EPUB.
+- [ ] **Text-To-Speech (TTS) Controls**: Built-in browser-based screen reader controls for EPUB reading.
+- [ ] **PDF Reader Enhancements**: Add page thumbnails side rail, search page index, and zoom in/out controls.
+
+### 3. Library Sorting, Filtering & Presets
+- [ ] **Custom Search Presets**: Save and name custom combinations of filters/sort options as quick-access tabs on the main navigation.
+- [ ] **Comprehensive Grid Filters**: Dropdown selection filters for Publisher, Release Year, Narrator, Series, Progress State (unstarted, in-progress, completed), Duration (under 1h, 1-5h, etc.), and Folder Path.
+- [ ] **Grid Layout Sizing & Bookshelf Customizer**:
+  - [x] Bookshelf shelf size adjuster slider (`- 120 +`).
+  - [x] Bookshelf style switcher (wooden shelf graphic vs. flat grid vs. detail list).
+  - [ ] Column customization for the detail list view.
+
+### 4. Metadata Management & Interactive Editors
+- [ ] **Visual Match Dialog (Diff Viewer)**: Compare side-by-side search results from metadata providers (Audible, Open Library, Google Books, etc.) before applying changes.
+- [ ] **Granular Field Lock System**: Checkboxes next to individual metadata fields (Title, Author, Narrator, Series, Year, Genre) to prevent auto-scans from overwriting them.
+- [ ] **Chapter Editor Suite**:
+  - [ ] Dynamic chapter visual waveform alignment.
+  - [ ] Manual chapter actions: Add, delete, shift start/end timestamps, rename.
+  - [ ] Automatic chapter extraction from audio track markers or lookup via external APIs (Audnexus).
+- [ ] **Cover Art Editing Canvas**: Crop tool, image color picker, and cover search results gallery.
+- [ ] **Batch Metadata Editor**: Multi-select items in the library grid to edit genres, tags, authors, narrators, series, publishers, and release years in bulk.
+
+### 5. Podcast Subscriptions & Episode Downloader
+- [ ] **Podcast Search & Subscription Portal**: In-app search for subscribing to feeds using iTunes and PodcastIndex APIs.
+- [ ] **Podcast Download Queue UI**: View active downloads, download speeds, pending queue, retry failed downloads, and pause/resume buttons.
+- [ ] **Subscription Cleanup Policies**: Dropdown settings per podcast for episode retention limits, automatic deletion of played episodes, and check schedule intervals.
+
+### 6. Server Administration & Permissions
+- [ ] **Granular User Permissions Manager**: Checkboxes for editing individual permissions:
+  - [ ] Access specific libraries.
+  - [ ] Upload files / Delete media.
+  - [ ] Edit metadata / Force library scans.
+  - [ ] Access RSS feeds / Create public shares.
+- [ ] **Active Session List**: View current active tokens, login timestamps, device operating system/browser, IP address, and single-click "Revoke Session" buttons.
+- [ ] **API Keys Management Tab**: Create API keys with descriptions, view masked key strings, copy key, and revoke keys.
+
+### 7. Backups, Notifications & Settings Tabs
+- [ ] **SMTP & Kindle Configuration**: SMTP server connection tester, and per-user Kindle email addresses manager.
+- [ ] **Notification Integrations Panel**: Form fields to configure Discord, Matrix, Gotify, Telegram, Slack, or Webhook notifications.
+- [ ] **Backup Operations UI**: Create scheduled backup crons, lists of backup ZIPs with Download, Restore, and Delete actions.
+- [ ] **Real-time Server Console / Log Stream**: Interactive terminal panel in administrative settings showing streaming log output via Socket.io.
+
+### 8. Playlists & Public Sharing
+- [ ] **Drag-and-Drop Playlist Reordering**: Sort playlist tracks by dragging handle icons.
+- [ ] **Public Share Links Customizer**:
+  - [ ] Custom expiration dates/times.
+  - [ ] Password protection.
+  - [ ] Maximum download limits.
+  - [ ] Embeddable web player configuration.
+- [ ] **Smart Collection Rules Builder**: Multi-clause rules editor UI for nested dynamic logic (e.g., Tag = 'sci-fi' AND Author = 'Asimov').

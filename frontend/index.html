@@ -237,27 +237,42 @@
         <div class="flex-grow max-w-md mx-6 hidden md:block">
           <div class="relative">
             <span class="material-symbols absolute left-3 top-2 text-black-100">search</span>
-            <input type="text" placeholder="Search library..." class="w-full bg-black-500 text-white placeholder-black-100 pl-10 pr-4 py-1.5 rounded text-sm border border-black-300 focus:outline-none focus:border-accent">
+            <input type="text" placeholder="Search.." class="w-full bg-black-500 text-white placeholder-black-100 pl-10 pr-4 py-1.5 rounded text-sm border border-black-300 focus:outline-none focus:border-accent">
           </div>
         </div>
 
         <!-- Actions & Profile -->
-        <div class="flex items-center space-x-4">
+        <div class="flex items-center space-x-2 md:space-x-3">
           <!-- Search icon for mobile -->
-          <button class="md:hidden p-2 hover:bg-black-500 rounded-full" aria-label="Search">
+          <button class="md:hidden p-2 hover:bg-black-500 rounded-full text-black-50 hover:text-white flex items-center justify-center" aria-label="Search">
             <span class="material-symbols text-xl">search</span>
           </button>
 
-          <!-- Notification bell (Mock) -->
-          <button class="p-2 hover:bg-black-500 rounded-full relative" aria-label="Notifications">
-            <span class="material-symbols text-xl">notifications</span>
-            <span class="absolute top-1.5 right-1.5 w-2 h-2 bg-accent rounded-full"></span>
+          <!-- Cast Button -->
+          <google-cast-launcher id="header-cast-btn" class="w-9 h-9 text-black-50 hover:text-white cursor-pointer flex items-center justify-center rounded-full hover:bg-black-500/50" title="Cast..."></google-cast-launcher>
+
+          <!-- Server Activity Button -->
+          <button id="header-activity-btn" class="p-2 hover:bg-black-500 rounded-full text-black-50 hover:text-white flex items-center justify-center" title="Server Activity">
+            <span class="material-symbols text-xl">monitoring</span>
           </button>
 
-          <!-- User Profile Button -->
+          <!-- Upload Button (admin/root only) -->
+          <button id="header-upload-btn" class="hidden p-2 hover:bg-black-500 rounded-full text-black-50 hover:text-white flex items-center justify-center" title="Upload Media">
+            <span class="material-symbols text-xl">upload</span>
+          </button>
+
+          <!-- Settings Gear Button (admin/root only) -->
+          <button id="header-settings-btn" class="hidden p-2 hover:bg-black-500 rounded-full text-black-50 hover:text-white flex items-center justify-center" title="Settings">
+            <span class="material-symbols text-xl">settings</span>
+          </button>
+
+          <!-- User Profile Button Pill -->
           <div class="relative">
-            <button id="user-menu-btn" class="flex items-center justify-center w-9 h-9 rounded-full bg-accent text-primary font-bold text-sm select-none hover:opacity-90 focus:outline-none" aria-label="User Profile">
-              <span id="user-initials">JD</span>
+            <button id="user-menu-btn" class="flex items-center space-x-2 bg-black-600/40 hover:bg-black-500/60 pl-3 pr-1 py-1 rounded-full text-xs font-semibold text-white border border-black-300/30 focus:outline-none transition-colors" aria-label="User Profile">
+              <span id="user-menu-username" class="hidden sm:inline">jaygz</span>
+              <div class="flex items-center justify-center w-7 h-7 rounded-full bg-accent text-primary font-bold text-[11px] select-none">
+                <span id="user-initials">JD</span>
+              </div>
             </button>
 
             <!-- User Dropdown (Mockup) -->
@@ -358,7 +373,7 @@
       </aside>
 
       <!-- Main Viewport Area -->
-      <div class="flex-grow flex flex-col h-full min-w-0 bg-bg">
+      <div class="flex-grow flex flex-col h-full min-w-0 bg-bg relative">
         
         <!-- Toolbar Header -->
         <div class="w-full h-12 flex items-center justify-between px-6 bg-black-500/30 border-b border-black-600/30">
@@ -369,23 +384,57 @@
           </div>
           
           <!-- Filter / View controls -->
-          <div class="flex items-center space-x-2">
-            <button id="batch-edit-toggle-btn" class="hidden flex items-center space-x-1 hover:bg-black-500 px-2.5 py-1 rounded text-xs text-black-50 hover:text-white border border-transparent hover:border-black-300">
+          <div class="flex items-center space-x-2 text-xs">
+            <button id="batch-edit-toggle-btn" class="hidden flex items-center space-x-1 hover:bg-black-500 px-2.5 py-1.5 rounded text-black-50 hover:text-white border border-transparent hover:border-black-300">
               <span class="material-symbols text-base">checklist</span>
               <span id="batch-edit-toggle-text">Batch Edit</span>
             </button>
-            <button id="opml-btn" class="hidden flex items-center space-x-1 hover:bg-black-500 px-2.5 py-1 rounded text-xs text-black-50 hover:text-white border border-transparent hover:border-black-300" title="Import/Export OPML">
+            <button id="opml-btn" class="hidden flex items-center space-x-1 hover:bg-black-500 px-2.5 py-1.5 rounded text-black-50 hover:text-white border border-transparent hover:border-black-300" title="Import/Export OPML">
               <span class="material-symbols text-base">import_export</span>
               <span>OPML</span>
             </button>
-            <button class="flex items-center space-x-1 hover:bg-black-500 px-2.5 py-1 rounded text-xs text-black-50 hover:text-white border border-transparent hover:border-black-300">
-              <span class="material-symbols text-base">filter_list</span>
-              <span>Filter</span>
+            
+            <!-- Filter Dropdown Select -->
+            <div class="flex items-center space-x-1 bg-black-600/40 px-2 py-1 rounded border border-black-300/30 text-black-50 hover:text-white">
+              <span class="material-symbols text-[14px]">filter_list</span>
+              <select id="filter-select" class="bg-transparent border-none text-xs text-white focus:outline-none cursor-pointer pr-1">
+                <option value="" class="bg-primary text-white">Filter: All</option>
+                <option value="progress.not-started" class="bg-primary text-white">Unstarted</option>
+                <option value="progress.in-progress" class="bg-primary text-white">In Progress</option>
+                <option value="progress.finished" class="bg-primary text-white">Completed</option>
+              </select>
+            </div>
+
+            <!-- Sort Dropdown Select -->
+            <div class="flex items-center space-x-1 bg-black-600/40 px-2 py-1 rounded border border-black-300/30 text-black-50 hover:text-white">
+              <span class="material-symbols text-[14px]">sort</span>
+              <select id="sort-select" class="bg-transparent border-none text-xs text-white focus:outline-none cursor-pointer pr-1">
+                <option value="media.metadata.title" class="bg-primary text-white">Title</option>
+                <option value="media.metadata.authorName" class="bg-primary text-white">Author</option>
+                <option value="media.metadata.publishedYear" class="bg-primary text-white">Year</option>
+                <option value="addedAt" class="bg-primary text-white">Date Added</option>
+                <option value="media.duration" class="bg-primary text-white">Duration</option>
+                <option value="random" class="bg-primary text-white">Random</option>
+              </select>
+            </div>
+
+            <!-- Sort Order Toggle Button -->
+            <button id="sort-order-toggle-btn" class="flex items-center justify-center bg-black-600/40 hover:bg-black-500 w-7 h-7 rounded border border-black-300/30 text-white" title="Toggle Sort Order">
+              <span id="sort-order-icon" class="material-symbols text-base">arrow_upward</span>
             </button>
-            <button class="flex items-center space-x-1 hover:bg-black-500 px-2.5 py-1 rounded text-xs text-black-50 hover:text-white border border-transparent hover:border-black-300">
-              <span class="material-symbols text-base">sort</span>
-              <span>Sort</span>
-            </button>
+
+            <!-- Bookshelf Style Switcher -->
+            <div id="style-switcher" class="flex items-center space-x-1 border-l border-black-600/50 pl-2 ml-1">
+              <button id="style-btn-shelf" class="flex items-center justify-center w-7 h-7 rounded text-black-100 hover:text-white" title="Shelf View">
+                <span class="material-symbols text-base">shelves</span>
+              </button>
+              <button id="style-btn-grid" class="flex items-center justify-center w-7 h-7 rounded text-black-100 hover:text-white" title="Grid View">
+                <span class="material-symbols text-base">grid_view</span>
+              </button>
+              <button id="style-btn-list" class="flex items-center justify-center w-7 h-7 rounded text-black-100 hover:text-white" title="List View">
+                <span class="material-symbols text-base">view_list</span>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -459,6 +508,17 @@
           </div>
 
         </main>
+
+        <!-- Shelf Sizing Control Slider -->
+        <div id="shelf-size-control" class="absolute bottom-4 right-4 z-40 bg-black-600/90 border border-black-400/50 rounded-full px-3 py-1.5 flex items-center space-x-2 text-xs font-semibold text-white shadow-lg backdrop-blur select-none">
+          <button id="shelf-size-dec" class="hover:text-accent w-6 h-6 flex items-center justify-center rounded-full bg-black-500 hover:bg-black-400 transition-colors focus:outline-none" title="Decrease Card Size">
+            <span class="material-symbols text-sm">remove</span>
+          </button>
+          <span id="shelf-size-val" class="w-8 text-center font-mono">120</span>
+          <button id="shelf-size-inc" class="hover:text-accent w-6 h-6 flex items-center justify-center rounded-full bg-black-500 hover:bg-black-400 transition-colors focus:outline-none" title="Increase Card Size">
+            <span class="material-symbols text-sm">add</span>
+          </button>
+        </div>
 
       </div>
 
