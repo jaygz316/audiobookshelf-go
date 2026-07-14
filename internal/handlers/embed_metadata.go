@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"audiobookshelf/internal/core"
+	"audiobookshelf/internal/utils"
 )
 
 type ChapterInfo struct {
@@ -149,7 +150,7 @@ func handleEmbedMetadata(db *sql.DB, cfg *core.Config, itemID string) http.Handl
 		// Validate cover art path if present
 		hasCover := false
 		resolvedCoverPath := ""
-		if coverPath != "" {
+		if coverPath != "" && utils.IsSafeFilePath(db, cfg.MetadataPath, coverPath) {
 			if _, err := os.Stat(coverPath); err == nil {
 				hasCover = true
 				resolvedCoverPath = coverPath
@@ -165,6 +166,11 @@ func handleEmbedMetadata(db *sql.DB, cfg *core.Config, itemID string) http.Handl
 			}
 			filePathVal, ok := afMeta["path"].(string)
 			if !ok || filePathVal == "" {
+				continue
+			}
+
+			if !utils.IsSafeFilePath(db, cfg.MetadataPath, filePathVal) {
+				log.Warnf("[EmbedMetadata] Path traversal blocked or unsafe file path: %s", filePathVal)
 				continue
 			}
 
