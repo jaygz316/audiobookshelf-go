@@ -398,4 +398,3 @@ func TestIsSafeFilePath_SymlinkTraversal(t *testing.T) {
 		t.Error("SECURITY HOLE: IsSafeFilePath reported a symlink pointing to an outside file as safe!")
 	}
 }
-

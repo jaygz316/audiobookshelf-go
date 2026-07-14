@@ -1011,7 +1011,7 @@ func HandleDeleteLibrary(db *sql.DB, libraryID string) http.HandlerFunc {
 		}
 		user := userVal.(*core.UserSession)
 
-		if user.Type != "admin" && user.Type != "root" {
+		if user.Type != "admin" && user.Type != "root" && !user.CanDelete {
 			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
 			return
 		}
@@ -1308,7 +1308,7 @@ func handleUpload(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Infof("[Go] POST /api/upload")
 		userSess := r.Context().Value(core.UserContextKey).(*core.UserSession)
-		if userSess.Type != "root" && userSess.Type != "admin" {
+		if userSess.Type != "root" && userSess.Type != "admin" && !userSess.CanUpload {
 			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
 			return
 		}

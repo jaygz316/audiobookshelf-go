@@ -13,6 +13,7 @@ import { loadAuthors, loadSeries, loadAuthorDetails, loadSeriesDetails } from '.
 import { loadNarrators } from './narrators.js';
 import { loadStats } from './stats.js';
 import { initPublicShare } from './publicShare.js';
+import { initSearchPresets } from './presets.js';
 
 function initApp() {
   setupEventHandlers();
@@ -864,6 +865,7 @@ function setupEventHandlers() {
   };
 
   initCustomFilterAndSort();
+  initSearchPresets();
 
   const sortOrderToggle = document.getElementById('sort-order-toggle-btn');
   if (sortOrderToggle) {
@@ -1155,6 +1157,17 @@ function navigateTo(path, pushState = true) {
   if (styleSwitcher) {
     if (showControls) styleSwitcher.classList.remove('hidden');
     else styleSwitcher.classList.add('hidden');
+  }
+
+  const savePresetBtn = document.getElementById('save-preset-btn');
+  const presetsContainer = document.getElementById('presets-pills-container');
+  if (savePresetBtn) {
+    if (showControls) savePresetBtn.classList.remove('hidden');
+    else savePresetBtn.classList.add('hidden');
+  }
+  if (presetsContainer) {
+    if (showControls) presetsContainer.classList.remove('hidden');
+    else presetsContainer.classList.add('hidden');
   }
 
   const activeLibId = getActiveLibraryId();

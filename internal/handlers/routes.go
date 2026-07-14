@@ -1586,4 +1586,3 @@ func removeContents(dir string) error {
 	}
 	return nil
 }
-

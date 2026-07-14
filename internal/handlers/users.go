@@ -655,6 +655,11 @@ func handleUserCRUD(db *sql.DB) http.HandlerFunc {
 
 			perms := map[string]interface{}{
 				"download":                  true,
+				"upload":                    true,
+				"delete":                    false,
+				"update":                    false,
+				"accessRss":                 true,
+				"createShares":              true,
 				"accessExplicitContent":     false,
 				"accessAllLibraries":        true,
 				"librariesAccessible":       []string{},
@@ -664,6 +669,21 @@ func handleUserCRUD(db *sql.DB) http.HandlerFunc {
 			}
 			if body.Permissions.Download != nil {
 				perms["download"] = *body.Permissions.Download
+			}
+			if body.Permissions.Upload != nil {
+				perms["upload"] = *body.Permissions.Upload
+			}
+			if body.Permissions.Delete != nil {
+				perms["delete"] = *body.Permissions.Delete
+			}
+			if body.Permissions.Update != nil {
+				perms["update"] = *body.Permissions.Update
+			}
+			if body.Permissions.AccessRss != nil {
+				perms["accessRss"] = *body.Permissions.AccessRss
+			}
+			if body.Permissions.CreatePublicShares != nil {
+				perms["createShares"] = *body.Permissions.CreatePublicShares
 			}
 			if body.Permissions.AccessExplicitContent != nil {
 				perms["accessExplicitContent"] = *body.Permissions.AccessExplicitContent

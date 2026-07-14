@@ -435,7 +435,7 @@ func handleGetFeeds(db *sql.DB) http.HandlerFunc {
 			return
 		}
 		user := userVal.(*core.UserSession)
-		if user.Type != "root" && user.Type != "admin" {
+		if user.Type != "root" && user.Type != "admin" && !user.CanAccessRss {
 			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
 			return
 		}
@@ -496,7 +496,7 @@ func handleCreateFeed(db *sql.DB) http.HandlerFunc {
 			return
 		}
 		user := userVal.(*core.UserSession)
-		if user.Type != "root" && user.Type != "admin" {
+		if user.Type != "root" && user.Type != "admin" && !user.CanAccessRss {
 			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
 			return
 		}
@@ -630,7 +630,7 @@ func handleDeleteFeed(db *sql.DB) http.HandlerFunc {
 			return
 		}
 		user := userVal.(*core.UserSession)
-		if user.Type != "root" && user.Type != "admin" {
+		if user.Type != "root" && user.Type != "admin" && !user.CanAccessRss {
 			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
 			return
 		}

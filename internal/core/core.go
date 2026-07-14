@@ -20,6 +20,11 @@ type UserSession struct {
 	Type                      string
 	IsActive                  bool
 	CanDownload               bool
+	CanUpload                 bool
+	CanDelete                 bool
+	CanUpdate                 bool
+	CanAccessRss              bool
+	CanCreateShares           bool
 	CanAccessExplicitContent  bool
 	AccessAllLibraries        bool
 	LibrariesAccessible       []string

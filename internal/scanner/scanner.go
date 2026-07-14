@@ -2577,7 +2577,7 @@ func EmitLibraryItemsEvent(socketAuth *isocket.Authority, evt string, item *Libr
 func HandleScanLibrary(db *sql.DB, libraryID string, socketAuth *isocket.Authority) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		userSess := r.Context().Value(core.UserContextKey).(*core.UserSession)
-		if userSess.Type != "root" && userSess.Type != "admin" {
+		if userSess.Type != "root" && userSess.Type != "admin" && !userSess.CanUpdate {
 			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
 			return
 		}
