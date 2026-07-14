@@ -1,7 +1,7 @@
 // frontend/js/settings.js (Proposed Implementation)
 import { request, resolvePath } from './api.js';
 import { getActiveLibraryId, getLibrariesList, initLibrary } from './library.js';
-import { onEvent } from './socket.js';
+import { onEvent, offEvent, sendEvent } from './socket.js';
 import { logout } from './auth.js';
 
 let currentSessions = [];
@@ -704,13 +704,31 @@ async function renderBackupsTab() {
   container.innerHTML = `<div class="animate-spin rounded-full h-8 w-8 border-b-2 border-accent mx-auto"></div>`;
 
   try {
-    const backupPayload = await request('GET', '/api/backups');
+    const [backupPayload, serverSettings] = await Promise.all([
+      request('GET', '/api/backups'),
+      request('GET', '/api/settings')
+    ]);
     const backups = backupPayload.backups || [];
     const location = backupPayload.backupLocation || '';
+    const backupSchedule = serverSettings.backupSchedule || '';
+
+    // Determine initial dropdown selection
+    let initialPreset = '';
+    if (backupSchedule === '') {
+      initialPreset = '';
+    } else if (backupSchedule === '0 * * * *') {
+      initialPreset = 'hourly';
+    } else if (backupSchedule === '0 0 * * *') {
+      initialPreset = 'daily';
+    } else if (backupSchedule === '0 0 * * 0') {
+      initialPreset = 'weekly';
+    } else {
+      initialPreset = 'custom';
+    }
 
     container.innerHTML = `
       <div class="bg-primary border border-black-300 p-6 rounded-md space-y-6">
-        <h3 class="text-lg font-semibold border-b border-black-400 pb-2">Backup Path & Trigger</h3>
+        <h3 class="text-lg font-semibold border-b border-black-400 pb-2">Backup Settings</h3>
         
         <form id="backup-path-form" class="flex items-end space-x-4">
           <div class="flex-grow">
@@ -718,6 +736,29 @@ async function renderBackupsTab() {
             <input type="text" id="backup-location-path" value="${escapeHtml(location)}" class="w-full bg-black-500 text-white px-3 py-2 rounded border border-black-300 focus:outline-none focus:border-accent">
           </div>
           <button type="submit" class="bg-black-400 hover:bg-black-300 border border-black-300 text-white font-medium px-4 py-2 rounded transition-colors">Change Path</button>
+        </form>
+
+        <form id="backup-schedule-form" class="pt-4 border-t border-black-400 space-y-4">
+          <div class="flex flex-col md:flex-row md:items-end md:space-x-4 space-y-4 md:space-y-0">
+            <div class="flex-1">
+              <label class="block text-xs font-semibold text-black-100 uppercase tracking-wider mb-2">Backup Schedule Preset</label>
+              <select id="backup-schedule-preset" class="w-full bg-black-500 text-white px-3 py-2 rounded border border-black-300 focus:outline-none focus:border-accent">
+                <option value="" ${initialPreset === '' ? 'selected' : ''}>Disabled</option>
+                <option value="hourly" ${initialPreset === 'hourly' ? 'selected' : ''}>Hourly</option>
+                <option value="daily" ${initialPreset === 'daily' ? 'selected' : ''}>Daily (Midnight)</option>
+                <option value="weekly" ${initialPreset === 'weekly' ? 'selected' : ''}>Weekly (Sunday Midnight)</option>
+                <option value="custom" ${initialPreset === 'custom' ? 'selected' : ''}>Custom Cron Expression</option>
+              </select>
+            </div>
+            <div id="custom-cron-container" class="flex-1 ${initialPreset === 'custom' ? '' : 'hidden'}">
+              <label class="block text-xs font-semibold text-black-100 uppercase tracking-wider mb-2">Custom Cron Expression</label>
+              <input type="text" id="backup-schedule-cron" value="${escapeHtml(backupSchedule)}" placeholder="e.g. 0 0 * * *" class="w-full bg-black-500 text-white px-3 py-2 rounded border border-black-300 focus:outline-none focus:border-accent">
+            </div>
+            <div>
+              <button type="submit" class="bg-black-400 hover:bg-black-300 border border-black-300 text-white font-medium px-4 py-2 rounded transition-colors w-full md:w-auto">Save Schedule</button>
+            </div>
+          </div>
+          <p class="text-xs text-black-100">Configure background scheduled backups to run automatically using standard cron formats.</p>
         </form>
 
         <div class="flex justify-between items-center pt-4 border-t border-black-400">
@@ -762,6 +803,40 @@ async function renderBackupsTab() {
     renderBackupsListRows(backups);
 
     // Setup Event Handlers
+    const presetSelect = document.getElementById('backup-schedule-preset');
+    const customCronContainer = document.getElementById('custom-cron-container');
+    const customCronInput = document.getElementById('backup-schedule-cron');
+
+    presetSelect.onchange = () => {
+      if (presetSelect.value === 'custom') {
+        customCronContainer.classList.remove('hidden');
+      } else {
+        customCronContainer.classList.add('hidden');
+      }
+    };
+
+    document.getElementById('backup-schedule-form').onsubmit = async (e) => {
+      e.preventDefault();
+      try {
+        let scheduleVal = '';
+        if (presetSelect.value === 'custom') {
+          scheduleVal = customCronInput.value.trim();
+        } else if (presetSelect.value === 'hourly') {
+          scheduleVal = '0 * * * *';
+        } else if (presetSelect.value === 'daily') {
+          scheduleVal = '0 0 * * *';
+        } else if (presetSelect.value === 'weekly') {
+          scheduleVal = '0 0 * * 0';
+        }
+
+        await request('PATCH', '/api/settings', { backupSchedule: scheduleVal });
+        alert('Backup schedule updated successfully!');
+        renderBackupsTab(); // reload
+      } catch (err) {
+        alert('Failed to update backup schedule: ' + err.message);
+      }
+    };
+
     document.getElementById('backup-path-form').onsubmit = async (e) => {
       e.preventDefault();
       try {
@@ -2076,6 +2151,25 @@ async function renderLogsTab() {
       logConsole.scrollTop = logConsole.scrollHeight;
     }
 
+    // Subscribe to real-time socket logs
+    sendEvent('set_log_listener', activeLogLevel);
+
+    const logSocketCallback = (logMsg) => {
+      logEntries.push(logMsg);
+      if (logEntries.length > 2000) {
+        logEntries.shift();
+      }
+      displayLogs();
+    };
+
+    onEvent('log', logSocketCallback);
+
+    // Setup cleanup function on global window object
+    window.cleanupSettings = () => {
+      sendEvent('remove_log_listener');
+      offEvent('log', logSocketCallback);
+    };
+
     // Initial log display
     displayLogs();
 
@@ -2086,12 +2180,16 @@ async function renderLogsTab() {
       currentSelectedLevel = val;
       displayLogs();
 
+      // Update socket listener level
+      sendEvent('set_log_listener', val);
+
       try {
         await request('PATCH', '/api/settings', { logLevel: val });
       } catch (err) {
         alert('Failed to save log level on server: ' + err.message);
         currentSelectedLevel = prevVal;
         logLevelSelect.value = prevVal;
+        sendEvent('set_log_listener', prevVal);
         displayLogs();
       }
     };
