@@ -99,7 +99,12 @@ func LoggingMiddleware(next http.Handler) http.Handler {
 		sanitizedHeaders := make(http.Header)
 		for k, v := range r.Header {
 			lowerK := strings.ToLower(k)
-			if lowerK == "authorization" || lowerK == "cookie" || lowerK == "x-auth-token" || lowerK == "set-cookie" {
+			if strings.Contains(lowerK, "token") ||
+				strings.Contains(lowerK, "key") ||
+				strings.Contains(lowerK, "secret") ||
+				strings.Contains(lowerK, "auth") ||
+				strings.Contains(lowerK, "cookie") ||
+				strings.Contains(lowerK, "password") {
 				sanitizedHeaders[k] = []string{"[REDACTED]"}
 			} else {
 				sanitizedHeaders[k] = v

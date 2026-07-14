@@ -48,6 +48,9 @@ func TestLoggingMiddlewareRedactsHeaders(t *testing.T) {
 	req.Header.Set("Authorization", "Bearer my-secret-token")
 	req.Header.Set("Cookie", "session=abcdef")
 	req.Header.Set("X-Auth-Token", "token123")
+	req.Header.Set("X-API-Key", "apikey123")
+	req.Header.Set("X-Proxy-Secret", "mysecret")
+	req.Header.Set("X-User-Password", "mypassword")
 	req.Header.Set("X-Custom-Header", "custom-value")
 
 	rr := httptest.NewRecorder()
@@ -65,6 +68,15 @@ func TestLoggingMiddlewareRedactsHeaders(t *testing.T) {
 	}
 	if strings.Contains(logOutput, "token123") {
 		t.Error("X-Auth-Token value was leaked in logs!")
+	}
+	if strings.Contains(logOutput, "apikey123") {
+		t.Error("X-API-Key value was leaked in logs!")
+	}
+	if strings.Contains(logOutput, "mysecret") {
+		t.Error("X-Proxy-Secret value was leaked in logs!")
+	}
+	if strings.Contains(logOutput, "mypassword") {
+		t.Error("X-User-Password value was leaked in logs!")
 	}
 	if !strings.Contains(logOutput, "custom-value") {
 		t.Error("Non-sensitive custom header was not logged correctly!")
