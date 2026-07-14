@@ -107,20 +107,148 @@ function setupEventHandlers() {
     };
   }
 
+  // Global dropdown closer
+  window.closeAllDropdowns = (exceptMenu = null) => {
+    const ids = ['library-dropdown-menu', 'user-dropdown', 'filter-dropdown-menu', 'sort-dropdown-menu'];
+    ids.forEach(id => {
+      const m = document.getElementById(id);
+      if (m && m !== exceptMenu) {
+        if (typeof m.closeDropdown === 'function') {
+          m.closeDropdown();
+        } else {
+          m.classList.add('hidden');
+        }
+      }
+    });
+  };
+
+  // Global modal transition animator
+  window.animateModal = (modalEl, contentQuery = '.bg-primary') => {
+    // 1. Prepare initial classes
+    modalEl.classList.add('transition-opacity', 'duration-200', 'ease-out', 'opacity-0');
+    
+    // Find dialog container (usually has class '.bg-primary' or is the direct first child)
+    const contentEl = modalEl.querySelector(contentQuery) || modalEl.firstElementChild;
+    if (contentEl) {
+      contentEl.classList.add('transition-all', 'duration-200', 'ease-out', 'transform', 'scale-95', 'opacity-0');
+    }
+    
+    // Override remove method to hook closing transition
+    const originalRemove = modalEl.remove.bind(modalEl);
+    let isClosing = false;
+    
+    modalEl.closeModal = () => {
+      if (isClosing) return;
+      isClosing = true;
+      
+      modalEl.classList.remove('opacity-100');
+      modalEl.classList.add('opacity-0');
+      
+      if (contentEl) {
+        contentEl.classList.remove('scale-100', 'opacity-100');
+        contentEl.classList.add('scale-95', 'opacity-0');
+      }
+      
+      const onTransitionEnd = (e) => {
+        if (e.target === modalEl || e.target === contentEl) {
+          modalEl.removeEventListener('transitionend', onTransitionEnd);
+          originalRemove();
+        }
+      };
+      modalEl.addEventListener('transitionend', onTransitionEnd);
+      
+      // Safety timeout: force remove after 250ms if transition event is missed
+      setTimeout(() => {
+        try { originalRemove(); } catch (err) {}
+      }, 250);
+    };
+    
+    modalEl.remove = modalEl.closeModal;
+    
+    // Trigger entry transition in next tick
+    setTimeout(() => {
+      modalEl.classList.remove('opacity-0');
+      modalEl.classList.add('opacity-100');
+      if (contentEl) {
+        contentEl.classList.remove('scale-95', 'opacity-0');
+        contentEl.classList.add('scale-100', 'opacity-100');
+      }
+    }, 20);
+  };
+
+  // Intercept document.body.appendChild to automatically animate newly created modals
+  const originalAppendChild = document.body.appendChild.bind(document.body);
+  document.body.appendChild = function(node) {
+    if (node && node.nodeType === Node.ELEMENT_NODE && node.classList.contains('fixed') && node.classList.contains('inset-0')) {
+      window.animateModal(node);
+    }
+    return originalAppendChild(node);
+  };
+
+
   // User Dropdown Toggles
   const userMenuBtn = document.getElementById('user-menu-btn');
   const userDropdown = document.getElementById('user-dropdown');
   if (userMenuBtn && userDropdown) {
+    let isOpen = false;
+    userDropdown.classList.add('transition-all', 'duration-150', 'ease-out', 'transform', 'scale-95', 'opacity-0');
+    
+    const closeUserDropdown = () => {
+      if (!isOpen) return;
+      isOpen = false;
+      userDropdown.classList.remove('scale-100', 'opacity-100');
+      userDropdown.classList.add('scale-95', 'opacity-0');
+      const handleTransitionEnd = (e) => {
+        if (e.propertyName === 'opacity' && !isOpen) {
+          userDropdown.classList.add('hidden');
+          userDropdown.removeEventListener('transitionend', handleTransitionEnd);
+        }
+      };
+      userDropdown.addEventListener('transitionend', handleTransitionEnd);
+    };
+
     userMenuBtn.onclick = (e) => {
       e.stopPropagation();
-      userDropdown.classList.toggle('hidden');
+      window.closeAllDropdowns(userDropdown);
+      if (isOpen) {
+        closeUserDropdown();
+      } else {
+        isOpen = true;
+        userDropdown.classList.remove('hidden');
+        userDropdown.offsetHeight; // reflow
+        userDropdown.classList.remove('scale-95', 'opacity-0');
+        userDropdown.classList.add('scale-100', 'opacity-100');
+      }
     };
+
+    userDropdown.closeDropdown = closeUserDropdown;
+
     document.addEventListener('click', () => {
-      userDropdown.classList.add('hidden');
+      closeUserDropdown();
     });
     userDropdown.onclick = (e) => {
       e.stopPropagation();
     };
+  }
+
+  // Initialize Title Separator MutationObserver
+  const bookCount = document.getElementById('book-count');
+  const separator = document.getElementById('view-title-separator');
+  if (bookCount && separator) {
+    const observer = new MutationObserver(() => {
+      if (bookCount.textContent.trim()) {
+        separator.classList.remove('hidden');
+      } else {
+        separator.classList.add('hidden');
+      }
+    });
+    observer.observe(bookCount, { childList: true, characterData: true, subtree: true });
+    // Initial check
+    if (bookCount.textContent.trim()) {
+      separator.classList.remove('hidden');
+    } else {
+      separator.classList.add('hidden');
+    }
   }
 
   // Siderail buttons static toggles (for Milestones)
@@ -270,32 +398,173 @@ function setupEventHandlers() {
 
   initShelfSizing();
 
-  // Sorting/Filtering dropdown handlers
-  const filterSelect = document.getElementById('filter-select');
-  const sortSelect = document.getElementById('sort-select');
+  // Sorting/Filtering dropdown handlers (Custom animated dropdowns)
+  const initCustomFilterAndSort = () => {
+    const filterBtn = document.getElementById('filter-dropdown-btn');
+    const filterMenu = document.getElementById('filter-dropdown-menu');
+    const sortBtn = document.getElementById('sort-dropdown-btn');
+    const sortMenu = document.getElementById('sort-dropdown-menu');
+
+    if (!filterBtn || !filterMenu || !sortBtn || !sortMenu) return;
+
+    // Toggles for Filter
+    let filterOpen = false;
+    filterMenu.classList.add('transition-all', 'duration-150', 'ease-out', 'transform', 'scale-95', 'opacity-0');
+    
+    const closeFilter = () => {
+      if (!filterOpen) return;
+      filterOpen = false;
+      filterMenu.classList.remove('scale-100', 'opacity-100');
+      filterMenu.classList.add('scale-95', 'opacity-0');
+      const handleTransitionEnd = (e) => {
+        if (e.propertyName === 'opacity' && !filterOpen) {
+          filterMenu.classList.add('hidden');
+          filterMenu.removeEventListener('transitionend', handleTransitionEnd);
+        }
+      };
+      filterMenu.addEventListener('transitionend', handleTransitionEnd);
+    };
+
+    filterBtn.onclick = (e) => {
+      e.stopPropagation();
+      window.closeAllDropdowns(filterMenu);
+      if (filterOpen) {
+        closeFilter();
+      } else {
+        filterOpen = true;
+        filterMenu.classList.remove('hidden');
+        filterMenu.offsetHeight; // reflow
+        filterMenu.classList.remove('scale-95', 'opacity-0');
+        filterMenu.classList.add('scale-100', 'opacity-100');
+      }
+    };
+    filterMenu.closeDropdown = closeFilter;
+
+    // Toggles for Sort
+    let sortOpen = false;
+    sortMenu.classList.add('transition-all', 'duration-150', 'ease-out', 'transform', 'scale-95', 'opacity-0');
+    
+    const closeSort = () => {
+      if (!sortOpen) return;
+      sortOpen = false;
+      sortMenu.classList.remove('scale-100', 'opacity-100');
+      sortMenu.classList.add('scale-95', 'opacity-0');
+      const handleTransitionEnd = (e) => {
+        if (e.propertyName === 'opacity' && !sortOpen) {
+          sortMenu.classList.add('hidden');
+          sortMenu.removeEventListener('transitionend', handleTransitionEnd);
+        }
+      };
+      sortMenu.addEventListener('transitionend', handleTransitionEnd);
+    };
+
+    sortBtn.onclick = (e) => {
+      e.stopPropagation();
+      window.closeAllDropdowns(sortMenu);
+      if (sortOpen) {
+        closeSort();
+      } else {
+        sortOpen = true;
+        sortMenu.classList.remove('hidden');
+        sortMenu.offsetHeight; // reflow
+        sortMenu.classList.remove('scale-95', 'opacity-0');
+        sortMenu.classList.add('scale-100', 'opacity-100');
+      }
+    };
+    sortMenu.closeDropdown = closeSort;
+
+    // Handle clicks outside
+    document.addEventListener('click', () => {
+      closeFilter();
+      closeSort();
+    });
+
+    // Populate and wire options
+    const activeFilter = localStorage.getItem('library-filterBy') || '';
+    const activeSort = localStorage.getItem('library-sortBy') || 'media.metadata.title';
+
+    // Update Filter UI elements
+    const filterLabels = {
+      "": "Filter: All",
+      "progress.not-started": "Unstarted",
+      "progress.in-progress": "In Progress",
+      "progress.finished": "Completed"
+    };
+
+    const updateFilterLabel = (val) => {
+      const labelEl = document.getElementById('filter-selected-label');
+      if (labelEl) labelEl.textContent = filterLabels[val] || 'Filter: All';
+      
+      filterMenu.querySelectorAll('.filter-option-btn').forEach(btn => {
+        const check = btn.querySelector('.check-icon');
+        if (btn.getAttribute('data-value') === val) {
+          check?.classList.remove('hidden');
+          btn.classList.add('text-accent', 'font-medium');
+        } else {
+          check?.classList.add('hidden');
+          btn.classList.remove('text-accent', 'font-medium');
+        }
+      });
+    };
+
+    updateFilterLabel(activeFilter);
+
+    filterMenu.querySelectorAll('.filter-option-btn').forEach(btn => {
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        const val = btn.getAttribute('data-value');
+        localStorage.setItem('library-filterBy', val);
+        updateFilterLabel(val);
+        closeFilter();
+        const activeLibId = getActiveLibraryId();
+        if (activeLibId) loadDashboard(activeLibId);
+      };
+    });
+
+    // Update Sort UI elements
+    const sortLabels = {
+      "media.metadata.title": "Sort: Title",
+      "media.metadata.authorName": "Sort: Author",
+      "media.metadata.publishedYear": "Sort: Year",
+      "addedAt": "Sort: Date Added",
+      "media.duration": "Sort: Duration",
+      "random": "Sort: Random"
+    };
+
+    const updateSortLabel = (val) => {
+      const labelEl = document.getElementById('sort-selected-label');
+      if (labelEl) labelEl.textContent = sortLabels[val] || 'Sort: Title';
+      
+      sortMenu.querySelectorAll('.sort-option-btn').forEach(btn => {
+        const check = btn.querySelector('.check-icon');
+        if (btn.getAttribute('data-value') === val) {
+          check?.classList.remove('hidden');
+          btn.classList.add('text-accent', 'font-medium');
+        } else {
+          check?.classList.add('hidden');
+          btn.classList.remove('text-accent', 'font-medium');
+        }
+      });
+    };
+
+    updateSortLabel(activeSort);
+
+    sortMenu.querySelectorAll('.sort-option-btn').forEach(btn => {
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        const val = btn.getAttribute('data-value');
+        localStorage.setItem('library-sortBy', val);
+        updateSortLabel(val);
+        closeSort();
+        const activeLibId = getActiveLibraryId();
+        if (activeLibId) loadDashboard(activeLibId);
+      };
+    });
+  };
+
+  initCustomFilterAndSort();
+
   const sortOrderToggle = document.getElementById('sort-order-toggle-btn');
-
-  // Load from localStorage on initialization
-  if (filterSelect) {
-    const persistedFilter = localStorage.getItem('library-filterBy') || '';
-    filterSelect.value = persistedFilter;
-    filterSelect.onchange = () => {
-      localStorage.setItem('library-filterBy', filterSelect.value);
-      const activeLibId = getActiveLibraryId();
-      if (activeLibId) loadDashboard(activeLibId);
-    };
-  }
-
-  if (sortSelect) {
-    const persistedSort = localStorage.getItem('library-sortBy') || 'media.metadata.title';
-    sortSelect.value = persistedSort;
-    sortSelect.onchange = () => {
-      localStorage.setItem('library-sortBy', sortSelect.value);
-      const activeLibId = getActiveLibraryId();
-      if (activeLibId) loadDashboard(activeLibId);
-    };
-  }
-
   if (sortOrderToggle) {
     const persistedDesc = localStorage.getItem('library-sortDesc') === 'true';
     const icon = document.getElementById('sort-order-icon');
@@ -549,21 +818,21 @@ function navigateTo(path, pushState = true) {
     relPath = '/' + relPath;
   }
 
-  const filterSelect = document.getElementById('filter-select');
-  const sortSelect = document.getElementById('sort-select');
+  const filterBtn = document.getElementById('filter-dropdown-btn');
+  const sortBtn = document.getElementById('sort-dropdown-btn');
   const sortOrderToggle = document.getElementById('sort-order-toggle-btn');
   const shelfSizeControl = document.getElementById('shelf-size-control');
   const styleSwitcher = document.getElementById('style-switcher');
 
   const showControls = (relPath === '/' || relPath === '/library');
   
-  if (filterSelect) {
-    if (showControls) filterSelect.parentElement.classList.remove('hidden');
-    else filterSelect.parentElement.classList.add('hidden');
+  if (filterBtn) {
+    if (showControls) filterBtn.parentElement.classList.remove('hidden');
+    else filterBtn.parentElement.classList.add('hidden');
   }
-  if (sortSelect) {
-    if (showControls) sortSelect.parentElement.classList.remove('hidden');
-    else sortSelect.parentElement.classList.add('hidden');
+  if (sortBtn) {
+    if (showControls) sortBtn.parentElement.classList.remove('hidden');
+    else sortBtn.parentElement.classList.add('hidden');
   }
   if (sortOrderToggle) {
     if (showControls) sortOrderToggle.classList.remove('hidden');
