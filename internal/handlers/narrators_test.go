@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -9,6 +10,8 @@ import (
 	"testing"
 
 	_ "modernc.org/sqlite"
+
+	"audiobookshelf/internal/core"
 )
 
 func setupNarratorsTestDB(t *testing.T) *sql.DB {
@@ -72,10 +75,18 @@ func TestGetLibraryNarrators(t *testing.T) {
 	}
 
 	handler := handleGetLibraryNarrators(db, "lib1")
+	adminUser := &core.UserSession{
+		ID:                 "admin-1",
+		Username:           "admin",
+		Type:               "admin",
+		IsActive:           true,
+		AccessAllLibraries: true,
+	}
 
 	// Test case 1: Retrieve all, default sort (name ascending)
 	t.Run("Default Sort", func(t *testing.T) {
 		req := httptest.NewRequest("GET", "/api/libraries/lib1/narrators", nil)
+		req = req.WithContext(context.WithValue(req.Context(), core.UserContextKey, adminUser))
 		w := httptest.NewRecorder()
 		handler.ServeHTTP(w, req)
 
@@ -108,6 +119,7 @@ func TestGetLibraryNarrators(t *testing.T) {
 	// Test case 2: Sort by numBooks descending
 	t.Run("Sort by Book Count Descending", func(t *testing.T) {
 		req := httptest.NewRequest("GET", "/api/libraries/lib1/narrators?sort=numBooks&desc=true", nil)
+		req = req.WithContext(context.WithValue(req.Context(), core.UserContextKey, adminUser))
 		w := httptest.NewRecorder()
 		handler.ServeHTTP(w, req)
 
@@ -142,6 +154,7 @@ func TestGetLibraryNarrators(t *testing.T) {
 	// Test case 3: Search filter
 	t.Run("Search Filter", func(t *testing.T) {
 		req := httptest.NewRequest("GET", "/api/libraries/lib1/narrators?search=george", nil)
+		req = req.WithContext(context.WithValue(req.Context(), core.UserContextKey, adminUser))
 		w := httptest.NewRecorder()
 		handler.ServeHTTP(w, req)
 
@@ -166,6 +179,7 @@ func TestGetLibraryNarrators(t *testing.T) {
 	// Test case 4: Pagination
 	t.Run("Pagination", func(t *testing.T) {
 		req := httptest.NewRequest("GET", "/api/libraries/lib1/narrators?limit=2&page=0", nil)
+		req = req.WithContext(context.WithValue(req.Context(), core.UserContextKey, adminUser))
 		w := httptest.NewRecorder()
 		handler.ServeHTTP(w, req)
 

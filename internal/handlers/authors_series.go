@@ -39,6 +39,17 @@ func handleGetLibraryAuthors(db *sql.DB, libraryID string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Infof("[Go] GET /api/libraries/%s/authors", libraryID)
 
+		userVal := r.Context().Value(core.UserContextKey)
+		if userVal == nil {
+			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
+			return
+		}
+		user := userVal.(*core.UserSession)
+		if !user.CanAccessLibrary(libraryID) {
+			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
+			return
+		}
+
 		sortBy := r.URL.Query().Get("sort")
 		if sortBy == "" {
 			sortBy = "name"
@@ -182,6 +193,17 @@ func parseSequence(s string) float64 {
 func handleGetLibrarySeries(db *sql.DB, libraryID string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Infof("[Go] GET /api/libraries/%s/series", libraryID)
+
+		userVal := r.Context().Value(core.UserContextKey)
+		if userVal == nil {
+			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
+			return
+		}
+		user := userVal.(*core.UserSession)
+		if !user.CanAccessLibrary(libraryID) {
+			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
+			return
+		}
 
 		sortBy := r.URL.Query().Get("sort")
 		if sortBy == "" {
@@ -362,12 +384,16 @@ func handleGetLibrarySeriesByID(db *sql.DB, libraryID string, seriesID string) h
 		log.Infof("[Go] GET /api/libraries/%s/series/%s", libraryID, seriesID)
 
 		userVal := r.Context().Value(core.UserContextKey)
-		var userID string
-		if userVal != nil {
-			if u, ok := userVal.(*core.UserSession); ok {
-				userID = u.ID
-			}
+		if userVal == nil {
+			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
+			return
 		}
+		user := userVal.(*core.UserSession)
+		if !user.CanAccessLibrary(libraryID) {
+			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
+			return
+		}
+		userID := user.ID
 
 		// Retrieve series metadata
 		var id, name string
@@ -881,6 +907,13 @@ func handleGetLibraryItemByID(db *sql.DB, itemID string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Infof("[Go] GET /api/items/%s", itemID)
 
+		userVal := r.Context().Value(core.UserContextKey)
+		if userVal == nil {
+			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
+			return
+		}
+		user := userVal.(*core.UserSession)
+
 		var id, ino, libraryID, folderID, path, relPath, mediaType, mediaID, mtimeStr, ctimeStr, birthtimeStr, createdAtStr, updatedAtStr string
 		var isFileVal, isMissingVal, isInvalidVal int
 		var size int64
@@ -895,6 +928,11 @@ func handleGetLibraryItemByID(db *sql.DB, itemID string) http.HandlerFunc {
 		)
 		if err != nil {
 			http.NotFound(w, r)
+			return
+		}
+
+		if !user.CanAccessLibrary(libraryID) {
+			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
 			return
 		}
 
@@ -934,6 +972,17 @@ func handleGetLibraryItemByID(db *sql.DB, itemID string) http.HandlerFunc {
 			if err == nil {
 				var tags []string
 				_ = json.Unmarshal(bTags, &tags)
+				if !user.IsAdminOrUp() {
+					var explicit = bExplicit.Valid && bExplicit.Int64 != 0
+					if explicit && !user.CanAccessExplicitContent {
+						http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
+						return
+					}
+					if !user.CheckCanAccessLibraryItemWithTags(tags) {
+						http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
+						return
+					}
+				}
 				var genres []string
 				_ = json.Unmarshal(bGenres, &genres)
 				var audioFiles []map[string]interface{}
@@ -1199,6 +1248,17 @@ func handleGetLibraryItemByID(db *sql.DB, itemID string) http.HandlerFunc {
 			if err == nil {
 				var tags []string
 				_ = json.Unmarshal(pTags, &tags)
+				if !user.IsAdminOrUp() {
+					var explicit = pExplicit.Valid && pExplicit.Int64 != 0
+					if explicit && !user.CanAccessExplicitContent {
+						http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
+						return
+					}
+					if !user.CheckCanAccessLibraryItemWithTags(tags) {
+						http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
+						return
+					}
+				}
 				var genres []string
 				_ = json.Unmarshal(pGenres, &genres)
 				var lockedFields []string

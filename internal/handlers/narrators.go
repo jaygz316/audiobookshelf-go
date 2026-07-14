@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"audiobookshelf/internal/core"
 	log "audiobookshelf/internal/logger"
 	"database/sql"
 	"encoding/json"
@@ -20,6 +21,17 @@ type NarratorJSON struct {
 func handleGetLibraryNarrators(db *sql.DB, libraryID string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Infof("[Go] GET /api/libraries/%s/narrators", libraryID)
+
+		userVal := r.Context().Value(core.UserContextKey)
+		if userVal == nil {
+			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
+			return
+		}
+		user := userVal.(*core.UserSession)
+		if !user.CanAccessLibrary(libraryID) {
+			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
+			return
+		}
 
 		sortBy := r.URL.Query().Get("sort")
 		if sortBy == "" {

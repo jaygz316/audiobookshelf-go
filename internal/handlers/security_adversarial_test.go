@@ -290,3 +290,149 @@ func TestSecurity_MeUpdatePasswordInvalidatesSessionsAndToken(t *testing.T) {
 		t.Errorf("Expected all sessions for user to be deleted, but found %d remaining", sessionCount)
 	}
 }
+
+// TestSecurity_LibraryAccessControls verifies that users cannot access resources
+// (authors, series, narrators, playlists, collections, OPML, and items) in libraries
+// they do not have access to, or items containing explicit content/restricted tags.
+func TestSecurity_LibraryAccessControls(t *testing.T) {
+	db := setupSessionsTestDB(t)
+	defer db.Close()
+
+	// Create libraryItems table
+	_, err := db.Exec(`
+		CREATE TABLE IF NOT EXISTS libraryItems (
+			id TEXT PRIMARY KEY, ino TEXT, libraryId TEXT, libraryFolderId TEXT,
+			path TEXT, relPath TEXT, isFile INTEGER, mtime TEXT, ctime TEXT,
+			birthtime TEXT, createdAt TEXT, updatedAt TEXT, isMissing INTEGER,
+			isInvalid INTEGER, mediaType TEXT, mediaId TEXT, size INTEGER
+		)
+	`)
+	if err != nil {
+		t.Fatalf("failed to create libraryItems: %v", err)
+	}
+
+	_, err = db.Exec(`
+		CREATE TABLE IF NOT EXISTS books (
+			id TEXT PRIMARY KEY, title TEXT, titleIgnorePrefix TEXT, subtitle TEXT,
+			publishedYear TEXT, publishedDate TEXT, publisher TEXT, description TEXT,
+			isbn TEXT, asin TEXT, language TEXT, explicit INTEGER, abridged INTEGER,
+			coverPath TEXT, duration REAL, narrators BLOB, audioFiles BLOB,
+			ebookFile BLOB, chapters BLOB, tags BLOB, genres BLOB, lockedFields BLOB
+		)
+	`)
+	if err != nil {
+		t.Fatalf("failed to create books: %v", err)
+	}
+
+	// Insert a library item belonging to "restricted-lib"
+	_, err = db.Exec(`
+		INSERT INTO libraryItems (id, ino, libraryId, libraryFolderId, path, relPath, isFile, mtime, ctime, birthtime, createdAt, updatedAt, isMissing, isInvalid, mediaType, mediaId, size)
+		VALUES ('item-1', 'ino-1', 'restricted-lib', 'folder-1', '/path/1', 'rel/1', 1, '2026-07-14T08:00:00Z', '2026-07-14T08:00:00Z', '2026-07-14T08:00:00Z', '2026-07-14T08:00:00Z', '2026-07-14T08:00:00Z', 0, 0, 'book', 'book-1', 100)
+	`)
+	if err != nil {
+		t.Fatalf("failed to insert library item: %v", err)
+	}
+
+	_, err = db.Exec(`
+		INSERT INTO books (id, title, titleIgnorePrefix, subtitle, publishedYear, publishedDate, publisher, description, isbn, asin, language, explicit, abridged, coverPath, duration, narrators, audioFiles, ebookFile, chapters, tags, genres, lockedFields)
+		VALUES ('book-1', 'Secret Book', 'Secret Book', 'Sub', '2026', '2026', 'Pub', 'Desc', 'ISBN', 'ASIN', 'en', 1, 0, '/cover.jpg', 3600.0, '[]', '[]', '{}', '[]', '["secret-tag"]', '[]', '[]')
+	`)
+	if err != nil {
+		t.Fatalf("failed to insert book: %v", err)
+	}
+
+	// Create user sessions:
+	// 1. User with no access to "restricted-lib"
+	noAccessUser := &core.UserSession{
+		ID:                  "user-no-access",
+		Username:            "noaccess",
+		Type:                "user",
+		IsActive:            true,
+		AccessAllLibraries:  false,
+		LibrariesAccessible: []string{"public-lib"},
+	}
+
+	// 2. User with access to "restricted-lib" but no explicit access
+	noExplicitUser := &core.UserSession{
+		ID:                       "user-no-explicit",
+		Username:                 "noexplicit",
+		Type:                     "user",
+		IsActive:                 true,
+		AccessAllLibraries:       false,
+		LibrariesAccessible:      []string{"restricted-lib"},
+		CanAccessExplicitContent: false,
+		AccessAllTags:            true,
+	}
+
+	// 3. User with access to "restricted-lib" but restricted from "secret-tag"
+	tagRestrictedUser := &core.UserSession{
+		ID:                        "user-tag-restricted",
+		Username:                  "tagrestricted",
+		Type:                      "user",
+		IsActive:                  true,
+		AccessAllLibraries:        false,
+		LibrariesAccessible:       []string{"restricted-lib"},
+		CanAccessExplicitContent:  true,
+		AccessAllTags:             false,
+		ItemTagsSelected:          []string{"secret-tag"},
+		SelectedTagsNotAccessible: true,
+	}
+
+	// Handlers to test for CanAccessLibrary checks:
+	libraryHandlers := []struct {
+		name    string
+		handler http.HandlerFunc
+	}{
+		{"handleGetLibraryAuthors", handleGetLibraryAuthors(db, "restricted-lib")},
+		{"handleGetLibrarySeries", handleGetLibrarySeries(db, "restricted-lib")},
+		{"handleGetLibrarySeriesByID", handleGetLibrarySeriesByID(db, "restricted-lib", "series-1")},
+		{"handleGetLibraryNarrators", handleGetLibraryNarrators(db, "restricted-lib")},
+		{"handleGetLibraryPlaylists", handleGetLibraryPlaylists(db, "restricted-lib")},
+		{"handleGetLibraryCollections", handleGetLibraryCollections(db, "restricted-lib")},
+		{"handleGetLibraryOPML", handleGetLibraryOPML(db, "restricted-lib")},
+	}
+
+	for _, tc := range libraryHandlers {
+		t.Run(tc.name+"_Forbidden", func(t *testing.T) {
+			req := httptest.NewRequest("GET", "/", nil)
+			req = req.WithContext(context.WithValue(req.Context(), core.UserContextKey, noAccessUser))
+			rr := httptest.NewRecorder()
+			tc.handler.ServeHTTP(rr, req)
+			if rr.Code != http.StatusForbidden {
+				t.Errorf("expected 403 Forbidden for %s, got %d", tc.name, rr.Code)
+			}
+		})
+	}
+
+	// Test handleGetLibraryItemByID with different permission configurations:
+	t.Run("handleGetLibraryItemByID_NoLibraryAccess", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/api/items/item-1", nil)
+		req = req.WithContext(context.WithValue(req.Context(), core.UserContextKey, noAccessUser))
+		rr := httptest.NewRecorder()
+		handleGetLibraryItemByID(db, "item-1").ServeHTTP(rr, req)
+		if rr.Code != http.StatusForbidden {
+			t.Errorf("expected 403 Forbidden for library access check, got %d", rr.Code)
+		}
+	})
+
+	t.Run("handleGetLibraryItemByID_NoExplicitAccess", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/api/items/item-1", nil)
+		req = req.WithContext(context.WithValue(req.Context(), core.UserContextKey, noExplicitUser))
+		rr := httptest.NewRecorder()
+		handleGetLibraryItemByID(db, "item-1").ServeHTTP(rr, req)
+		if rr.Code != http.StatusForbidden {
+			t.Errorf("expected 403 Forbidden for explicit content check, got %d", rr.Code)
+		}
+	})
+
+	t.Run("handleGetLibraryItemByID_TagRestricted", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/api/items/item-1", nil)
+		req = req.WithContext(context.WithValue(req.Context(), core.UserContextKey, tagRestrictedUser))
+		rr := httptest.NewRecorder()
+		handleGetLibraryItemByID(db, "item-1").ServeHTTP(rr, req)
+		if rr.Code != http.StatusForbidden {
+			t.Errorf("expected 403 Forbidden for tag restriction check, got %d", rr.Code)
+		}
+	})
+}
+
