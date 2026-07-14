@@ -175,12 +175,15 @@ func (p *ITunesProvider) SearchPodcasts(ctx context.Context, query string) ([]*M
 			}
 		}
 
+		feedURL, _ := data["feedUrl"].(string)
+
 		cleaned = append(cleaned, &MetadataResult{
 			Title:         title,
 			Authors:       authors,
 			Description:   cleanDescription(desc),
 			PublishedYear: publishedYear,
 			CoverURL:      getCoverArtwork(data),
+			FeedURL:       feedURL,
 		})
 	}
 

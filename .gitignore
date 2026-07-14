@@ -42,3 +42,5 @@ tailwind.config.js
 /e2e_run.log
 .prettierrc
 /scratch/
+/abs-go
+

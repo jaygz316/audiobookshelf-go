@@ -61,6 +61,7 @@ func initManagers(db *sql.DB) {
 	}
 	if globalPodcastManager == nil {
 		globalPodcastManager = podcast.NewPodcastManager(db)
+		podcast.InitQueueManager(db, globalPodcastManager)
 	}
 }
 
@@ -78,6 +79,7 @@ func reinitManagers(db *sql.DB) {
 	globalPlaylistManager = playlist.NewPlaylistManager(db)
 	globalFeedManager = feed.NewFeedManager(db, MetadataPath)
 	globalPodcastManager = podcast.NewPodcastManager(db)
+	podcast.InitQueueManager(db, globalPodcastManager)
 	globalFinder = finders.NewFinder(db, []providers.Provider{
 		&providers.AudibleProvider{},
 		&providers.AudnexusProvider{},

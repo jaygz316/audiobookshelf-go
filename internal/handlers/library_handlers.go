@@ -586,6 +586,7 @@ func HandleGetLibraryItems(db *sql.DB, libraryID string) http.HandlerFunc {
 		minified := q.Get("minified") == "1"
 		collapseseries := q.Get("collapseseries") == "1"
 		include := q.Get("include")
+		searchQuery := q.Get("search")
 
 		var includeArray []string
 		if include != "" {
@@ -606,6 +607,7 @@ func HandleGetLibraryItems(db *sql.DB, libraryID string) http.HandlerFunc {
 			Include:        includeArray,
 			MediaType:      lib.MediaType,
 			Minified:       minified,
+			Search:         searchQuery,
 		}
 
 		results, total, err := idb.GetFilteredLibraryItems(db, opts)
@@ -627,6 +629,7 @@ func HandleGetLibraryItems(db *sql.DB, libraryID string) http.HandlerFunc {
 			"minified":       minified,
 			"collapseseries": collapseseries,
 			"include":        include,
+			"search":         searchQuery,
 		}
 
 		w.Header().Set("Content-Type", "application/json")

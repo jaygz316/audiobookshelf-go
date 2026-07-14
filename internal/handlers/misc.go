@@ -17,6 +17,7 @@ import (
 	"audiobookshelf/internal/core"
 	idb "audiobookshelf/internal/db"
 	"audiobookshelf/internal/logger"
+	"audiobookshelf/internal/podcast"
 	isocket "audiobookshelf/internal/socket"
 	"audiobookshelf/internal/utils"
 )
@@ -1066,7 +1067,7 @@ func handleCheckPathExists(db *sql.DB) http.HandlerFunc {
 	}
 }
 
-// handleGetTasks returns tasks list stubbed for task manager
+// handleGetTasks returns tasks list
 func handleGetTasks(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Infof("[Go] GET /api/tasks")
@@ -1079,8 +1080,13 @@ func handleGetTasks(db *sql.DB) http.HandlerFunc {
 		include := r.URL.Query().Get("include")
 		includeArray := strings.Split(include, ",")
 
+		var tasksList []map[string]interface{}
+		if podcast.GlobalQueueManager != nil {
+			tasksList = podcast.GlobalQueueManager.GetTasks()
+		}
+
 		data := map[string]interface{}{
-			"tasks": []interface{}{},
+			"tasks": tasksList,
 		}
 
 		hasQueue := false
@@ -1110,6 +1116,40 @@ func handleCancelAllTasks(db *sql.DB) http.HandlerFunc {
 		if !ok || !userSess.IsAdminOrUp() {
 			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
 			return
+		}
+
+		if podcast.GlobalQueueManager != nil {
+			podcast.GlobalQueueManager.CancelAll()
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"success": true}`))
+	}
+}
+
+// handleSingleTaskAction executes cancel, pause, resume, or retry on a specific task
+func handleSingleTaskAction(db *sql.DB, taskID, action string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		log.Infof("[Go] POST /api/tasks/%s/%s", taskID, action)
+		userSess, ok := r.Context().Value(core.UserContextKey).(*core.UserSession)
+		if !ok || !userSess.IsAdminOrUp() {
+			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
+			return
+		}
+
+		if podcast.GlobalQueueManager != nil {
+			switch action {
+			case "cancel":
+				podcast.GlobalQueueManager.Cancel(taskID)
+			case "pause":
+				podcast.GlobalQueueManager.Pause(taskID)
+			case "resume", "retry":
+				podcast.GlobalQueueManager.Resume(taskID)
+			default:
+				http.Error(w, `{"error": "Invalid action"}`, http.StatusBadRequest)
+				return
+			}
 		}
 
 		w.Header().Set("Content-Type", "application/json")

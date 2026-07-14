@@ -171,6 +171,72 @@ func (m *PodcastManager) DownloadEpisode(ctx context.Context, episodeURL, destPa
 	return nil
 }
 
+// DownloadEpisodeWithProgress downloads a podcast episode with progress callback.
+func (m *PodcastManager) DownloadEpisodeWithProgress(ctx context.Context, episodeURL, destPath string, onProgress func(bytesDownloaded, bytesTotal int64)) error {
+	req, err := http.NewRequestWithContext(ctx, "GET", episodeURL, nil)
+	if err != nil {
+		return fmt.Errorf("create request: %w", err)
+	}
+
+	req.Header.Set("User-Agent", getUserAgent(episodeURL))
+
+	resp, err := m.client.Do(req)
+	if err != nil {
+		return fmt.Errorf("HTTP request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
+
+	totalBytes := resp.ContentLength
+
+	dir := filepath.Dir(destPath)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return fmt.Errorf("create destination directory: %w", err)
+	}
+
+	out, err := os.Create(destPath)
+	if err != nil {
+		return fmt.Errorf("create destination file: %w", err)
+	}
+	defer func() {
+		_ = out.Close()
+	}()
+
+	buffer := make([]byte, 32*1024)
+	var downloaded int64
+	for {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		n, readErr := resp.Body.Read(buffer)
+		if n > 0 {
+			_, writeErr := out.Write(buffer[:n])
+			if writeErr != nil {
+				return fmt.Errorf("write error: %w", writeErr)
+			}
+			downloaded += int64(n)
+			if onProgress != nil {
+				onProgress(downloaded, totalBytes)
+			}
+		}
+		if readErr != nil {
+			if readErr == io.EOF {
+				break
+			}
+			return fmt.Errorf("read error: %w", readErr)
+		}
+	}
+
+	if err := out.Close(); err != nil {
+		return fmt.Errorf("close destination file: %w", err)
+	}
+
+	return nil
+}
+
 // ScheduleRefresh initiates recurring background ticks for feed synchronization.
 func (m *PodcastManager) ScheduleRefresh(ctx context.Context, cronExpression string) error {
 	duration := parseCronToDuration(cronExpression)
@@ -209,11 +275,12 @@ type podcastInfo struct {
 	AutoDownload             int
 	MaxEpisodesToKeep        int
 	MaxNewEpisodesToDownload int
+	AutoDeletePlayed         int
 }
 
 // SyncAllFeeds queries all podcasts from database and checks them for updates.
 func (m *PodcastManager) SyncAllFeeds(ctx context.Context) error {
-	rows, err := m.db.QueryContext(ctx, "SELECT id, title, feedURL, autoDownloadEpisodes, maxEpisodesToKeep, maxNewEpisodesToDownload FROM podcasts")
+	rows, err := m.db.QueryContext(ctx, "SELECT id, title, feedURL, autoDownloadEpisodes, maxEpisodesToKeep, maxNewEpisodesToDownload, autoDeletePlayed FROM podcasts")
 	if err != nil {
 		return fmt.Errorf("query podcasts: %w", err)
 	}
@@ -226,13 +293,15 @@ func (m *PodcastManager) SyncAllFeeds(ctx context.Context) error {
 		var autoDownload sql.NullInt64
 		var maxKeep sql.NullInt64
 		var maxDownload sql.NullInt64
-		if err := rows.Scan(&p.ID, &p.Title, &feedURL, &autoDownload, &maxKeep, &maxDownload); err != nil {
+		var autoDelete sql.NullInt64
+		if err := rows.Scan(&p.ID, &p.Title, &feedURL, &autoDownload, &maxKeep, &maxDownload, &autoDelete); err != nil {
 			return fmt.Errorf("scan podcast: %w", err)
 		}
 		p.FeedURL = feedURL.String
 		p.AutoDownload = int(autoDownload.Int64)
 		p.MaxEpisodesToKeep = int(maxKeep.Int64)
 		p.MaxNewEpisodesToDownload = int(maxDownload.Int64)
+		p.AutoDeletePlayed = int(autoDelete.Int64)
 		podcasts = append(podcasts, p)
 	}
 	if err := rows.Err(); err != nil {
@@ -269,12 +338,13 @@ func (m *PodcastManager) SyncFeed(ctx context.Context, podcastID string) error {
 	var autoDownload sql.NullInt64
 	var maxKeep sql.NullInt64
 	var maxDownload sql.NullInt64
+	var autoDelete sql.NullInt64
 
 	err := m.db.QueryRowContext(ctx, `
-		SELECT id, title, feedURL, autoDownloadEpisodes, maxEpisodesToKeep, maxNewEpisodesToDownload
+		SELECT id, title, feedURL, autoDownloadEpisodes, maxEpisodesToKeep, maxNewEpisodesToDownload, autoDeletePlayed
 		FROM podcasts
 		WHERE id = ?
-	`, podcastID).Scan(&p.ID, &p.Title, &feedURL, &autoDownload, &maxKeep, &maxDownload)
+	`, podcastID).Scan(&p.ID, &p.Title, &feedURL, &autoDownload, &maxKeep, &maxDownload, &autoDelete)
 	if err != nil {
 		return err
 	}
@@ -283,6 +353,7 @@ func (m *PodcastManager) SyncFeed(ctx context.Context, podcastID string) error {
 	p.AutoDownload = int(autoDownload.Int64)
 	p.MaxEpisodesToKeep = int(maxKeep.Int64)
 	p.MaxNewEpisodesToDownload = int(maxDownload.Int64)
+	p.AutoDeletePlayed = int(autoDelete.Int64)
 
 	if p.FeedURL == "" {
 		return fmt.Errorf("no feed URL configured")
@@ -477,6 +548,12 @@ func (m *PodcastManager) syncPodcastEpisodes(ctx context.Context, p podcastInfo,
 			newCount++
 		} else {
 			log.Printf("[Podcast] Failed to insert episode %q: %v", ep.Title, err)
+		}
+	}
+
+	if p.MaxEpisodesToKeep > 0 {
+		if err := m.EnforceRetentionPolicy(ctx, p.ID, p.MaxEpisodesToKeep); err != nil {
+			log.Printf("[Podcast] Failed to enforce retention policy: %v", err)
 		}
 	}
 
@@ -759,4 +836,83 @@ func parseRSS(xmlData []byte) (*PodcastFeed, error) {
 
 	feed.Episodes = episodes
 	return &feed, nil
+}
+
+// EnforceRetentionPolicy deletes the oldest downloaded episode files for a podcast if the number of downloaded episodes exceeds maxKeep.
+func (m *PodcastManager) EnforceRetentionPolicy(ctx context.Context, podcastID string, maxKeep int) error {
+	if maxKeep <= 0 {
+		return nil
+	}
+
+	// Fetch all downloaded episodes for this podcast, ordered by pubDate/publishedAt/createdAt descending
+	// We want to keep the newest ones, and delete the oldest ones.
+	type episodeDownload struct {
+		ID        string
+		Title     string
+		AudioFile string
+	}
+
+	rows, err := m.db.QueryContext(ctx, `
+		SELECT id, title, audioFile
+		FROM podcastEpisodes
+		WHERE podcastId = ? AND audioFile IS NOT NULL AND audioFile != '{}' AND audioFile != ''
+		ORDER BY pubDate DESC, publishedAt DESC, createdAt DESC
+	`, podcastID)
+	if err != nil {
+		return fmt.Errorf("query downloaded episodes for retention: %w", err)
+	}
+	defer rows.Close()
+
+	var downloads []episodeDownload
+	for rows.Next() {
+		var ed episodeDownload
+		if err := rows.Scan(&ed.ID, &ed.Title, &ed.AudioFile); err != nil {
+			return fmt.Errorf("scan episode download: %w", err)
+		}
+
+		// Verify it actually has a file path in metadata
+		var af struct {
+			Metadata struct {
+				Path string `json:"path"`
+			} `json:"metadata"`
+		}
+		if err := json.Unmarshal([]byte(ed.AudioFile), &af); err == nil && af.Metadata.Path != "" {
+			downloads = append(downloads, ed)
+		}
+	}
+
+	if len(downloads) <= maxKeep {
+		return nil
+	}
+
+	log.Printf("[Podcast] Retention policy: %d downloaded episodes found, max is %d. Deleting oldest %d episodes.", len(downloads), maxKeep, len(downloads)-maxKeep)
+
+	// Delete from index maxKeep onwards
+	for i := maxKeep; i < len(downloads); i++ {
+		ed := downloads[i]
+		var af struct {
+			Metadata struct {
+				Path string `json:"path"`
+			} `json:"metadata"`
+		}
+		_ = json.Unmarshal([]byte(ed.AudioFile), &af)
+		filePath := af.Metadata.Path
+
+		if filePath != "" {
+			if _, err := os.Stat(filePath); err == nil {
+				log.Printf("[Podcast] Retention policy deleting: %s", filePath)
+				if err := os.Remove(filePath); err != nil {
+					log.Printf("[Podcast] Failed to delete file %s: %v", filePath, err)
+				}
+			}
+		}
+
+		// Update DB
+		_, err = m.db.ExecContext(ctx, "UPDATE podcastEpisodes SET audioFile = '{}' WHERE id = ?", ed.ID)
+		if err != nil {
+			log.Printf("[Podcast] Failed to clear audioFile in DB for episode %s: %v", ed.ID, err)
+		}
+	}
+
+	return nil
 }

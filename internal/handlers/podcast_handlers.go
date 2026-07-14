@@ -974,71 +974,48 @@ func handleDownloadEpisodes(db *sql.DB, id string) http.HandlerFunc {
 			return
 		}
 
-		var podcastID, libraryItemID, podcastPath string
+		var podcastID, libraryItemID, podcastPath, podcastTitle string
 		err := db.QueryRow(`
-			SELECT p.id, li.id, li.path
+			SELECT p.id, p.title, li.id, li.path
 			FROM podcasts p
 			JOIN libraryItems li ON li.mediaId = p.id AND li.mediaType = 'podcast'
 			WHERE p.id = ? OR li.id = ?
-		`, id, id).Scan(&podcastID, &libraryItemID, &podcastPath)
+		`, id, id).Scan(&podcastID, &podcastTitle, &libraryItemID, &podcastPath)
 		if err != nil {
 			http.Error(w, `{"error": "Podcast not found"}`, http.StatusNotFound)
 			return
 		}
 
-		go func() {
-			for _, epID := range episodeIDs {
-				var title, enclosureURL string
-				err := db.QueryRow(`
-					SELECT title, enclosureURL
-					FROM podcastEpisodes
-					WHERE id = ? AND podcastId = ?
-				`, epID, podcastID).Scan(&title, &enclosureURL)
-				if err != nil || enclosureURL == "" {
-					continue
-				}
-
-				destFile := filepath.Join(podcastPath, sanitizeFilename(title)+".mp3")
-				if !utils.IsSafeFilePath(db, MetadataPath, destFile) {
-					log.Errorf("[DownloadEpisode] Traversal/Unauthorized path attempt blocked: %s", destFile)
-					continue
-				}
-				log.Infof("[DownloadEpisode] Downloading %s to %s", enclosureURL, destFile)
-
-				ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
-				err = globalPodcastManager.DownloadEpisode(ctx, enclosureURL, destFile)
-				cancel()
-
-				if err == nil {
-					fi, statErr := os.Stat(destFile)
-					var sz int64
-					if statErr == nil {
-						sz = fi.Size()
-					}
-
-					audioFileJSON, _ := json.Marshal(map[string]interface{}{
-						"duration": 0,
-						"mimeType": "audio/mpeg",
-						"metadata": map[string]interface{}{
-							"path":     destFile,
-							"filename": filepath.Base(destFile),
-							"size":     sz,
-						},
-					})
-
-					_, dbErr := db.Exec(`
-						UPDATE podcastEpisodes
-						SET audioFile = ?
-						WHERE id = ?
-					`, string(audioFileJSON), epID)
-					if dbErr != nil {
-						log.Errorf("[DownloadEpisode] Failed to update episode in DB: %v", dbErr)
-					}
-				} else {
-					log.Errorf("[DownloadEpisode] Download failed: %v", err)
-				}
+		for _, epID := range episodeIDs {
+			var epTitle, enclosureURL string
+			err := db.QueryRow(`
+				SELECT title, enclosureURL
+				FROM podcastEpisodes
+				WHERE id = ? AND podcastId = ?
+			`, epID, podcastID).Scan(&epTitle, &enclosureURL)
+			if err != nil || enclosureURL == "" {
+				continue
 			}
-		}()
+
+			destFile := filepath.Join(podcastPath, sanitizeFilename(epTitle)+".mp3")
+			if !utils.IsSafeFilePath(db, MetadataPath, destFile) {
+				log.Errorf("[DownloadEpisode] Traversal/Unauthorized path attempt blocked: %s", destFile)
+				continue
+			}
+
+			if podcast.GlobalQueueManager == nil {
+				podcast.InitQueueManager(db, globalPodcastManager)
+			}
+
+			podcast.GlobalQueueManager.Enqueue(&podcast.DownloadTask{
+				ID:           epID,
+				PodcastID:    podcastID,
+				PodcastTitle: podcastTitle,
+				EpisodeTitle: epTitle,
+				EnclosureURL: enclosureURL,
+				DestPath:     destFile,
+			})
+		}
 
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"success":true}`))

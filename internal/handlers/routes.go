@@ -813,9 +813,23 @@ func registerTasksAndOtherRoutes(mux *http.ServeMux, cfg *core.Config, db *sql.D
 
 	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/tasks/"), func(w http.ResponseWriter, r *http.Request) {
 		pathWithoutPrefix := trimBasePath(r.URL.Path, cfg.RouterBasePath)
-		if pathWithoutPrefix == "/api/tasks/cancel-all" {
+		actionPath := strings.TrimPrefix(pathWithoutPrefix, "/api/tasks/")
+
+		if actionPath == "cancel-all" {
 			if r.Method == http.MethodPost {
 				AuthMiddlewareWrapper(db, handleCancelAllTasks(db)).ServeHTTP(w, r)
+				return
+			}
+			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
+			return
+		}
+
+		parts := strings.Split(actionPath, "/")
+		if len(parts) == 2 {
+			taskID := parts[0]
+			action := parts[1]
+			if r.Method == http.MethodPost {
+				AuthMiddlewareWrapper(db, handleSingleTaskAction(db, taskID, action)).ServeHTTP(w, r)
 				return
 			}
 			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)

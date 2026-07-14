@@ -798,6 +798,83 @@ var dbMigrations = []struct {
 			return nil
 		},
 	},
+	{
+		version:     8,
+		description: "Add metadata columns to podcastEpisodes table",
+		run: func(db *sql.DB) error {
+			var exists int
+			err := db.QueryRow("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='podcastEpisodes'").Scan(&exists)
+			if err != nil {
+				return err
+			}
+			if exists == 0 {
+				return nil
+			}
+			rows, err := db.Query("PRAGMA table_info(podcastEpisodes)")
+			if err != nil {
+				return err
+			}
+			defer rows.Close()
+			cols := map[string]bool{}
+			for rows.Next() {
+				var cid int
+				var name, typeStr string
+				var notnull int
+				var dfltValue sql.NullString
+				var pk int
+				if err := rows.Scan(&cid, &name, &typeStr, &notnull, &dfltValue, &pk); err == nil {
+					cols[name] = true
+				}
+			}
+			addCols := []string{"pubDate", "description", "season", "episode", "episodeType", "enclosureURL", "publishedAt", "createdAt", "updatedAt"}
+			for _, col := range addCols {
+				if !cols[col] {
+					if _, err := db.Exec(fmt.Sprintf("ALTER TABLE podcastEpisodes ADD COLUMN %s TEXT", col)); err != nil {
+						return err
+					}
+				}
+			}
+			return nil
+		},
+	},
+	{
+		version:     9,
+		description: "Add autoDeletePlayed column to podcasts table",
+		run: func(db *sql.DB) error {
+			var exists int
+			err := db.QueryRow("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='podcasts'").Scan(&exists)
+			if err != nil {
+				return err
+			}
+			if exists == 0 {
+				return nil
+			}
+			rows, err := db.Query("PRAGMA table_info(podcasts)")
+			if err != nil {
+				return err
+			}
+			defer rows.Close()
+			hasAutoDeletePlayed := false
+			for rows.Next() {
+				var cid int
+				var name, typeStr string
+				var notnull int
+				var dfltValue sql.NullString
+				var pk int
+				if err := rows.Scan(&cid, &name, &typeStr, &notnull, &dfltValue, &pk); err == nil {
+					if name == "autoDeletePlayed" {
+						hasAutoDeletePlayed = true
+					}
+				}
+			}
+			if !hasAutoDeletePlayed {
+				if _, err := db.Exec("ALTER TABLE podcasts ADD COLUMN autoDeletePlayed INTEGER DEFAULT 0"); err != nil {
+					return err
+				}
+			}
+			return nil
+		},
+	},
 }
 
 func migrateDatabase(db *sql.DB) error {
@@ -833,12 +910,12 @@ func bootstrapSchema(db *sql.DB) error {
 		`CREATE TABLE IF NOT EXISTS libraryFolders (id TEXT PRIMARY KEY, path TEXT, libraryId TEXT, createdAt TEXT, updatedAt TEXT)`,
 		`CREATE TABLE IF NOT EXISTS libraryItems (id TEXT PRIMARY KEY, ino TEXT, libraryId TEXT, path TEXT, relPath TEXT, isFile INTEGER, mtime TEXT, ctime TEXT, birthtime TEXT, createdAt TEXT, updatedAt TEXT, isMissing INTEGER, isInvalid INTEGER, mediaType TEXT, mediaId TEXT, size INTEGER, libraryFolderId TEXT, authorNamesFirstLast TEXT, authorNamesLastFirst TEXT, title TEXT, titleIgnorePrefix TEXT)`,
 		`CREATE TABLE IF NOT EXISTS books (id TEXT PRIMARY KEY, title TEXT, titleIgnorePrefix TEXT, subtitle TEXT, publishedYear TEXT, publishedDate TEXT, publisher TEXT, description TEXT, isbn TEXT, asin TEXT, language TEXT, explicit INTEGER, abridged INTEGER, coverPath TEXT, duration REAL, narrators BLOB, audioFiles BLOB, ebookFile BLOB, chapters BLOB, tags BLOB, genres BLOB, lockedFields BLOB)`,
-		`CREATE TABLE IF NOT EXISTS podcasts (id TEXT PRIMARY KEY, title TEXT, titleIgnorePrefix TEXT, author TEXT, releaseDate TEXT, feedURL TEXT, imageURL TEXT, description TEXT, itunesPageURL TEXT, itunesId TEXT, itunesArtistId TEXT, language TEXT, podcastType TEXT, explicit INTEGER, autoDownloadEpisodes INTEGER, autoDownloadSchedule TEXT, lastEpisodeCheck TEXT, maxEpisodesToKeep INTEGER, maxNewEpisodesToDownload INTEGER, coverPath TEXT, tags BLOB, genres BLOB, numEpisodes INTEGER, lockedFields BLOB)`,
+		`CREATE TABLE IF NOT EXISTS podcasts (id TEXT PRIMARY KEY, title TEXT, titleIgnorePrefix TEXT, author TEXT, releaseDate TEXT, feedURL TEXT, imageURL TEXT, description TEXT, itunesPageURL TEXT, itunesId TEXT, itunesArtistId TEXT, language TEXT, podcastType TEXT, explicit INTEGER, autoDownloadEpisodes INTEGER, autoDownloadSchedule TEXT, lastEpisodeCheck TEXT, maxEpisodesToKeep INTEGER, maxNewEpisodesToDownload INTEGER, autoDeletePlayed INTEGER DEFAULT 0, coverPath TEXT, tags BLOB, genres BLOB, numEpisodes INTEGER, lockedFields BLOB)`,
 		`CREATE TABLE IF NOT EXISTS bookSeries (bookId TEXT, seriesId TEXT, sequence TEXT)`,
 		`CREATE TABLE IF NOT EXISTS series (id TEXT PRIMARY KEY, libraryId TEXT, name TEXT, nameIgnorePrefix TEXT, description TEXT, createdAt TEXT, updatedAt TEXT)`,
 		`CREATE TABLE IF NOT EXISTS mediaProgresses (id TEXT PRIMARY KEY, userId TEXT, mediaItemId TEXT, mediaItemType TEXT, duration REAL, currentTime REAL, isFinished INTEGER, hideFromContinueListening INTEGER, ebookLocation TEXT, ebookProgress REAL, finishedAt TEXT, extraData TEXT, podcastId TEXT, createdAt TEXT, updatedAt TEXT)`,
 		`CREATE TABLE IF NOT EXISTS playbackSessions (id TEXT PRIMARY KEY, userId TEXT, mediaItemId TEXT, mediaItemType TEXT, startTime REAL, libraryId TEXT, extraData TEXT, createdAt TEXT, updatedAt TEXT)`,
-		`CREATE TABLE IF NOT EXISTS podcastEpisodes (id TEXT PRIMARY KEY, podcastId TEXT, title TEXT, audioFile TEXT)`,
+		`CREATE TABLE IF NOT EXISTS podcastEpisodes (id TEXT PRIMARY KEY, podcastId TEXT, title TEXT, audioFile TEXT, pubDate TEXT, description TEXT, season TEXT, episode TEXT, episodeType TEXT, enclosureURL TEXT, publishedAt TEXT, createdAt TEXT, updatedAt TEXT)`,
 		`CREATE TABLE IF NOT EXISTS playlists (id TEXT PRIMARY KEY, name TEXT NOT NULL, description TEXT, createdAt TEXT, updatedAt TEXT, libraryId TEXT, userId TEXT)`,
 		`CREATE TABLE IF NOT EXISTS playlistMediaItems (id TEXT PRIMARY KEY, mediaItemId TEXT, mediaItemType TEXT, "order" INTEGER, createdAt TEXT, playlistId TEXT)`,
 		`CREATE TABLE IF NOT EXISTS collections (id TEXT PRIMARY KEY, libraryId TEXT, name TEXT, description TEXT, createdAt TEXT, updatedAt TEXT, isSmart INTEGER DEFAULT 0, rules TEXT)`,

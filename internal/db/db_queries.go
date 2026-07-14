@@ -825,20 +825,45 @@ func GetLibraryItemMinifiedByID(db *sql.DB, itemID string) (*LibraryItemMinified
 			}
 
 			var episodes []interface{}
-			erows, err4 := db.Query("SELECT id, title, audioFile FROM podcastEpisodes WHERE podcastId = ?", mediaID)
+			erows, err4 := db.Query("SELECT id, title, audioFile, pubDate, description, season, episode, episodeType, enclosureURL, publishedAt FROM podcastEpisodes WHERE podcastId = ?", mediaID)
 			if err4 == nil {
 				defer erows.Close()
 				for erows.Next() {
 					var epId, epTitle string
 					var epAudioFile []byte
-					if err := erows.Scan(&epId, &epTitle, &epAudioFile); err == nil {
+					var epPubDate, epDesc, epSeason, epEpisode, epEpType, epEncURL, epPubAt sql.NullString
+					if err := erows.Scan(&epId, &epTitle, &epAudioFile, &epPubDate, &epDesc, &epSeason, &epEpisode, &epEpType, &epEncURL, &epPubAt); err == nil {
 						var audioFile interface{}
-						_ = json.Unmarshal(epAudioFile, &audioFile)
-						episodes = append(episodes, map[string]interface{}{
+						if len(epAudioFile) > 0 {
+							_ = json.Unmarshal(epAudioFile, &audioFile)
+						}
+						epMap := map[string]interface{}{
 							"id":        epId,
 							"title":     epTitle,
 							"audioFile": audioFile,
-						})
+						}
+						if epPubDate.Valid {
+							epMap["pubDate"] = epPubDate.String
+						}
+						if epDesc.Valid {
+							epMap["description"] = epDesc.String
+						}
+						if epSeason.Valid {
+							epMap["season"] = epSeason.String
+						}
+						if epEpisode.Valid {
+							epMap["episode"] = epEpisode.String
+						}
+						if epEpType.Valid {
+							epMap["episodeType"] = epEpType.String
+						}
+						if epEncURL.Valid {
+							epMap["enclosureUrl"] = epEncURL.String
+						}
+						if epPubAt.Valid {
+							epMap["publishedAt"] = epPubAt.String
+						}
+						episodes = append(episodes, epMap)
 					}
 				}
 			}
