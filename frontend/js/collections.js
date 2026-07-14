@@ -97,7 +97,11 @@ function renderCollectionsGrid(collections, libraryId) {
     // Click card navigates to details
     card.onclick = (e) => {
       if (e.target.closest('.delete-btn')) return;
-      loadCollectionDetails(c.id, libraryId);
+      if (window.navigateTo) {
+        window.navigateTo('/collection/' + c.id);
+      } else {
+        loadCollectionDetails(c.id, libraryId);
+      }
     };
 
     card.querySelector('.delete-btn').onclick = async (e) => {
@@ -261,7 +265,7 @@ async function triggerCreateCollectionModal(libraryId) {
   };
 }
 
-async function loadCollectionDetails(collectionId, libraryId) {
+export async function loadCollectionDetails(collectionId, libraryId) {
   const container = document.getElementById('bookshelf');
   if (!container) return;
 
@@ -336,13 +340,23 @@ async function loadCollectionDetails(collectionId, libraryId) {
 
     renderCollectionBooksRows(collection, booksDetails, libraryId);
 
-    document.getElementById('back-collections-btn').onclick = () => loadCollections(libraryId);
+    document.getElementById('back-collections-btn').onclick = () => {
+      if (window.navigateTo) {
+        window.navigateTo('/collections');
+      } else {
+        loadCollections(libraryId);
+      }
+    };
     
     document.getElementById('delete-coll-btn').onclick = async () => {
       if (!confirm(`Are you absolutely sure you want to delete collection "${collection.name}"?`)) return;
       try {
         await request('DELETE', `/api/collections/${collection.id}`);
-        loadCollections(libraryId);
+        if (window.navigateTo) {
+          window.navigateTo('/collections');
+        } else {
+          loadCollections(libraryId);
+        }
       } catch (err) {
         alert('Delete failed: ' + err.message);
       }
@@ -503,7 +517,11 @@ function renderCollectionBooksRows(collection, booksDetails, libraryId) {
 
     // Click cover/title views item details
     li.querySelector('.play-trigger').onclick = () => {
-      loadItemDetails(item.id, libraryId, () => loadCollectionDetails(collection.id, libraryId));
+      if (window.navigateTo) {
+        window.navigateTo('/item/' + item.id);
+      } else {
+        loadItemDetails(item.id, libraryId, () => loadCollectionDetails(collection.id, libraryId));
+      }
     };
 
     if (!isSmart) {

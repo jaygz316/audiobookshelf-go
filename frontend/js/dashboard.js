@@ -231,7 +231,11 @@ export function createCard(item, isContinue, libraryId) {
       updateBatchActionBar();
       return;
     }
-    loadItemDetails(item.id, libraryId, () => loadDashboard(libraryId));
+    if (window.navigateTo) {
+      window.navigateTo('/item/' + item.id);
+    } else {
+      loadItemDetails(item.id, libraryId, () => loadDashboard(libraryId));
+    }
   });
 
   return card;

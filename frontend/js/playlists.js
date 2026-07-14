@@ -96,7 +96,11 @@ function renderPlaylistsGrid(playlists, libraryId) {
     // Click card navigates to details
     card.onclick = (e) => {
       if (e.target.closest('.delete-btn')) return;
-      loadPlaylistDetails(p.id, libraryId);
+      if (window.navigateTo) {
+        window.navigateTo('/playlist/' + p.id);
+      } else {
+        loadPlaylistDetails(p.id, libraryId);
+      }
     };
 
     card.querySelector('.delete-btn').onclick = async (e) => {
@@ -184,7 +188,7 @@ async function triggerCreatePlaylistModal(libraryId) {
   };
 }
 
-async function loadPlaylistDetails(playlistId, libraryId) {
+export async function loadPlaylistDetails(playlistId, libraryId) {
   const container = document.getElementById('bookshelf');
   if (!container) return;
 
@@ -257,13 +261,23 @@ async function loadPlaylistDetails(playlistId, libraryId) {
 
     renderPlaylistItemsRows(playlist, itemsDetails, libraryId);
 
-    document.getElementById('back-playlists-btn').onclick = () => loadPlaylists(libraryId);
+    document.getElementById('back-playlists-btn').onclick = () => {
+      if (window.navigateTo) {
+        window.navigateTo('/playlists');
+      } else {
+        loadPlaylists(libraryId);
+      }
+    };
     
     document.getElementById('delete-playlist-btn').onclick = async () => {
       if (!confirm(`Are you sure you want to delete playlist "${playlist.name}"?`)) return;
       try {
         await request('DELETE', `/api/playlists/${playlist.id}`);
-        loadPlaylists(libraryId);
+        if (window.navigateTo) {
+          window.navigateTo('/playlists');
+        } else {
+          loadPlaylists(libraryId);
+        }
       } catch (err) {
         alert('Delete failed: ' + err.message);
       }
@@ -423,7 +437,11 @@ function renderPlaylistItemsRows(playlist, itemsDetails, libraryId) {
 
     // Click cover/title views item details
     li.querySelector('.play-trigger').onclick = () => {
-      loadItemDetails(item.id, libraryId, () => loadPlaylistDetails(playlist.id, libraryId));
+      if (window.navigateTo) {
+        window.navigateTo('/item/' + item.id);
+      } else {
+        loadItemDetails(item.id, libraryId, () => loadPlaylistDetails(playlist.id, libraryId));
+      }
     };
 
     // Reorder actions
