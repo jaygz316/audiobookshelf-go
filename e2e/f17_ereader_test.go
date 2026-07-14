@@ -141,6 +141,11 @@ func TestF17EReader(t *testing.T) {
 
 	// Write a fake EPUB file to disk
 	tempDir := t.TempDir()
+
+	_, err = db.Exec(`INSERT INTO libraryFolders (id, path, libraryId) VALUES ('folder-ebook', ?, 'lib-ebook')`, tempDir)
+	if err != nil {
+		t.Fatalf("Failed to insert library folder: %v", err)
+	}
 	fakeEpubPath := filepath.Join(tempDir, "test.epub")
 	if err := os.WriteFile(fakeEpubPath, []byte("fake epub content"), 0644); err != nil {
 		t.Fatalf("Failed to write fake epub file: %v", err)

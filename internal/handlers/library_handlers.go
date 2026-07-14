@@ -199,6 +199,11 @@ func serveCover(db *sql.DB, metadataPath string) http.HandlerFunc {
 				http.NotFound(w, r)
 				return
 			}
+			if !utils.IsSafeFilePath(db, metadataPath, coverPath) {
+				log.Warnf("[Cover] Raw cover path traversal blocked: %s", coverPath)
+				http.Error(w, "Forbidden", http.StatusForbidden)
+				return
+			}
 			if r.URL.Query().Get("ts") != "" {
 				w.Header().Set("Cache-Control", "private, max-age=86400")
 			}
@@ -252,6 +257,11 @@ func serveCover(db *sql.DB, metadataPath string) http.HandlerFunc {
 		// Cache miss: generate the resized cover
 		coverPath, err := idb.GetCoverPath(db, itemID)
 		if err == nil && coverPath != "" {
+			if !utils.IsSafeFilePath(db, metadataPath, coverPath) {
+				log.Warnf("[Cover] Resized cover source path traversal blocked: %s", coverPath)
+				http.Error(w, "Forbidden", http.StatusForbidden)
+				return
+			}
 			cacheFilename := itemID + "_" + width
 			if height != "" {
 				cacheFilename += "x" + height
@@ -275,6 +285,11 @@ func serveCover(db *sql.DB, metadataPath string) http.HandlerFunc {
 		log.Infof("[Cover] Cache miss. Serving raw cover.")
 		if err != nil || coverPath == "" {
 			http.NotFound(w, r)
+			return
+		}
+		if !utils.IsSafeFilePath(db, metadataPath, coverPath) {
+			log.Warnf("[Cover] Cache miss fallback cover path traversal blocked: %s", coverPath)
+			http.Error(w, "Forbidden", http.StatusForbidden)
 			return
 		}
 		http.ServeFile(w, r, coverPath)
@@ -351,6 +366,12 @@ func serveDownload(db *sql.DB) http.HandlerFunc {
 		if err != nil {
 			log.Errorf("[Download] Failed to get library item info: %v", err)
 			http.Error(w, `{"error": "Library item not found"}`, http.StatusNotFound)
+			return
+		}
+
+		if !utils.IsSafeFilePath(db, MetadataPath, info.Path) {
+			log.Warnf("[Download] Path traversal blocked: %s", info.Path)
+			http.Error(w, "Forbidden", http.StatusForbidden)
 			return
 		}
 

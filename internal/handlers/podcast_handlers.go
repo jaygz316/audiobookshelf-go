@@ -16,6 +16,7 @@ import (
 	"audiobookshelf/internal/core"
 	idb "audiobookshelf/internal/db"
 	"audiobookshelf/internal/podcast"
+	"audiobookshelf/internal/utils"
 
 	"github.com/google/uuid"
 )
@@ -998,6 +999,10 @@ func handleDownloadEpisodes(db *sql.DB, id string) http.HandlerFunc {
 				}
 
 				destFile := filepath.Join(podcastPath, sanitizeFilename(title)+".mp3")
+				if !utils.IsSafeFilePath(db, MetadataPath, destFile) {
+					log.Errorf("[DownloadEpisode] Traversal/Unauthorized path attempt blocked: %s", destFile)
+					continue
+				}
 				log.Infof("[DownloadEpisode] Downloading %s to %s", enclosureURL, destFile)
 
 				ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)

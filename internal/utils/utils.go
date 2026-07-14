@@ -231,3 +231,44 @@ func NormalizeTitleForSeries(title string) string {
 
 	return strings.Join(cleanWords, " ")
 }
+
+// IsSafeFilePath checks if targetPath is safe to serve.
+// A path is safe if it resolves to a location inside either the metadataPath or any of the configured library folders.
+func IsSafeFilePath(db *sql.DB, metadataPath string, targetPath string) bool {
+	if targetPath == "" {
+		return false
+	}
+
+	// Resolve targetPath to an absolute, cleaned path
+	absTarget, err := filepath.Abs(targetPath)
+	if err != nil {
+		return false
+	}
+
+	// 1. Check if it's inside metadataPath
+	if metadataPath != "" {
+		absMetadata, err := filepath.Abs(metadataPath)
+		if err == nil && IsSameOrSubPath(absMetadata, absTarget) {
+			return true
+		}
+	}
+
+	// 2. Check if it's inside any configured library folders
+	if db != nil {
+		rows, err := db.Query("SELECT path FROM libraryFolders")
+		if err == nil {
+			defer rows.Close()
+			for rows.Next() {
+				var folderPath string
+				if err := rows.Scan(&folderPath); err == nil && folderPath != "" {
+					absFolder, err := filepath.Abs(folderPath)
+					if err == nil && IsSameOrSubPath(absFolder, absTarget) {
+						return true
+					}
+				}
+			}
+		}
+	}
+
+	return false
+}

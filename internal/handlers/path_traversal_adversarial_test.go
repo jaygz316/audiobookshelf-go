@@ -37,6 +37,12 @@ func TestPublicShareStream_PathTraversalAdversarial(t *testing.T) {
 		t.Fatalf("failed to write secret file: %v", err)
 	}
 
+	// Insert library folder to satisfy path safety check
+	_, err = db.Exec(`INSERT INTO libraryFolders (id, path, libraryId) VALUES ('folder1', ?, 'lib1')`, libraryPath)
+	if err != nil {
+		t.Fatalf("Failed to insert library folder: %v", err)
+	}
+
 	// Insert libraryItem with path pointing to the clean library path (directory, so isFile = 0)
 	_, err = db.Exec(`
 		INSERT INTO libraryItems (id, ino, libraryId, libraryFolderId, path, relPath, isFile, mtime, ctime, birthtime, createdAt, updatedAt, isMissing, isInvalid, mediaType, mediaId, size, title)

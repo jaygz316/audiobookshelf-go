@@ -745,6 +745,12 @@ func ServeHLS(db *sql.DB, metadataPath string, sm *StreamManager, socketAuth *is
 		streamID := parts[hlsIdx+1]
 		fileName := parts[hlsIdx+2]
 
+		if filepath.Base(fileName) != fileName {
+			log.Printf("[HLS Gateway] Traversal attempt in fileName: %s", fileName)
+			http.Error(w, "Bad Request", http.StatusBadRequest)
+			return
+		}
+
 		ext := filepath.Ext(fileName)
 		log.Printf("[HLS Gateway] streamID: %s, fileName: %s, ext: %s", streamID, fileName, ext)
 		if ext != ".ts" && ext != ".m3u8" && ext != ".mp4" && ext != ".m4s" {

@@ -15,15 +15,18 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"audiobookshelf/internal/utils"
 )
 
 type FeedManager struct {
-	db *sql.DB
+	db           *sql.DB
+	metadataPath string
 }
 
 // NewFeedManager constructs an XML Feed manager.
-func NewFeedManager(db *sql.DB) *FeedManager {
-	return &FeedManager{db: db}
+func NewFeedManager(db *sql.DB, metadataPath string) *FeedManager {
+	return &FeedManager{db: db, metadataPath: metadataPath}
 }
 
 // ServeRSSFeed creates an HTTP handler returning the RSS XML podcast representation of a library item, playlist, collection, or series.
@@ -405,6 +408,11 @@ func (m *FeedManager) serveFeedCover(w http.ResponseWriter, r *http.Request, ite
 		return
 	}
 
+	if !utils.IsSafeFilePath(m.db, m.metadataPath, coverPath) {
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
+
 	http.ServeFile(w, r, coverPath)
 }
 
@@ -608,6 +616,12 @@ func (m *FeedManager) serveFeedItem(w http.ResponseWriter, r *http.Request, item
 	if mimeType != "" {
 		w.Header().Set("Content-Type", mimeType)
 	}
+
+	if !utils.IsSafeFilePath(m.db, m.metadataPath, filePath) {
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
+
 	http.ServeFile(w, r, filePath)
 }
 
