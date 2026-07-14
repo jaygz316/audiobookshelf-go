@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	idb "audiobookshelf/internal/db"
+	"audiobookshelf/internal/utils"
 )
 
 // handleGetPublicShare resolves GET /api/s/{slug}
@@ -313,7 +314,7 @@ func handleGetPublicShareStream(db *sql.DB) http.HandlerFunc {
 
 		// Clean path to prevent directory traversal
 		targetPath := filepath.Clean(filepath.Join(info.Path, filename))
-		if !strings.HasPrefix(targetPath, filepath.Clean(info.Path)) {
+		if !utils.IsSameOrSubPath(info.Path, targetPath) {
 			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
 			return
 		}

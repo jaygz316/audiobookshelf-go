@@ -176,4 +176,28 @@ func TestHandleUpload_SuccessAndTraversal(t *testing.T) {
 	if rrTraversal.Code != http.StatusBadRequest {
 		t.Errorf("expected Bad Request for path traversal attempt, got %d", rrTraversal.Code)
 	}
+
+	// 3. Test Partial Prefix Sibling Path Traversal Protection (Adversarial)
+	bodyAdversarial := &bytes.Buffer{}
+	writerAdversarial := multipart.NewWriter(bodyAdversarial)
+	_ = writerAdversarial.WriteField("library", "lib-1")
+	_ = writerAdversarial.WriteField("folder", "folder-1")
+
+	baseDirName := filepath.Base(tempDir)
+	siblingRelPath := "../" + baseDirName + "-private/exploit.txt"
+
+	partAdversarial, _ := createFormFileWithPath(writerAdversarial, "files", siblingRelPath)
+	_, _ = partAdversarial.Write([]byte("attempted sibling traversal exploit"))
+	writerAdversarial.Close()
+
+	reqAdversarial := httptest.NewRequest(http.MethodPost, "/api/upload", bodyAdversarial)
+	reqAdversarial.Header.Set("Content-Type", writerAdversarial.FormDataContentType())
+	reqAdversarial = reqAdversarial.WithContext(context.WithValue(reqAdversarial.Context(), core.UserContextKey, adminSess))
+
+	rrAdversarial := httptest.NewRecorder()
+	handler.ServeHTTP(rrAdversarial, reqAdversarial)
+
+	if rrAdversarial.Code != http.StatusBadRequest {
+		t.Errorf("expected Bad Request for partial-prefix traversal attempt, got %d. Body: %s", rrAdversarial.Code, rrAdversarial.Body.String())
+	}
 }
