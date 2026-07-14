@@ -1,19 +1,19 @@
 # Handoff: Audiobookshelf Go Port
 
 ## Targeted Task & Accomplishments
-- **Target Task**: Playlist Reordering & Public Share Links Customizer
+- **Target Task**: Libraries List View UI Alignment & Public Share Customizer Validation
 - **Accomplishments**:
-  - Implemented **Drag-and-Drop Playlist Reordering** in `frontend/js/playlists.js` using HTML5 drag-and-drop APIs. Replaced manual Up/Down buttons with an intuitive grab handle (`drag_handle`) that updates item lists in real-time.
-  - Enhanced **Public Share Links Customizer** with advanced capabilities:
-    - **Custom Expiration Date/Time**: Added a `datetime-local` input field matching expiration rules.
-    - **Password Protection**: Visual toggles to password-protect shared media.
-    - **Maximum Download Limits**: Enforced `MaxDownloads` limit check in the backend `/api/s/{slug}/download` handler and incremented `downloadsCount` on each successful request.
-    - **Embeddable Web Player Layout**: Dynamically toggles a premium visual compact card layout (hiding metadata descriptions and lists) when the embeddable flag is true.
-  - Updated SQLite database schema and backend models in `internal/share/share.go` to support new attributes (`maxDownloads`, `downloadsCount`, and `embeddable`).
-  - Successfully verified compile build and unit/integration tests (`go test ./...`). All backend tests pass.
+  - Implemented **Active Library Border Highlight**: Added `.border-l-warning` to display an orange border-l highlight for the active library in the Settings > Libraries tab.
+  - Implemented **Library Dropdown Action Menu**: Replaced flat Edit and Delete buttons in the Libraries list with a sleek three-dot actions menu (`more_vert`) dropdown, handling click-outside dismissals and cross-menu closure.
+  - Verified **Public Share Links Customizer** and **Drag-and-Drop Playlist Reordering** baseline functionality.
+  - Successfully verified compile build and ran all backend test suites (`go test ./...` passed with zero errors).
+  - Built and pushed the Docker container image `jaygz/audiobookshelf-go:latest` to Docker Hub.
 
 ## Outstanding Work / Next Gaps
-- **Podcast Subscriptions & Episode Downloader**: Subscription portal (iTunes / PodcastIndex APIs), downloader queue UI, and subscription cleanup policies.
+- **Podcast Subscriptions & Episode Downloader**:
+  - Subscribe portal using iTunes/PodcastIndex APIs.
+  - Podcast episode download queue manager UI (speeds, progress, pause/resume).
+  - Subscription cleanup and automatic retention policies.
 
 ## Next Steps
-- Implement iTunes/PodcastIndex subscription search and subscribe endpoints on the backend.
+- Implement iTunes/PodcastIndex search and subscription registration endpoints on the backend, with corresponding front-end podcast search results view.
