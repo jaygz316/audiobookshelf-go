@@ -754,6 +754,72 @@ func fetchRecentlyAddedShelf(db *sql.DB, libraryID string, user *core.UserSessio
 	return nil, nil
 }
 
+func fetchContinueSeriesShelf(db *sql.DB, libraryID string, user *core.UserSession, limitVal int) (*Shelf, error) {
+	query := `
+		WITH FinishedBooks AS (
+			SELECT bs.seriesId, bs.sequence AS finished_seq
+			FROM mediaProgresses mp
+			JOIN libraryItems li ON mp.mediaItemId = li.id
+			JOIN bookSeries bs ON li.mediaId = bs.bookId
+			WHERE mp.userId = ? AND mp.isFinished = 1 AND li.libraryId = ? AND li.mediaType = 'book'
+		),
+		NextBooks AS (
+			SELECT li.id AS library_item_id, bs.seriesId, bs.sequence,
+			       ROW_NUMBER() OVER (PARTITION BY bs.seriesId ORDER BY CAST(bs.sequence AS REAL) ASC) as rn
+			FROM bookSeries bs
+			JOIN libraryItems li ON bs.bookId = li.mediaId
+			JOIN FinishedBooks fb ON bs.seriesId = fb.seriesId
+			LEFT JOIN mediaProgresses mp ON li.id = mp.mediaItemId AND mp.userId = ?
+			WHERE li.libraryId = ? AND li.mediaType = 'book'
+			  AND CAST(bs.sequence AS REAL) > CAST(fb.finished_seq AS REAL)
+			  AND (mp.id IS NULL OR mp.isFinished = 0)
+		)
+		SELECT library_item_id FROM NextBooks WHERE rn = 1
+	`
+	rows, err := db.Query(query, user.ID, libraryID, user.ID, libraryID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var itemIDs []string
+	for rows.Next() {
+		var itemID string
+		if err := rows.Scan(&itemID); err == nil {
+			itemIDs = append(itemIDs, itemID)
+		}
+	}
+
+	if len(itemIDs) == 0 {
+		return nil, nil
+	}
+
+	opts := idb.GetFilteredLibraryItemsOptions{
+		LibraryID: libraryID,
+		User:      user,
+		Include:   itemIDs,
+		MediaType: "book",
+		Minified:  true,
+		Limit:     limitVal,
+	}
+	items, _, err := idb.GetFilteredLibraryItems(db, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(items) == 0 {
+		return nil, nil
+	}
+
+	return &Shelf{
+		ID:             "continue-series",
+		Label:          "Continue Series",
+		LabelStringKey: "LabelContinueSeries",
+		Type:           "book",
+		Entities:       items,
+	}, nil
+}
+
 func HandleGetLibraryPersonalized(db *sql.DB, libraryID string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		userVal := r.Context().Value(core.UserContextKey)
@@ -791,6 +857,14 @@ func HandleGetLibraryPersonalized(db *sql.DB, libraryID string) http.HandlerFunc
 		progressShelves, err := fetchProgressShelves(db, libraryID, user, limitVal, lib.MediaType)
 		if err == nil && len(progressShelves) > 0 {
 			shelves = append(shelves, progressShelves...)
+		}
+
+		// 1.5. Fetch continue series items (books only)
+		if lib.MediaType == "book" {
+			seriesShelf, err := fetchContinueSeriesShelf(db, libraryID, user, limitVal)
+			if err == nil && seriesShelf != nil {
+				shelves = append(shelves, *seriesShelf)
+			}
 		}
 
 		// 2. Fetch recently added items

@@ -63,29 +63,76 @@ export async function loadSettings() {
   const bookCount = document.getElementById('book-count');
   if (bookCount) bookCount.textContent = 'System Config';
 
-  // Render settings structure with tabs
+  // Render settings structure with sidebar layout
   container.innerHTML = `
-    <div class="max-w-4xl mx-auto p-4">
-      <div class="flex border-b border-black-400 mb-6 overflow-x-auto whitespace-nowrap" id="settings-tabs">
-        <button class="px-4 py-2 border-b-2 border-accent text-accent font-semibold focus:outline-none" data-tab="users">Users</button>
-        <button class="px-4 py-2 border-b-2 border-transparent hover:text-white text-black-50 focus:outline-none" data-tab="libraries">Libraries</button>
-        <button class="px-4 py-2 border-b-2 border-transparent hover:text-white text-black-50 focus:outline-none" data-tab="server">Server Settings</button>
-        <button class="px-4 py-2 border-b-2 border-transparent hover:text-white text-black-50 focus:outline-none" data-tab="auth">Authentication (OIDC)</button>
-        <button class="px-4 py-2 border-b-2 border-transparent hover:text-white text-black-50 focus:outline-none" data-tab="backups">Backups</button>
-        <button class="px-4 py-2 border-b-2 border-transparent hover:text-white text-black-50 focus:outline-none" data-tab="providers">Metadata Providers</button>
-        <button class="px-4 py-2 border-b-2 border-transparent hover:text-white text-black-50 focus:outline-none" data-tab="upload">Upload Media</button>
-        <button class="px-4 py-2 border-b-2 border-transparent hover:text-white text-black-50 focus:outline-none" data-tab="apikeys">API Keys</button>
-        <button class="px-4 py-2 border-b-2 border-transparent hover:text-white text-black-50 focus:outline-none" data-tab="listening-sessions">Listening Sessions</button>
-        <button class="px-4 py-2 border-b-2 border-transparent hover:text-white text-black-50 focus:outline-none" data-tab="login-sessions">Login Sessions</button>
-        <button class="px-4 py-2 border-b-2 border-transparent hover:text-white text-black-50 focus:outline-none" data-tab="logs">Logs</button>
-        <button class="px-4 py-2 border-b-2 border-transparent hover:text-white text-black-50 focus:outline-none" data-tab="notifications">Notifications</button>
-        <button class="px-4 py-2 border-b-2 border-transparent hover:text-white text-black-50 focus:outline-none" data-tab="feeds">RSS Feeds</button>
-        <button class="px-4 py-2 border-b-2 border-transparent hover:text-white text-black-50 focus:outline-none" data-tab="emails">Email (E-Readers)</button>
-        <button class="px-4 py-2 border-b-2 border-transparent hover:text-white text-black-50 focus:outline-none" data-tab="shares">Public Shares</button>
+    <div class="max-w-7xl mx-auto p-4 flex flex-col md:flex-row gap-6 h-full min-h-0">
+      <!-- Left Settings Navigation Sidebar -->
+      <div class="w-full md:w-64 flex-shrink-0 bg-primary/45 border border-black-400/40 rounded-lg p-2 flex flex-col space-y-1 h-fit" id="settings-tabs">
+        <div class="text-xs font-semibold text-accent uppercase tracking-wider px-3 py-2 border-b border-black-400/40 mb-2">Settings</div>
+        <button class="w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-accent bg-black-500/80 flex items-center space-x-2" data-tab="users">
+          <span class="material-symbols text-lg">group</span>
+          <span>Users</span>
+        </button>
+        <button class="w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2" data-tab="libraries">
+          <span class="material-symbols text-lg">local_library</span>
+          <span>Libraries</span>
+        </button>
+        <button class="w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2" data-tab="server">
+          <span class="material-symbols text-lg">dns</span>
+          <span>Server Settings</span>
+        </button>
+        <button class="w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2" data-tab="auth">
+          <span class="material-symbols text-lg">security</span>
+          <span>Authentication</span>
+        </button>
+        <button class="w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2" data-tab="backups">
+          <span class="material-symbols text-lg">backup</span>
+          <span>Backups</span>
+        </button>
+        <button class="w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2" data-tab="providers">
+          <span class="material-symbols text-lg">api</span>
+          <span>Metadata Providers</span>
+        </button>
+        <button class="w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2" data-tab="upload">
+          <span class="material-symbols text-lg">upload</span>
+          <span>Upload Media</span>
+        </button>
+        <button class="w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2" data-tab="apikeys">
+          <span class="material-symbols text-lg">vpn_key</span>
+          <span>API Keys</span>
+        </button>
+        <button class="w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2" data-tab="listening-sessions">
+          <span class="material-symbols text-lg">insights</span>
+          <span>Listening Sessions</span>
+        </button>
+        <button class="w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2" data-tab="login-sessions">
+          <span class="material-symbols text-lg">devices</span>
+          <span>Login Sessions</span>
+        </button>
+        <button class="w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2" data-tab="logs">
+          <span class="material-symbols text-lg">description</span>
+          <span>Logs</span>
+        </button>
+        <button class="w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2" data-tab="notifications">
+          <span class="material-symbols text-lg">notifications</span>
+          <span>Notifications</span>
+        </button>
+        <button class="w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2" data-tab="feeds">
+          <span class="material-symbols text-lg">rss_feed</span>
+          <span>RSS Feeds</span>
+        </button>
+        <button class="w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2" data-tab="emails">
+          <span class="material-symbols text-lg">mail</span>
+          <span>E-Reader Email</span>
+        </button>
+        <button class="w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2" data-tab="shares">
+          <span class="material-symbols text-lg">share</span>
+          <span>Public Shares</span>
+        </button>
       </div>
 
-      <!-- Tab Contents -->
-      <div id="settings-tab-content">
+      <!-- Right Content Column -->
+      <div class="flex-grow bg-primary/20 border border-black-400/20 rounded-lg p-6 min-w-0" id="settings-tab-content">
         <div id="tab-users" class="space-y-6"></div>
         <div id="tab-libraries" class="space-y-6 hidden"></div>
         <div id="tab-server" class="space-y-6 hidden"></div>
@@ -110,11 +157,9 @@ export async function loadSettings() {
   tabs.forEach(tab => {
     tab.onclick = () => {
       tabs.forEach(t => {
-        t.classList.remove('border-accent', 'text-accent', 'font-semibold');
-        t.classList.add('border-transparent', 'text-black-50');
+        t.className = 'w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2';
       });
-      tab.classList.add('border-accent', 'text-accent', 'font-semibold');
-      tab.classList.remove('border-transparent', 'text-black-50');
+      tab.className = 'w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-accent bg-black-500/80 flex items-center space-x-2';
 
       const activeTabId = tab.dataset.tab;
       document.querySelectorAll('#settings-tab-content > div').forEach(content => {
@@ -191,17 +236,26 @@ async function renderServerSettingsTab() {
             <p class="text-xs text-black-100 mt-1">Use this URL to connect your e-readers and book discovery clients (e.g. KyBook, Marvin, Aldiko) to Audiobookshelf.</p>
           </div>
 
-          <div class="flex flex-col space-y-2 pt-2">
-            <label class="flex items-center space-x-2 cursor-pointer text-sm">
-              <input type="checkbox" id="setting-metadata-cover-with-item" ${settings.metadataCoverWithItem ? 'checked' : ''} class="rounded text-accent focus:ring-accent bg-black-500 border-black-300">
+          <div class="flex flex-col space-y-3 pt-2">
+            <label class="flex items-center space-x-3 cursor-pointer text-sm">
+              <span class="abs-switch">
+                <input type="checkbox" id="setting-metadata-cover-with-item" ${settings.metadataCoverWithItem ? 'checked' : ''}>
+                <span class="abs-slider"></span>
+              </span>
               <span>Embed cover image in item metadata folder</span>
             </label>
-            <label class="flex items-center space-x-2 cursor-pointer text-sm">
-              <input type="checkbox" id="setting-metadata-markdown-with-item" ${settings.metadataMarkdownWithItem ? 'checked' : ''} class="rounded text-accent focus:ring-accent bg-black-500 border-black-300">
+            <label class="flex items-center space-x-3 cursor-pointer text-sm">
+              <span class="abs-switch">
+                <input type="checkbox" id="setting-metadata-markdown-with-item" ${settings.metadataMarkdownWithItem ? 'checked' : ''}>
+                <span class="abs-slider"></span>
+              </span>
               <span>Save metadata as markdown alongside media files</span>
             </label>
-            <label class="flex items-center space-x-2 cursor-pointer text-sm">
-              <input type="checkbox" id="setting-sorting-ignore-prefix" ${settings.sortingIgnorePrefix !== false ? 'checked' : ''} class="rounded text-accent focus:ring-accent bg-black-500 border-black-300">
+            <label class="flex items-center space-x-3 cursor-pointer text-sm">
+              <span class="abs-switch">
+                <input type="checkbox" id="setting-sorting-ignore-prefix" ${settings.sortingIgnorePrefix !== false ? 'checked' : ''}>
+                <span class="abs-slider"></span>
+              </span>
               <span>Ignore title prefixes ("The", "A", "An", etc.) when sorting</span>
             </label>
           </div>
@@ -213,13 +267,19 @@ async function renderServerSettingsTab() {
         <div class="space-y-4">
           <h4 class="text-md font-semibold text-accent">Scanner Settings</h4>
 
-          <div class="flex flex-col space-y-2">
-            <label class="flex items-center space-x-2 cursor-pointer text-sm">
-              <input type="checkbox" id="setting-scanner-parse-subtitles" ${settings.scannerParseSubtitles !== false ? 'checked' : ''} class="rounded text-accent focus:ring-accent bg-black-500 border-black-300">
+          <div class="flex flex-col space-y-3">
+            <label class="flex items-center space-x-3 cursor-pointer text-sm">
+              <span class="abs-switch">
+                <input type="checkbox" id="setting-scanner-parse-subtitles" ${settings.scannerParseSubtitles !== false ? 'checked' : ''}>
+                <span class="abs-slider"></span>
+              </span>
               <span>Parse subtitles from folders/filenames</span>
             </label>
-            <label class="flex items-center space-x-2 cursor-pointer text-sm">
-              <input type="checkbox" id="setting-scanner-find-covers" ${settings.scannerFindCovers !== false ? 'checked' : ''} class="rounded text-accent focus:ring-accent bg-black-500 border-black-300">
+            <label class="flex items-center space-x-3 cursor-pointer text-sm">
+              <span class="abs-switch">
+                <input type="checkbox" id="setting-scanner-find-covers" ${settings.scannerFindCovers !== false ? 'checked' : ''}>
+                <span class="abs-slider"></span>
+              </span>
               <span>Automatically search for covers during scan</span>
             </label>
           </div>
@@ -234,13 +294,19 @@ async function renderServerSettingsTab() {
             </select>
           </div>
 
-          <div class="flex flex-col space-y-2 pt-2">
-            <label class="flex items-center space-x-2 cursor-pointer text-sm">
-              <input type="checkbox" id="setting-scanner-prefer-matched-metadata" ${settings.scannerPreferMatchedMetadata ? 'checked' : ''} class="rounded text-accent focus:ring-accent bg-black-500 border-black-300">
+          <div class="flex flex-col space-y-3 pt-2">
+            <label class="flex items-center space-x-3 cursor-pointer text-sm">
+              <span class="abs-switch">
+                <input type="checkbox" id="setting-scanner-prefer-matched-metadata" ${settings.scannerPreferMatchedMetadata ? 'checked' : ''}>
+                <span class="abs-slider"></span>
+              </span>
               <span>Prefer matched metadata over embedded tags</span>
             </label>
-            <label class="flex items-center space-x-2 cursor-pointer text-sm">
-              <input type="checkbox" id="setting-watch-library-changes" ${settings.watchLibraryChanges !== false ? 'checked' : ''} class="rounded text-accent focus:ring-accent bg-black-500 border-black-300">
+            <label class="flex items-center space-x-3 cursor-pointer text-sm">
+              <span class="abs-switch">
+                <input type="checkbox" id="setting-watch-library-changes" ${settings.watchLibraryChanges !== false ? 'checked' : ''}>
+                <span class="abs-slider"></span>
+              </span>
               <span>Watch library folders for changes</span>
             </label>
           </div>
@@ -252,13 +318,19 @@ async function renderServerSettingsTab() {
         <div class="space-y-4">
           <h4 class="text-md font-semibold text-accent">Web Client Settings</h4>
           
-          <div class="flex flex-col space-y-2">
-            <label class="flex items-center space-x-2 cursor-pointer text-sm">
-              <input type="checkbox" id="setting-chromecast-enabled" ${settings.chromecastEnabled ? 'checked' : ''} class="rounded text-accent focus:ring-accent bg-black-500 border-black-300">
+          <div class="flex flex-col space-y-3">
+            <label class="flex items-center space-x-3 cursor-pointer text-sm">
+              <span class="abs-switch">
+                <input type="checkbox" id="setting-chromecast-enabled" ${settings.chromecastEnabled ? 'checked' : ''}>
+                <span class="abs-slider"></span>
+              </span>
               <span>Enable Chromecast support</span>
             </label>
-            <label class="flex items-center space-x-2 cursor-pointer text-sm">
-              <input type="checkbox" id="setting-allow-iframe" ${settings.allowIframe ? 'checked' : ''} class="rounded text-accent focus:ring-accent bg-black-500 border-black-300">
+            <label class="flex items-center space-x-3 cursor-pointer text-sm">
+              <span class="abs-switch">
+                <input type="checkbox" id="setting-allow-iframe" ${settings.allowIframe ? 'checked' : ''}>
+                <span class="abs-slider"></span>
+              </span>
               <span>Allow embedding app in an iframe</span>
             </label>
           </div>
@@ -270,13 +342,19 @@ async function renderServerSettingsTab() {
         <div class="space-y-4">
           <h4 class="text-md font-semibold text-accent">Display Settings</h4>
 
-          <div class="flex flex-col space-y-2">
-            <label class="flex items-center space-x-2 cursor-pointer text-sm">
-              <input type="checkbox" id="setting-home-page-bookshelf-view" ${settings.homePageBookshelfView ? 'checked' : ''} class="rounded text-accent focus:ring-accent bg-black-500 border-black-300">
+          <div class="flex flex-col space-y-3">
+            <label class="flex items-center space-x-3 cursor-pointer text-sm">
+              <span class="abs-switch">
+                <input type="checkbox" id="setting-home-page-bookshelf-view" ${settings.homePageBookshelfView ? 'checked' : ''}>
+                <span class="abs-slider"></span>
+              </span>
               <span>Show Home Page in Bookshelf View</span>
             </label>
-            <label class="flex items-center space-x-2 cursor-pointer text-sm">
-              <input type="checkbox" id="setting-library-bookshelf-view" ${settings.libraryBookshelfView ? 'checked' : ''} class="rounded text-accent focus:ring-accent bg-black-500 border-black-300">
+            <label class="flex items-center space-x-3 cursor-pointer text-sm">
+              <span class="abs-switch">
+                <input type="checkbox" id="setting-library-bookshelf-view" ${settings.libraryBookshelfView ? 'checked' : ''}>
+                <span class="abs-slider"></span>
+              </span>
               <span>Show Library Page in Bookshelf View</span>
             </label>
           </div>

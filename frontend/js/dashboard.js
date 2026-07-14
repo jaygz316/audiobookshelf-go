@@ -103,14 +103,13 @@ export async function loadDashboard(libraryId, filterBy = '', filterLabel = '') 
 
     if (activeStyle === 'grid') {
       const gridContainer = document.createElement('div');
-      gridContainer.className = 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6 p-6 justify-items-center';
+      gridContainer.className = 'library-grid w-full';
       
       allItemsPayload.results.forEach(item => {
         const card = createCard(item, false, libraryId);
         card.className = 'relative cursor-pointer select-none box-shadow-book rounded-sm overflow-hidden flex-shrink-0 transition-transform hover:scale-105 group w-full';
-        const currentSize = parseInt(localStorage.getItem('bookshelf-card-width')) || 120;
-        card.style.width = `${currentSize}px`;
-        card.style.height = `${currentSize * 1.5}px`;
+        card.style.width = 'var(--bookshelf-card-width)';
+        card.style.height = 'var(--bookshelf-card-height)';
         gridContainer.appendChild(card);
       });
       bookshelfContainer.appendChild(gridContainer);
