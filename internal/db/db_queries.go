@@ -432,7 +432,7 @@ func getFilterWhere(filterBy string, mediaType string, tableAlias string, liAlia
 	return "", nil
 }
 
-func getSortOrder(sortBy string, sortDesc bool, sortingIgnorePrefix bool, mediaType string, userID string) string {
+func getSortOrder(sortBy string, sortDesc bool, sortingIgnorePrefix bool, mediaType string, userID string, args *[]interface{}) string {
 	dir := "ASC"
 	if sortDesc {
 		dir = "DESC"
@@ -484,7 +484,8 @@ func getSortOrder(sortBy string, sortDesc bool, sortingIgnorePrefix bool, mediaT
 			nullDir = "DESC NULLS FIRST"
 		}
 		if mediaType == "book" {
-			return fmt.Sprintf("(SELECT mp.updatedAt FROM mediaProgresses mp WHERE mp.mediaItemId = b.id AND mp.userId = '%s') %s", userID, nullDir)
+			*args = append(*args, userID)
+			return fmt.Sprintf("(SELECT mp.updatedAt FROM mediaProgresses mp WHERE mp.mediaItemId = b.id AND mp.userId = ?) %s", nullDir)
 		}
 	case "media.metadata.author":
 		if mediaType == "podcast" {
@@ -913,7 +914,7 @@ func GetFilteredLibraryItems(db *sql.DB, options GetFilteredLibraryItemsOptions)
 		return nil, 0, err
 	}
 
-	orderClause := "ORDER BY " + getSortOrder(options.SortBy, options.SortDesc, sortingIgnorePrefix, options.MediaType, options.User.ID)
+	orderClause := "ORDER BY " + getSortOrder(options.SortBy, options.SortDesc, sortingIgnorePrefix, options.MediaType, options.User.ID, &args)
 
 	limitOffsetClause := ""
 	if options.Limit > 0 {
