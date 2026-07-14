@@ -561,6 +561,17 @@ func registerSettingsRoutes(mux *http.ServeMux, cfg *core.Config, db *sql.DB) {
 		}
 		http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
 	})
+	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/session/"), func(w http.ResponseWriter, r *http.Request) {
+		subPath := strings.TrimPrefix(r.URL.Path, joinPath(cfg.RouterBasePath, "/api/session/"))
+		parts := strings.Split(subPath, "/")
+		if len(parts) == 1 && parts[0] == "local-all" {
+			if r.Method == http.MethodPost {
+				AuthMiddlewareWrapper(db, handleSyncLocalSessions(db)).ServeHTTP(w, r)
+				return
+			}
+		}
+		http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
+	})
 }
 
 func registerMetadataRoutes(mux *http.ServeMux, cfg *core.Config, db *sql.DB) {
@@ -1153,6 +1164,11 @@ func handleMeDispatch(db *sql.DB, cfg *core.Config) http.HandlerFunc {
 					AuthMiddlewareWrapper(db, handleMeRemoveBookmark(db)).ServeHTTP(w, r)
 					return
 				}
+			}
+		} else if len(parts) == 1 && parts[0] == "sync-local-progress" {
+			if r.Method == http.MethodPost {
+				AuthMiddlewareWrapper(db, handleSyncLocalProgress(db)).ServeHTTP(w, r)
+				return
 			}
 		}
 
