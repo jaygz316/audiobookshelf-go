@@ -11,7 +11,7 @@ import (
 	"audiobookshelf/internal/core"
 )
 
-func TestAdminDeletesRootUser_BugVerification(t *testing.T) {
+func TestAdminDeletesRootUser_SecurityControl(t *testing.T) {
 	db := setupUsersTestDB(t)
 	defer db.Close()
 
@@ -42,29 +42,23 @@ func TestAdminDeletesRootUser_BugVerification(t *testing.T) {
 	// Call the handler
 	handleUserCRUD(db).ServeHTTP(rr, req)
 
-	// Check if delete succeeded.
-	// If it returns 200, the bug is present (admin is able to delete root user).
-	// If it returns 400 Bad Request or 403 Forbidden, the bug is fixed/not present.
-	if rr.Code == http.StatusOK {
-		t.Logf("Bug confirmed: Admin successfully deleted root user. Status: %d, Body: %s", rr.Code, rr.Body.String())
+	// Check if delete was blocked.
+	if rr.Code != http.StatusForbidden {
+		t.Errorf("Expected 403 Forbidden when admin attempts to delete root user, got %d", rr.Code)
+	}
 
-		// Verify root is actually gone from the database
-		var count int
-		err = db.QueryRow("SELECT COUNT(*) FROM users WHERE id = ?", rootUserID).Scan(&count)
-		if err != nil {
-			t.Fatalf("db query failed: %v", err)
-		}
-		if count == 0 {
-			t.Logf("Empirical proof: root user was removed from DB")
-		} else {
-			t.Errorf("Root user still exists in DB despite 200 OK")
-		}
-	} else {
-		t.Fatalf("Expected bug reproduction (200 OK), but got: %d", rr.Code)
+	// Verify root is still in the database
+	var count int
+	err = db.QueryRow("SELECT COUNT(*) FROM users WHERE id = ?", rootUserID).Scan(&count)
+	if err != nil {
+		t.Fatalf("db query failed: %v", err)
+	}
+	if count != 1 {
+		t.Errorf("Expected root user to still exist in DB, count: %d", count)
 	}
 }
 
-func TestRootUserDisablesSelf_BugVerification(t *testing.T) {
+func TestRootUserDisablesSelf_SecurityControl(t *testing.T) {
 	db := setupUsersTestDB(t)
 	defer db.Close()
 
@@ -96,26 +90,22 @@ func TestRootUserDisablesSelf_BugVerification(t *testing.T) {
 	// Call the handler
 	handleUserCRUD(db).ServeHTTP(rr, req)
 
-	if rr.Code == http.StatusOK {
-		t.Logf("Observation: Root user successfully disabled itself. Status: %d, Body: %s", rr.Code, rr.Body.String())
+	if rr.Code != http.StatusBadRequest {
+		t.Errorf("Expected 400 Bad Request when root user attempts to disable self, got %d", rr.Code)
+	}
 
-		// Verify root is inactive in the database
-		var isActive int
-		err = db.QueryRow("SELECT isActive FROM users WHERE id = ?", rootUserID).Scan(&isActive)
-		if err != nil {
-			t.Fatalf("db query failed: %v", err)
-		}
-		if isActive == 0 {
-			t.Logf("Empirical proof: root user was deactivated in DB")
-		} else {
-			t.Errorf("Root user is still active in DB despite 200 OK")
-		}
-	} else {
-		t.Fatalf("Expected 200 OK for patch, got: %d", rr.Code)
+	// Verify root is still active in the database
+	var isActive int
+	err = db.QueryRow("SELECT isActive FROM users WHERE id = ?", rootUserID).Scan(&isActive)
+	if err != nil {
+		t.Fatalf("db query failed: %v", err)
+	}
+	if isActive != 1 {
+		t.Errorf("Expected root user to remain active in DB, got: %d", isActive)
 	}
 }
 
-func TestAdminEscalatesToRoot_BugVerification(t *testing.T) {
+func TestAdminEscalatesToRoot_SecurityControl(t *testing.T) {
 	db := setupUsersTestDB(t)
 	defer db.Close()
 
@@ -155,22 +145,18 @@ func TestAdminEscalatesToRoot_BugVerification(t *testing.T) {
 	// Call the handler
 	handleUserCRUD(db).ServeHTTP(rr, req)
 
-	if rr.Code == http.StatusOK {
-		t.Logf("Bug confirmed: Admin successfully escalated regular user to root. Status: %d, Body: %s", rr.Code, rr.Body.String())
+	if rr.Code != http.StatusForbidden {
+		t.Errorf("Expected 403 Forbidden when admin attempts to escalate user to root, got %d", rr.Code)
+	}
 
-		// Verify user type in the database
-		var userType string
-		err = db.QueryRow("SELECT type FROM users WHERE id = ?", regularUserID).Scan(&userType)
-		if err != nil {
-			t.Fatalf("db query failed: %v", err)
-		}
-		if userType == "root" {
-			t.Logf("Empirical proof: regular user type was updated to 'root' in DB")
-		} else {
-			t.Errorf("User type was not escalated, type is: %s", userType)
-		}
-	} else {
-		t.Fatalf("Expected 200 OK for patch, got: %d", rr.Code)
+	// Verify user type in the database
+	var userType string
+	err = db.QueryRow("SELECT type FROM users WHERE id = ?", regularUserID).Scan(&userType)
+	if err != nil {
+		t.Fatalf("db query failed: %v", err)
+	}
+	if userType != "user" {
+		t.Errorf("Expected user type to remain 'user', got %s", userType)
 	}
 }
 
@@ -244,6 +230,19 @@ func TestUserFormValidationConstraints(t *testing.T) {
 
 		if rr.Code != http.StatusOK {
 			t.Errorf("Expected 200 OK, got %d. Body: %s", rr.Code, rr.Body.String())
+		}
+	})
+
+	// 5. POST root user as admin (should be rejected)
+	t.Run("CreateRootUserAsAdmin", func(t *testing.T) {
+		body := `{"username": "attemptedroot", "password": "password", "type": "root", "isActive": true}`
+		req := httptest.NewRequest("POST", "/api/users", bytes.NewBufferString(body))
+		req = req.WithContext(context.WithValue(req.Context(), core.UserContextKey, adminSession))
+		rr := httptest.NewRecorder()
+		handleUserCRUD(db).ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusForbidden {
+			t.Errorf("Expected 403 Forbidden when admin attempts to create root user, got %d. Body: %s", rr.Code, rr.Body.String())
 		}
 	})
 }
