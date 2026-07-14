@@ -152,6 +152,7 @@ func main() {
 		signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 		sig := <-sigChan
 		log.Printf("Received signal %v. Shutting down Go Gateway...", sig)
+		handlers.ShutdownStreamManager()
 		if watcher.GlobalWatcher != nil {
 			if err := watcher.GlobalWatcher.Close(); err != nil {
 				log.Printf("[Watcher] Error closing watcher: %v", err)

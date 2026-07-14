@@ -109,6 +109,16 @@ func (sm *StreamManager) RemoveStream(id string) {
 	}
 }
 
+// Close terminates and cleans up all active streams in the manager.
+func (sm *StreamManager) Close() {
+	sm.streamsMu.Lock()
+	defer sm.streamsMu.Unlock()
+	for id, s := range sm.streams {
+		s.Close()
+		delete(sm.streams, id)
+	}
+}
+
 // LoadOrCreateStream retrieves a stream if cached, or initializes a new one from the database.
 func (sm *StreamManager) LoadOrCreateStream(db *sql.DB, streamID string, metadataPath string, socketAuth *isocket.Authority) (*Stream, error) {
 	sm.streamsMu.Lock()

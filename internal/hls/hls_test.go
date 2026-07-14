@@ -245,3 +245,47 @@ func TestWriteConcatFile(t *testing.T) {
 		t.Errorf("Concat file content mismatch for offset start.\nExpected:\n%q\n\nGot:\n%q", expectedContent2, string(contentBytes2))
 	}
 }
+
+func TestStreamManager_Close(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "hls-mgr-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	sm := NewStreamManager()
+	s1Path := filepath.Join(tempDir, "stream1")
+	s2Path := filepath.Join(tempDir, "stream2")
+	_ = os.MkdirAll(s1Path, 0755)
+	_ = os.MkdirAll(s2Path, 0755)
+
+	s1 := &Stream{
+		ID:         "stream1",
+		StreamPath: s1Path,
+	}
+	s2 := &Stream{
+		ID:         "stream2",
+		StreamPath: s2Path,
+	}
+
+	sm.AddStream(s1)
+	sm.AddStream(s2)
+
+	if sm.GetStream("stream1") == nil || sm.GetStream("stream2") == nil {
+		t.Errorf("Expected both streams to be in the manager")
+	}
+
+	// Close the manager, which should close and clean up both streams
+	sm.Close()
+
+	if sm.GetStream("stream1") != nil || sm.GetStream("stream2") != nil {
+		t.Errorf("Expected both streams to be removed from the manager after Close()")
+	}
+
+	if _, err := os.Stat(s1Path); !os.IsNotExist(err) {
+		t.Errorf("Expected stream1 directory to be deleted")
+	}
+	if _, err := os.Stat(s2Path); !os.IsNotExist(err) {
+		t.Errorf("Expected stream2 directory to be deleted")
+	}
+}

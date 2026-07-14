@@ -79,3 +79,10 @@ func reinitManagers(db *sql.DB) {
 	globalFeedManager = feed.NewFeedManager(db, MetadataPath)
 	globalPodcastManager = podcast.NewPodcastManager(db)
 }
+
+// ShutdownStreamManager shuts down all active transcoding sessions to prevent orphaned FFmpeg processes.
+func ShutdownStreamManager() {
+	if streamManager != nil {
+		streamManager.Close()
+	}
+}
