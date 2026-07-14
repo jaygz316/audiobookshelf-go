@@ -66,6 +66,8 @@ func TestBookmarkHandlers(t *testing.T) {
 		payload := map[string]interface{}{
 			"time":  123.45,
 			"title": "My Test Bookmark",
+			"note":  "Some test note",
+			"color": "#ef4444",
 		}
 		body, _ := json.Marshal(payload)
 		req := httptest.NewRequest("POST", "/api/me/item/book-abc/bookmark", bytes.NewReader(body))
@@ -93,6 +95,12 @@ func TestBookmarkHandlers(t *testing.T) {
 		if created.Title != "My Test Bookmark" {
 			t.Errorf("Expected title 'My Test Bookmark', got '%s'", created.Title)
 		}
+		if created.Note != "Some test note" {
+			t.Errorf("Expected note 'Some test note', got '%s'", created.Note)
+		}
+		if created.Color != "#ef4444" {
+			t.Errorf("Expected color '#ef4444', got '%s'", created.Color)
+		}
 
 		// Verify database state
 		user, err := idb.GetUserFullByID(context.Background(), db, "user-1")
@@ -107,6 +115,12 @@ func TestBookmarkHandlers(t *testing.T) {
 			if bookmarks[0].Title != "My Test Bookmark" {
 				t.Errorf("Expected title 'My Test Bookmark' in db, got '%s'", bookmarks[0].Title)
 			}
+			if bookmarks[0].Note != "Some test note" {
+				t.Errorf("Expected note 'Some test note' in db, got '%s'", bookmarks[0].Note)
+			}
+			if bookmarks[0].Color != "#ef4444" {
+				t.Errorf("Expected color '#ef4444' in db, got '%s'", bookmarks[0].Color)
+			}
 		}
 	})
 
@@ -115,6 +129,8 @@ func TestBookmarkHandlers(t *testing.T) {
 		payload := map[string]interface{}{
 			"time":  123.45,
 			"title": "My Updated Bookmark Title",
+			"note":  "Some updated note",
+			"color": "#10b981",
 		}
 		body, _ := json.Marshal(payload)
 		req := httptest.NewRequest("PATCH", "/api/me/item/book-abc/bookmark", bytes.NewReader(body))
@@ -136,6 +152,12 @@ func TestBookmarkHandlers(t *testing.T) {
 		if updated.Title != "My Updated Bookmark Title" {
 			t.Errorf("Expected updated title 'My Updated Bookmark Title', got '%s'", updated.Title)
 		}
+		if updated.Note != "Some updated note" {
+			t.Errorf("Expected updated note 'Some updated note', got '%s'", updated.Note)
+		}
+		if updated.Color != "#10b981" {
+			t.Errorf("Expected updated color '#10b981', got '%s'", updated.Color)
+		}
 
 		// Verify database state
 		user, err := idb.GetUserFullByID(context.Background(), db, "user-1")
@@ -144,7 +166,7 @@ func TestBookmarkHandlers(t *testing.T) {
 		}
 		var bookmarks []Bookmark
 		json.Unmarshal(user.Bookmarks, &bookmarks)
-		if len(bookmarks) != 1 || bookmarks[0].Title != "My Updated Bookmark Title" {
+		if len(bookmarks) != 1 || bookmarks[0].Title != "My Updated Bookmark Title" || bookmarks[0].Note != "Some updated note" || bookmarks[0].Color != "#10b981" {
 			t.Errorf("DB bookmark was not updated properly: %v", bookmarks)
 		}
 	})

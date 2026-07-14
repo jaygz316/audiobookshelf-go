@@ -22,15 +22,15 @@ This document tracks the tasks and missing features of the `audiobookshelf-go` p
 
 ### 1. Playback & Player Interface (Web Client)
 - [ ] **Interactive Visual Waveforms**: Generate and render dynamic SVGs/canvas waveforms in the player bar for seeking.
-- [ ] **Advanced Playback Speed Controls**: Add a fine-tuned slider/preset menu (0.5x to 3.0x in 0.05x increments) and speed persistence (global vs. per-book).
-- [ ] **Volume Boost & Equalizer Controls**: Implement volume booster slider and preset EQ controls.
-- [ ] **Comprehensive Sleep Timer Settings**:
-  - [ ] Sleep timer duration selector (minutes or end-of-chapter).
-  - [ ] Shake-to-extend toggle and sensitivity control.
-  - [ ] Gradual audio fade-out timer customization.
-- [ ] **Play History Panel**: Track and render detailed timelines of previous listening sessions, showing device name, duration, and exact timestamps.
+- [x] **Advanced Playback Speed Controls**: Add a fine-tuned slider/preset menu (0.5x to 3.0x in 0.05x increments) and speed persistence (global vs. per-book).
+- [x] **Volume Boost & Equalizer Controls**: Implement volume booster slider and preset EQ controls.
+- [x] **Comprehensive Sleep Timer Settings**:
+  - [x] Sleep timer duration selector (minutes or end-of-chapter).
+  - [x] Shake-to-extend toggle and sensitivity control.
+  - [x] Gradual audio fade-out timer customization.
+- [x] **Play History Panel**: Track and render detailed timelines of previous listening sessions, showing device name, duration, and exact timestamps.
 - [ ] **Active Playback Queue Manager**: UI to view, append, reorder (via drag handles), and clear current tracks or books queue.
-- [ ] **Bookmarks Manager Panel**: Bookmark creation with custom text notes, color tags, and export/import bookmarks.
+- [x] **Bookmarks Manager Panel**: Bookmark creation with custom text notes, color tags, and export/import bookmarks.
 
 ### 2. E-Book Reader UI
 - [ ] **Flow vs. Paginated Layouts**: Add toggle for continuous vertical scroll vs. page-by-page view.

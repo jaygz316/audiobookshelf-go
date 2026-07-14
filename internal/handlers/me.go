@@ -859,6 +859,8 @@ type Bookmark struct {
 	LibraryItemID string  `json:"libraryItemId"`
 	Time          float64 `json:"time"`
 	Title         string  `json:"title"`
+	Note          string  `json:"note"`
+	Color         string  `json:"color"`
 	CreatedAt     int64   `json:"createdAt"`
 }
 
@@ -882,6 +884,8 @@ func handleMeCreateBookmark(db *sql.DB) http.HandlerFunc {
 		var body struct {
 			Time  float64 `json:"time"`
 			Title string  `json:"title"`
+			Note  string  `json:"note"`
+			Color string  `json:"color"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 			http.Error(w, `{"error": "Invalid request body"}`, http.StatusBadRequest)
@@ -909,6 +913,8 @@ func handleMeCreateBookmark(db *sql.DB) http.HandlerFunc {
 			LibraryItemID: libraryItemID,
 			Time:          body.Time,
 			Title:         body.Title,
+			Note:          body.Note,
+			Color:         body.Color,
 			CreatedAt:     time.Now().UnixMilli(),
 		}
 		bookmarks = append(bookmarks, newBookmark)
@@ -952,6 +958,8 @@ func handleMeUpdateBookmark(db *sql.DB) http.HandlerFunc {
 		var body struct {
 			Time  float64 `json:"time"`
 			Title string  `json:"title"`
+			Note  string  `json:"note"`
+			Color string  `json:"color"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 			http.Error(w, `{"error": "Invalid request body"}`, http.StatusBadRequest)
@@ -974,6 +982,8 @@ func handleMeUpdateBookmark(db *sql.DB) http.HandlerFunc {
 		for i, b := range bookmarks {
 			if b.LibraryItemID == libraryItemID && b.Time == body.Time {
 				bookmarks[i].Title = body.Title
+				bookmarks[i].Note = body.Note
+				bookmarks[i].Color = body.Color
 				updated = bookmarks[i]
 				found = true
 				break
