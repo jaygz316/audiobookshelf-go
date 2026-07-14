@@ -13,6 +13,7 @@ let currentWaveform = null;
 let hoverPct = null;
 let hoverX = null;
 let playbackQueue = [];
+let draggedQueueIndex = null;
 
 // Sleep Timer variables
 let sleepTimerId = null;
@@ -1735,8 +1736,13 @@ function renderQueueDialogContent(dialog) {
     }
 
     const row = document.createElement('div');
-    row.className = 'flex items-center space-x-3 p-2 bg-black-500/40 rounded border border-black-400/30 hover:border-black-400 transition-colors';
+    row.className = 'queue-item-row flex items-center space-x-3 p-2 bg-black-500/40 rounded border border-black-400/30 hover:border-black-400 transition-all cursor-move select-none';
+    row.setAttribute('draggable', 'true');
+    row.dataset.index = idx;
     row.innerHTML = `
+      <div class="flex items-center text-black-200 hover:text-white select-none mr-1 drag-handle cursor-grab active:cursor-grabbing">
+        <span class="material-symbols text-lg">drag_handle</span>
+      </div>
       <img src="${coverUrl}" class="w-8 h-12 object-cover rounded shadow border border-black-400/20" onerror="this.onerror=null; this.src='assets/images/logo.png'">
       <div class="flex-grow min-w-0 text-left">
         <div class="text-xs font-semibold text-white truncate">${escapeHtml(title)}</div>
@@ -1769,6 +1775,41 @@ function renderQueueDialogContent(dialog) {
       e.stopPropagation();
       removeFromQueue(idx);
     };
+
+    // Attach HTML5 drag and drop events
+    row.addEventListener('dragstart', (e) => {
+      draggedQueueIndex = idx;
+      row.classList.add('opacity-40');
+      e.dataTransfer.effectAllowed = 'move';
+    });
+
+    row.addEventListener('dragend', () => {
+      row.classList.remove('opacity-40');
+      draggedQueueIndex = null;
+    });
+
+    row.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+    });
+
+    row.addEventListener('dragenter', () => {
+      if (draggedQueueIndex !== null && idx !== draggedQueueIndex) {
+        row.classList.add('bg-black-400/80');
+      }
+    });
+
+    row.addEventListener('dragleave', () => {
+      row.classList.remove('bg-black-400/80');
+    });
+
+    row.addEventListener('drop', (e) => {
+      e.preventDefault();
+      row.classList.remove('bg-black-400/80');
+      if (draggedQueueIndex !== null && draggedQueueIndex !== idx) {
+        reorderQueue(draggedQueueIndex, idx);
+      }
+    });
 
     queueListContainer.appendChild(row);
   });

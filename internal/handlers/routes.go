@@ -1301,7 +1301,7 @@ func handleBackupsDispatch(db *sql.DB, cfg *core.Config) http.HandlerFunc {
 func HandleItemsDispatch(db *sql.DB, cfg *core.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Path
-		if strings.HasSuffix(path, "/cover") {
+		if r.Method == http.MethodGet && strings.HasSuffix(path, "/cover") {
 			AuthMiddlewareWrapper(db, serveCover(db, cfg.MetadataPath)).ServeHTTP(w, r)
 			return
 		}
@@ -1349,6 +1349,12 @@ func HandleItemsDispatch(db *sql.DB, cfg *core.Config) http.HandlerFunc {
 		} else if (len(parts) == 2 || len(parts) == 3) && parts[1] == "play" {
 			if r.Method == http.MethodPost {
 				AuthMiddlewareWrapper(db, ihls.HandlePlayItem(db, streamManager)).ServeHTTP(w, r)
+				return
+			}
+		} else if len(parts) == 2 && parts[1] == "cover" {
+			itemID := parts[0]
+			if r.Method == http.MethodPost {
+				AuthMiddlewareWrapper(db, http.HandlerFunc(handleUploadCover(db, cfg, itemID))).ServeHTTP(w, r)
 				return
 			}
 		} else if len(parts) == 2 && parts[1] == "cover-from-url" {
