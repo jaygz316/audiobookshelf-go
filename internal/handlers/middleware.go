@@ -185,14 +185,13 @@ func getTokenSecret(db *sql.DB) string {
 	if db == nil {
 		return ""
 	}
-	settings, err := idb.GetServerSettings(db)
-	if err == nil && settings != nil && settings.TokenSecret != "" {
+	secret := idb.GetTokenSecret(db)
+	if secret != "" {
 		tokenSecretCacheMu.Lock()
-		tokenSecretCache = settings.TokenSecret
+		tokenSecretCache = secret
 		tokenSecretCacheMu.Unlock()
-		return settings.TokenSecret
 	}
-	return ""
+	return secret
 }
 
 // RateLimiter tracks request rate per IP.
