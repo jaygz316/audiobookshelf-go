@@ -38,6 +38,11 @@ type User struct {
 // UserPermissionsDetailed corresponds to the parsed permissions object stored in the DB
 type UserPermissionsDetailed struct {
 	Download                  *bool    `json:"download,omitempty"`
+	Upload                    *bool    `json:"upload,omitempty"`
+	Delete                    *bool    `json:"delete,omitempty"`
+	Update                    *bool    `json:"update,omitempty"`
+	AccessRss                 *bool    `json:"accessRss,omitempty"`
+	CreatePublicShares        *bool    `json:"createShares,omitempty"`
 	AccessExplicitContent     *bool    `json:"accessExplicitContent,omitempty"`
 	AccessAllLibraries        *bool    `json:"accessAllLibraries,omitempty"`
 	LibrariesAccessible       []string `json:"librariesAccessible,omitempty"`

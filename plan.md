@@ -1,19 +1,21 @@
-# Plan: Granular User Permissions Support
+# Plan: Advanced UI & Mirroring Parity Features
 
-## Goals:
-1. Stage and commit previous EPUB, PDF reader, and queue manager changes.
-2. Extend user permissions models on backend (`UserPermissionsDetailed`, `userPermissions`, and `core.UserSession`) to include `upload`, `delete`, `update`, `accessRss`, and `createShares`.
-3. Add form fields (toggles/checkboxes) in the User Modal in `frontend/js/settings.js` to manage these granular permissions.
-4. Update API permission extraction in the backend and enforce permissions on upload, delete, update, RSS, and public share API endpoints.
-5. Run tests to verify backend compilation and correct handlers enforcement.
+## Status: Completed Successfully
 
-## Files to Modify:
-- `internal/core/core.go`: Update `UserSession` struct.
-- `internal/db/db.go`: Update `userPermissions` struct and `ParsePermissions` function.
-- `internal/db/users.go`: Update `UserPermissionsDetailed` struct.
-- `internal/handlers/users.go`: Parse the new permissions in create/update handlers.
-- `internal/handlers/library_handlers.go`: Enforce update/delete/upload permissions.
-- `internal/handlers/share_handlers.go`: Enforce create shares permission.
-- `internal/handlers/feeds.go`: Enforce RSS permission.
-- `frontend/js/settings.js`: Add checkboxes for new permissions in `triggerUserModal`.
-- `task.md`: Mark granular permissions task as checked.
+All goals for search presets and column customization have been fully implemented:
+
+1. **Custom Search Presets**:
+   - Added a **Save View** button next to the filter/sort options.
+   - Built a dynamic **Save View Preset** modal (`presets.js`) that captures the current active library's filter, sort selection, and sorting direction.
+   - Implemented standard local-storage persisting per library (`presets-${libraryId}`).
+   - Rendered quick-access preset pills next to the library item count inside the Toolbar Header.
+   - Added reactive rendering on library change and support for deleting presets with a single click.
+
+2. **Column Customization**:
+   - Added an inline **Settings Cog** dropdown inside the list view table headers.
+   - Created checkable options for all list view columns: *Cover*, *Author*, *Narrator*, *Series*, *Duration*, *Date Added*, *Release Year*, *Progress*, and *Action*.
+   - Wired up column checkboxes to dynamically alter list rows, update settings in `localStorage` (`list-view-columns`), and automatically reload the dashboard.
+   - Added async progressive fetching of user playback progress to populate the *Progress* column dynamically.
+
+3. **E2E and Build Sanity**:
+   - Executed full project builds and unit test suites; all 100% passing.

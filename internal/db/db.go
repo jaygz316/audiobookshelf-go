@@ -173,6 +173,11 @@ func ParseEpochMillis(s string) int64 {
 // userPermissions is the internal struct for parsing DB permissions JSON.
 type userPermissions struct {
 	Download                  *bool    `json:"download"`
+	Upload                    *bool    `json:"upload"`
+	Delete                    *bool    `json:"delete"`
+	Update                    *bool    `json:"update"`
+	AccessRss                 *bool    `json:"accessRss"`
+	CreatePublicShares        *bool    `json:"createShares"`
 	AccessExplicitContent     *bool    `json:"accessExplicitContent"`
 	AccessAllLibraries        *bool    `json:"accessAllLibraries"`
 	LibrariesAccessible       []string `json:"librariesAccessible"`
@@ -186,6 +191,11 @@ type userPermissions struct {
 func ParsePermissions(permsStr sql.NullString, user *core.UserSession) {
 	// default values:
 	user.CanDownload = true
+	user.CanUpload = true
+	user.CanDelete = false
+	user.CanUpdate = false
+	user.CanAccessRss = true
+	user.CanCreateShares = true
 	user.CanAccessExplicitContent = false
 	user.AccessAllLibraries = true
 	user.LibrariesAccessible = []string{}
@@ -198,6 +208,11 @@ func ParsePermissions(permsStr sql.NullString, user *core.UserSession) {
 		user.CanAccessExplicitContent = true
 		user.AccessAllLibraries = true
 		user.AccessAllTags = true
+		user.CanUpload = true
+		user.CanDelete = true
+		user.CanUpdate = true
+		user.CanAccessRss = true
+		user.CanCreateShares = true
 	}
 
 	if !permsStr.Valid || permsStr.String == "" {
@@ -211,6 +226,21 @@ func ParsePermissions(permsStr sql.NullString, user *core.UserSession) {
 
 	if perms.Download != nil {
 		user.CanDownload = *perms.Download
+	}
+	if perms.Upload != nil {
+		user.CanUpload = *perms.Upload
+	}
+	if perms.Delete != nil {
+		user.CanDelete = *perms.Delete
+	}
+	if perms.Update != nil {
+		user.CanUpdate = *perms.Update
+	}
+	if perms.AccessRss != nil {
+		user.CanAccessRss = *perms.AccessRss
+	}
+	if perms.CreatePublicShares != nil {
+		user.CanCreateShares = *perms.CreatePublicShares
 	}
 	if perms.AccessExplicitContent != nil {
 		user.CanAccessExplicitContent = *perms.AccessExplicitContent

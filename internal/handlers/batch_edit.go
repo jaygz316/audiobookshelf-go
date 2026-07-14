@@ -53,7 +53,7 @@ func handleBatchUpdateLibraryItems(db *sql.DB, cfg *core.Config) http.HandlerFun
 		}
 		user := userVal.(*core.UserSession)
 
-		if user.Type != "root" && user.Type != "admin" {
+		if user.Type != "root" && user.Type != "admin" && !user.CanUpdate {
 			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
 			return
 		}

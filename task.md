@@ -21,7 +21,7 @@ This document tracks the tasks and missing features of the `audiobookshelf-go` p
 ## Missing UI Features (Feature Parity Roadmap)
 
 ### 1. Playback & Player Interface (Web Client)
-- [ ] **Interactive Visual Waveforms**: Generate and render dynamic SVGs/canvas waveforms in the player bar for seeking.
+- [x] **Interactive Visual Waveforms**: Generate and render dynamic SVGs/canvas waveforms in the player bar for seeking.
 - [x] **Advanced Playback Speed Controls**: Add a fine-tuned slider/preset menu (0.5x to 3.0x in 0.05x increments) and speed persistence (global vs. per-book).
 - [x] **Volume Boost & Equalizer Controls**: Implement volume booster slider and preset EQ controls.
 - [x] **Comprehensive Sleep Timer Settings**:
@@ -40,12 +40,12 @@ This document tracks the tasks and missing features of the `audiobookshelf-go` p
 - [x] **PDF Reader Enhancements**: Add page thumbnails side rail, search page index, and zoom in/out controls.
 
 ### 3. Library Sorting, Filtering & Presets
-- [ ] **Custom Search Presets**: Save and name custom combinations of filters/sort options as quick-access tabs on the main navigation.
+- [x] **Custom Search Presets**: Save and name custom combinations of filters/sort options as quick-access tabs on the main navigation.
 - [x] **Comprehensive Grid Filters**: Dropdown selection filters for Publisher, Release Year, Narrator, Series, Progress State (unstarted, in-progress, completed), Duration (under 1h, 1-5h, etc.), and Folder Path.
-- [ ] **Grid Layout Sizing & Bookshelf Customizer**:
+- [x] **Grid Layout Sizing & Bookshelf Customizer**:
   - [x] Bookshelf shelf size adjuster slider (`- 120 +`).
   - [x] Bookshelf style switcher (wooden shelf graphic vs. flat grid vs. detail list).
-  - [ ] Column customization for the detail list view.
+  - [x] **Column Customization**: Add support for configuring columns in the detail list view.
 
 ### 4. Metadata Management & Interactive Editors
 - [ ] **Visual Match Dialog (Diff Viewer)**: Compare side-by-side search results from metadata providers (Audible, Open Library, Google Books, etc.) before applying changes.
@@ -63,11 +63,11 @@ This document tracks the tasks and missing features of the `audiobookshelf-go` p
 - [ ] **Subscription Cleanup Policies**: Dropdown settings per podcast for episode retention limits, automatic deletion of played episodes, and check schedule intervals.
 
 ### 6. Server Administration & Permissions
-- [ ] **Granular User Permissions Manager**: Checkboxes for editing individual permissions:
-  - [ ] Access specific libraries.
-  - [ ] Upload files / Delete media.
-  - [ ] Edit metadata / Force library scans.
-  - [ ] Access RSS feeds / Create public shares.
+- [x] **Granular User Permissions Manager**: Checkboxes for editing individual permissions:
+  - [x] Access specific libraries.
+  - [x] Upload files / Delete media.
+  - [x] Edit metadata / Force library scans.
+  - [x] Access RSS feeds / Create public shares.
 - [ ] **Active Session List**: View current active tokens, login timestamps, device operating system/browser, IP address, and single-click "Revoke Session" buttons.
 - [ ] **API Keys Management Tab**: Create API keys with descriptions, view masked key strings, copy key, and revoke keys.
 

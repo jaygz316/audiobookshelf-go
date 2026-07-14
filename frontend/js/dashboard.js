@@ -8,6 +8,31 @@ import { showToast } from './app.js';
 let batchEditMode = false;
 const selectedItems = new Set();
 
+const ALL_COLUMNS = [
+  { key: 'cover', label: 'Cover', default: true },
+  { key: 'title', label: 'Title', default: true },
+  { key: 'author', label: 'Author', default: true },
+  { key: 'narrator', label: 'Narrator', default: false },
+  { key: 'series', label: 'Series', default: true },
+  { key: 'duration', label: 'Duration', default: true },
+  { key: 'dateAdded', label: 'Date Added', default: false },
+  { key: 'year', label: 'Release Year', default: false },
+  { key: 'progress', label: 'Progress', default: false },
+  { key: 'action', label: 'Action', default: true }
+];
+
+function getVisibleColumns() {
+  try {
+    const saved = localStorage.getItem('list-view-columns');
+    if (saved) return JSON.parse(saved);
+  } catch (e) {}
+  return ALL_COLUMNS.filter(c => c.default).map(c => c.key);
+}
+
+function saveVisibleColumns(columns) {
+  localStorage.setItem('list-view-columns', JSON.stringify(columns));
+}
+
 export async function loadDashboard(libraryId, filterBy = '', filterLabel = '') {
   const bookshelfContainer = document.getElementById('bookshelf');
   if (!bookshelfContainer) return;
@@ -112,26 +137,111 @@ export async function loadDashboard(libraryId, filterBy = '', filterLabel = '') 
       
       const table = document.createElement('table');
       table.className = 'w-full text-left text-xs';
+      
+      const visibleCols = getVisibleColumns();
+      
+      let headerHtml = `<tr class="border-b border-black-600/50 text-black-100 font-semibold uppercase tracking-wider">`;
+      
+      const colDetails = {
+        cover: `<th class="p-3 w-16">Cover</th>`,
+        title: `<th class="p-3">Title</th>`,
+        author: `<th class="p-3">Author</th>`,
+        narrator: `<th class="p-3">Narrator</th>`,
+        series: `<th class="p-3">Series</th>`,
+        duration: `<th class="p-3 font-mono">Duration</th>`,
+        dateAdded: `<th class="p-3">Date Added</th>`,
+        year: `<th class="p-3">Year</th>`,
+        progress: `<th class="p-3">Progress</th>`,
+        action: `<th class="p-3 w-20 text-center relative">
+          <div class="inline-flex items-center space-x-1.5 justify-center w-full">
+            <span>Action</span>
+            <button id="customize-columns-btn" class="hover:text-white text-black-200 transition-colors focus:outline-none flex items-center cursor-pointer" title="Customize Columns">
+              <span class="material-symbols text-[14px]">settings</span>
+            </button>
+          </div>
+          <div id="columns-dropdown-menu" class="hidden absolute right-0 mt-2 w-48 bg-primary border border-black-400/60 rounded-md shadow-2xl z-[90] p-3 text-white text-left font-normal normal-case">
+            <div class="text-[10px] font-bold text-black-100 mb-2 uppercase tracking-wider">Visible Columns</div>
+            <div class="space-y-1.5" id="columns-checkboxes-container"></div>
+          </div>
+        </th>`
+      };
+
+      visibleCols.forEach(col => {
+        headerHtml += colDetails[col] || '';
+      });
+      
+      headerHtml += `</tr>`;
+      
       table.innerHTML = `
         <thead>
-          <tr class="border-b border-black-600/50 text-black-100 font-semibold uppercase tracking-wider">
-            <th class="p-3 w-16">Cover</th>
-            <th class="p-3">Title</th>
-            <th class="p-3">Author</th>
-            <th class="p-3">Series</th>
-            <th class="p-3">Duration</th>
-            <th class="p-3 w-20 text-center">Action</th>
-          </tr>
+          ${headerHtml}
         </thead>
         <tbody></tbody>
       `;
+      
       const tbody = table.querySelector('tbody');
       allItemsPayload.results.forEach(item => {
-        const tr = createListRow(item, libraryId);
+        const tr = createListRow(item, libraryId, visibleCols);
         tbody.appendChild(tr);
       });
+      
       tableWrapper.appendChild(table);
       bookshelfContainer.appendChild(tableWrapper);
+
+      // Wire Customize Columns Dropdown
+      const customizeBtn = table.querySelector('#customize-columns-btn');
+      const dropdownMenu = table.querySelector('#columns-dropdown-menu');
+      if (customizeBtn && dropdownMenu) {
+        let isOpen = false;
+        
+        customizeBtn.onclick = (e) => {
+          e.stopPropagation();
+          if (isOpen) {
+            dropdownMenu.classList.add('hidden');
+            isOpen = false;
+          } else {
+            // Render checkboxes
+            const container = dropdownMenu.querySelector('#columns-checkboxes-container');
+            container.innerHTML = ALL_COLUMNS.map(col => {
+              const isChecked = visibleCols.includes(col.key);
+              const isMandatory = col.key === 'title' || col.key === 'action';
+              return `
+                <label class="flex items-center space-x-2 text-xs cursor-pointer select-none py-0.5">
+                  <input type="checkbox" data-col="${col.key}" ${isChecked ? 'checked' : ''} ${isMandatory ? 'disabled' : ''} class="col-checkbox rounded border-black-400 bg-black-600 text-accent focus:ring-accent w-3.5 h-3.5">
+                  <span class="${isMandatory ? 'text-black-300 font-medium' : 'text-black-100'}">${col.label}</span>
+                </label>
+              `;
+            }).join('');
+            
+            // Wire checkbox changes
+            container.querySelectorAll('.col-checkbox').forEach(cb => {
+              cb.onchange = () => {
+                const checkedCols = [];
+                container.querySelectorAll('.col-checkbox').forEach(input => {
+                  if (input.checked) {
+                    checkedCols.push(input.getAttribute('data-col'));
+                  }
+                });
+                saveVisibleColumns(checkedCols);
+                loadDashboard(libraryId);
+              };
+            });
+
+            dropdownMenu.classList.remove('hidden');
+            dropdownMenu.offsetHeight; // reflow
+            dropdownMenu.classList.remove('scale-95', 'opacity-0');
+            dropdownMenu.classList.add('scale-100', 'opacity-100');
+            isOpen = true;
+          }
+        };
+
+        // Close on outside click
+        document.addEventListener('click', () => {
+          dropdownMenu.classList.add('hidden');
+          isOpen = false;
+        });
+        dropdownMenu.onclick = (e) => e.stopPropagation();
+      }
     } else {
       // Render personalized shelves only if not filtering
       if (!filterBy) {
@@ -608,50 +718,117 @@ function formatDuration(seconds) {
   return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
 }
 
-function createListRow(item, libraryId) {
+function createListRow(item, libraryId, visibleCols = ['cover', 'title', 'author', 'series', 'duration', 'action']) {
   const tr = document.createElement('tr');
   tr.className = 'border-b border-black-600/30 hover:bg-black-500/40 cursor-pointer transition-colors';
   
   let title = '';
   let author = '';
+  let narrator = '';
   let series = '';
   let duration = '';
+  let year = '';
   
   if (item.mediaType === 'book') {
     const metadata = item.media?.metadata || {};
     title = metadata.title || item.title || 'Untitled';
     author = metadata.authorName || 'Unknown';
+    narrator = (metadata.narrators || []).join(', ') || 'Unknown';
     if (metadata.seriesName) {
       series = metadata.seriesName + (metadata.sequence ? ` #${metadata.sequence}` : '');
     }
     const durSec = item.media?.duration || 0;
     duration = durSec ? formatDuration(durSec) : 'N/A';
+    year = metadata.publishedYear || 'N/A';
   } else if (item.mediaType === 'podcast') {
     const metadata = item.media?.metadata || {};
     title = metadata.title || item.title || 'Untitled';
     author = metadata.author || 'Unknown';
     const durSec = item.media?.duration || 0;
     duration = durSec ? formatDuration(durSec) : 'N/A';
+    year = metadata.publishedYear || 'N/A';
   }
 
   const token = localStorage.getItem('token');
   const ts = item.updatedAt || item.addedAt || Date.now();
   const coverUrl = resolvePath(`/api/items/${item.id}/cover?token=${token}&ts=${ts}`);
 
-  tr.innerHTML = `
-    <td class="p-3">
-      <img src="${coverUrl}" class="w-10 h-14 object-cover rounded shadow border border-black-400/20" onerror="this.onerror=null; this.src='assets/images/logo.png'">
-    </td>
-    <td class="p-3 font-semibold text-white">${escapeHtml(title)}</td>
-    <td class="p-3 text-black-50">${escapeHtml(author)}</td>
-    <td class="p-3 text-accent/80 font-mono">${escapeHtml(series)}</td>
-    <td class="p-3 text-black-100 font-mono">${duration}</td>
-    <td class="p-3 text-center">
-      <button class="play-btn bg-accent text-primary w-8 h-8 rounded-full flex items-center justify-center hover:scale-105 transition-transform" title="Play">
-        <span class="material-symbols text-sm">play_arrow</span>
-      </button>
-    </td>
-  `;
+  let rowHtml = '';
+
+  visibleCols.forEach(col => {
+    switch (col) {
+      case 'cover':
+        rowHtml += `
+          <td class="p-3 w-16">
+            <img src="${coverUrl}" class="w-10 h-14 object-cover rounded shadow border border-black-400/20" onerror="this.onerror=null; this.src='assets/images/logo.png'">
+          </td>
+        `;
+        break;
+      case 'title':
+        rowHtml += `<td class="p-3 font-semibold text-white">${escapeHtml(title)}</td>`;
+        break;
+      case 'author':
+        rowHtml += `<td class="p-3 text-black-50">${escapeHtml(author)}</td>`;
+        break;
+      case 'narrator':
+        rowHtml += `<td class="p-3 text-black-100">${escapeHtml(narrator)}</td>`;
+        break;
+      case 'series':
+        rowHtml += `<td class="p-3 text-accent/80 font-mono">${escapeHtml(series)}</td>`;
+        break;
+      case 'duration':
+        rowHtml += `<td class="p-3 text-black-100 font-mono">${duration}</td>`;
+        break;
+      case 'dateAdded':
+        const addedDate = item.addedAt ? new Date(item.addedAt).toLocaleDateString() : 'N/A';
+        rowHtml += `<td class="p-3 text-black-100 font-mono">${addedDate}</td>`;
+        break;
+      case 'year':
+        rowHtml += `<td class="p-3 text-black-100 font-mono">${year}</td>`;
+        break;
+      case 'progress':
+        const progressId = `progress-${item.id}-${Math.random().toString(36).substr(2, 9)}`;
+        rowHtml += `
+          <td class="p-3 text-black-100 font-mono" id="${progressId}">
+            <span class="text-black-300">...</span>
+          </td>
+        `;
+        setTimeout(() => {
+          const progressTd = document.getElementById(progressId);
+          if (!progressTd) return;
+          request('GET', `/api/me/progress/${item.id}`)
+            .then(progressObj => {
+              if (progressObj && progressObj.progress !== undefined) {
+                if (progressObj.isFinished) {
+                  progressTd.innerHTML = '<span class="text-green-500 font-semibold">Completed</span>';
+                } else if (progressObj.progress === 0) {
+                  progressTd.innerHTML = '<span class="text-black-200">Not Started</span>';
+                } else {
+                  const percent = Math.min(Math.max(progressObj.progress * 100, 0), 100);
+                  progressTd.innerHTML = `<span class="text-accent">${Math.round(percent)}%</span>`;
+                }
+              } else {
+                progressTd.innerHTML = '<span class="text-black-200">Not Started</span>';
+              }
+            })
+            .catch(() => {
+              progressTd.innerHTML = '<span class="text-black-200">Not Started</span>';
+            });
+        }, 0);
+        break;
+      case 'action':
+        rowHtml += `
+          <td class="p-3 text-center w-20">
+            <button class="play-btn bg-accent text-primary w-8 h-8 rounded-full flex items-center justify-center hover:scale-105 transition-transform mx-auto" title="Play">
+              <span class="material-symbols text-sm">play_arrow</span>
+            </button>
+          </td>
+        `;
+        break;
+    }
+  });
+
+  tr.innerHTML = rowHtml;
 
   tr.onclick = (e) => {
     if (e.target.closest('.play-btn')) {

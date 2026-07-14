@@ -17,6 +17,10 @@ import (
 func handleCreateShare(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		userSess := r.Context().Value(core.UserContextKey).(*core.UserSession)
+		if userSess.Type != "root" && userSess.Type != "admin" && !userSess.CanCreateShares {
+			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
+			return
+		}
 		initManagers(db)
 
 		var req struct {

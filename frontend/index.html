@@ -384,7 +384,9 @@
           <div class="flex items-center space-x-2">
             <h2 id="view-title" class="font-semibold text-lg text-white">Home</h2>
             <span id="view-title-separator" class="text-xs text-black-100 font-mono pt-1">|</span>
-            <span id="book-count" class="text-xs text-black-50 font-mono pt-1">0 Books</span>
+            <span id="book-count" class="text-xs text-black-50 font-mono pt-1 mr-2">0 Books</span>
+            <!-- Saved Presets Pills -->
+            <div id="presets-pills-container" class="flex items-center space-x-1.5 border-l border-black-600/50 pl-4"></div>
           </div>
           
           <!-- Filter / View controls -->
@@ -455,8 +457,14 @@
             </div>
 
             <!-- Sort Order Toggle Button -->
-            <button id="sort-order-toggle-btn" class="flex items-center justify-center bg-black-600/40 hover:bg-black-500 w-7 h-7 rounded border border-black-300/30 text-white" title="Toggle Sort Order">
+            <button id="sort-order-toggle-btn" class="flex items-center justify-center bg-black-600/40 hover:bg-black-500 w-7 h-7 rounded border border-black-300/30 text-white mr-1" title="Toggle Sort Order">
               <span id="sort-order-icon" class="material-symbols text-base">arrow_upward</span>
+            </button>
+
+            <!-- Save View Button -->
+            <button id="save-preset-btn" class="flex items-center space-x-1 bg-black-600/40 hover:bg-black-500 px-2.5 py-1 rounded border border-black-300/30 text-black-50 hover:text-white transition duration-150 focus:outline-none" title="Save current filters as preset">
+              <span class="material-symbols text-[14px]">save</span>
+              <span>Save View</span>
             </button>
 
             <!-- Bookshelf Style Switcher -->

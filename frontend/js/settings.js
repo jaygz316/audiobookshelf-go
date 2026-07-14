@@ -1483,6 +1483,41 @@ async function triggerUserModal(user = null, currentUser, onSaveSuccess) {
             </label>
             <label class="flex items-center space-x-3 cursor-pointer text-sm">
               <span class="abs-switch">
+                <input type="checkbox" id="perm-upload" ${perms.upload === true ? 'checked' : ''}>
+                <span class="abs-slider"></span>
+              </span>
+              <span>Allow uploading files</span>
+            </label>
+            <label class="flex items-center space-x-3 cursor-pointer text-sm">
+              <span class="abs-switch">
+                <input type="checkbox" id="perm-delete" ${perms.delete === true ? 'checked' : ''}>
+                <span class="abs-slider"></span>
+              </span>
+              <span>Allow deleting media</span>
+            </label>
+            <label class="flex items-center space-x-3 cursor-pointer text-sm">
+              <span class="abs-switch">
+                <input type="checkbox" id="perm-update" ${perms.update === true ? 'checked' : ''}>
+                <span class="abs-slider"></span>
+              </span>
+              <span>Allow editing metadata / library scans</span>
+            </label>
+            <label class="flex items-center space-x-3 cursor-pointer text-sm">
+              <span class="abs-switch">
+                <input type="checkbox" id="perm-rss" ${perms.accessRss === true ? 'checked' : ''}>
+                <span class="abs-slider"></span>
+              </span>
+              <span>Allow accessing RSS feeds</span>
+            </label>
+            <label class="flex items-center space-x-3 cursor-pointer text-sm">
+              <span class="abs-switch">
+                <input type="checkbox" id="perm-shares" ${perms.createShares === true ? 'checked' : ''}>
+                <span class="abs-slider"></span>
+              </span>
+              <span>Allow creating public shares</span>
+            </label>
+            <label class="flex items-center space-x-3 cursor-pointer text-sm">
+              <span class="abs-switch">
                 <input type="checkbox" id="perm-all-libraries" ${perms.accessAllLibraries !== false ? 'checked' : ''}>
                 <span class="abs-slider"></span>
               </span>
@@ -1585,6 +1620,11 @@ async function triggerUserModal(user = null, currentUser, onSaveSuccess) {
 
     const download = modal.querySelector('#perm-download').checked;
     const accessExplicitContent = modal.querySelector('#perm-explicit').checked;
+    const upload = modal.querySelector('#perm-upload').checked;
+    const deleteVal = modal.querySelector('#perm-delete').checked;
+    const update = modal.querySelector('#perm-update').checked;
+    const accessRss = modal.querySelector('#perm-rss').checked;
+    const createShares = modal.querySelector('#perm-shares').checked;
     const accessAllLibraries = allLibsCheckbox.checked;
 
     const libCheckboxes = modal.querySelectorAll('.user-lib-checkbox:checked');
@@ -1603,6 +1643,11 @@ async function triggerUserModal(user = null, currentUser, onSaveSuccess) {
     const permissions = {
       download,
       accessExplicitContent,
+      upload,
+      delete: deleteVal,
+      update,
+      accessRss,
+      createShares,
       accessAllLibraries,
       accessAllTags,
       selectedTagsNotAccessible,

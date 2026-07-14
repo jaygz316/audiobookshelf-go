@@ -1463,7 +1463,7 @@ func handleUpdateLibraryItemByID(db *sql.DB, itemID string) http.HandlerFunc {
 		}
 		user := userVal.(*core.UserSession)
 
-		if user.Type != "root" && user.Type != "admin" {
+		if user.Type != "root" && user.Type != "admin" && !user.CanUpdate {
 			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
 			return
 		}
