@@ -795,6 +795,21 @@ function triggerAddBookmarkModal() {
           <label for="bookmark-title-input" class="text-[0.65rem] uppercase font-bold text-black-100 tracking-wider block mb-1">Bookmark Title</label>
           <input type="text" id="bookmark-title-input" required class="w-full bg-black-500 text-white px-3 py-2 rounded border border-black-300 focus:outline-none focus:border-accent text-xs" placeholder="e.g. Chapter 2 Start">
         </div>
+        <div>
+          <label for="bookmark-note-input" class="text-[0.65rem] uppercase font-bold text-black-100 tracking-wider block mb-1">Notes</label>
+          <textarea id="bookmark-note-input" rows="2" class="w-full bg-black-500 text-white px-3 py-2 rounded border border-black-300 focus:outline-none focus:border-accent text-xs placeholder-black-200" placeholder="Optional notes..."></textarea>
+        </div>
+        <div>
+          <label class="text-[0.65rem] uppercase font-bold text-black-100 tracking-wider block mb-1.5">Color Tag</label>
+          <div class="flex items-center space-x-2" id="bookmark-color-options">
+            <button type="button" class="w-6 h-6 rounded-full border-2 border-accent transition-all color-option-btn" data-color="#e5a93c" style="background-color: #e5a93c;" title="Amber"></button>
+            <button type="button" class="w-6 h-6 rounded-full border-2 border-transparent hover:border-white/50 transition-all color-option-btn" data-color="#ef4444" style="background-color: #ef4444;" title="Red"></button>
+            <button type="button" class="w-6 h-6 rounded-full border-2 border-transparent hover:border-white/50 transition-all color-option-btn" data-color="#f97316" style="background-color: #f97316;" title="Orange"></button>
+            <button type="button" class="w-6 h-6 rounded-full border-2 border-transparent hover:border-white/50 transition-all color-option-btn" data-color="#10b981" style="background-color: #10b981;" title="Green"></button>
+            <button type="button" class="w-6 h-6 rounded-full border-2 border-transparent hover:border-white/50 transition-all color-option-btn" data-color="#3b82f6" style="background-color: #3b82f6;" title="Blue"></button>
+            <button type="button" class="w-6 h-6 rounded-full border-2 border-transparent hover:border-white/50 transition-all color-option-btn" data-color="#8b5cf6" style="background-color: #8b5cf6;" title="Purple"></button>
+          </div>
+        </div>
       </div>
 
       <div class="flex items-center justify-end space-x-3 pt-3 border-t border-black-500">
@@ -811,6 +826,22 @@ function triggerAddBookmarkModal() {
   document.body.appendChild(modal);
 
   const titleInput = document.getElementById('bookmark-title-input');
+  const noteInput = document.getElementById('bookmark-note-input');
+  
+  let selectedColor = '#e5a93c';
+  const colorBtns = modal.querySelectorAll('.color-option-btn');
+  colorBtns.forEach(btn => {
+    btn.onclick = () => {
+      colorBtns.forEach(b => {
+        b.classList.remove('border-accent');
+        b.classList.add('border-transparent');
+      });
+      btn.classList.remove('border-transparent');
+      btn.classList.add('border-accent');
+      selectedColor = btn.getAttribute('data-color');
+    };
+  });
+
   titleInput.value = defaultTitle;
   titleInput.focus();
   titleInput.select();
@@ -829,7 +860,9 @@ function triggerAddBookmarkModal() {
     try {
       await request('POST', `/api/me/item/${currentItem.id}/bookmark`, {
         time: time,
-        title: titleVal
+        title: titleVal,
+        note: noteInput.value.trim(),
+        color: selectedColor
       });
       closeModal();
       
