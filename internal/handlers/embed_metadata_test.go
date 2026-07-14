@@ -13,9 +13,8 @@ import (
 	"audiobookshelf/internal/core"
 )
 
-func generateTestAudioFile(t *testing.T, ext string) string {
-	tmpDir := t.TempDir()
-	path := filepath.Join(tmpDir, "test_audio"+ext)
+func generateTestAudioFile(t *testing.T, dir string, ext string) string {
+	path := filepath.Join(dir, "test_audio"+ext)
 
 	var codec string
 	if ext == ".mp3" {
@@ -38,7 +37,15 @@ func TestEmbedMetadata(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
 
-	audioPath := generateTestAudioFile(t, ".mp3")
+	testDir := t.TempDir()
+
+	// Seed library folder to allow the test path
+	_, err := db.Exec("INSERT INTO libraryFolders (id, path, libraryId) VALUES ('folder-1', ?, 'library-1')", testDir)
+	if err != nil {
+		t.Fatalf("Failed to seed libraryFolders: %v", err)
+	}
+
+	audioPath := generateTestAudioFile(t, testDir, ".mp3")
 
 	audioFiles := []map[string]interface{}{
 		{
@@ -68,15 +75,15 @@ func TestEmbedMetadata(t *testing.T) {
 	narrators := []string{"Narrator One"}
 	bNarrators, _ := json.Marshal(narrators)
 
-	// Create a dummy cover art file
-	coverPath := filepath.Join(t.TempDir(), "cover.jpg")
+	// Create a dummy cover art file inside testDir
+	coverPath := filepath.Join(testDir, "cover.jpg")
 	coverCmd := exec.Command("ffmpeg", "-y", "-f", "lavfi", "-i", "color=c=black:s=1x1", "-vframes", "1", coverPath)
 	if err := coverCmd.Run(); err != nil {
 		t.Skipf("FFmpeg color generation failed: %v", err)
 	}
 
 	// Seed database with a book and library item
-	_, err := db.Exec(`
+	_, err = db.Exec(`
 		INSERT INTO books (id, title, subtitle, publishedYear, publishedDate, publisher, description, coverPath, narrators, audioFiles, chapters, genres, tags) 
 		VALUES ('book-1', 'Test Title', 'Test Subtitle', '2026', '2026-07-10', 'Test Publisher', 'Test Description', ?, ?, ?, ?, ?, ?)`,
 		coverPath, bNarrators, bAudioFiles, bChapters, bGenres, bTags)
