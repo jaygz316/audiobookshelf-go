@@ -120,6 +120,48 @@ func serveStaticOrSPA(fSys fs.FS, routerBasePath string) http.HandlerFunc {
 			return
 		}
 
+		// Hardening: Fallback to index.html only for GET/HEAD requests.
+		// For any other method, return 404.
+		if r.Method != http.MethodGet && r.Method != http.MethodHead {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusNotFound)
+			_, _ = w.Write([]byte(`{"error": "API route not found"}`))
+			return
+		}
+
+		// Hardening: If the file was not found and has a typical static asset file extension,
+		// return a 404 immediately instead of serving index.html.
+		ext := strings.ToLower(path.Ext(cleanedPath))
+		if ext != "" {
+			assetExtensions := map[string]bool{
+				".js":          true,
+				".css":         true,
+				".png":         true,
+				".jpg":         true,
+				".jpeg":        true,
+				".gif":         true,
+				".ico":         true,
+				".svg":         true,
+				".json":        true,
+				".woff":        true,
+				".woff2":       true,
+				".ttf":         true,
+				".map":         true,
+				".webmanifest": true,
+				".mp3":         true,
+				".m4b":         true,
+				".m4a":         true,
+				".epub":        true,
+				".pdf":         true,
+			}
+			if assetExtensions[ext] {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusNotFound)
+				_, _ = w.Write([]byte(`{"error": "Static asset not found"}`))
+				return
+			}
+		}
+
 		// Serve index.html as fallback for Client-side SPA routing
 		log.Infof("[SPA] Fallback for GET %s -> index.html", r.URL.Path)
 		data, err := fs.ReadFile(fSys, "index.html")

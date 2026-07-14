@@ -466,3 +466,58 @@ func TestMockHLSRequest(t *testing.T) {
 		t.Logf("Response Body: %s", rr.Body.String())
 	}
 }
+
+func TestRoutingFallbackRobustness(t *testing.T) {
+	// Initialize subFS
+	subFS = os.DirFS("../../frontend")
+
+	cfg := &core.Config{
+		RouterBasePath: "/audiobookshelf",
+		ConfigPath:     t.TempDir(),
+		MetadataPath:   t.TempDir(),
+	}
+
+	handler := SetupHandler(nil, cfg, false, ".", "2.35.1")
+
+	// Test 1: POST request to a non-existent frontend route should return 404 Not Found (not index.html)
+	{
+		req := httptest.NewRequest("POST", "/audiobookshelf/some/client/side/route", nil)
+		rr := httptest.NewRecorder()
+		handler.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusNotFound {
+			t.Errorf("Expected 404 Not Found for POST route, got %d", rr.Code)
+		}
+		if !strings.Contains(rr.Body.String(), "API route not found") {
+			t.Errorf("Expected body to contain 'API route not found', got %s", rr.Body.String())
+		}
+	}
+
+	// Test 2: GET request to a non-existent static asset (e.g., .js or .png) should return 404 Not Found (not index.html)
+	{
+		req := httptest.NewRequest("GET", "/audiobookshelf/js/nonexistent-file.js", nil)
+		rr := httptest.NewRecorder()
+		handler.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusNotFound {
+			t.Errorf("Expected 404 Not Found for non-existent JS file, got %d", rr.Code)
+		}
+		if !strings.Contains(rr.Body.String(), "Static asset not found") {
+			t.Errorf("Expected body to contain 'Static asset not found', got %s", rr.Body.String())
+		}
+	}
+
+	// Test 3: GET request to a non-existent page without extension (valid client-side route fallback) should still return index.html
+	{
+		req := httptest.NewRequest("GET", "/audiobookshelf/custom-library-page", nil)
+		rr := httptest.NewRecorder()
+		handler.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusOK {
+			t.Errorf("Expected 200 OK for custom library route, got %d", rr.Code)
+		}
+		if !strings.Contains(rr.Body.String(), "Audiobookshelf") {
+			t.Errorf("Expected body to contain 'Audiobookshelf', got %s", rr.Body.String())
+		}
+	}
+}
