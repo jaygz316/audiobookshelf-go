@@ -32,11 +32,33 @@ export async function loadDashboard(libraryId, filterBy = '', filterLabel = '') 
     // 2. Fetch personalized shelves
     const shelves = await request('GET', `/api/libraries/${libraryId}/personalized`);
     
+    const filterSelect = document.getElementById('filter-select');
+    const sortSelect = document.getElementById('sort-select');
+    const sortOrderToggle = document.getElementById('sort-order-toggle-btn');
+
+    if (filterBy && filterSelect) {
+      filterSelect.value = filterBy;
+    }
+
+    let activeFilter = filterBy || (filterSelect ? filterSelect.value : '');
+    let activeSort = sortSelect ? sortSelect.value : 'media.metadata.title';
+    let activeSortDesc = false;
+    if (sortOrderToggle) {
+      const icon = document.getElementById('sort-order-icon');
+      activeSortDesc = icon && icon.textContent === 'arrow_downward';
+    }
+
     // 3. Fetch all items (up to 100 if filtered, 40 if not)
-    const limit = filterBy ? 100 : 40;
-    let url = `/api/libraries/${libraryId}/items?limit=${limit}&minified=1` + (filterBy ? `&filter=${encodeURIComponent(filterBy)}` : '');
-    if (filterBy.startsWith('series.')) {
-      url += '&sort=sequence';
+    const limit = activeFilter ? 100 : 40;
+    let url = `/api/libraries/${libraryId}/items?limit=${limit}&minified=1`;
+    if (activeFilter) {
+      url += `&filter=${encodeURIComponent(activeFilter)}`;
+    }
+    if (activeSort) {
+      url += `&sort=${encodeURIComponent(activeSort)}`;
+    }
+    if (activeSortDesc) {
+      url += `&desc=1`;
     }
     const allItemsPayload = await request('GET', url);
     
@@ -77,21 +99,64 @@ export async function loadDashboard(libraryId, filterBy = '', filterLabel = '') 
       return;
     }
 
-    // Render personalized shelves only if not filtering
-    if (!filterBy) {
-      shelves.forEach(shelf => {
-        if (shelf.entities && shelf.entities.length > 0) {
-          const section = createShelfSection(shelf.id, shelf.label, shelf.entities, libraryId);
-          bookshelfContainer.appendChild(section);
-        }
-      });
-    }
+    const activeStyle = localStorage.getItem('library-style') || 'shelf';
 
-    // Render "All Books" / "All Podcasts" shelf
-    if (allItemsPayload.results && allItemsPayload.results.length > 0) {
-      const allLabel = filterLabel || (lib.mediaType === 'podcast' ? 'All Podcasts' : 'All Books');
-      const section = createShelfSection('all-books', allLabel, allItemsPayload.results, libraryId);
-      bookshelfContainer.appendChild(section);
+    if (activeStyle === 'grid') {
+      const gridContainer = document.createElement('div');
+      gridContainer.className = 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6 p-6 justify-items-center';
+      
+      allItemsPayload.results.forEach(item => {
+        const card = createCard(item, false, libraryId);
+        card.className = 'relative cursor-pointer select-none box-shadow-book rounded-sm overflow-hidden flex-shrink-0 transition-transform hover:scale-105 group w-full';
+        const currentSize = parseInt(localStorage.getItem('bookshelf-card-width')) || 120;
+        card.style.width = `${currentSize}px`;
+        card.style.height = `${currentSize * 1.5}px`;
+        gridContainer.appendChild(card);
+      });
+      bookshelfContainer.appendChild(gridContainer);
+    } else if (activeStyle === 'list') {
+      const tableWrapper = document.createElement('div');
+      tableWrapper.className = 'w-full bg-primary/30 border border-black-400/40 rounded-lg overflow-hidden shadow-lg p-2 text-white';
+      
+      const table = document.createElement('table');
+      table.className = 'w-full text-left text-xs';
+      table.innerHTML = `
+        <thead>
+          <tr class="border-b border-black-600/50 text-black-100 font-semibold uppercase tracking-wider">
+            <th class="p-3 w-16">Cover</th>
+            <th class="p-3">Title</th>
+            <th class="p-3">Author</th>
+            <th class="p-3">Series</th>
+            <th class="p-3">Duration</th>
+            <th class="p-3 w-20 text-center">Action</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      `;
+      const tbody = table.querySelector('tbody');
+      allItemsPayload.results.forEach(item => {
+        const tr = createListRow(item, libraryId);
+        tbody.appendChild(tr);
+      });
+      tableWrapper.appendChild(table);
+      bookshelfContainer.appendChild(tableWrapper);
+    } else {
+      // Render personalized shelves only if not filtering
+      if (!filterBy) {
+        shelves.forEach(shelf => {
+          if (shelf.entities && shelf.entities.length > 0) {
+            const section = createShelfSection(shelf.id, shelf.label, shelf.entities, libraryId);
+            bookshelfContainer.appendChild(section);
+          }
+        });
+      }
+
+      // Render "All Books" / "All Podcasts" shelf
+      if (allItemsPayload.results && allItemsPayload.results.length > 0) {
+        const allLabel = filterLabel || (lib.mediaType === 'podcast' ? 'All Podcasts' : 'All Books');
+        const section = createShelfSection('all-books', allLabel, allItemsPayload.results, libraryId);
+        bookshelfContainer.appendChild(section);
+      }
     }
 
     initBatchEditHandlers(libraryId);
@@ -510,4 +575,73 @@ function triggerBatchEditModal(itemIds, libraryId) {
 function splitCommaList(str) {
   if (!str) return [];
   return str.split(',').map(s => s.trim()).filter(s => s.length > 0);
+}
+
+function formatDuration(seconds) {
+  if (!seconds) return '00:00';
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = Math.floor(seconds % 60);
+  if (h > 0) {
+    return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  }
+  return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+}
+
+function createListRow(item, libraryId) {
+  const tr = document.createElement('tr');
+  tr.className = 'border-b border-black-600/30 hover:bg-black-500/40 cursor-pointer transition-colors';
+  
+  let title = '';
+  let author = '';
+  let series = '';
+  let duration = '';
+  
+  if (item.mediaType === 'book') {
+    const metadata = item.media?.metadata || {};
+    title = metadata.title || item.title || 'Untitled';
+    author = metadata.authorName || 'Unknown';
+    if (metadata.seriesName) {
+      series = metadata.seriesName + (metadata.sequence ? ` #${metadata.sequence}` : '');
+    }
+    const durSec = item.media?.duration || 0;
+    duration = durSec ? formatDuration(durSec) : 'N/A';
+  } else if (item.mediaType === 'podcast') {
+    const metadata = item.media?.metadata || {};
+    title = metadata.title || item.title || 'Untitled';
+    author = metadata.author || 'Unknown';
+    const durSec = item.media?.duration || 0;
+    duration = durSec ? formatDuration(durSec) : 'N/A';
+  }
+
+  const token = localStorage.getItem('token');
+  const ts = item.updatedAt || item.addedAt || Date.now();
+  const coverUrl = resolvePath(`/api/items/${item.id}/cover?token=${token}&ts=${ts}`);
+
+  tr.innerHTML = `
+    <td class="p-3">
+      <img src="${coverUrl}" class="w-10 h-14 object-cover rounded shadow border border-black-400/20" onerror="this.onerror=null; this.src='assets/images/logo.png'">
+    </td>
+    <td class="p-3 font-semibold text-white">${escapeHtml(title)}</td>
+    <td class="p-3 text-black-50">${escapeHtml(author)}</td>
+    <td class="p-3 text-accent/80 font-mono">${escapeHtml(series)}</td>
+    <td class="p-3 text-black-100 font-mono">${duration}</td>
+    <td class="p-3 text-center">
+      <button class="play-btn bg-accent text-primary w-8 h-8 rounded-full flex items-center justify-center hover:scale-105 transition-transform" title="Play">
+        <span class="material-symbols text-sm">play_arrow</span>
+      </button>
+    </td>
+  `;
+
+  tr.onclick = (e) => {
+    if (e.target.closest('.play-btn')) {
+      e.stopPropagation();
+      playItem(item.id);
+      return;
+    }
+    window.history.pushState(null, '', resolvePath(`/item/${item.id}`));
+    window.dispatchEvent(new CustomEvent('popstate'));
+  };
+
+  return tr;
 }

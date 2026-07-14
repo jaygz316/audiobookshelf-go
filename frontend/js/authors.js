@@ -169,16 +169,64 @@ function createAuthorCard(author) {
 
 function createSeriesCard(series) {
   const card = document.createElement('div');
-  card.className = 'flex flex-col items-center p-3 bg-primary border border-black-400 rounded-md hover:bg-black-500 cursor-pointer transition-colors group';
+  card.className = 'flex flex-col items-center p-4 bg-primary/45 border border-black-400/40 rounded-lg hover:bg-black-500/50 cursor-pointer transition-all duration-300 relative select-none hover:-translate-y-1 shadow-lg group';
 
-  const numBooks = series.numBooks !== undefined ? series.numBooks : (series.bookCount || 0);
+  const numBooks = series.numBooks !== undefined ? series.numBooks : (series.books?.length || 0);
+
+  let coversHtml = '';
+  const token = localStorage.getItem('token');
+
+  if (series.books && series.books.length > 0) {
+    const books = series.books;
+    if (books.length === 1) {
+      const ts = books[0].updatedAt || books[0].addedAt || Date.now();
+      const coverUrl = resolvePath(`/api/items/${books[0].id}/cover?token=${token}&ts=${ts}`);
+      coversHtml = `
+        <div class="relative w-24 h-24 mb-3 flex items-center justify-center flex-shrink-0">
+          <img src="${coverUrl}" class="w-16 h-22 object-cover rounded shadow-md transition-transform duration-300 group-hover:scale-105" onerror="this.onerror=null; this.src='assets/images/logo.png'">
+        </div>
+      `;
+    } else if (books.length === 2) {
+      const ts0 = books[0].updatedAt || books[0].addedAt || Date.now();
+      const ts1 = books[1].updatedAt || books[1].addedAt || Date.now();
+      const cover0 = resolvePath(`/api/items/${books[0].id}/cover?token=${token}&ts=${ts0}`);
+      const cover1 = resolvePath(`/api/items/${books[1].id}/cover?token=${token}&ts=${ts1}`);
+      coversHtml = `
+        <div class="relative w-24 h-24 mb-3 flex items-center justify-center flex-shrink-0">
+          <img src="${cover1}" class="absolute w-14 h-20 object-cover rounded shadow-md transform -translate-x-2.5 rotate-[-8deg] z-10 opacity-80" onerror="this.onerror=null; this.src='assets/images/logo.png'">
+          <img src="${cover0}" class="absolute w-15 h-21 object-cover rounded shadow-lg z-20 transition-transform duration-300 group-hover:scale-105" onerror="this.onerror=null; this.src='assets/images/logo.png'">
+        </div>
+      `;
+    } else {
+      const ts0 = books[0].updatedAt || books[0].addedAt || Date.now();
+      const ts1 = books[1].updatedAt || books[1].addedAt || Date.now();
+      const ts2 = books[2].updatedAt || books[2].addedAt || Date.now();
+      const cover0 = resolvePath(`/api/items/${books[0].id}/cover?token=${token}&ts=${ts0}`);
+      const cover1 = resolvePath(`/api/items/${books[1].id}/cover?token=${token}&ts=${ts1}`);
+      const cover2 = resolvePath(`/api/items/${books[2].id}/cover?token=${token}&ts=${ts2}`);
+      coversHtml = `
+        <div class="relative w-24 h-24 mb-3 flex items-center justify-center flex-shrink-0">
+          <img src="${cover2}" class="absolute w-13 h-19 object-cover rounded shadow-md transform -translate-x-4.5 rotate-[-15deg] z-10 opacity-70" onerror="this.onerror=null; this.src='assets/images/logo.png'">
+          <img src="${cover1}" class="absolute w-13 h-19 object-cover rounded shadow-md transform translate-x-4.5 rotate-[15deg] z-10 opacity-70" onerror="this.onerror=null; this.src='assets/images/logo.png'">
+          <img src="${cover0}" class="absolute w-15 h-21 object-cover rounded shadow-lg z-20 transition-transform duration-300 group-hover:scale-105" onerror="this.onerror=null; this.src='assets/images/logo.png'">
+        </div>
+      `;
+    }
+  } else {
+    coversHtml = `
+      <div class="w-24 h-24 mb-3 flex items-center justify-center bg-black-400/30 rounded-md flex-shrink-0 text-black-100">
+        <span class="material-symbols text-4xl">layers</span>
+      </div>
+    `;
+  }
 
   card.innerHTML = `
-    <div class="w-20 h-20 rounded-md overflow-hidden bg-black-400 mb-2 flex items-center justify-center flex-shrink-0">
-      <span class="material-symbols text-4xl text-black-100">layers</span>
+    <div class="absolute top-2 right-2 bg-accent/90 text-primary text-[10px] font-bold px-1.5 py-0.5 rounded-full z-30 shadow-sm border border-accent/20">
+      ${numBooks}
     </div>
-    <p class="text-sm font-semibold text-white text-center leading-tight truncate w-full text-center">${escapeHtml(series.name)}</p>
-    <p class="text-xs text-black-100 mt-0.5">${numBooks} book${numBooks !== 1 ? 's' : ''}</p>
+    ${coversHtml}
+    <p class="text-sm font-semibold text-white text-center leading-tight truncate w-full mt-1 group-hover:text-accent transition-colors duration-200">${escapeHtml(series.name)}</p>
+    <p class="text-xs text-black-100 mt-1">${numBooks} book${numBooks !== 1 ? 's' : ''}</p>
   `;
 
   card.onclick = () => {

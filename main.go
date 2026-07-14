@@ -17,7 +17,6 @@ import (
 	"syscall"
 	"time"
 
-
 	ibackup "audiobookshelf/internal/backup"
 	"audiobookshelf/internal/core"
 	"audiobookshelf/internal/db"

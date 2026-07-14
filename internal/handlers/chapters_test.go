@@ -208,4 +208,3 @@ func TestHandleLookupChapters_InvalidASIN(t *testing.T) {
 		t.Fatalf("Expected status 400 Bad Request, got %d: %s", rr.Code, rr.Body.String())
 	}
 }
-
