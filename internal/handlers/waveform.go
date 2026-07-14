@@ -98,7 +98,6 @@ func handleGetWaveform(db *sql.DB, cfg *core.Config, itemID string) http.Handler
 	}
 }
 
-
 func getAudioFilesInfo(db *sql.DB, id string) ([]AudioFileInfo, error) {
 	// 1. Try to find the ID in libraryItems
 	var mediaId, mediaType string
