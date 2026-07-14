@@ -1,16 +1,14 @@
 # Handoff: Audiobookshelf Go Port
 
 ## Targeted Task & Accomplishments
-- **Target Task**: Fix database connection and initialization lifecycle bugs (resolving login error).
-- **Accomplishments**:
-  - Added a 30-attempt database connection retry loop with 2-second intervals in `main.go` to handle transient startup locks.
-  - Implemented dynamic database and token secret resolution in `AuthMiddleware` and `AuthMiddlewareWrapper` in `internal/handlers/middleware.go`.
-  - Added `getDB(db)` dynamic lookup at request time in critical authentication handlers (`handleLogin`, `handleInit`, `handleLogout`, `handleRefresh`, and `handleAuthorize` in `internal/handlers/users.go`).
-  - Ensured `globalFinder` is initialized when the database connects on-demand inside `reinitManagers` in `internal/handlers/managers.go`.
-  - Built and successfully pushed the updated Docker image to `jaygz/audiobookshelf-go:latest`.
+- **UI Cache Purging Features**:
+  - Implemented the "Purge All Cache" and "Purge Items Cache" buttons under a new "Troubleshooting / Cache Tools" card in the Server Settings UI ([settings.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/settings.js)).
+  - Added matching API endpoints `/api/cache/purge-all` and `/api/cache/purge-items` in the backend ([routes.go](file:///home/jay/projects/audiobookshelf-go/internal/handlers/routes.go)) that perform authenticated folder deletion (admin/root required).
+- **Filesystem Security Audit & Symlink Traversal Patches**:
+  - Identified a path traversal vulnerability where symbolic links targeting files/directories outside the library folders bypassed `IsSafeFilePath` because `filepath.Abs` does not resolve symlinks.
+  - Patched `IsSafeFilePath` in [utils.go](file:///home/jay/projects/audiobookshelf-go/internal/utils/utils.go) to resolve symbolic links using `filepath.EvalSymlinks`, falling back gracefully to absolute path checks when targets do not yet exist.
+  - Patched `streamDirAsZip` in [library_handlers.go](file:///home/jay/projects/audiobookshelf-go/internal/handlers/library_handlers.go) to explicitly skip symbolic links, preventing zip-based traversal downloads.
+  - Added `TestIsSafeFilePath_SymlinkTraversal` to [path_traversal_adversarial_test.go](file:///home/jay/projects/audiobookshelf-go/internal/handlers/path_traversal_adversarial_test.go) to continuously verify symlink traversal is successfully blocked.
 
-## Outstanding Work / Next Gaps
-- None. The database connection and login flow are fully verified and robust.
-
-## Next Steps
-- Carry on with security audits of filesystems endpoints (scanner, covers, downloads) or profile performance.
+## Verification
+- Built and ran the Go backend with `go build`, and confirmed that all unit/integration tests pass (`go test ./...` is 100% green).
