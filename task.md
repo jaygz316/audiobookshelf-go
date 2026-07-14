@@ -48,13 +48,13 @@ This document tracks the tasks and missing features of the `audiobookshelf-go` p
   - [x] **Column Customization**: Add support for configuring columns in the detail list view.
 
 ### 4. Metadata Management & Interactive Editors
-- [ ] **Visual Match Dialog (Diff Viewer)**: Compare side-by-side search results from metadata providers (Audible, Open Library, Google Books, etc.) before applying changes.
+- [x] **Visual Match Dialog (Diff Viewer)**: Compare side-by-side search results from metadata providers (Audible, Open Library, Google Books, etc.) before applying changes.
 - [ ] **Granular Field Lock System**: Checkboxes next to individual metadata fields (Title, Author, Narrator, Series, Year, Genre) to prevent auto-scans from overwriting them.
 - [ ] **Chapter Editor Suite**:
   - [ ] Dynamic chapter visual waveform alignment.
   - [ ] Manual chapter actions: Add, delete, shift start/end timestamps, rename.
   - [ ] Automatic chapter extraction from audio track markers or lookup via external APIs (Audnexus).
-- [ ] **Cover Art Editing Canvas**: Crop tool, image color picker, and cover search results gallery.
+- [x] **Cover Art Editing Canvas**: Crop tool, image color picker, and cover search results gallery.
 - [ ] **Batch Metadata Editor**: Multi-select items in the library grid to edit genres, tags, authors, narrators, series, publishers, and release years in bulk.
 
 ### 5. Podcast Subscriptions & Episode Downloader

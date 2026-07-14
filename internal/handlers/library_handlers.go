@@ -1456,3 +1456,156 @@ func handleUpload(db *sql.DB) http.HandlerFunc {
 		})
 	}
 }
+
+func handleUploadCover(db *sql.DB, cfg *core.Config, itemID string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		log.Infof("[Go] POST /api/items/%s/cover", itemID)
+
+		if strings.Contains(itemID, "..") || strings.Contains(itemID, "/") || strings.Contains(itemID, "\\") {
+			http.Error(w, `{"error": "Invalid item ID"}`, http.StatusBadRequest)
+			return
+		}
+
+		userVal := r.Context().Value(core.UserContextKey)
+		if userVal == nil {
+			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
+			return
+		}
+		user := userVal.(*core.UserSession)
+		if user.Type != "root" && user.Type != "admin" {
+			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
+			return
+		}
+
+		if err := r.ParseMultipartForm(10 * 1024 * 1024); err != nil {
+			http.Error(w, fmt.Sprintf(`{"error": "Multipart form parse failed: %s"}`, err.Error()), http.StatusBadRequest)
+			return
+		}
+		defer r.MultipartForm.RemoveAll()
+
+		file, header, err := r.FormFile("cover")
+		if err != nil {
+			file, header, err = r.FormFile("file")
+		}
+		if err != nil {
+			file, header, err = r.FormFile("image")
+		}
+		if err != nil {
+			http.Error(w, `{"error": "No cover file uploaded"}`, http.StatusBadRequest)
+			return
+		}
+		defer file.Close()
+
+		var mediaType, mediaID, itemPath string
+		var isFile int
+		err = db.QueryRow("SELECT mediaType, mediaId, path, isFile FROM libraryItems WHERE id = ?", itemID).Scan(&mediaType, &mediaID, &itemPath, &isFile)
+		if err != nil {
+			http.Error(w, fmt.Sprintf(`{"error": "%s"}`, err.Error()), http.StatusInternalServerError)
+			return
+		}
+
+		ext := filepath.Ext(header.Filename)
+		if ext == "" {
+			ext = ".jpg"
+		}
+		extLower := strings.ToLower(ext)
+		if extLower != ".jpg" && extLower != ".jpeg" && extLower != ".png" && extLower != ".webp" && extLower != ".gif" {
+			ext = ".jpg"
+		}
+
+		destPath := ""
+		settings, err := idb.GetServerSettings(db)
+		if err == nil && settings != nil && settings.MetadataCoverWithItem {
+			folder := itemPath
+			if isFile != 0 {
+				folder = filepath.Dir(itemPath)
+			}
+			destPath = filepath.Join(folder, "cover"+ext)
+		} else {
+			var existingCoverPath sql.NullString
+			if mediaType == "book" {
+				_ = db.QueryRow("SELECT coverPath FROM books WHERE id = ?", mediaID).Scan(&existingCoverPath)
+			} else if mediaType == "podcast" {
+				_ = db.QueryRow("SELECT coverPath FROM podcasts WHERE id = ?", mediaID).Scan(&existingCoverPath)
+			}
+
+			if existingCoverPath.Valid && existingCoverPath.String != "" {
+				destPath = existingCoverPath.String
+			} else {
+				itemDir := filepath.Join(cfg.MetadataPath, "items", itemID)
+				if err := os.MkdirAll(itemDir, 0755); err != nil {
+					http.Error(w, fmt.Sprintf(`{"error": "%s"}`, err.Error()), http.StatusInternalServerError)
+					return
+				}
+				destPath = filepath.Join(itemDir, "cover"+ext)
+			}
+		}
+
+		if !utils.IsSafeFilePath(db, cfg.MetadataPath, destPath) {
+			http.Error(w, `{"error": "forbidden: unsafe cover destination path"}`, http.StatusForbidden)
+			return
+		}
+
+		if err := os.MkdirAll(filepath.Dir(destPath), 0755); err != nil {
+			http.Error(w, fmt.Sprintf(`{"error": "%s"}`, err.Error()), http.StatusInternalServerError)
+			return
+		}
+
+		out, err := os.Create(destPath)
+		if err != nil {
+			itemDir := filepath.Join(cfg.MetadataPath, "items", itemID)
+			destPath = filepath.Join(itemDir, "cover"+ext)
+			if !utils.IsSafeFilePath(db, cfg.MetadataPath, destPath) {
+				http.Error(w, `{"error": "forbidden: unsafe fallback cover destination path"}`, http.StatusForbidden)
+				return
+			}
+			if err := os.MkdirAll(itemDir, 0755); err == nil {
+				out, err = os.Create(destPath)
+			}
+			if err != nil {
+				http.Error(w, fmt.Sprintf(`{"error": "%s"}`, err.Error()), http.StatusInternalServerError)
+				return
+			}
+		}
+		defer out.Close()
+
+		if _, err := io.Copy(out, file); err != nil {
+			http.Error(w, fmt.Sprintf(`{"error": "%s"}`, err.Error()), http.StatusInternalServerError)
+			return
+		}
+
+		destPath = filepath.ToSlash(destPath)
+
+		if mediaType == "book" {
+			_, err = db.Exec("UPDATE books SET coverPath = ? WHERE id = ?", destPath, mediaID)
+		} else if mediaType == "podcast" {
+			_, err = db.Exec("UPDATE podcasts SET coverPath = ? WHERE id = ?", destPath, mediaID)
+		}
+		if err != nil {
+			http.Error(w, fmt.Sprintf(`{"error": "%s"}`, err.Error()), http.StatusInternalServerError)
+			return
+		}
+
+		nowStr := time.Now().Format("2006-01-02 15:04:05.000")
+		_, _ = db.Exec("UPDATE libraryItems SET updatedAt = ? WHERE id = ?", nowStr, itemID)
+
+		cachePattern := filepath.Join(cfg.MetadataPath, "cache", "covers", itemID+"_*")
+		if files, err := filepath.Glob(cachePattern); err == nil {
+			for _, f := range files {
+				_ = os.Remove(f)
+			}
+		}
+
+		if isocket.GlobalAuth != nil {
+			if minItem, err := idb.GetLibraryItemMinifiedByID(db, itemID); err == nil {
+				EmitLibraryItemEvent("item_updated", minItem)
+			}
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success":   true,
+			"coverPath": destPath,
+		})
+	}
+}
