@@ -3,6 +3,7 @@ package scanner
 import (
 	"archive/zip"
 	"database/sql"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -10,7 +11,7 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-func setupScannerTestDB(t *testing.T) *sql.DB {
+func setupScannerTestDB(t testing.TB) *sql.DB {
 	db, err := sql.Open("sqlite", ":memory:")
 	if err != nil {
 		t.Fatalf("failed to open in-memory database: %v", err)
@@ -250,7 +251,8 @@ func TestMetadataFieldLocking(t *testing.T) {
 	}
 
 	// Now call scanExistingLibraryItem directly!
-	err = scanExistingLibraryItem(db, itemID, libraryID, folderID, bookDir, groupFiles, "book", false, 0, 0, 33, "12345", true, []string{"the", "a", "an"}, nil)
+	meta := parseMetadataForGroup(db, itemID, groupFiles, "book", bookDir, "NewAuthor/NewTitle", true)
+	err = scanExistingLibraryItem(db, itemID, libraryID, folderID, bookDir, groupFiles, "book", false, 0, 0, 33, "12345", true, []string{"the", "a", "an"}, nil, meta)
 	if err != nil {
 		t.Fatalf("scanExistingLibraryItem failed: %v", err)
 	}
@@ -344,5 +346,34 @@ func TestStoragePathIsolation(t *testing.T) {
 	}
 	if _, err := os.Stat(expectedLocalCover); err == nil {
 		t.Errorf("Expected local cover file NOT to exist when metadataCoverWithItem is false")
+	}
+}
+
+func BenchmarkParseMetadataForGroup(b *testing.B) {
+	db := setupScannerTestDB(b)
+	defer db.Close()
+
+	tempDir, err := os.MkdirTemp("", "abs-benchmark")
+	if err != nil {
+		b.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	groupFiles := make([]FileItem, 20)
+	for i := 0; i < 20; i++ {
+		path := filepath.Join(tempDir, fmt.Sprintf("audio_%d.mp3", i))
+		_ = os.WriteFile(path, []byte("ID3mock-audio-data"), 0644)
+		groupFiles[i] = FileItem{
+			Path:      path,
+			RelPath:   fmt.Sprintf("Benchmark/Book/audio_%d.mp3", i),
+			Name:      fmt.Sprintf("audio_%d.mp3", i),
+			Extension: ".mp3",
+			Size:      18,
+		}
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = parseMetadataForGroup(db, "benchmark-item", groupFiles, "book", tempDir, "Benchmark/Book", true)
 	}
 }
