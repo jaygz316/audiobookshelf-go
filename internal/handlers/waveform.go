@@ -9,8 +9,10 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 
 	"audiobookshelf/internal/core"
+	"audiobookshelf/internal/utils"
 )
 
 type AudioFileInfo struct {
@@ -25,6 +27,14 @@ func handleGetWaveform(db *sql.DB, cfg *core.Config, itemID string) http.Handler
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusUnauthorized)
 			w.Write([]byte(`{"error": "Unauthorized"}`))
+			return
+		}
+
+		// Validate itemID to prevent path traversal
+		if strings.Contains(itemID, "..") || strings.Contains(itemID, "/") || strings.Contains(itemID, "\\") {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte(`{"error": "Invalid item ID"}`))
 			return
 		}
 
@@ -44,6 +54,17 @@ func handleGetWaveform(db *sql.DB, cfg *core.Config, itemID string) http.Handler
 			w.WriteHeader(http.StatusNotFound)
 			w.Write([]byte(fmt.Sprintf(`{"error": "%v"}`, err)))
 			return
+		}
+
+		// Verify safety of all audio file paths
+		for _, info := range infos {
+			if !utils.IsSafeFilePath(db, cfg.MetadataPath, info.Path) {
+				log.Warnf("[Waveform] Unsafe audio file path traversal blocked: %s", info.Path)
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusForbidden)
+				w.Write([]byte(`{"error": "Forbidden"}`))
+				return
+			}
 		}
 
 		// Target 200 points for the player waveform
@@ -76,6 +97,7 @@ func handleGetWaveform(db *sql.DB, cfg *core.Config, itemID string) http.Handler
 		w.Write(jsonData)
 	}
 }
+
 
 func getAudioFilesInfo(db *sql.DB, id string) ([]AudioFileInfo, error) {
 	// 1. Try to find the ID in libraryItems

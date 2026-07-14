@@ -365,7 +365,7 @@ func handleBatchUpdateLibraryItems(db *sql.DB, cfg *core.Config) http.HandlerFun
 				metadataPath = filepath.Join(itemDir, "metadata.json")
 			}
 
-			if metadataPath != "" {
+			if metadataPath != "" && utils.IsSafeFilePath(db, MetadataPath, metadataPath) {
 				if info.mediaType == "book" {
 					var title, subtitle, publisher, publishedYear, publishedDate, description, isbn, asin, language, narratorsRaw, tagsRaw, genresRaw string
 					var explicitVal, abridgedVal int
