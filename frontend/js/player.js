@@ -24,6 +24,15 @@ let isFading = false;
 let isSleepTimerActive = false;
 let lastShakeTime = 0;
 
+// Volume Boost and Playback Speed persistence variables
+let audioContext = null;
+let audioSourceNode = null;
+let gainNode = null;
+let volumeBoostLevel = 1.0; // multiplier: 1.0 = no boost, 1.5, 2.0, 2.5, 3.0
+let rememberSpeedPerBook = true;
+let globalDefaultSpeed = 1.0;
+
+
 
 // Google Cast fields
 let castContext = null;
@@ -173,6 +182,7 @@ function castPlayItem(item, startTime = 0, clientPlaylistUri) {
 function initAudio() {
   if (audio) return;
   audio = new Audio();
+  audio.crossOrigin = "anonymous";
   
   // Set up audio events for timeline and status updates
   audio.addEventListener('timeupdate', updateTimelineUI);
@@ -200,9 +210,40 @@ function initAudio() {
   setupUIEventListeners();
 }
 
+function initVolumeBoost() {
+  if (!audio) return;
+  if (audioContext) return;
+  
+  try {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) {
+      console.warn('Web Audio API not supported');
+      return;
+    }
+    audioContext = new AudioContextClass();
+    audioSourceNode = audioContext.createMediaElementSource(audio);
+    gainNode = audioContext.createGain();
+    
+    audioSourceNode.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+    
+    gainNode.gain.value = volumeBoostLevel;
+    console.log('Web Audio volume boost initialized:', volumeBoostLevel);
+  } catch (err) {
+    console.error('Failed to initialize volume boost:', err);
+  }
+}
+
+
 
 export async function playItem(item, startTime = 0) {
   initAudio();
+  if (volumeBoostLevel > 1.0) {
+    initVolumeBoost();
+  }
+  if (audioContext && audioContext.state === 'suspended') {
+    audioContext.resume();
+  }
   
   try {
     // 1. Create playback session
@@ -222,12 +263,39 @@ export async function playItem(item, startTime = 0) {
     currentPlaylistUri = clientPlaylistUri;
     fetchWaveform(item.id);
     
+    // Restore saved playback speed or default speed
+    let speedToUse = globalDefaultSpeed;
+    if (rememberSpeedPerBook) {
+      const storedSpeed = localStorage.getItem(`abs-speed-book-${item.id}`);
+      if (storedSpeed) {
+        speedToUse = parseFloat(storedSpeed);
+      }
+    }
+    const speedSelectEl = document.getElementById('player-speed');
+    if (speedSelectEl) {
+      let optionExists = false;
+      for (let i = 0; i < speedSelectEl.options.length; i++) {
+        if (parseFloat(speedSelectEl.options[i].value) === speedToUse) {
+          optionExists = true;
+          break;
+        }
+      }
+      if (!optionExists) {
+        const customOpt = document.createElement('option');
+        customOpt.value = speedToUse.toString();
+        customOpt.textContent = `${speedToUse}x`;
+        speedSelectEl.appendChild(customOpt);
+      }
+      speedSelectEl.value = speedToUse.toString();
+    }
+    
     // Stop any existing playback and progress reporting
     stopProgressReporting();
     if (hls) {
       hls.destroy();
       hls = null;
     }
+
     
     // Set metadata on UI
     updateMetadataUI(item);
@@ -479,7 +547,16 @@ function setupUIEventListeners() {
   if (speedSelect) {
     speedSelect.onchange = () => {
       if (!audio) return;
-      audio.playbackRate = parseFloat(speedSelect.value) || 1.0;
+      const speedVal = parseFloat(speedSelect.value) || 1.0;
+      audio.playbackRate = speedVal;
+      
+      // Persist chosen speed
+      if (rememberSpeedPerBook && currentItem) {
+        localStorage.setItem(`abs-speed-book-${currentItem.id}`, speedVal.toString());
+      } else {
+        globalDefaultSpeed = speedVal;
+        localStorage.setItem('abs-speed-global', speedVal.toString());
+      }
     };
   }
   
@@ -502,7 +579,15 @@ function setupUIEventListeners() {
       triggerSleepTimerModal();
     };
   }
+
+  const settingsBtn = document.getElementById('player-settings-btn');
+  if (settingsBtn) {
+    settingsBtn.onclick = () => {
+      triggerPlayerSettingsModal();
+    };
+  }
 }
+
 
 // Format duration/time helper
 function formatTime(secs) {
@@ -1255,4 +1340,176 @@ function drawRoundedRect(ctx, x, y, width, height, radius) {
 }
 
 window.addEventListener('resize', drawWaveform);
+
+function triggerPlayerSettingsModal() {
+  const dialog = document.createElement('dialog');
+  dialog.id = 'player-settings-dialog';
+  dialog.setAttribute('closedby', 'any');
+  dialog.className = 'bg-primary border border-black-400 rounded-lg max-w-md w-full p-6 shadow-2xl space-y-4 focus:outline-none select-none text-white backdrop:bg-black-900/80 backdrop:backdrop-blur-sm open:flex open:flex-col open:items-stretch';
+  
+  dialog.innerHTML = `
+    <div class="flex items-center justify-between border-b border-black-500 pb-3">
+      <h3 class="text-sm font-bold text-white uppercase tracking-wider flex items-center space-x-1.5">
+        <span class="material-symbols text-base text-accent">settings</span>
+        <span>Player Settings</span>
+      </h3>
+      <button id="close-settings-modal" class="text-black-100 hover:text-white transition-colors">
+        <span class="material-symbols text-lg">close</span>
+      </button>
+    </div>
+
+    <div class="space-y-4 text-left">
+      <!-- Volume Boost -->
+      <div class="space-y-2">
+        <div class="flex justify-between items-center">
+          <label class="text-[0.65rem] uppercase font-bold text-black-100 tracking-wider">Volume Boost</label>
+          <span id="volume-boost-value" class="text-xs text-accent font-bold">1.0x (No Boost)</span>
+        </div>
+        <div class="flex items-center space-x-3">
+          <span class="text-xs text-black-100">1.0x</span>
+          <input type="range" id="volume-boost-slider" min="1.0" max="3.0" step="0.1" value="${volumeBoostLevel}" class="flex-grow accent-accent bg-black-500 h-1.5 rounded-lg cursor-pointer">
+          <span class="text-xs text-black-100">3.0x</span>
+        </div>
+        <span class="text-[0.65rem] text-black-100 block">Boost audio levels beyond 100% using Web Audio API (recommended for quiet recordings).</span>
+      </div>
+
+      <hr class="border-black-500">
+
+      <!-- Speed Settings -->
+      <div class="space-y-3">
+        <label class="text-[0.65rem] uppercase font-bold text-black-100 tracking-wider block">Playback Speed Settings</label>
+        
+        <label class="flex items-center space-x-2.5 cursor-pointer select-none">
+          <input type="checkbox" id="speed-remember-input" class="rounded text-accent bg-black-500 border-black-300 focus:ring-0 focus:ring-offset-0">
+          <div class="text-left">
+            <span class="text-xs text-white font-medium block">Remember speed per book</span>
+            <span class="text-[0.65rem] text-black-100">Automatically save and restore playback speed for each individual book</span>
+          </div>
+        </label>
+
+        <div class="space-y-1">
+          <label for="speed-default-select" class="text-xs text-white font-medium block">Default Playback Speed</label>
+          <select id="speed-default-select" class="w-full bg-black-500 text-white px-3 py-2 rounded border border-black-300 focus:outline-none focus:border-accent text-xs cursor-pointer">
+            <option value="0.5">0.5x</option>
+            <option value="0.75">0.75x</option>
+            <option value="1.0">1.0x (Default)</option>
+            <option value="1.25">1.25x</option>
+            <option value="1.5">1.5x</option>
+            <option value="1.75">1.75x</option>
+            <option value="2.0">2.0x</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="flex items-center justify-end space-x-3 pt-3 border-t border-black-500">
+      <button id="cancel-settings-btn" class="bg-transparent hover:bg-black-500 text-white px-4 py-2 rounded text-xs transition-colors">
+        Cancel
+      </button>
+      <button id="save-settings-btn" class="bg-accent text-primary font-bold px-4 py-2 rounded text-xs hover:opacity-90 transition-opacity">
+        Save Settings
+      </button>
+    </div>
+  `;
+
+  document.body.appendChild(dialog);
+
+  const rememberInput = dialog.querySelector('#speed-remember-input');
+  const defaultSelect = dialog.querySelector('#speed-default-select');
+  const boostSlider = dialog.querySelector('#volume-boost-slider');
+  const boostValSpan = dialog.querySelector('#volume-boost-value');
+
+  rememberInput.checked = rememberSpeedPerBook;
+  defaultSelect.value = globalDefaultSpeed.toString();
+  boostSlider.value = volumeBoostLevel;
+
+  const updateBoostLabel = (val) => {
+    const v = parseFloat(val);
+    if (v === 1.0) {
+      boostValSpan.textContent = '1.0x (No Boost)';
+    } else {
+      const db = (20 * Math.log10(v)).toFixed(1);
+      boostValSpan.textContent = `${v.toFixed(1)}x (+${db} dB)`;
+    }
+  };
+  updateBoostLabel(volumeBoostLevel);
+
+  boostSlider.oninput = () => {
+    updateBoostLabel(boostSlider.value);
+  };
+
+  const closeModal = () => {
+    dialog.close();
+    dialog.remove();
+  };
+
+  if (!('closedBy' in HTMLDialogElement.prototype)) {
+    dialog.addEventListener('click', (event) => {
+      if (event.target !== dialog) return;
+      const rect = dialog.getBoundingClientRect();
+      const isDialogContent = (
+        rect.top <= event.clientY &&
+        event.clientY <= rect.top + rect.height &&
+        rect.left <= event.clientX &&
+        event.clientX <= rect.left + rect.width
+      );
+      if (isDialogContent) return;
+      closeModal();
+    });
+  }
+
+  dialog.querySelector('#close-settings-modal').onclick = closeModal;
+  dialog.querySelector('#cancel-settings-btn').onclick = closeModal;
+
+  dialog.querySelector('#save-settings-btn').onclick = () => {
+    rememberSpeedPerBook = rememberInput.checked;
+    globalDefaultSpeed = parseFloat(defaultSelect.value) || 1.0;
+    volumeBoostLevel = parseFloat(boostSlider.value) || 1.0;
+
+    localStorage.setItem('abs-speed-remember-per-book', rememberSpeedPerBook.toString());
+    localStorage.setItem('abs-speed-global', globalDefaultSpeed.toString());
+    localStorage.setItem('abs-volume-boost', volumeBoostLevel.toString());
+
+    if (audio) {
+      let speedToUse = globalDefaultSpeed;
+      if (rememberSpeedPerBook && currentItem) {
+        const storedSpeed = localStorage.getItem(`abs-speed-book-${currentItem.id}`);
+        if (storedSpeed) {
+          speedToUse = parseFloat(storedSpeed);
+        }
+      }
+      audio.playbackRate = speedToUse;
+      const speedSelect = document.getElementById('player-speed');
+      if (speedSelect) {
+        speedSelect.value = speedToUse.toString();
+      }
+    }
+
+    if (gainNode) {
+      gainNode.gain.value = volumeBoostLevel;
+    } else if (volumeBoostLevel > 1.0 && audio) {
+      initVolumeBoost();
+    }
+
+    closeModal();
+  };
+
+  dialog.showModal();
+}
+
+(function initPlayerSettings() {
+  const rememberVal = localStorage.getItem('abs-speed-remember-per-book');
+  rememberSpeedPerBook = rememberVal !== 'false';
+  
+  const globalSpeedVal = localStorage.getItem('abs-speed-global');
+  if (globalSpeedVal) {
+    globalDefaultSpeed = parseFloat(globalSpeedVal) || 1.0;
+  }
+  
+  const boostVal = localStorage.getItem('abs-volume-boost');
+  if (boostVal) {
+    volumeBoostLevel = parseFloat(boostVal) || 1.0;
+  }
+})();
+
 
