@@ -1,15 +1,18 @@
 # Handoff: Audiobookshelf Go Port
 
 ## Targeted Task & Accomplishments
-- **Target Task**: Implement `GET /api/v1/session` and `GET /api/session` endpoints for state hydration on frontend mount.
+- **Target Task**: OIDC Authentication completion & User Management Privilege Escalation Hardening.
 - **Accomplishments**:
-  - Implemented `handleGetSession` in [internal/handlers/me.go](file:///home/jay/projects/audiobookshelf-go/internal/handlers/me.go) which pulls the `UserSession` from the request context, fetches the full user details using `idb.GetUserFullByID`, and responds with the sanitized browser-friendly JSON representation.
-  - Registered both `GET /api/v1/session` and `GET /api/session` endpoints under the `AuthMiddlewareWrapper` in [internal/handlers/routes.go](file:///home/jay/projects/audiobookshelf-go/internal/handlers/routes.go).
-  - Wrote a new unit test suite in [internal/handlers/session_endpoint_test.go](file:///home/jay/projects/audiobookshelf-go/internal/handlers/session_endpoint_test.go) verifying that:
-    - Requests without valid session auth return `401 Unauthorized`.
-    - Requests with valid session auth return the correct user session payload (`200 OK`).
-    - Requests referencing a deleted or non-existent user return `401 Unauthorized`.
-  - All unit tests and `go vet` check out successfully.
+  - Committed and pushed the OIDC authentication changes (proper token claims using `core.AuthClaims`, cookie and DB session management, and robust integration test suite).
+  - Implemented strict security validations in user management (`internal/handlers/users.go`):
+    - Blocked non-root users (like admins) from creating or promoting users to the "root" type.
+    - Blocked deactivating active "root" users to prevent permanent lockout.
+    - Blocked deleting "root" users via API by verifying the target user's actual type.
+  - Refactored `internal/handlers/users_challenger_test.go` to assert that these security controls reject malicious or incorrect actions with appropriate HTTP error codes (`400 Bad Request` or `403 Forbidden`) and preserve the database state.
+  - Formatted, vetted, tested, built, and pushed the updated Docker image to `jaygz/audiobookshelf-go:latest`.
 
 ## Outstanding Work / Next Gaps
-- None. Session management state hydration API is complete.
+- None. Core feature parity and security hardening items checked out and passed cleanly.
+
+## Next Steps
+- Continue proactive vulnerability/security auditing on filesystem-interacting endpoints (e.g. library scanners, metadata scrapers, downloads) for potential Path Traversal risks, or conduct performance profiling on SQLite query patterns.

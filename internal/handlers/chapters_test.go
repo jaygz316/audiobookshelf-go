@@ -174,3 +174,38 @@ func TestLookupChapters(t *testing.T) {
 		t.Errorf("Unexpected chapter 2: %v", c2)
 	}
 }
+
+func TestHandleLookupChapters_InvalidASIN(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	// Seed database with a book having an invalid ASIN (with trailing injection characters or directory traversal)
+	_, err := db.Exec(`INSERT INTO books (id, title, asin, chapters) VALUES ('book-invalid', 'Test Book', '../traversal', '[]')`)
+	if err != nil {
+		t.Fatalf("Failed to seed book: %v", err)
+	}
+
+	_, err = db.Exec(`INSERT INTO libraryItems (id, mediaId, mediaType, updatedAt) VALUES ('item-invalid', 'book-invalid', 'book', '2026-06-08 12:00:00.000')`)
+	if err != nil {
+		t.Fatalf("Failed to seed library item: %v", err)
+	}
+
+	userSess := &core.UserSession{
+		ID:       "user-1",
+		Username: "adminuser",
+		Type:     "admin",
+		IsActive: true,
+	}
+
+	req := httptest.NewRequest("POST", "/api/items/item-invalid/chapters/lookup", nil)
+	req = req.WithContext(context.WithValue(req.Context(), core.UserContextKey, userSess))
+	rr := httptest.NewRecorder()
+
+	handler := handleLookupChapters(db, "item-invalid")
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("Expected status 400 Bad Request, got %d: %s", rr.Code, rr.Body.String())
+	}
+}
+

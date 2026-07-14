@@ -89,6 +89,27 @@ func TestCustomMetadataProvidersEndpoints(t *testing.T) {
 		createdID = id
 	})
 
+	// 2b. Test invalid URL schema rejection
+	t.Run("CreateCustomProvider_InvalidURL", func(t *testing.T) {
+		invalidPayloads := []string{
+			`{"name": "Invalid", "url": "ftp://api.custom.com", "mediaType": "book"}`,
+			`{"name": "Invalid", "url": "javascript:alert(1)", "mediaType": "book"}`,
+			`{"name": "Invalid", "url": "api.custom.com", "mediaType": "book"}`,
+		}
+
+		for _, payload := range invalidPayloads {
+			req := httptest.NewRequest("POST", "/api/custom-metadata-providers", bytes.NewBufferString(payload))
+			req = req.WithContext(context.WithValue(req.Context(), core.UserContextKey, rootSession))
+			rr := httptest.NewRecorder()
+
+			handleCreateCustomMetadataProvider(db).ServeHTTP(rr, req)
+
+			if rr.Code != http.StatusBadRequest {
+				t.Errorf("Expected status Bad Request (400) for payload %s, got %d", payload, rr.Code)
+			}
+		}
+	})
+
 	// 3. Verify it is listed in active metadata providers
 	t.Run("GetActiveProviders", func(t *testing.T) {
 		req := httptest.NewRequest("GET", "/api/search/providers", nil)

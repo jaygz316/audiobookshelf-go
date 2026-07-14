@@ -15,6 +15,8 @@ import (
 	"path"
 	"path/filepath"
 	"syscall"
+	"time"
+
 
 	ibackup "audiobookshelf/internal/backup"
 	"audiobookshelf/internal/core"
@@ -126,19 +128,28 @@ func main() {
 
 	// Connect to database
 	dbPath := filepath.Join(cfg.ConfigPath, "absdatabase.sqlite")
-	db, err := db.InitDB(dbPath)
+	var sqlDB *sql.DB
+	for i := 1; i <= 30; i++ {
+		sqlDB, err = db.InitDB(dbPath)
+		if err == nil {
+			break
+		}
+		log.Printf("Warning: Failed to connect to SQLite database (attempt %d/30): %v. Retrying in 2s...", i, err)
+		time.Sleep(2 * time.Second)
+	}
+
 	var dbConnected bool
 	if err != nil {
 		log.Printf("Warning: Failed to connect to SQLite database: %v. Node.js server might initialize it.", err)
 	} else {
-		defer db.Close()
+		defer sqlDB.Close()
 		log.Printf("Successfully connected to SQLite database: %s", dbPath)
 		dbConnected = true
-		globalDB = db
-		ibackup.InitScheduler(db, cfg.ConfigPath, cfg.MetadataPath)
+		globalDB = sqlDB
+		ibackup.InitScheduler(sqlDB, cfg.ConfigPath, cfg.MetadataPath)
 	}
 
-	handler := handlers.SetupHandler(db, cfg, dbConnected, appRoot, version)
+	handler := handlers.SetupHandler(sqlDB, cfg, dbConnected, appRoot, version)
 
 	serverAddr := fmt.Sprintf("%s:%s", cfg.Host, cfg.Port)
 	srv := &http.Server{
