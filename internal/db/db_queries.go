@@ -1657,31 +1657,15 @@ func UpdateLibrary(db *sql.DB, libraryID string, payload *UpdateLibraryPayload) 
 					return nil, err
 				}
 
-				itemRows, err := tx.Query("SELECT id, mediaId, mediaType FROM libraryItems WHERE libraryFolderId = ?", fid)
-				if err == nil {
-					type itemInfo struct {
-						id        string
-						mediaID   string
-						mediaType string
-					}
-					var itemsToClean []itemInfo
-					for itemRows.Next() {
-						var item itemInfo
-						if err := itemRows.Scan(&item.id, &item.mediaID, &item.mediaType); err == nil {
-							itemsToClean = append(itemsToClean, item)
-						}
-					}
-					itemRows.Close()
-
-					for _, item := range itemsToClean {
-						if hasMediaProgresses {
-							_, _ = tx.Exec("DELETE FROM mediaProgresses WHERE mediaItemId = ?", item.mediaID)
-						}
-						if hasPlaylistItems {
-							_, _ = tx.Exec("DELETE FROM playlistItems WHERE libraryItemId = ?", item.id)
-						}
-						_, _ = tx.Exec("DELETE FROM libraryItems WHERE id = ?", item.id)
-					}
+				if hasMediaProgresses {
+					_, _ = tx.Exec("DELETE FROM mediaProgresses WHERE mediaItemId IN (SELECT mediaId FROM libraryItems WHERE libraryFolderId = ?)", fid)
+				}
+				if hasPlaylistItems {
+					_, _ = tx.Exec("DELETE FROM playlistItems WHERE libraryItemId IN (SELECT id FROM libraryItems WHERE libraryFolderId = ?)", fid)
+				}
+				_, err = tx.Exec("DELETE FROM libraryItems WHERE libraryFolderId = ?", fid)
+				if err != nil {
+					return nil, err
 				}
 				_ = fpath
 			}
@@ -1743,33 +1727,17 @@ func DeleteLibrary(db *sql.DB, libraryID string) (*LibraryJSON, error) {
 		}
 	}
 
-	itemRows, err := tx.Query("SELECT id, mediaId, mediaType FROM libraryItems WHERE libraryId = ?", libraryID)
-	if err == nil {
-		type itemInfo struct {
-			id        string
-			mediaID   string
-			mediaType string
-		}
-		var itemsToClean []itemInfo
-		for itemRows.Next() {
-			var item itemInfo
-			if err := itemRows.Scan(&item.id, &item.mediaID, &item.mediaType); err == nil {
-				itemsToClean = append(itemsToClean, item)
-			}
-		}
-		itemRows.Close()
-
-		hasMediaProgresses := tableExistsTx(tx, "mediaProgresses")
-		hasPlaylistItems := tableExistsTx(tx, "playlistItems")
-		for _, item := range itemsToClean {
-			if hasMediaProgresses {
-				_, _ = tx.Exec("DELETE FROM mediaProgresses WHERE mediaItemId = ?", item.mediaID)
-			}
-			if hasPlaylistItems {
-				_, _ = tx.Exec("DELETE FROM playlistItems WHERE libraryItemId = ?", item.id)
-			}
-			_, _ = tx.Exec("DELETE FROM libraryItems WHERE id = ?", item.id)
-		}
+	hasMediaProgresses := tableExistsTx(tx, "mediaProgresses")
+	hasPlaylistItems := tableExistsTx(tx, "playlistItems")
+	if hasMediaProgresses {
+		_, _ = tx.Exec("DELETE FROM mediaProgresses WHERE mediaItemId IN (SELECT mediaId FROM libraryItems WHERE libraryId = ?)", libraryID)
+	}
+	if hasPlaylistItems {
+		_, _ = tx.Exec("DELETE FROM playlistItems WHERE libraryItemId IN (SELECT id FROM libraryItems WHERE libraryId = ?)", libraryID)
+	}
+	_, err = tx.Exec("DELETE FROM libraryItems WHERE libraryId = ?", libraryID)
+	if err != nil {
+		return nil, err
 	}
 
 	_, err = tx.Exec("DELETE FROM libraryFolders WHERE libraryId = ?", libraryID)
