@@ -1,18 +1,18 @@
 # Handoff: Audiobookshelf Go Port
 
 ## Targeted Task & Accomplishments
-- **Target Task**: Security Hardening: Parameterize userID in getSortOrder query building
+- **Target Task**: Security Hardening & API Parity - Cover and Author Image Route Authorization.
 - **Accomplishments**:
-  - Identified a potential SQL injection vulnerability in `getSortOrder` in `internal/db/db_queries.go` where `userID` was formatted directly as a string literal instead of using standard parameter placeholders.
-  - Refactored `getSortOrder` to accept a pointer to the SQL query argument slice (`args *[]interface{}`), append `userID` dynamically, and use `?` placeholder in the SQL query string.
-  - Updated the caller `GetFilteredLibraryItems` in `internal/db/db_queries.go` to pass `&args`.
-  - Added a dedicated unit test in `internal/db/progress_sort_test.go` to test and verify query ordering by progress (both ASC and DESC) for a specific user ID, ensuring all placeholders map correctly.
-  - Confirmed the entire build and test suite passes successfully.
-  - Committed and pushed changes to remote.
-  - Successfully built and pushed Docker image `jaygz/audiobookshelf-go:latest` to Docker Hub.
+  - Identified that GET `/api/items/{id}/cover` and GET `/api/authors/{id}/image` were completely unauthenticated in the Go port because they lacked `AuthMiddlewareWrapper`.
+  - Discovered that the `authNotNeeded` bypass regex in `middleware.go` was hardcoded to `/audiobookshelf/` prefix, breaking base-path flexibility and leaking author images.
+  - Wrapped both GET `/api/items/{id}/cover` and GET `/api/authors/{id}/image` in `AuthMiddlewareWrapper` in `routes.go`.
+  - Updated `authNotNeeded` in `middleware.go` to remove author image bypass (requiring JWT/session auth for author images to match original Node.js behavior) and updated the cover regex to support any base-path prefix dynamically (`(?i)/api/items/[^/]+/cover/?$`).
+  - Added security integration test suite `internal/handlers/cover_security_test.go` verifying correct behavior (covers allowed without token, author images rejected with 401 without auth, and author images accepted with valid token).
+  - Fixed pre-existing global state leakage in `internal/handlers/metrics_test.go` by resetting status metrics counters (`metricHTTPRequests2xx`, etc.) at test startup.
+  - All tests verified and passing successfully.
 
 ## Outstanding Work / Next Gaps
-- None. The Go port repository is fully synchronized, secure, stable, and functionally complete.
+- None. The Go port repository is fully secure, verified, and has passing tests.
 
 ## Next Steps
-- Continue monitoring production deployment and client app integrations.
+- Continue auditing and hardening other media processing or third-party API integration points.

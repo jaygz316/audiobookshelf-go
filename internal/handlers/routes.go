@@ -1237,7 +1237,7 @@ func HandleItemsDispatch(db *sql.DB, cfg *core.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Path
 		if strings.HasSuffix(path, "/cover") {
-			serveCover(db, cfg.MetadataPath)(w, r)
+			AuthMiddlewareWrapper(db, serveCover(db, cfg.MetadataPath)).ServeHTTP(w, r)
 			return
 		}
 		if strings.HasSuffix(path, "/download") {
@@ -1343,7 +1343,7 @@ func handleAuthorsDispatch(db *sql.DB, cfg *core.Config) http.HandlerFunc {
 		} else if len(parts) == 2 && parts[1] == "image" {
 			authorID := parts[0]
 			if r.Method == http.MethodGet {
-				handleGetAuthorImage(db, cfg.MetadataPath, authorID)(w, r)
+				AuthMiddlewareWrapper(db, http.HandlerFunc(handleGetAuthorImage(db, cfg.MetadataPath, authorID))).ServeHTTP(w, r)
 				return
 			} else if r.Method == http.MethodDelete {
 				AuthMiddlewareWrapper(db, http.HandlerFunc(handleDeleteAuthorImage(db, cfg, authorID))).ServeHTTP(w, r)
