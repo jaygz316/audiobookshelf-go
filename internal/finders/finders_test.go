@@ -5,7 +5,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"log"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -13,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	log "audiobookshelf/internal/logger"
 	"audiobookshelf/internal/providers"
 
 	_ "modernc.org/sqlite"

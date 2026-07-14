@@ -3,13 +3,13 @@ package backup
 import (
 	"context"
 	"database/sql"
-	"log"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	"audiobookshelf/internal/db"
+	log "audiobookshelf/internal/logger"
 )
 
 // GlobalScheduler is the singleton instance of the backup scheduler.

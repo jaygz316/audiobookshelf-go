@@ -6,7 +6,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"log"
 	"sync"
 	"time"
 
@@ -15,6 +14,7 @@ import (
 
 	"audiobookshelf/internal/core"
 	"audiobookshelf/internal/db"
+	log "audiobookshelf/internal/logger"
 )
 
 // PublicUser represents the public user structure sent on online/offline events.

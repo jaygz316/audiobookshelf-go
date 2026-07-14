@@ -6,7 +6,6 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
-	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -17,6 +16,8 @@ import (
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/doyensec/safeurl"
 	"golang.org/x/oauth2"
+
+	log "audiobookshelf/internal/logger"
 )
 
 // OIDCSettings holds configuration for OIDC authentication.

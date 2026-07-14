@@ -1,11 +1,11 @@
 package handlers
 
 import (
+	log "audiobookshelf/internal/logger"
 	"database/sql"
 	"encoding/json"
 	"flag"
 	"io/fs"
-	"log"
 	"net/http"
 	"os"
 	"os/exec"
@@ -18,6 +18,7 @@ import (
 	"audiobookshelf/internal/core"
 	idb "audiobookshelf/internal/db"
 	ihls "audiobookshelf/internal/hls"
+	ilogger "audiobookshelf/internal/logger"
 	iscanner "audiobookshelf/internal/scanner"
 	isocket "audiobookshelf/internal/socket"
 	iwatcher "audiobookshelf/internal/watcher"
@@ -88,7 +89,12 @@ func SetupHandler(db *sql.DB, cfg *core.Config, dbConnected bool, appRoot string
 
 func LoggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[HTTP] Request: %s %s from %s (User-Agent: %s)", r.Method, r.URL.Path, r.RemoteAddr, r.UserAgent())
+		ilogger.Info("[HTTP] Request",
+			"method", r.Method,
+			"path", r.URL.Path,
+			"remote", r.RemoteAddr,
+			"userAgent", r.UserAgent(),
+		)
 
 		sanitizedHeaders := make(http.Header)
 		for k, v := range r.Header {
@@ -99,7 +105,7 @@ func LoggingMiddleware(next http.Handler) http.Handler {
 				sanitizedHeaders[k] = v
 			}
 		}
-		log.Printf("[HTTP] Request Headers: %v", sanitizedHeaders)
+		ilogger.Info("[HTTP] Request Headers", "headers", sanitizedHeaders)
 		next.ServeHTTP(w, r)
 	})
 }
@@ -823,6 +829,7 @@ func registerTasksAndOtherRoutes(mux *http.ServeMux, cfg *core.Config, db *sql.D
 	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/items/"), HandleItemsDispatch(db, cfg))
 
 	isocket.GlobalAuth = isocket.NewAuthority(db)
+	ilogger.LogCallback = isocket.GlobalAuth.BroadcastLog
 	socketHandler := isocket.InitSocketAuthority(isocket.GlobalAuth)
 	mux.Handle(joinPath(cfg.RouterBasePath, "/socket.io/"), socketHandler)
 	if cfg.RouterBasePath != "" && cfg.RouterBasePath != "/" {

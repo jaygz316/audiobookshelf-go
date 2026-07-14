@@ -4,11 +4,12 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"log"
 	"strconv"
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
+
+	log "audiobookshelf/internal/logger"
 )
 
 // ShareLink represents a public sharing link.

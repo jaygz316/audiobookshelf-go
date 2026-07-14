@@ -1,12 +1,12 @@
 package handlers
 
 import (
+	log "audiobookshelf/internal/logger"
 	"context"
 	"database/sql"
 	"encoding/base64"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"net/http/httptest"
 	"testing"

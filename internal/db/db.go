@@ -4,11 +4,11 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 	"time"
 
 	"audiobookshelf/internal/core"
+	log "audiobookshelf/internal/logger"
 )
 
 // BackupScheduleType is a custom type that can unmarshal from either a boolean or a string.

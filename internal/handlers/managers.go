@@ -1,8 +1,8 @@
 package handlers
 
 import (
+	log "audiobookshelf/internal/logger"
 	"database/sql"
-	"log"
 	"sync"
 
 	"audiobookshelf/internal/auth"

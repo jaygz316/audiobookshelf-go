@@ -3,7 +3,6 @@ package watcher
 import (
 	"database/sql"
 	"encoding/json"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -11,6 +10,8 @@ import (
 	"time"
 
 	"github.com/fsnotify/fsnotify"
+
+	log "audiobookshelf/internal/logger"
 )
 
 // ScanFunc is the type for the library scan callback.

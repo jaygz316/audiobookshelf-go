@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"os/exec"
@@ -24,6 +23,7 @@ import (
 
 	"audiobookshelf/internal/core"
 	idb "audiobookshelf/internal/db"
+	log "audiobookshelf/internal/logger"
 	"audiobookshelf/internal/metadata"
 	inotification "audiobookshelf/internal/notification"
 	isocket "audiobookshelf/internal/socket"

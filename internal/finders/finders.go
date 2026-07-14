@@ -4,13 +4,14 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"log"
 	"regexp"
 	"strings"
 	"sync"
 
 	"audiobookshelf/internal/providers"
 	"golang.org/x/sync/errgroup"
+
+	log "audiobookshelf/internal/logger"
 )
 
 // Finder coordinates search requests across all registered providers.

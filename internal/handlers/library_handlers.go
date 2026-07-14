@@ -2,13 +2,13 @@ package handlers
 
 import (
 	"archive/zip"
+	log "audiobookshelf/internal/logger"
 	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io"
 	"io/fs"
-	"log"
 	"mime"
 	"net/http"
 	"os"

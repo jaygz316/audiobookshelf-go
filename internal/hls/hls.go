@@ -6,7 +6,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"log"
 	"math"
 	"net/http"
 	"os"
@@ -22,6 +21,7 @@ import (
 	"github.com/google/uuid"
 
 	"audiobookshelf/internal/core"
+	log "audiobookshelf/internal/logger"
 	isocket "audiobookshelf/internal/socket"
 )
 

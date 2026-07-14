@@ -8,7 +8,6 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -19,6 +18,8 @@ import (
 
 	"github.com/doyensec/safeurl"
 	"github.com/google/uuid"
+
+	log "audiobookshelf/internal/logger"
 )
 
 // PodcastFeed represents the metadata and episode list of a podcast RSS feed.
