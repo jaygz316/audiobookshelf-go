@@ -1155,3 +1155,25 @@ func scanMediaProgress(row *sql.Row) (map[string]interface{}, error) {
 		"finishedAt":                finishedAtMs,
 	}, nil
 }
+
+// handleGetSession returns the session user object
+func handleGetSession(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		log.Infof("[Go] GET %s", r.URL.Path)
+		userSess, ok := r.Context().Value(core.UserContextKey).(*core.UserSession)
+		if !ok {
+			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
+			return
+		}
+
+		user, err := idb.GetUserFullByID(r.Context(), db, userSess.ID)
+		if err != nil || user == nil {
+			log.Errorf("[Session] idb.User lookup failed: %v", err)
+			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(user.ToOldJSONForBrowser(user.Type != "root"))
+	}
+}
