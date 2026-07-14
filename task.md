@@ -58,9 +58,9 @@ This document tracks the tasks and missing features of the `audiobookshelf-go` p
 - [x] **Batch Metadata Editor**: Multi-select items in the library grid to edit genres, tags, authors, narrators, series, publishers, and release years in bulk.
 
 ### 5. Podcast Subscriptions & Episode Downloader
-- [ ] **Podcast Search & Subscription Portal**: In-app search for subscribing to feeds using iTunes and PodcastIndex APIs.
-- [ ] **Podcast Download Queue UI**: View active downloads, download speeds, pending queue, retry failed downloads, and pause/resume buttons.
-- [ ] **Subscription Cleanup Policies**: Dropdown settings per podcast for episode retention limits, automatic deletion of played episodes, and check schedule intervals.
+- [x] **Podcast Search & Subscription Portal**: In-app search for subscribing to feeds using iTunes and PodcastIndex APIs.
+- [x] **Podcast Download Queue UI**: View active downloads, download speeds, pending queue, retry failed downloads, and pause/resume buttons.
+- [x] **Subscription Cleanup Policies**: Dropdown settings per podcast for episode retention limits, automatic deletion of played episodes, and check schedule intervals.
 
 ### 6. Server Administration & Permissions
 - [x] **Granular User Permissions Manager**: Checkboxes for editing individual permissions:
