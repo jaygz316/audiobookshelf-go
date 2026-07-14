@@ -37,7 +37,7 @@ func handleCreateShare(db *sql.DB) http.HandlerFunc {
 		if err != nil {
 			err = db.QueryRowContext(r.Context(), "SELECT id FROM libraryItems WHERE id = ?", req.MediaItemID).Scan(&libraryItemID)
 			if err != nil {
-				log.Printf("[Share] Failed to find libraryItem for mediaItemId %s: %v", req.MediaItemID, err)
+				log.Errorf("[Share] Failed to find libraryItem for mediaItemId %s: %v", req.MediaItemID, err)
 				http.Error(w, "Media item not found", http.StatusNotFound)
 				return
 			}
@@ -66,7 +66,7 @@ func handleCreateShare(db *sql.DB) http.HandlerFunc {
 		}
 
 		if err := globalShareManager.CreateShare(r.Context(), s); err != nil {
-			log.Printf("[Share] CreateShare failed: %v", err)
+			log.Errorf("[Share] CreateShare failed: %v", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -98,7 +98,7 @@ func handleDeleteShare(db *sql.DB, id string) http.HandlerFunc {
 		initManagers(db)
 
 		if err := globalShareManager.DeleteShare(r.Context(), id); err != nil {
-			log.Printf("[Share] DeleteShare failed: %v", err)
+			log.Errorf("[Share] DeleteShare failed: %v", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -113,7 +113,7 @@ func handleGetShares(db *sql.DB) http.HandlerFunc {
 
 		list, err := globalShareManager.GetShares(r.Context())
 		if err != nil {
-			log.Printf("[Share] GetShares failed: %v", err)
+			log.Errorf("[Share] GetShares failed: %v", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}

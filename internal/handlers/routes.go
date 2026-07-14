@@ -192,18 +192,18 @@ func registerBaseRoutes(mux *http.ServeMux, cfg *core.Config, db *sql.DB, dbConn
 	dbPath := filepath.Join(cfg.ConfigPath, "absdatabase.sqlite")
 
 	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/ping"), func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[Go] GET /ping")
+		log.Infof("[Go] GET /ping")
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"success":true}`))
 	})
 
 	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/healthcheck"), func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[Go] GET /healthcheck")
+		log.Infof("[Go] GET /healthcheck")
 		w.WriteHeader(http.StatusOK)
 	})
 
 	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/status"), func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[Go] GET /status")
+		log.Infof("[Go] GET /status")
 		if !dbConnected {
 			var reconnectErr error
 			db, reconnectErr = idb.InitDB(dbPath)
@@ -213,27 +213,27 @@ func registerBaseRoutes(mux *http.ServeMux, cfg *core.Config, db *sql.DB, dbConn
 				if isocket.GlobalAuth != nil {
 					isocket.GlobalAuth.SetDB(db)
 				}
-				log.Printf("Connected to SQLite database on-demand: %s", dbPath)
+				log.Infof("Connected to SQLite database on-demand: %s", dbPath)
 				reinitManagers(db)
 			}
 		}
 
 		if !dbConnected || db == nil {
-			log.Printf("[Status] DB not connected.")
+			log.Infof("[Status] DB not connected.")
 			http.Error(w, `{"error": "Database not connected"}`, http.StatusInternalServerError)
 			return
 		}
 
 		isInit, err := idb.HasRootUser(db)
 		if err != nil {
-			log.Printf("[Status] Failed to check root user: %v", err)
+			log.Errorf("[Status] Failed to check root user: %v", err)
 			http.Error(w, `{"error": "Failed to check status"}`, http.StatusInternalServerError)
 			return
 		}
 
 		settings, err := idb.GetServerSettings(db)
 		if err != nil {
-			log.Printf("[Status] Failed to get server settings: %v", err)
+			log.Errorf("[Status] Failed to get server settings: %v", err)
 			http.Error(w, `{"error": "Failed to check status"}`, http.StatusInternalServerError)
 			return
 		}
@@ -352,7 +352,7 @@ func registerAuthAndUserRoutes(mux *http.ServeMux, cfg *core.Config, db *sql.DB,
 
 func registerLibraryRoutes(mux *http.ServeMux, cfg *core.Config, db *sql.DB) {
 	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/libraries"), func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[Go] %s /api/libraries", r.Method)
+		log.Infof("[Go] %s /api/libraries", r.Method)
 		if r.Method == http.MethodGet {
 			AuthMiddlewareWrapper(db, http.HandlerFunc(HandleGetLibraries(db))).ServeHTTP(w, r)
 		} else if r.Method == http.MethodPost {
@@ -428,38 +428,40 @@ func registerShareRoutes(mux *http.ServeMux, cfg *core.Config, db *sql.DB) {
 	})
 
 	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/s/"), func(w http.ResponseWriter, r *http.Request) {
-		pathWithoutPrefix := trimBasePath(r.URL.Path, cfg.RouterBasePath)
-		subPath := strings.TrimPrefix(pathWithoutPrefix, "/api/s/")
-		parts := strings.Split(subPath, "/")
-		if len(parts) == 0 || parts[0] == "" {
-			http.NotFound(w, r)
-			return
-		}
-		// parts[0] is the slug
-		if len(parts) == 2 {
-			if parts[1] == "download" {
-				if r.Method == http.MethodGet {
-					handleGetPublicShareDownload(db).ServeHTTP(w, r)
-					return
-				}
-			} else if parts[1] == "stream" {
-				if r.Method == http.MethodGet {
-					handleGetPublicShareStream(db).ServeHTTP(w, r)
-					return
-				}
-			} else if parts[1] == "cover" {
-				if r.Method == http.MethodGet {
-					handleGetPublicShareCover(db, cfg.MetadataPath).ServeHTTP(w, r)
-					return
-				}
-			}
-		} else if len(parts) == 1 {
-			if r.Method == http.MethodGet {
-				handleGetPublicShare(db).ServeHTTP(w, r)
+		RateLimitMiddleware(ShareRateLimiter)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			pathWithoutPrefix := trimBasePath(r.URL.Path, cfg.RouterBasePath)
+			subPath := strings.TrimPrefix(pathWithoutPrefix, "/api/s/")
+			parts := strings.Split(subPath, "/")
+			if len(parts) == 0 || parts[0] == "" {
+				http.NotFound(w, r)
 				return
 			}
-		}
-		http.NotFound(w, r)
+			// parts[0] is the slug
+			if len(parts) == 2 {
+				if parts[1] == "download" {
+					if r.Method == http.MethodGet {
+						handleGetPublicShareDownload(db).ServeHTTP(w, r)
+						return
+					}
+				} else if parts[1] == "stream" {
+					if r.Method == http.MethodGet {
+						handleGetPublicShareStream(db).ServeHTTP(w, r)
+						return
+					}
+				} else if parts[1] == "cover" {
+					if r.Method == http.MethodGet {
+						handleGetPublicShareCover(db, cfg.MetadataPath).ServeHTTP(w, r)
+						return
+					}
+				}
+			} else if len(parts) == 1 {
+				if r.Method == http.MethodGet {
+					handleGetPublicShare(db).ServeHTTP(w, r)
+					return
+				}
+			}
+			http.NotFound(w, r)
+		})).ServeHTTP(w, r)
 	})
 }
 
@@ -811,7 +813,7 @@ func registerTasksAndOtherRoutes(mux *http.ServeMux, cfg *core.Config, db *sql.D
 	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/auth/openid"), func(w http.ResponseWriter, r *http.Request) {
 		s, err := getOIDCSettings(db)
 		if err != nil || s.IssuerURL == "" {
-			log.Printf("[OIDC Login] Error getting OIDC settings or not configured: %v", err)
+			log.Infof("[OIDC Login] Error getting OIDC settings or not configured: %v", err)
 			http.Error(w, "OIDC is not configured or settings error", http.StatusBadRequest)
 			return
 		}
@@ -923,7 +925,7 @@ func registerFallbackRoutes(mux *http.ServeMux, cfg *core.Config, db *sql.DB, ap
 		}
 
 		if isBackend {
-			log.Printf("[Backend] 404 Not Found: %s %s", r.Method, r.URL.Path)
+			log.Warnf("[Backend] 404 Not Found: %s %s", r.Method, r.URL.Path)
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusNotFound)
 			_, _ = w.Write([]byte(`{"error": "API route not found"}`))
@@ -1022,7 +1024,7 @@ func handleLibrarySubRouteDispatch(db *sql.DB, w http.ResponseWriter, r *http.Re
 
 func handleLibrariesDispatch(db *sql.DB, cfg *core.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[Go] %s %s", r.Method, r.URL.Path)
+		log.Infof("[Go] %s %s", r.Method, r.URL.Path)
 
 		subPath := strings.TrimPrefix(r.URL.Path, joinPath(cfg.RouterBasePath, "/api/libraries/"))
 		if subPath == "" {
@@ -1077,7 +1079,7 @@ func handleMeDispatch(db *sql.DB, cfg *core.Config) http.HandlerFunc {
 
 		if len(parts) == 1 && parts[0] == "password" {
 			if r.Method == http.MethodPost {
-				AuthMiddlewareWrapper(db, handleUpdateMePassword(db)).ServeHTTP(w, r)
+				RateLimitMiddleware(LoginRateLimiter)(AuthMiddlewareWrapper(db, handleUpdateMePassword(db))).ServeHTTP(w, r)
 				return
 			}
 		} else if len(parts) == 1 && parts[0] == "listening-stats" {
@@ -1175,12 +1177,12 @@ func handleBackupsDispatch(db *sql.DB, cfg *core.Config) http.HandlerFunc {
 		} else if len(parts) == 2 && parts[1] == "apply" {
 			if r.Method == http.MethodPost {
 				AuthMiddlewareWrapper(db, handleApplyBackup(db, cfg.ConfigPath, cfg.MetadataPath, func() {
-					log.Printf("[Backup Apply] Restarting Go Gateway process...")
+					log.Infof("[Backup Apply] Restarting Go Gateway process...")
 					go func() {
 						time.Sleep(500 * time.Millisecond)
 
 						if flag.Lookup("test.v") != nil || os.Getenv("UNDER_TEST") == "true" {
-							log.Printf("[Backup Apply] Test environment detected, skipping syscall.Exec.")
+							log.Infof("[Backup Apply] Test environment detected, skipping syscall.Exec.")
 							return
 						}
 
@@ -1193,10 +1195,10 @@ func handleBackupsDispatch(db *sql.DB, cfg *core.Config) http.HandlerFunc {
 							binary = os.Args[0]
 						}
 
-						log.Printf("[Backup Apply] Executing %s %v", binary, os.Args)
+						log.Infof("[Backup Apply] Executing %s %v", binary, os.Args)
 						err = syscall.Exec(binary, os.Args, os.Environ())
 						if err != nil {
-							log.Printf("[Backup Apply] syscall.Exec failed: %v", err)
+							log.Errorf("[Backup Apply] syscall.Exec failed: %v", err)
 							os.Exit(1)
 						}
 					}()
@@ -1292,7 +1294,7 @@ func HandleItemsDispatch(db *sql.DB, cfg *core.Config) http.HandlerFunc {
 			}
 		}
 
-		log.Printf("[Backend] 404 Not Found: %s %s", r.Method, r.URL.Path)
+		log.Warnf("[Backend] 404 Not Found: %s %s", r.Method, r.URL.Path)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusNotFound)
 		_, _ = w.Write([]byte(`{"error": "API route not found"}`))
@@ -1301,7 +1303,7 @@ func HandleItemsDispatch(db *sql.DB, cfg *core.Config) http.HandlerFunc {
 
 func handleAuthorsDispatch(db *sql.DB, cfg *core.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[Go] %s %s", r.Method, r.URL.Path)
+		log.Infof("[Go] %s %s", r.Method, r.URL.Path)
 
 		subPath := strings.TrimPrefix(r.URL.Path, joinPath(cfg.RouterBasePath, "/api/authors/"))
 		parts := strings.Split(subPath, "/")
@@ -1338,7 +1340,7 @@ func handleAuthorsDispatch(db *sql.DB, cfg *core.Config) http.HandlerFunc {
 
 func handleSeriesDispatch(db *sql.DB, cfg *core.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[Go] %s %s", r.Method, r.URL.Path)
+		log.Infof("[Go] %s %s", r.Method, r.URL.Path)
 
 		subPath := strings.TrimPrefix(r.URL.Path, joinPath(cfg.RouterBasePath, "/api/series/"))
 		parts := strings.Split(subPath, "/")

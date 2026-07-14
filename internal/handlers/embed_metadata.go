@@ -25,7 +25,7 @@ type ChapterInfo struct {
 
 func handleEmbedMetadata(db *sql.DB, cfg *core.Config, itemID string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[Go] POST /api/items/%s/embed-metadata", itemID)
+		log.Infof("[Go] POST /api/items/%s/embed-metadata", itemID)
 
 		userVal := r.Context().Value(core.UserContextKey)
 		if userVal == nil {
@@ -169,7 +169,7 @@ func handleEmbedMetadata(db *sql.DB, cfg *core.Config, itemID string) http.Handl
 			}
 
 			if _, err := os.Stat(filePathVal); os.IsNotExist(err) {
-				log.Printf("[Warning] Audio file path not found: %s", filePathVal)
+				log.Warnf("[Warning] Audio file path not found: %s", filePathVal)
 				continue
 			}
 
@@ -208,7 +208,7 @@ func handleEmbedMetadata(db *sql.DB, cfg *core.Config, itemID string) http.Handl
 			cmd.Stderr = &stderr
 
 			if err := cmd.Run(); err != nil {
-				log.Printf("[Error] FFmpeg execution failed for %s: %v, stderr: %s", filePathVal, err, stderr.String())
+				log.Errorf("[Error] FFmpeg execution failed for %s: %v, stderr: %s", filePathVal, err, stderr.String())
 				// Attempt cleanup and abort/return error
 				os.Remove(tmpOutPath)
 				http.Error(w, fmt.Sprintf(`{"error": "FFmpeg failed for file %s: %v. Stderr: %s"}`, filepath.Base(filePathVal), err, stderr.String()), http.StatusInternalServerError)
@@ -218,7 +218,7 @@ func handleEmbedMetadata(db *sql.DB, cfg *core.Config, itemID string) http.Handl
 			// Validate generated file size to avoid truncation
 			tmpStat, err := os.Stat(tmpOutPath)
 			if err != nil || tmpStat.Size() < 1024 {
-				log.Printf("[Error] Embedded output file is missing or too small: %s", tmpOutPath)
+				log.Errorf("[Error] Embedded output file is missing or too small: %s", tmpOutPath)
 				os.Remove(tmpOutPath)
 				http.Error(w, fmt.Sprintf(`{"error": "Ffmpeg produced an empty or corrupted file for %s"}`, filepath.Base(filePathVal)), http.StatusInternalServerError)
 				return
@@ -228,7 +228,7 @@ func handleEmbedMetadata(db *sql.DB, cfg *core.Config, itemID string) http.Handl
 			if err := os.Rename(tmpOutPath, filePathVal); err != nil {
 				// Fallback: copy content
 				if errCopy := copyFile(tmpOutPath, filePathVal); errCopy != nil {
-					log.Printf("[Error] Failed to overwrite original file: %v", errCopy)
+					log.Errorf("[Error] Failed to overwrite original file: %v", errCopy)
 					os.Remove(tmpOutPath)
 					http.Error(w, fmt.Sprintf(`{"error": "Failed to overwrite file %s: %v"}`, filepath.Base(filePathVal), errCopy), http.StatusInternalServerError)
 					return

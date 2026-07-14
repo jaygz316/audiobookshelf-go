@@ -120,7 +120,7 @@ func serveStaticOrSPA(fSys fs.FS, routerBasePath string) http.HandlerFunc {
 		}
 
 		// Serve index.html as fallback for Client-side SPA routing
-		log.Printf("[SPA] Fallback for GET %s -> index.html", r.URL.Path)
+		log.Infof("[SPA] Fallback for GET %s -> index.html", r.URL.Path)
 		data, err := fs.ReadFile(fSys, "index.html")
 		if err == nil {
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -267,11 +267,11 @@ func serveCover(db *sql.DB, metadataPath string) http.HandlerFunc {
 				http.ServeFile(w, r, cachePath)
 				return
 			}
-			log.Printf("[Cover] Resize failed for item %s: %v. Falling back to raw cover.", itemID, errResize)
+			log.Errorf("[Cover] Resize failed for item %s: %v. Falling back to raw cover.", itemID, errResize)
 		}
 
 		// Cache miss fallback: serve the raw cover natively
-		log.Printf("[Cover] Cache miss. Serving raw cover.")
+		log.Infof("[Cover] Cache miss. Serving raw cover.")
 		if err != nil || coverPath == "" {
 			http.NotFound(w, r)
 			return
@@ -327,7 +327,7 @@ func serveDownload(db *sql.DB) http.HandlerFunc {
 		user := userVal.(*core.UserSession)
 
 		if !user.CanDownload {
-			log.Printf("[Download] Forbidden: idb.User %s does not have download permissions", user.Username)
+			log.Warnf("[Download] Forbidden: user %s does not have download permissions", user.Username)
 			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
 			return
 		}
@@ -348,12 +348,12 @@ func serveDownload(db *sql.DB) http.HandlerFunc {
 
 		info, err := idb.GetLibraryItemDownloadInfo(db, itemID)
 		if err != nil {
-			log.Printf("[Download] Failed to get library item info: %v", err)
+			log.Errorf("[Download] Failed to get library item info: %v", err)
 			http.Error(w, `{"error": "Library item not found"}`, http.StatusNotFound)
 			return
 		}
 
-		log.Printf("[Download] idb.User %s requested download for item %s (isFile: %t)", user.Username, itemID, info.IsFile)
+		log.Infof("[Download] user %s requested download for item %s (isFile: %t)", user.Username, itemID, info.IsFile)
 
 		if info.IsFile {
 			w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", filepath.Base(info.RelPath)))
@@ -365,7 +365,7 @@ func serveDownload(db *sql.DB) http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/zip")
 		w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q.zip", filepath.Base(info.Path)))
 		if err := streamDirAsZip(w, info.Path); err != nil {
-			log.Printf("[Download] Directory zip failed: %v", err)
+			log.Errorf("[Download] Directory zip failed: %v", err)
 		}
 	}
 }
@@ -381,7 +381,7 @@ func HandleGetLibraries(db *sql.DB) http.HandlerFunc {
 
 		libs, err := idb.GetLibraries(db)
 		if err != nil {
-			log.Printf("[Go] Failed to get libraries: %v", err)
+			log.Errorf("[Go] Failed to get libraries: %v", err)
 			http.Error(w, fmt.Sprintf(`{"error": "%s"}`, err.Error()), http.StatusInternalServerError)
 			return
 		}
@@ -431,7 +431,7 @@ func HandleGetLibraryByID(db *sql.DB, libraryID string) http.HandlerFunc {
 		if strings.Contains(r.URL.RawQuery, "include=filterdata") {
 			fd, err := idb.GetLibraryFilterDataGo(db, libraryID)
 			if err != nil {
-				log.Printf("[Library getFilterData] Error: %v", err)
+				log.Errorf("[Library getFilterData] Error: %v", err)
 				http.Error(w, `{"error": "Failed to load filter data"}`, http.StatusInternalServerError)
 				return
 			}
@@ -459,7 +459,7 @@ func HandleGetLibraryByID(db *sql.DB, libraryID string) http.HandlerFunc {
 
 		lib, err := idb.GetLibraryByID(db, libraryID)
 		if err != nil {
-			log.Printf("[Go] Failed to get library %s: %v", libraryID, err)
+			log.Errorf("[Go] Failed to get library %s: %v", libraryID, err)
 			http.Error(w, fmt.Sprintf(`{"error": "%s"}`, err.Error()), http.StatusInternalServerError)
 			return
 		}
@@ -489,7 +489,7 @@ func HandleGetLibraryItems(db *sql.DB, libraryID string) http.HandlerFunc {
 
 		lib, err := idb.GetLibraryByID(db, libraryID)
 		if err != nil {
-			log.Printf("[Go] Failed to get library %s: %v", libraryID, err)
+			log.Errorf("[Go] Failed to get library %s: %v", libraryID, err)
 			http.Error(w, fmt.Sprintf(`{"error": "%s"}`, err.Error()), http.StatusInternalServerError)
 			return
 		}
@@ -538,7 +538,7 @@ func HandleGetLibraryItems(db *sql.DB, libraryID string) http.HandlerFunc {
 
 		results, total, err := idb.GetFilteredLibraryItems(db, opts)
 		if err != nil {
-			log.Printf("[Go] Failed to get filtered items for library %s: %v", libraryID, err)
+			log.Errorf("[Go] Failed to get filtered items for library %s: %v", libraryID, err)
 			http.Error(w, fmt.Sprintf(`{"error": "%s"}`, err.Error()), http.StatusInternalServerError)
 			return
 		}
@@ -698,7 +698,7 @@ func HandleGetLibraryPersonalized(db *sql.DB, libraryID string) http.HandlerFunc
 
 		lib, err := idb.GetLibraryByID(db, libraryID)
 		if err != nil {
-			log.Printf("[Go] Failed to get library %s: %v", libraryID, err)
+			log.Errorf("[Go] Failed to get library %s: %v", libraryID, err)
 			http.Error(w, fmt.Sprintf(`{"error": "%s"}`, err.Error()), http.StatusInternalServerError)
 			return
 		}
@@ -775,7 +775,7 @@ func HandleCreateLibrary(db *sql.DB) http.HandlerFunc {
 			}
 			absPath = filepath.ToSlash(absPath)
 			if err := os.MkdirAll(absPath, 0755); err != nil {
-				log.Printf("Failed to create folder directory %s: %v", absPath, err)
+				log.Errorf("Failed to create folder directory %s: %v", absPath, err)
 				http.Error(w, fmt.Sprintf(`{"error": "Invalid folder directory %s"}`, absPath), http.StatusBadRequest)
 				return
 			}
@@ -784,7 +784,7 @@ func HandleCreateLibrary(db *sql.DB) http.HandlerFunc {
 
 		lib, err := idb.CreateLibrary(db, &payload)
 		if err != nil {
-			log.Printf("[Go] Failed to create library: %v", err)
+			log.Errorf("[Go] Failed to create library: %v", err)
 			http.Error(w, fmt.Sprintf(`{"error": "%s"}`, err.Error()), http.StatusInternalServerError)
 			return
 		}
@@ -831,7 +831,7 @@ func HandleUpdateLibrary(db *sql.DB, libraryID string) http.HandlerFunc {
 					}
 					absPath = filepath.ToSlash(absPath)
 					if err := os.MkdirAll(absPath, 0755); err != nil {
-						log.Printf("Failed to create folder directory %s: %v", absPath, err)
+						log.Errorf("Failed to create folder directory %s: %v", absPath, err)
 						http.Error(w, fmt.Sprintf(`{"error": "Invalid folder directory %s"}`, absPath), http.StatusBadRequest)
 						return
 					}
@@ -842,7 +842,7 @@ func HandleUpdateLibrary(db *sql.DB, libraryID string) http.HandlerFunc {
 
 		lib, err := idb.UpdateLibrary(db, libraryID, &payload)
 		if err != nil {
-			log.Printf("[Go] Failed to update library %s: %v", libraryID, err)
+			log.Errorf("[Go] Failed to update library %s: %v", libraryID, err)
 			if err.Error() == "library not found" {
 				http.Error(w, `{"error": "Library not found"}`, http.StatusNotFound)
 			} else {
@@ -872,7 +872,7 @@ func HandleDeleteLibrary(db *sql.DB, libraryID string) http.HandlerFunc {
 
 		lib, err := idb.DeleteLibrary(db, libraryID)
 		if err != nil {
-			log.Printf("[Go] Failed to delete library %s: %v", libraryID, err)
+			log.Errorf("[Go] Failed to delete library %s: %v", libraryID, err)
 			if err.Error() == "library not found" {
 				http.Error(w, `{"error": "Library not found"}`, http.StatusNotFound)
 			} else {
@@ -902,7 +902,7 @@ func handleGetLibraryFilterData(db *sql.DB, libraryID string) http.HandlerFunc {
 
 		fd, err := idb.GetLibraryFilterDataGo(db, libraryID)
 		if err != nil {
-			log.Printf("[Library getFilterData] Error: %v", err)
+			log.Errorf("[Library getFilterData] Error: %v", err)
 			http.Error(w, `{"error": "Failed to load filter data"}`, http.StatusInternalServerError)
 			return
 		}
@@ -931,7 +931,7 @@ func handleGetLibraryStats(db *sql.DB, libraryID string) http.HandlerFunc {
 			if err == sql.ErrNoRows {
 				http.Error(w, `{"error": "Library not found"}`, http.StatusNotFound)
 			} else {
-				log.Printf("[idb.LibraryStats] Failed to get library %s: %v", libraryID, err)
+				log.Errorf("[idb.LibraryStats] Failed to get library %s: %v", libraryID, err)
 				http.Error(w, fmt.Sprintf(`{"error": "%s"}`, err.Error()), http.StatusInternalServerError)
 			}
 			return
@@ -948,7 +948,7 @@ func handleGetLibraryStats(db *sql.DB, libraryID string) http.HandlerFunc {
 			stats, err = idb.GetPodcastLibraryStats(db, libraryID)
 		}
 		if err != nil {
-			log.Printf("[idb.LibraryStats] Failed to get stats for library %s: %v", libraryID, err)
+			log.Errorf("[idb.LibraryStats] Failed to get stats for library %s: %v", libraryID, err)
 			http.Error(w, `{"error": "Failed to load library stats"}`, http.StatusInternalServerError)
 			return
 		}
@@ -976,7 +976,7 @@ func init() {
 
 func handleUpdateCoverFromURL(db *sql.DB, cfg *core.Config, itemID string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[Go] POST /api/items/%s/cover-from-url", itemID)
+		log.Infof("[Go] POST /api/items/%s/cover-from-url", itemID)
 
 		userVal := r.Context().Value(core.UserContextKey)
 		if userVal == nil {
@@ -1004,7 +1004,7 @@ func handleUpdateCoverFromURL(db *sql.DB, cfg *core.Config, itemID string) http.
 
 		destPath, err := downloadCoverFromURL(r.Context(), db, itemID, body.CoverURL, cfg.MetadataPath)
 		if err != nil {
-			log.Printf("[Cover From URL] Failed: %v", err)
+			log.Errorf("[Cover From URL] Failed: %v", err)
 			http.Error(w, fmt.Sprintf(`{"error": "%s"}`, err.Error()), http.StatusInternalServerError)
 			return
 		}
@@ -1148,7 +1148,7 @@ func downloadCoverFromURL(ctx context.Context, db *sql.DB, itemID string, coverU
 // handleUpload handles bulk uploading of audiobooks and podcasts.
 func handleUpload(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[Go] POST /api/upload")
+		log.Infof("[Go] POST /api/upload")
 		userSess := r.Context().Value(core.UserContextKey).(*core.UserSession)
 		if userSess.Type != "root" && userSess.Type != "admin" {
 			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
@@ -1158,7 +1158,7 @@ func handleUpload(db *sql.DB) http.HandlerFunc {
 		// Limit the form parsing. ParseMultipartForm processes up to maxMemory in RAM,
 		// and any excess is written to temp files on disk. 128MB is a good memory buffer.
 		if err := r.ParseMultipartForm(128 * 1024 * 1024); err != nil {
-			log.Printf("[Upload] Multipart parse failed: %v", err)
+			log.Errorf("[Upload] Multipart parse failed: %v", err)
 			http.Error(w, fmt.Sprintf(`{"error": "Multipart form parse failed: %s"}`, err.Error()), http.StatusBadRequest)
 			return
 		}
@@ -1190,7 +1190,7 @@ func handleUpload(db *sql.DB) http.HandlerFunc {
 			if err == sql.ErrNoRows {
 				http.Error(w, `{"error": "Library folder not found"}`, http.StatusBadRequest)
 			} else {
-				log.Printf("[Upload] Database query error: %v", err)
+				log.Errorf("[Upload] Database query error: %v", err)
 				http.Error(w, `{"error": "Internal database error"}`, http.StatusInternalServerError)
 			}
 			return
@@ -1203,7 +1203,7 @@ func handleUpload(db *sql.DB) http.HandlerFunc {
 
 		// Ensure directory exists
 		if err := os.MkdirAll(folderPath, 0755); err != nil {
-			log.Printf("[Upload] Failed to create destination directory %s: %v", folderPath, err)
+			log.Errorf("[Upload] Failed to create destination directory %s: %v", folderPath, err)
 			http.Error(w, `{"error": "Failed to create destination directory on server"}`, http.StatusInternalServerError)
 			return
 		}
@@ -1213,7 +1213,7 @@ func handleUpload(db *sql.DB) http.HandlerFunc {
 			for _, header := range fileHeaders {
 				file, err := header.Open()
 				if err != nil {
-					log.Printf("[Upload] Failed to open uploaded file: %v", err)
+					log.Errorf("[Upload] Failed to open uploaded file: %v", err)
 					http.Error(w, `{"error": "Failed to open uploaded file"}`, http.StatusInternalServerError)
 					return
 				}
@@ -1230,14 +1230,14 @@ func handleUpload(db *sql.DB) http.HandlerFunc {
 					}
 				}
 
-				log.Printf("[Upload Debug] rawFilename: %q (header.Filename was %q)", rawFilename, header.Filename)
+				log.Debugf("[Upload Debug] rawFilename: %q (header.Filename was %q)", rawFilename, header.Filename)
 				relPath := rawFilename
 				relPath = strings.ReplaceAll(relPath, "\\", "/")
 				relPath = path.Clean(relPath)
 				relPath = strings.TrimPrefix(relPath, "/")
 
 				if strings.HasPrefix(relPath, "..") || strings.Contains(relPath, "../") {
-					log.Printf("[Upload] Traversal attempt blocked: %s", header.Filename)
+					log.Warnf("[Upload] Traversal attempt blocked: %s", header.Filename)
 					http.Error(w, `{"error": "Invalid file path (directory traversal blocked)"}`, http.StatusBadRequest)
 					return
 				}
@@ -1247,28 +1247,28 @@ func handleUpload(db *sql.DB) http.HandlerFunc {
 				absDest, err2 := filepath.Abs(destPath)
 				if err1 == nil && err2 == nil {
 					if !strings.HasPrefix(absDest, absFolder) {
-						log.Printf("[Upload] Traversal check failed: %s is not in %s", absDest, absFolder)
+						log.Warnf("[Upload] Traversal check failed: %s is not in %s", absDest, absFolder)
 						http.Error(w, `{"error": "Invalid file path (directory traversal blocked)"}`, http.StatusBadRequest)
 						return
 					}
 				}
 
 				if err := os.MkdirAll(filepath.Dir(destPath), 0755); err != nil {
-					log.Printf("[Upload] Failed to create directories for %s: %v", destPath, err)
+					log.Errorf("[Upload] Failed to create directories for %s: %v", destPath, err)
 					http.Error(w, `{"error": "Failed to create directories on server"}`, http.StatusInternalServerError)
 					return
 				}
 
 				destFile, err := os.Create(destPath)
 				if err != nil {
-					log.Printf("[Upload] Failed to create file %s: %v", destPath, err)
+					log.Errorf("[Upload] Failed to create file %s: %v", destPath, err)
 					http.Error(w, `{"error": "Failed to create destination file"}`, http.StatusInternalServerError)
 					return
 				}
 				defer destFile.Close()
 
 				if _, err := io.Copy(destFile, file); err != nil {
-					log.Printf("[Upload] Failed to write file contents for %s: %v", destPath, err)
+					log.Errorf("[Upload] Failed to write file contents for %s: %v", destPath, err)
 					http.Error(w, `{"error": "Failed to write file contents"}`, http.StatusInternalServerError)
 					return
 				}
@@ -1280,7 +1280,7 @@ func handleUpload(db *sql.DB) http.HandlerFunc {
 		// Trigger library scan in background
 		go func() {
 			if err := iscanner.ScanLibrary(db, libraryID, isocket.GlobalAuth); err != nil {
-				log.Printf("[Upload] Background library scan failed: %v", err)
+				log.Errorf("[Upload] Background library scan failed: %v", err)
 			}
 		}()
 

@@ -24,7 +24,7 @@ import (
 
 func handleInit(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[Go] POST /init")
+		log.Info("[Go] POST /init")
 		if db == nil {
 			http.Error(w, `{"error": "Database not connected"}`, http.StatusInternalServerError)
 			return
@@ -36,12 +36,12 @@ func handleInit(db *sql.DB) http.HandlerFunc {
 
 		hasRoot, err := idb.HasRootUser(db)
 		if err != nil {
-			log.Printf("[Init] Error checking root user: %v", err)
+			log.Errorf("[Init] Error checking root user: %v", err)
 			http.Error(w, `{"error": "Internal Server Error"}`, http.StatusInternalServerError)
 			return
 		}
 		if hasRoot {
-			log.Printf("[Init] Attempt to init server when root user already exists")
+			log.Warnf("[Init] Attempt to init server when root user already exists")
 			http.Error(w, `{"error": "Root user already exists"}`, http.StatusForbidden)
 			return
 		}
@@ -66,7 +66,7 @@ func handleInit(db *sql.DB) http.HandlerFunc {
 
 		hashed, err := bcrypt.GenerateFromPassword([]byte(password), 8)
 		if err != nil {
-			log.Printf("[Init] Hashing failed: %v", err)
+			log.Errorf("[Init] Hashing failed: %v", err)
 			http.Error(w, `{"error": "Internal Server Error"}`, http.StatusInternalServerError)
 			return
 		}
@@ -82,7 +82,7 @@ func handleInit(db *sql.DB) http.HandlerFunc {
 		})
 		tokenStr, err := apiToken.SignedString([]byte(getTokenSecret(db)))
 		if err != nil {
-			log.Printf("[Init] Token signing failed: %v", err)
+			log.Errorf("[Init] Token signing failed: %v", err)
 			http.Error(w, `{"error": "Internal Server Error"}`, http.StatusInternalServerError)
 			return
 		}
@@ -94,7 +94,7 @@ func handleInit(db *sql.DB) http.HandlerFunc {
 			VALUES (?, ?, 'root', ?, ?, 1, ?, '{}', '[]', ?, ?)`,
 			userID, username, string(hashed), tokenStr, defaultPerms, nowStr, nowStr)
 		if err != nil {
-			log.Printf("[Init] Failed to create root user: %v", err)
+			log.Errorf("[Init] Failed to create root user: %v", err)
 			http.Error(w, `{"error": "Failed to create root user"}`, http.StatusInternalServerError)
 			return
 		}
@@ -106,7 +106,7 @@ func handleInit(db *sql.DB) http.HandlerFunc {
 
 func handleLogin(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[Go] POST /login")
+		log.Info("[Go] POST /login")
 		if db == nil {
 			http.Error(w, `{"error": "Database not connected"}`, http.StatusInternalServerError)
 			return
@@ -117,7 +117,7 @@ func handleLogin(db *sql.DB) http.HandlerFunc {
 		}
 
 		if db == nil {
-			log.Printf("[Login] Database not available")
+			log.Warnf("[Login] Database not available")
 			w.Header().Set("Content-Type", "application/json")
 			http.Error(w, `{"error": "Server is not initialized yet. Please wait for the database to be ready."}`, http.StatusServiceUnavailable)
 			return
@@ -135,26 +135,26 @@ func handleLogin(db *sql.DB) http.HandlerFunc {
 
 		user, err := idb.GetUserFullByUsername(r.Context(), db, credentials.Username)
 		if err != nil {
-			log.Printf("[Login] DB lookup failed: %v", err)
+			log.Errorf("[Login] DB lookup failed: %v", err)
 			http.Error(w, `{"error": "Internal Server Error"}`, http.StatusInternalServerError)
 			return
 		}
 
 		if user == nil {
-			log.Printf("[Login] idb.User not found: %s", credentials.Username)
+			log.Warnf("[Login] idb.User not found: %s", credentials.Username)
 			http.Error(w, `{"error": "Invalid username or password"}`, http.StatusUnauthorized)
 			return
 		}
 
 		if !user.IsActive {
-			log.Printf("[Login] idb.User %s is inactive", user.Username)
+			log.Warnf("[Login] idb.User %s is inactive", user.Username)
 			http.Error(w, `{"error": "idb.User is inactive"}`, http.StatusUnauthorized)
 			return
 		}
 
 		err = bcrypt.CompareHashAndPassword([]byte(user.Pash), []byte(credentials.Password))
 		if err != nil {
-			log.Printf("[Login] Invalid password for user %s", user.Username)
+			log.Warnf("[Login] Invalid password for user %s", user.Username)
 			http.Error(w, `{"error": "Invalid username or password"}`, http.StatusUnauthorized)
 			return
 		}
@@ -173,7 +173,7 @@ func handleLogin(db *sql.DB) http.HandlerFunc {
 		}
 		accessToken, err := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString([]byte(secret))
 		if err != nil {
-			log.Printf("[Login] Failed to sign access token: %v", err)
+			log.Errorf("[Login] Failed to sign access token: %v", err)
 			http.Error(w, `{"error": "Failed to login"}`, http.StatusInternalServerError)
 			return
 		}
@@ -191,7 +191,7 @@ func handleLogin(db *sql.DB) http.HandlerFunc {
 		}
 		refreshToken, err := jwt.NewWithClaims(jwt.SigningMethodHS256, refreshClaims).SignedString([]byte(secret))
 		if err != nil {
-			log.Printf("[Login] Failed to sign refresh token: %v", err)
+			log.Errorf("[Login] Failed to sign refresh token: %v", err)
 			http.Error(w, `{"error": "Failed to login"}`, http.StatusInternalServerError)
 			return
 		}
@@ -202,7 +202,7 @@ func handleLogin(db *sql.DB) http.HandlerFunc {
 		expiresAt := time.Now().Add(30 * 24 * time.Hour)
 
 		if err := idb.CreateSession(r.Context(), db, user.ID, ipAddress, userAgent, refreshToken, expiresAt); err != nil {
-			log.Printf("[Login] Failed to create session: %v", err)
+			log.Errorf("[Login] Failed to create session: %v", err)
 			http.Error(w, `{"error": "Failed to login"}`, http.StatusInternalServerError)
 			return
 		}
@@ -219,7 +219,7 @@ func handleLogin(db *sql.DB) http.HandlerFunc {
 		// Return login response payload
 		payload, err := idb.GetUserLoginPayload(r.Context(), db, user)
 		if err != nil {
-			log.Printf("[Login] Failed to build response payload: %v", err)
+			log.Errorf("[Login] Failed to build response payload: %v", err)
 			http.Error(w, `{"error": "Failed to login"}`, http.StatusInternalServerError)
 			return
 		}
@@ -236,7 +236,7 @@ func handleLogin(db *sql.DB) http.HandlerFunc {
 
 func handleAuthorize(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[Go] /api/authorize")
+		log.Info("[Go] /api/authorize")
 		if r.Method != http.MethodPost && r.Method != http.MethodGet {
 			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
 			return
@@ -251,19 +251,19 @@ func handleAuthorize(db *sql.DB) http.HandlerFunc {
 
 		user, err := idb.GetUserFullByID(r.Context(), db, userSess.ID)
 		if err != nil {
-			log.Printf("[Authorize] DB lookup failed for user ID %s: %v", userSess.ID, err)
+			log.Errorf("[Authorize] DB lookup failed for user ID %s: %v", userSess.ID, err)
 			http.Error(w, `{"error": "Internal Server Error"}`, http.StatusInternalServerError)
 			return
 		}
 		if user == nil {
-			log.Printf("[Authorize] idb.User not found: %s", userSess.ID)
+			log.Warnf("[Authorize] idb.User not found: %s", userSess.ID)
 			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
 			return
 		}
 
 		payload, err := idb.GetUserLoginPayload(r.Context(), db, user)
 		if err != nil {
-			log.Printf("[Authorize] Failed to build response payload: %v", err)
+			log.Errorf("[Authorize] Failed to build response payload: %v", err)
 			http.Error(w, `{"error": "Failed to authorize"}`, http.StatusInternalServerError)
 			return
 		}
@@ -278,7 +278,7 @@ func handleAuthorize(db *sql.DB) http.HandlerFunc {
 
 func handleLogout(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[Go] POST /logout")
+		log.Info("[Go] POST /logout")
 		if db == nil {
 			http.Error(w, `{"error": "Database not connected"}`, http.StatusInternalServerError)
 			return
@@ -309,7 +309,7 @@ func handleLogout(db *sql.DB) http.HandlerFunc {
 
 func handleRefresh(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[Go] POST /auth/refresh")
+		log.Info("[Go] POST /auth/refresh")
 		if db == nil {
 			http.Error(w, `{"error": "Database not connected"}`, http.StatusInternalServerError)
 			return
@@ -321,7 +321,7 @@ func handleRefresh(db *sql.DB) http.HandlerFunc {
 
 		cookie, err := r.Cookie("refresh_token")
 		if err != nil || cookie.Value == "" {
-			log.Printf("[Refresh] No refresh token cookie")
+			log.Warnf("[Refresh] No refresh token cookie")
 			http.Error(w, `{"error": "No refresh token"}`, http.StatusBadRequest)
 			return
 		}
@@ -339,7 +339,7 @@ func handleRefresh(db *sql.DB) http.HandlerFunc {
 		})
 
 		if err != nil || !token.Valid || claims.Type != "refresh" {
-			log.Printf("[Refresh] Invalid refresh token: %v", err)
+			log.Warnf("[Refresh] Invalid refresh token: %v", err)
 			http.Error(w, `{"error": "Invalid refresh token"}`, http.StatusBadRequest)
 			return
 		}
@@ -353,11 +353,11 @@ func handleRefresh(db *sql.DB) http.HandlerFunc {
 			Scan(&session.ID, &session.UserID, &session.RefreshToken, &expiresAtStr, &lastRefreshToken, &lastExpiresAtStr)
 
 		if err == sql.ErrNoRows {
-			log.Printf("[Refresh] Session not found in DB")
+			log.Warnf("[Refresh] Session not found in DB")
 			http.Error(w, `{"error": "Invalid refresh token"}`, http.StatusBadRequest)
 			return
 		} else if err != nil {
-			log.Printf("[Refresh] DB error: %v", err)
+			log.Errorf("[Refresh] DB error: %v", err)
 			http.Error(w, `{"error": "Internal Server Error"}`, http.StatusInternalServerError)
 			return
 		}
@@ -372,7 +372,7 @@ func handleRefresh(db *sql.DB) http.HandlerFunc {
 
 		user, err := idb.GetUserFullByID(r.Context(), db, session.UserID)
 		if err != nil || user == nil || !user.IsActive {
-			log.Printf("[Refresh] idb.User inactive or not found")
+			log.Warnf("[Refresh] idb.User inactive or not found")
 			http.Error(w, `{"error": "idb.User inactive"}`, http.StatusUnauthorized)
 			return
 		}
@@ -382,16 +382,16 @@ func handleRefresh(db *sql.DB) http.HandlerFunc {
 			// Matched lastRefreshToken
 			if session.LastRefreshTokenExpiresAt > time.Now().UnixNano()/int64(time.Millisecond) {
 				isGracePeriod = true
-				log.Printf("[Refresh] Grace period hit for user %s", user.Username)
+				log.Infof("[Refresh] Grace period hit for user %s", user.Username)
 			} else {
-				log.Printf("[Refresh] Grace period expired")
+				log.Warnf("[Refresh] Grace period expired")
 				http.Error(w, `{"error": "Invalid refresh token"}`, http.StatusBadRequest)
 				return
 			}
 		} else {
 			// Matched current refreshToken, check DB expiration
 			if session.ExpiresAt < time.Now().UnixNano()/int64(time.Millisecond) {
-				log.Printf("[Refresh] Session expired in DB")
+				log.Warnf("[Refresh] Session expired in DB")
 				db.ExecContext(r.Context(), "DELETE FROM sessions WHERE id = ?", session.ID)
 				http.Error(w, `{"error": "Refresh token expired"}`, http.StatusUnauthorized)
 				return
@@ -409,7 +409,7 @@ func handleRefresh(db *sql.DB) http.HandlerFunc {
 		}
 		newAccessToken, err := jwt.NewWithClaims(jwt.SigningMethodHS256, newAccessTokenClaims).SignedString([]byte(secret))
 		if err != nil {
-			log.Printf("[Refresh] Failed to sign new access token: %v", err)
+			log.Errorf("[Refresh] Failed to sign new access token: %v", err)
 			http.Error(w, `{"error": "Refresh failed"}`, http.StatusInternalServerError)
 			return
 		}
@@ -427,7 +427,7 @@ func handleRefresh(db *sql.DB) http.HandlerFunc {
 			}
 			newRefreshToken, err = jwt.NewWithClaims(jwt.SigningMethodHS256, newRefreshClaims).SignedString([]byte(secret))
 			if err != nil {
-				log.Printf("[Refresh] Failed to sign new refresh token: %v", err)
+				log.Errorf("[Refresh] Failed to sign new refresh token: %v", err)
 				http.Error(w, `{"error": "Refresh failed"}`, http.StatusInternalServerError)
 				return
 			}
@@ -440,7 +440,7 @@ func handleRefresh(db *sql.DB) http.HandlerFunc {
 			_, err = db.ExecContext(r.Context(), "UPDATE sessions SET refreshToken = ?, expiresAt = ?, lastRefreshToken = ?, lastRefreshTokenExpiresAt = ?, updatedAt = ? WHERE id = ? AND refreshToken = ?",
 				newRefreshToken, expiresStr, refreshToken, graceExpiresStr, nowStr, session.ID, refreshToken)
 			if err != nil {
-				log.Printf("[Refresh] Failed to update session in DB: %v", err)
+				log.Errorf("[Refresh] Failed to update session in DB: %v", err)
 				http.Error(w, `{"error": "Refresh failed"}`, http.StatusInternalServerError)
 				return
 			}
@@ -457,7 +457,7 @@ func handleRefresh(db *sql.DB) http.HandlerFunc {
 
 		payload, err := idb.GetUserLoginPayload(r.Context(), db, user)
 		if err != nil {
-			log.Printf("[Refresh] Failed to get response payload: %v", err)
+			log.Errorf("[Refresh] Failed to get response payload: %v", err)
 			http.Error(w, `{"error": "Refresh failed"}`, http.StatusInternalServerError)
 			return
 		}
@@ -475,7 +475,7 @@ func handleRefresh(db *sql.DB) http.HandlerFunc {
 
 func handleGetUsers(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[Go] GET /api/users")
+		log.Info("[Go] GET /api/users")
 		userSess := r.Context().Value(core.UserContextKey).(*core.UserSession)
 		if userSess.Type != "root" && userSess.Type != "admin" {
 			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
@@ -486,7 +486,7 @@ func handleGetUsers(db *sql.DB) http.HandlerFunc {
 
 		rows, err := db.QueryContext(r.Context(), "SELECT id, username, email, pash, type, token, isActive, isLocked, lastSeen, permissions, bookmarks, extraData, createdAt, updatedAt FROM users ORDER BY username ASC")
 		if err != nil {
-			log.Printf("[Users] DB Query failed: %v", err)
+			log.Errorf("[Users] DB Query failed: %v", err)
 			http.Error(w, `{"error": "Internal Server Error"}`, http.StatusInternalServerError)
 			return
 		}
@@ -504,7 +504,7 @@ func handleGetUsers(db *sql.DB) http.HandlerFunc {
 
 			err := rows.Scan(&u.ID, &u.Username, &email, &pashStr, &typeStr, &tokenStr, &isActiveInt, &isLockedInt, &lastSeenStr, &permsStr, &bookmarksStr, &extraDataStr, &createdAtStr, &updatedAtStr)
 			if err != nil {
-				log.Printf("[Users] Failed to scan user: %v", err)
+				log.Errorf("[Users] Failed to scan user: %v", err)
 				continue
 			}
 
@@ -544,7 +544,7 @@ func handleGetUsers(db *sql.DB) http.HandlerFunc {
 			usersJSON = append(usersJSON, u.ToOldJSONForBrowser(hideRootToken))
 		}
 		if err := rows.Err(); err != nil {
-			log.Printf("[Users] Users query iteration error: %v", err)
+			log.Errorf("[Users] Users query iteration error: %v", err)
 			http.Error(w, `{"error": "Internal Server Error"}`, http.StatusInternalServerError)
 			return
 		}
@@ -558,7 +558,7 @@ func handleGetUsers(db *sql.DB) http.HandlerFunc {
 
 func handleGetOnlineUsers(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[Go] GET /api/users/online")
+		log.Info("[Go] GET /api/users/online")
 		userSess := r.Context().Value(core.UserContextKey).(*core.UserSession)
 		if userSess.Type != "root" && userSess.Type != "admin" {
 			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
@@ -584,7 +584,7 @@ func handleUserCRUD(db *sql.DB) http.HandlerFunc {
 
 		pathWithoutPrefix := utils.TrimAPIPath(r.URL.Path, "/api/users")
 		if r.Method == http.MethodPost && (pathWithoutPrefix == "" || pathWithoutPrefix == "/") {
-			log.Printf("[Go] POST /api/users")
+			log.Info("[Go] POST /api/users")
 			if userSess.Type != "root" && userSess.Type != "admin" {
 				http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
 				return
@@ -693,7 +693,7 @@ func handleUserCRUD(db *sql.DB) http.HandlerFunc {
 				}(), string(permsBytes), nowStr, nowStr)
 
 			if err != nil {
-				log.Printf("[idb.User Create] DB Error: %v", err)
+				log.Errorf("[idb.User Create] DB Error: %v", err)
 				http.Error(w, `{"error": "Failed to save user"}`, http.StatusInternalServerError)
 				return
 			}
@@ -727,14 +727,14 @@ func handleUserCRUD(db *sql.DB) http.HandlerFunc {
 		if len(parts) == 2 && parts[1] == "listening-stats" {
 			if r.Method == http.MethodGet {
 				targetUserID := parts[0]
-				log.Printf("[Go] GET /api/users/%s/listening-stats", targetUserID)
+				log.Infof("[Go] GET /api/users/%s/listening-stats", targetUserID)
 				if userSess.Type != "root" && userSess.Type != "admin" && userSess.ID != targetUserID {
 					http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
 					return
 				}
 				stats, err := getUserListeningStats(db, targetUserID)
 				if err != nil {
-					log.Printf("[Listening Stats] Failed to query stats: %v", err)
+					log.Errorf("[Listening Stats] Failed to query stats: %v", err)
 					http.Error(w, `{"error": "Internal Server Error"}`, http.StatusInternalServerError)
 					return
 				}
@@ -745,7 +745,7 @@ func handleUserCRUD(db *sql.DB) http.HandlerFunc {
 		} else if len(parts) == 2 && parts[1] == "listening-sessions" {
 			if r.Method == http.MethodGet {
 				targetUserID := parts[0]
-				log.Printf("[Go] GET /api/users/%s/listening-sessions", targetUserID)
+				log.Infof("[Go] GET /api/users/%s/listening-sessions", targetUserID)
 				if userSess.Type != "root" && userSess.Type != "admin" && userSess.ID != targetUserID {
 					http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
 					return
@@ -764,7 +764,7 @@ func handleUserCRUD(db *sql.DB) http.HandlerFunc {
 				}
 				sessions, err := handleGetUserListeningSessions(db, targetUserID, page, itemsPerPage)
 				if err != nil {
-					log.Printf("[Listening Sessions] Failed to query sessions: %v", err)
+					log.Errorf("[Listening Sessions] Failed to query sessions: %v", err)
 					http.Error(w, `{"error": "Internal Server Error"}`, http.StatusInternalServerError)
 					return
 				}
@@ -775,7 +775,7 @@ func handleUserCRUD(db *sql.DB) http.HandlerFunc {
 		} else if len(parts) == 2 && parts[1] == "sessions" {
 			if r.Method == http.MethodGet {
 				targetUserID := parts[0]
-				log.Printf("[Go] GET /api/users/%s/sessions", targetUserID)
+				log.Infof("[Go] GET /api/users/%s/sessions", targetUserID)
 				handleGetUserLoginSessions(db, targetUserID)(w, r)
 				return
 			}
@@ -783,7 +783,7 @@ func handleUserCRUD(db *sql.DB) http.HandlerFunc {
 			if r.Method == http.MethodDelete {
 				targetUserID := parts[0]
 				sessionID := parts[2]
-				log.Printf("[Go] DELETE /api/users/%s/sessions/%s", targetUserID, sessionID)
+				log.Infof("[Go] DELETE /api/users/%s/sessions/%s", targetUserID, sessionID)
 				handleDeleteUserLoginSession(db, targetUserID, sessionID)(w, r)
 				return
 			}
@@ -797,7 +797,7 @@ func handleUserCRUD(db *sql.DB) http.HandlerFunc {
 		}
 
 		if isUnlinkRoute {
-			log.Printf("[Go] PATCH /api/users/%s/openid-unlink", targetUserID)
+			log.Infof("[Go] PATCH /api/users/%s/openid-unlink", targetUserID)
 			if userSess.Type != "root" && userSess.Type != "admin" && userSess.ID != targetUserID {
 				http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
 				return
@@ -836,7 +836,7 @@ func handleUserCRUD(db *sql.DB) http.HandlerFunc {
 		}
 
 		if r.Method == http.MethodGet {
-			log.Printf("[Go] GET /api/users/%s", targetUserID)
+			log.Infof("[Go] GET /api/users/%s", targetUserID)
 			if userSess.Type != "root" && userSess.Type != "admin" && userSess.ID != targetUserID {
 				http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
 				return
@@ -855,7 +855,7 @@ func handleUserCRUD(db *sql.DB) http.HandlerFunc {
 		}
 
 		if r.Method == http.MethodPatch {
-			log.Printf("[Go] PATCH /api/users/%s", targetUserID)
+			log.Infof("[Go] PATCH /api/users/%s", targetUserID)
 			if userSess.Type != "root" && userSess.Type != "admin" {
 				http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
 				return
@@ -991,7 +991,7 @@ func handleUserCRUD(db *sql.DB) http.HandlerFunc {
 					}(), string(targetUser.Permissions), nowStr, targetUser.ID)
 
 				if err != nil {
-					log.Printf("[idb.User Update] DB Error: %v", err)
+					log.Errorf("[idb.User Update] DB Error: %v", err)
 					http.Error(w, `{"error": "Failed to update user"}`, http.StatusInternalServerError)
 					return
 				}
@@ -1013,7 +1013,7 @@ func handleUserCRUD(db *sql.DB) http.HandlerFunc {
 		}
 
 		if r.Method == http.MethodDelete {
-			log.Printf("[Go] DELETE /api/users/%s", targetUserID)
+			log.Infof("[Go] DELETE /api/users/%s", targetUserID)
 			if userSess.Type != "root" && userSess.Type != "admin" {
 				http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
 				return
@@ -1107,7 +1107,7 @@ func handleGetUserLoginSessions(db *sql.DB, targetUserID string) http.HandlerFun
 
 		sessions, err := idb.GetUserSessions(r.Context(), db, targetUserID)
 		if err != nil {
-			log.Printf("[Login Sessions] Failed to get sessions: %v", err)
+			log.Errorf("[Login Sessions] Failed to get sessions: %v", err)
 			http.Error(w, `{"error": "Internal Server Error"}`, http.StatusInternalServerError)
 			return
 		}
@@ -1139,7 +1139,7 @@ func handleDeleteUserLoginSession(db *sql.DB, targetUserID string, sessionID str
 			http.Error(w, `{"error": "Session not found"}`, http.StatusNotFound)
 			return
 		} else if err != nil {
-			log.Printf("[Delete Session] DB error: %v", err)
+			log.Errorf("[Delete Session] DB error: %v", err)
 			http.Error(w, `{"error": "Internal Server Error"}`, http.StatusInternalServerError)
 			return
 		}
@@ -1152,7 +1152,7 @@ func handleDeleteUserLoginSession(db *sql.DB, targetUserID string, sessionID str
 		// Delete session
 		err = idb.DeleteSessionByID(r.Context(), db, sessionID)
 		if err != nil {
-			log.Printf("[Delete Session] Failed to delete session: %v", err)
+			log.Errorf("[Delete Session] Failed to delete session: %v", err)
 			http.Error(w, `{"error": "Internal Server Error"}`, http.StatusInternalServerError)
 			return
 		}

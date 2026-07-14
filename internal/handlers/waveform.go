@@ -39,7 +39,7 @@ func handleGetWaveform(db *sql.DB, cfg *core.Config, itemID string) http.Handler
 
 		infos, err := getAudioFilesInfo(db, itemID)
 		if err != nil {
-			log.Printf("[Waveform] Failed to resolve audio files for %s: %v", itemID, err)
+			log.Errorf("[Waveform] Failed to resolve audio files for %s: %v", itemID, err)
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusNotFound)
 			w.Write([]byte(fmt.Sprintf(`{"error": "%v"}`, err)))
@@ -49,7 +49,7 @@ func handleGetWaveform(db *sql.DB, cfg *core.Config, itemID string) http.Handler
 		// Target 200 points for the player waveform
 		peaks, err := GenerateWaveform(infos, 200)
 		if err != nil {
-			log.Printf("[Waveform] Failed to generate waveform for %s: %v", itemID, err)
+			log.Errorf("[Waveform] Failed to generate waveform for %s: %v", itemID, err)
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write([]byte(fmt.Sprintf(`{"error": "Failed to generate waveform: %v"}`, err)))
@@ -198,7 +198,7 @@ func GenerateWaveform(infos []AudioFileInfo, targetPoints int) ([]int, error) {
 
 		peaks, err := GenerateWaveformForFile(info.Path, filePoints)
 		if err != nil {
-			log.Printf("[Waveform] Failed to generate for file %s: %v", info.Path, err)
+			log.Errorf("[Waveform] Failed to generate for file %s: %v", info.Path, err)
 			peaks = make([]int, filePoints)
 		}
 		combinedPeaks = append(combinedPeaks, peaks...)

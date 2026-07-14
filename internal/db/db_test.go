@@ -110,3 +110,35 @@ func TestMigrateDatabase(t *testing.T) {
 		t.Errorf("Expected column 'createdAt' to be added by migration")
 	}
 }
+
+func TestInitDBConnectionPooling(t *testing.T) {
+	// Set environment overrides
+	os.Setenv("DB_MAX_OPEN_CONNS", "15")
+	os.Setenv("DB_MAX_IDLE_CONNS", "5")
+	os.Setenv("DB_CONN_MAX_LIFETIME", "30m")
+	os.Setenv("DB_CONN_MAX_IDLE_TIME", "10m")
+	defer func() {
+		os.Unsetenv("DB_MAX_OPEN_CONNS")
+		os.Unsetenv("DB_MAX_IDLE_CONNS")
+		os.Unsetenv("DB_CONN_MAX_LIFETIME")
+		os.Unsetenv("DB_CONN_MAX_IDLE_TIME")
+	}()
+
+	tmpDir, err := os.MkdirTemp("", "testdb-pool-dir")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	dbPath := filepath.Join(tmpDir, "test_pool.db")
+	database, err := InitDB(dbPath)
+	if err != nil {
+		t.Fatalf("InitDB failed: %v", err)
+	}
+	defer database.Close()
+
+	stats := database.Stats()
+	if stats.MaxOpenConnections != 15 {
+		t.Errorf("Expected MaxOpenConnections to be 15, got %d", stats.MaxOpenConnections)
+	}
+}

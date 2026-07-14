@@ -84,7 +84,7 @@ func handleOIDCCallback(db *sql.DB) http.HandlerFunc {
 
 		claims, err := handler.HandleCallback(w, r)
 		if err != nil {
-			log.Printf("[OIDC Callback] Error: %v", err)
+			log.Errorf("[OIDC Callback] Error: %v", err)
 			http.Error(w, fmt.Sprintf("Authentication failed: %v", err), http.StatusUnauthorized)
 			return
 		}
@@ -101,7 +101,7 @@ func handleOIDCCallback(db *sql.DB) http.HandlerFunc {
 
 		u, err := idb.FindUserFromOpenIdUserInfo(r.Context(), db, claims, s.MatchExistingBy)
 		if err != nil {
-			log.Printf("[OIDC Callback] idb.User match error: %v", err)
+			log.Errorf("[OIDC Callback] idb.User match error: %v", err)
 			http.Error(w, err.Error(), http.StatusUnauthorized)
 			return
 		}
@@ -114,7 +114,7 @@ func handleOIDCCallback(db *sql.DB) http.HandlerFunc {
 				}
 				u, err = idb.CreateUserFromOpenIdUserInfo(r.Context(), db, claims, getTokenSecret(db), mapped)
 				if err != nil {
-					log.Printf("[OIDC Callback] idb.User registration failed: %v", err)
+					log.Errorf("[OIDC Callback] idb.User registration failed: %v", err)
 					http.Error(w, "Failed to register user", http.StatusInternalServerError)
 					return
 				}
@@ -122,7 +122,7 @@ func handleOIDCCallback(db *sql.DB) http.HandlerFunc {
 				if u.Type != mapped {
 					err = idb.UpdateUserTypeAndToken(r.Context(), db, u, mapped, getTokenSecret(db))
 					if err != nil {
-						log.Printf("[OIDC Callback] Failed to update user type and token: %v", err)
+						log.Errorf("[OIDC Callback] Failed to update user type and token: %v", err)
 						http.Error(w, "Failed to update user type", http.StatusInternalServerError)
 						return
 					}
@@ -136,7 +136,7 @@ func handleOIDCCallback(db *sql.DB) http.HandlerFunc {
 				}
 				u, err = idb.CreateUserFromOpenIdUserInfo(r.Context(), db, claims, getTokenSecret(db), "user")
 				if err != nil {
-					log.Printf("[OIDC Callback] idb.User registration failed: %v", err)
+					log.Errorf("[OIDC Callback] idb.User registration failed: %v", err)
 					http.Error(w, "Failed to register user", http.StatusInternalServerError)
 					return
 				}

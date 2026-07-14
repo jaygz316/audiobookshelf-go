@@ -17,7 +17,7 @@ import (
 // handleGetServerSettings maps to GET /api/settings
 func handleGetServerSettings(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[Go] GET /api/settings")
+		log.Infof("[Go] GET /api/settings")
 		userSess := r.Context().Value(core.UserContextKey).(*core.UserSession)
 		if userSess.Type != "root" && userSess.Type != "admin" {
 			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
@@ -38,7 +38,7 @@ func handleGetServerSettings(db *sql.DB) http.HandlerFunc {
 // handleUpdateServerSettings maps to PATCH /api/settings
 func handleUpdateServerSettings(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[Go] PATCH /api/settings")
+		log.Infof("[Go] PATCH /api/settings")
 		userSess := r.Context().Value(core.UserContextKey).(*core.UserSession)
 		if userSess.Type != "root" && userSess.Type != "admin" {
 			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
@@ -116,7 +116,7 @@ func handleUpdateServerSettings(db *sql.DB) http.HandlerFunc {
 
 		// Save back
 		if err := saveSettings(db, "server-settings", currentSettings); err != nil {
-			log.Printf("[Settings] Update failed: %v", err)
+			log.Errorf("[Settings] Update failed: %v", err)
 			http.Error(w, `{"error": "Failed to update settings"}`, http.StatusInternalServerError)
 			return
 		}
@@ -167,7 +167,7 @@ func handleUpdateServerSettings(db *sql.DB) http.HandlerFunc {
 // handleUpdateSortingPrefixes maps to PATCH /api/sorting-prefixes
 func handleUpdateSortingPrefixes(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[Go] PATCH /api/sorting-prefixes")
+		log.Infof("[Go] PATCH /api/sorting-prefixes")
 		userSess := r.Context().Value(core.UserContextKey).(*core.UserSession)
 		if userSess.Type != "root" && userSess.Type != "admin" {
 			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
@@ -267,17 +267,17 @@ func cleanSortingPrefixes(rawPrefixes []string) []string {
 
 // recomputeIgnorePrefixes asynchronously updates book, podcast, and series ignore prefix title columns
 func recomputeIgnorePrefixes(db *sql.DB, prefixes []string) {
-	log.Printf("[Prefix Recompute] Starting recompute with prefixes: %v", prefixes)
+	log.Infof("[Prefix Recompute] Starting recompute with prefixes: %v", prefixes)
 	recomputeBooksIgnorePrefixes(db, prefixes)
 	recomputePodcastsIgnorePrefixes(db, prefixes)
 	recomputeSeriesIgnorePrefixes(db, prefixes)
-	log.Printf("[Prefix Recompute] Finished")
+	log.Infof("[Prefix Recompute] Finished")
 }
 
 func recomputeBooksIgnorePrefixes(db *sql.DB, prefixes []string) {
 	rows, err := db.Query("SELECT id, title, titleIgnorePrefix FROM books")
 	if err != nil {
-		log.Printf("[Prefix Recompute] Failed to query books: %v", err)
+		log.Errorf("[Prefix Recompute] Failed to query books: %v", err)
 		return
 	}
 	defer rows.Close()
@@ -291,7 +291,7 @@ func recomputeBooksIgnorePrefixes(db *sql.DB, prefixes []string) {
 	for rows.Next() {
 		var id, title, currentIgnore string
 		if err := rows.Scan(&id, &title, &currentIgnore); err != nil {
-			log.Printf("[Prefix Recompute] Failed to scan book: %v", err)
+			log.Errorf("[Prefix Recompute] Failed to scan book: %v", err)
 			continue
 		}
 		newIgnore := getTitleIgnorePrefixGo(title, prefixes)
@@ -300,13 +300,13 @@ func recomputeBooksIgnorePrefixes(db *sql.DB, prefixes []string) {
 		}
 	}
 	if err := rows.Err(); err != nil {
-		log.Printf("[Prefix Recompute] Books query iteration error: %v", err)
+		log.Errorf("[Prefix Recompute] Books query iteration error: %v", err)
 	}
 	rows.Close()
 
 	for _, up := range updates {
 		if _, err := db.Exec("UPDATE books SET titleIgnorePrefix = ? WHERE id = ?", up.newIgnore, up.id); err != nil {
-			log.Printf("[Prefix Recompute] Failed to update book %s: %v", up.id, err)
+			log.Errorf("[Prefix Recompute] Failed to update book %s: %v", up.id, err)
 		}
 	}
 }
@@ -314,7 +314,7 @@ func recomputeBooksIgnorePrefixes(db *sql.DB, prefixes []string) {
 func recomputePodcastsIgnorePrefixes(db *sql.DB, prefixes []string) {
 	rows, err := db.Query("SELECT id, title, titleIgnorePrefix FROM podcasts")
 	if err != nil {
-		log.Printf("[Prefix Recompute] Failed to query podcasts: %v", err)
+		log.Errorf("[Prefix Recompute] Failed to query podcasts: %v", err)
 		return
 	}
 	defer rows.Close()
@@ -328,7 +328,7 @@ func recomputePodcastsIgnorePrefixes(db *sql.DB, prefixes []string) {
 	for rows.Next() {
 		var id, title, currentIgnore string
 		if err := rows.Scan(&id, &title, &currentIgnore); err != nil {
-			log.Printf("[Prefix Recompute] Failed to scan podcast: %v", err)
+			log.Errorf("[Prefix Recompute] Failed to scan podcast: %v", err)
 			continue
 		}
 		newIgnore := getTitleIgnorePrefixGo(title, prefixes)
@@ -337,13 +337,13 @@ func recomputePodcastsIgnorePrefixes(db *sql.DB, prefixes []string) {
 		}
 	}
 	if err := rows.Err(); err != nil {
-		log.Printf("[Prefix Recompute] Podcasts query iteration error: %v", err)
+		log.Errorf("[Prefix Recompute] Podcasts query iteration error: %v", err)
 	}
 	rows.Close()
 
 	for _, up := range updates {
 		if _, err := db.Exec("UPDATE podcasts SET titleIgnorePrefix = ? WHERE id = ?", up.newIgnore, up.id); err != nil {
-			log.Printf("[Prefix Recompute] Failed to update podcast %s: %v", up.id, err)
+			log.Errorf("[Prefix Recompute] Failed to update podcast %s: %v", up.id, err)
 		}
 	}
 }
@@ -351,7 +351,7 @@ func recomputePodcastsIgnorePrefixes(db *sql.DB, prefixes []string) {
 func recomputeSeriesIgnorePrefixes(db *sql.DB, prefixes []string) {
 	rows, err := db.Query("SELECT id, name, nameIgnorePrefix FROM series")
 	if err != nil {
-		log.Printf("[Prefix Recompute] Failed to query series: %v", err)
+		log.Errorf("[Prefix Recompute] Failed to query series: %v", err)
 		return
 	}
 	defer rows.Close()
@@ -365,7 +365,7 @@ func recomputeSeriesIgnorePrefixes(db *sql.DB, prefixes []string) {
 	for rows.Next() {
 		var id, name, currentIgnore string
 		if err := rows.Scan(&id, &name, &currentIgnore); err != nil {
-			log.Printf("[Prefix Recompute] Failed to scan series: %v", err)
+			log.Errorf("[Prefix Recompute] Failed to scan series: %v", err)
 			continue
 		}
 		newIgnore := getTitleIgnorePrefixGo(name, prefixes)
@@ -374,13 +374,13 @@ func recomputeSeriesIgnorePrefixes(db *sql.DB, prefixes []string) {
 		}
 	}
 	if err := rows.Err(); err != nil {
-		log.Printf("[Prefix Recompute] Series query iteration error: %v", err)
+		log.Errorf("[Prefix Recompute] Series query iteration error: %v", err)
 	}
 	rows.Close()
 
 	for _, up := range updates {
 		if _, err := db.Exec("UPDATE series SET nameIgnorePrefix = ? WHERE id = ?", up.newIgnore, up.id); err != nil {
-			log.Printf("[Prefix Recompute] Failed to update series %s: %v", up.id, err)
+			log.Errorf("[Prefix Recompute] Failed to update series %s: %v", up.id, err)
 		}
 	}
 }

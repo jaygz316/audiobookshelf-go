@@ -12,7 +12,7 @@ import (
 // handleGetAuthSettings maps to GET /api/auth-settings
 func handleGetAuthSettings(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[Go] GET /api/auth-settings")
+		log.Infof("[Go] GET /api/auth-settings")
 		userSess := r.Context().Value(core.UserContextKey).(*core.UserSession)
 		if userSess.Type != "root" && userSess.Type != "admin" {
 			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
@@ -36,7 +36,7 @@ func handleGetAuthSettings(db *sql.DB) http.HandlerFunc {
 // handleUpdateAuthSettings maps to PATCH /api/auth-settings
 func handleUpdateAuthSettings(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[Go] PATCH /api/auth-settings")
+		log.Infof("[Go] PATCH /api/auth-settings")
 		userSess := r.Context().Value(core.UserContextKey).(*core.UserSession)
 		if userSess.Type != "root" && userSess.Type != "admin" {
 			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)

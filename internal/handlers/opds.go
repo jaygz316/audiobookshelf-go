@@ -106,7 +106,7 @@ func ServeOPDS(db *sql.DB) http.HandlerFunc {
 func serveOPDSRoot(w http.ResponseWriter, r *http.Request, db *sql.DB, user *core.UserSession) {
 	libs, err := idb.GetLibraries(db)
 	if err != nil {
-		log.Printf("[OPDS] Failed to get libraries: %v", err)
+		log.Errorf("[OPDS] Failed to get libraries: %v", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
@@ -237,7 +237,7 @@ func serveOPDSAuthors(w http.ResponseWriter, r *http.Request, db *sql.DB, user *
 		ORDER BY name ASC
 	`, lib.ID)
 	if err != nil {
-		log.Printf("[OPDS] Failed to query authors: %v", err)
+		log.Errorf("[OPDS] Failed to query authors: %v", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
@@ -286,7 +286,7 @@ func serveOPDSAuthorItems(w http.ResponseWriter, r *http.Request, db *sql.DB, us
 		if err == sql.ErrNoRows {
 			http.Error(w, "Author not found", http.StatusNotFound)
 		} else {
-			log.Printf("[OPDS] Failed to query author name: %v", err)
+			log.Errorf("[OPDS] Failed to query author name: %v", err)
 			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		}
 		return
@@ -300,7 +300,7 @@ func serveOPDSAuthorItems(w http.ResponseWriter, r *http.Request, db *sql.DB, us
 		ORDER BY li.createdAt DESC
 	`, lib.ID, authorID)
 	if err != nil {
-		log.Printf("[OPDS] Failed to query author items: %v", err)
+		log.Errorf("[OPDS] Failed to query author items: %v", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
@@ -349,7 +349,7 @@ func serveOPDSSeries(w http.ResponseWriter, r *http.Request, db *sql.DB, user *c
 		ORDER BY name ASC
 	`, lib.ID)
 	if err != nil {
-		log.Printf("[OPDS] Failed to query series: %v", err)
+		log.Errorf("[OPDS] Failed to query series: %v", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
@@ -398,7 +398,7 @@ func serveOPDSSeriesItems(w http.ResponseWriter, r *http.Request, db *sql.DB, us
 		if err == sql.ErrNoRows {
 			http.Error(w, "Series not found", http.StatusNotFound)
 		} else {
-			log.Printf("[OPDS] Failed to query series name: %v", err)
+			log.Errorf("[OPDS] Failed to query series name: %v", err)
 			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		}
 		return
@@ -412,7 +412,7 @@ func serveOPDSSeriesItems(w http.ResponseWriter, r *http.Request, db *sql.DB, us
 		ORDER BY CAST(bs.sequence AS REAL) ASC, bs.sequence ASC
 	`, lib.ID, seriesID)
 	if err != nil {
-		log.Printf("[OPDS] Failed to query series items: %v", err)
+		log.Errorf("[OPDS] Failed to query series items: %v", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
@@ -461,7 +461,7 @@ func serveOPDSCollections(w http.ResponseWriter, r *http.Request, db *sql.DB, us
 		ORDER BY name ASC
 	`, lib.ID)
 	if err != nil {
-		log.Printf("[OPDS] Failed to query collections: %v", err)
+		log.Errorf("[OPDS] Failed to query collections: %v", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
@@ -510,7 +510,7 @@ func serveOPDSCollectionItems(w http.ResponseWriter, r *http.Request, db *sql.DB
 		if err == sql.ErrNoRows {
 			http.Error(w, "Collection not found", http.StatusNotFound)
 		} else {
-			log.Printf("[OPDS] Failed to query collection name: %v", err)
+			log.Errorf("[OPDS] Failed to query collection name: %v", err)
 			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		}
 		return
@@ -524,7 +524,7 @@ func serveOPDSCollectionItems(w http.ResponseWriter, r *http.Request, db *sql.DB
 		ORDER BY cb."order" ASC
 	`, lib.ID, collectionID)
 	if err != nil {
-		log.Printf("[OPDS] Failed to query collection items: %v", err)
+		log.Errorf("[OPDS] Failed to query collection items: %v", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
@@ -573,7 +573,7 @@ func serveOPDSPlaylists(w http.ResponseWriter, r *http.Request, db *sql.DB, user
 		ORDER BY name ASC
 	`, user.ID, lib.ID)
 	if err != nil {
-		log.Printf("[OPDS] Failed to query playlists: %v", err)
+		log.Errorf("[OPDS] Failed to query playlists: %v", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
@@ -622,7 +622,7 @@ func serveOPDSPlaylistItems(w http.ResponseWriter, r *http.Request, db *sql.DB, 
 		if err == sql.ErrNoRows {
 			http.Error(w, "Playlist not found", http.StatusNotFound)
 		} else {
-			log.Printf("[OPDS] Failed to query playlist name: %v", err)
+			log.Errorf("[OPDS] Failed to query playlist name: %v", err)
 			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		}
 		return
@@ -636,7 +636,7 @@ func serveOPDSPlaylistItems(w http.ResponseWriter, r *http.Request, db *sql.DB, 
 		ORDER BY pmi."order" ASC
 	`, playlistID, lib.ID)
 	if err != nil {
-		log.Printf("[OPDS] Failed to query playlist items: %v", err)
+		log.Errorf("[OPDS] Failed to query playlist items: %v", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
@@ -705,7 +705,7 @@ func serveOPDSLibraryItems(w http.ResponseWriter, r *http.Request, db *sql.DB, u
 
 	results, total, err := idb.GetFilteredLibraryItems(db, opts)
 	if err != nil {
-		log.Printf("[OPDS] Failed to query items: %v", err)
+		log.Errorf("[OPDS] Failed to query items: %v", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
@@ -762,7 +762,7 @@ func serveOPDSSearch(w http.ResponseWriter, r *http.Request, db *sql.DB, user *c
 
 	results, _, err := idb.GetFilteredLibraryItems(db, opts)
 	if err != nil {
-		log.Printf("[OPDS] Failed to query items for search: %v", err)
+		log.Errorf("[OPDS] Failed to query items for search: %v", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}

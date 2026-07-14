@@ -35,7 +35,7 @@ func handleGetPublicShare(db *sql.DB) http.HandlerFunc {
 		// Retrieve the share link
 		s, err := globalShareManager.GetShare(r.Context(), slug)
 		if err != nil {
-			log.Printf("[PublicShare] GetShare failed: %v", err)
+			log.Errorf("[PublicShare] GetShare failed: %v", err)
 			http.Error(w, `{"error": "Internal Server Error"}`, http.StatusInternalServerError)
 			return
 		}
@@ -54,7 +54,7 @@ func handleGetPublicShare(db *sql.DB) http.HandlerFunc {
 		if hasPassword {
 			valid, err := globalShareManager.ValidateSharePassword(r.Context(), slug, password)
 			if err != nil {
-				log.Printf("[PublicShare] ValidateSharePassword failed: %v", err)
+				log.Errorf("[PublicShare] ValidateSharePassword failed: %v", err)
 				http.Error(w, `{"error": "Internal Server Error"}`, http.StatusInternalServerError)
 				return
 			}
@@ -72,7 +72,7 @@ func handleGetPublicShare(db *sql.DB) http.HandlerFunc {
 		// Retrieve minified library item details
 		minItem, err := idb.GetLibraryItemMinifiedByID(db, s.LibraryItemID)
 		if err != nil {
-			log.Printf("[PublicShare] GetLibraryItemMinifiedByID failed for %s: %v", s.LibraryItemID, err)
+			log.Errorf("[PublicShare] GetLibraryItemMinifiedByID failed for %s: %v", s.LibraryItemID, err)
 			http.Error(w, `{"error": "Shared item not found"}`, http.StatusNotFound)
 			return
 		}
@@ -230,7 +230,7 @@ func handleGetPublicShareDownload(db *sql.DB) http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/zip")
 		w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q.zip", filepath.Base(info.Path)))
 		if err := streamDirAsZip(w, info.Path); err != nil {
-			log.Printf("[PublicShare] Directory zip failed: %v", err)
+			log.Errorf("[PublicShare] Directory zip failed: %v", err)
 		}
 	}
 }

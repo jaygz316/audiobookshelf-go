@@ -235,7 +235,7 @@ func handleGetLibraryPlaylists(db *sql.DB, libraryID string) http.HandlerFunc {
 
 		playlists, err := queryPlaylistsForUserAndLibrary(r.Context(), db, userSess.ID, libraryID)
 		if err != nil {
-			log.Printf("[Playlist] handleGetLibraryPlaylists failed: %v", err)
+			log.Errorf("[Playlist] handleGetLibraryPlaylists failed: %v", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -258,7 +258,7 @@ func handleGetLibraryCollections(db *sql.DB, libraryID string) http.HandlerFunc 
 
 		collections, err := queryCollectionsForLibrary(r.Context(), db, libraryID)
 		if err != nil {
-			log.Printf("[Collection] handleGetLibraryCollections failed: %v", err)
+			log.Errorf("[Collection] handleGetLibraryCollections failed: %v", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -282,7 +282,7 @@ func handleGetLibraryOPML(db *sql.DB, libraryID string) http.HandlerFunc {
 
 		opmlText, err := globalFeedManager.GenerateOPML(r.Context(), userSess.ID, libraryID)
 		if err != nil {
-			log.Printf("[Feed] GenerateOPML failed: %v", err)
+			log.Errorf("[Feed] GenerateOPML failed: %v", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -299,7 +299,7 @@ func handleGetPlaylists(db *sql.DB) http.HandlerFunc {
 
 		playlists, err := queryPlaylistsForUserAndLibrary(r.Context(), db, userSess.ID, "")
 		if err != nil {
-			log.Printf("[Playlist] handleGetPlaylists failed: %v", err)
+			log.Errorf("[Playlist] handleGetPlaylists failed: %v", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -324,7 +324,7 @@ func handleGetPlaylist(db *sql.DB, id string) http.HandlerFunc {
 				http.NotFound(w, r)
 				return
 			}
-			log.Printf("[Playlist] GetPlaylist failed: %v", err)
+			log.Errorf("[Playlist] GetPlaylist failed: %v", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -361,7 +361,7 @@ func handleCreatePlaylist(db *sql.DB) http.HandlerFunc {
 		}
 
 		if err := globalPlaylistManager.CreatePlaylist(r.Context(), p); err != nil {
-			log.Printf("[Playlist] Create failed: %v", err)
+			log.Errorf("[Playlist] Create failed: %v", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -409,7 +409,7 @@ func handleUpdatePlaylist(db *sql.DB, id string) http.HandlerFunc {
 		}
 
 		if err := globalPlaylistManager.UpdatePlaylist(r.Context(), p); err != nil {
-			log.Printf("[Playlist] Update failed: %v", err)
+			log.Errorf("[Playlist] Update failed: %v", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -440,7 +440,7 @@ func handleDeletePlaylist(db *sql.DB, id string) http.HandlerFunc {
 		}
 
 		if err := globalPlaylistManager.DeletePlaylist(r.Context(), id); err != nil {
-			log.Printf("[Playlist] Delete failed: %v", err)
+			log.Errorf("[Playlist] Delete failed: %v", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -456,7 +456,7 @@ func handleGetCollections(db *sql.DB) http.HandlerFunc {
 
 		collections, err := queryCollectionsForLibrary(r.Context(), db, "")
 		if err != nil {
-			log.Printf("[Collection] handleGetCollections failed: %v", err)
+			log.Errorf("[Collection] handleGetCollections failed: %v", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -480,7 +480,7 @@ func handleGetCollection(db *sql.DB, id string) http.HandlerFunc {
 				http.NotFound(w, r)
 				return
 			}
-			log.Printf("[Collection] GetCollection failed: %v", err)
+			log.Errorf("[Collection] GetCollection failed: %v", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -536,7 +536,7 @@ func handleCreateCollection(db *sql.DB) http.HandlerFunc {
 		}
 
 		if err := globalPlaylistManager.CreateCollection(r.Context(), c); err != nil {
-			log.Printf("[Collection] Create failed: %v", err)
+			log.Errorf("[Collection] Create failed: %v", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -609,7 +609,7 @@ func handleUpdateCollection(db *sql.DB, id string) http.HandlerFunc {
 		}
 
 		if err := globalPlaylistManager.UpdateCollection(r.Context(), c); err != nil {
-			log.Printf("[Collection] Update failed: %v", err)
+			log.Errorf("[Collection] Update failed: %v", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -629,7 +629,7 @@ func handleDeleteCollection(db *sql.DB, id string) http.HandlerFunc {
 		initManagers(db)
 
 		if err := globalPlaylistManager.DeleteCollection(r.Context(), id); err != nil {
-			log.Printf("[Collection] Delete failed: %v", err)
+			log.Errorf("[Collection] Delete failed: %v", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
