@@ -1,18 +1,16 @@
 # Handoff: Audiobookshelf Go Port
 
 ## Targeted Task & Accomplishments
-- **Target Task**: OIDC Authentication completion & User Management Privilege Escalation Hardening.
+- **Target Task**: Fix database connection and initialization lifecycle bugs (resolving login error).
 - **Accomplishments**:
-  - Committed and pushed the OIDC authentication changes (proper token claims using `core.AuthClaims`, cookie and DB session management, and robust integration test suite).
-  - Implemented strict security validations in user management (`internal/handlers/users.go`):
-    - Blocked non-root users (like admins) from creating or promoting users to the "root" type.
-    - Blocked deactivating active "root" users to prevent permanent lockout.
-    - Blocked deleting "root" users via API by verifying the target user's actual type.
-  - Refactored `internal/handlers/users_challenger_test.go` to assert that these security controls reject malicious or incorrect actions with appropriate HTTP error codes (`400 Bad Request` or `403 Forbidden`) and preserve the database state.
-  - Formatted, vetted, tested, built, and pushed the updated Docker image to `jaygz/audiobookshelf-go:latest`.
+  - Added a 30-attempt database connection retry loop with 2-second intervals in `main.go` to handle transient startup locks.
+  - Implemented dynamic database and token secret resolution in `AuthMiddleware` and `AuthMiddlewareWrapper` in `internal/handlers/middleware.go`.
+  - Added `getDB(db)` dynamic lookup at request time in critical authentication handlers (`handleLogin`, `handleInit`, `handleLogout`, `handleRefresh`, and `handleAuthorize` in `internal/handlers/users.go`).
+  - Ensured `globalFinder` is initialized when the database connects on-demand inside `reinitManagers` in `internal/handlers/managers.go`.
+  - Built and successfully pushed the updated Docker image to `jaygz/audiobookshelf-go:latest`.
 
 ## Outstanding Work / Next Gaps
-- None. Core feature parity and security hardening items checked out and passed cleanly.
+- None. The database connection and login flow are fully verified and robust.
 
 ## Next Steps
-- Continue proactive vulnerability/security auditing on filesystem-interacting endpoints (e.g. library scanners, metadata scrapers, downloads) for potential Path Traversal risks, or conduct performance profiling on SQLite query patterns.
+- Carry on with security audits of filesystems endpoints (scanner, covers, downloads) or profile performance.
