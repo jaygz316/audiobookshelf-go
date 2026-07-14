@@ -485,17 +485,325 @@ export async function openEbookReader(item, token) {
     document.getElementById('epub-controls').classList.add('hidden');
     document.getElementById('reader-footer').classList.add('hidden');
     
-    // Render PDF iframe
-    const iframe = document.createElement('iframe');
-    iframe.src = resolvePath(`/api/items/${itemId}/ebook?token=${token}`);
-    iframe.className = 'w-full h-full border-none rounded bg-white shadow-lg';
-    iframe.id = 'pdf-iframe';
-    iframe.onload = () => {
+    contentBody.innerHTML = `
+      <div class="flex flex-col items-center justify-center h-full w-full space-y-3" id="pdf-loading-indicator">
+        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-accent"></div>
+        <p class="text-xs text-black-100 font-medium">Initializing custom PDF viewer...</p>
+      </div>
+    `;
+
+    try {
+      // Dynamic load PDF.js from cdnjs
+      await loadScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js');
+      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+
+      const pdfUrl = resolvePath(`/api/items/${itemId}/ebook?token=${token}`);
+      const pdfDoc = await pdfjsLib.getDocument(pdfUrl).promise;
+
+      // Render the viewer interface inside contentBody
+      contentBody.innerHTML = `
+        <div class="flex h-full w-full relative min-w-0" id="pdf-viewer-container">
+          <!-- Left Thumbnails Sidebar / Rail -->
+          <div id="pdf-thumbnails-sidebar" class="w-44 bg-primary border-r border-black-600/50 flex flex-col flex-shrink-0 z-30 select-none">
+            <div class="p-3 border-b border-black-600/50 flex items-center justify-between">
+              <span class="text-[10px] font-bold text-white uppercase tracking-wider">Thumbnails</span>
+              <span id="pdf-total-pages-badge" class="text-[9px] bg-black-600 px-1.5 py-0.5 rounded text-black-50 font-mono">${pdfDoc.numPages}</span>
+            </div>
+            <div id="pdf-thumbnails-list" class="flex-grow overflow-y-auto p-2 space-y-3 bg-black-900/10 no-scroll">
+              <!-- Thumbnail items -->
+            </div>
+          </div>
+
+          <!-- Main PDF Viewer Body -->
+          <div class="flex-grow flex flex-col min-w-0 bg-[#121212] h-full relative">
+            <!-- Inner PDF toolbar -->
+            <div class="h-12 bg-black-900/40 border-b border-black-600/20 flex items-center justify-between px-4 z-20 flex-shrink-0 select-none">
+              <!-- Search Panel -->
+              <div class="flex items-center space-x-2">
+                <div class="relative">
+                  <input type="text" id="pdf-search-input" placeholder="Search page content..." class="bg-black-600 text-white text-[11px] px-2.5 py-1 pl-7 rounded border border-black-400 focus:outline-none focus:border-accent w-32 sm:w-44 placeholder-black-100">
+                  <span class="material-symbols text-xs text-black-50 absolute left-2 top-2">search</span>
+                </div>
+                <button id="pdf-search-prev-btn" class="p-1 hover:bg-black-500 rounded text-black-50 hover:text-white transition-colors" title="Previous Match">
+                  <span class="material-symbols text-sm">navigate_before</span>
+                </button>
+                <button id="pdf-search-next-btn" class="p-1 hover:bg-black-500 rounded text-black-50 hover:text-white transition-colors" title="Next Match">
+                  <span class="material-symbols text-sm">navigate_next</span>
+                </button>
+                <span id="pdf-search-results-count" class="text-[10px] text-black-50 font-mono"></span>
+              </div>
+
+              <!-- Zoom and Page Navigation -->
+              <div class="flex items-center space-x-3">
+                <!-- Zoom Out -->
+                <button id="pdf-zoom-out-btn" class="p-1 hover:bg-black-500 rounded text-black-50 hover:text-white transition-colors" title="Zoom Out">
+                  <span class="material-symbols text-base">zoom_out</span>
+                </button>
+                <span id="pdf-zoom-level-label" class="text-[11px] text-white font-mono min-w-[32px] text-center">100%</span>
+                <!-- Zoom In -->
+                <button id="pdf-zoom-in-btn" class="p-1 hover:bg-black-500 rounded text-black-50 hover:text-white transition-colors" title="Zoom In">
+                  <span class="material-symbols text-base">zoom_in</span>
+                </button>
+
+                <div class="h-4 w-px bg-black-600"></div>
+
+                <!-- Page Jump -->
+                <div class="flex items-center space-x-1">
+                  <button id="pdf-prev-page-btn" class="p-1 hover:bg-black-500 rounded text-black-50 hover:text-white transition-colors" title="Previous Page">
+                    <span class="material-symbols text-base">chevron_left</span>
+                  </button>
+                  <div class="flex items-center space-x-0.5">
+                    <input type="number" id="pdf-current-page-input" value="1" min="1" max="${pdfDoc.numPages}" class="w-8 bg-black-600 border border-black-400 rounded py-0.5 text-center text-[11px] text-white font-mono focus:outline-none focus:border-accent [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none">
+                    <span class="text-[11px] text-black-100 font-mono">/</span>
+                    <span id="pdf-total-pages-label" class="text-[11px] text-black-100 font-mono">${pdfDoc.numPages}</span>
+                  </div>
+                  <button id="pdf-next-page-btn" class="p-1 hover:bg-black-500 rounded text-black-50 hover:text-white transition-colors" title="Next Page">
+                    <span class="material-symbols text-base">chevron_right</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Main Render Area -->
+            <div id="pdf-page-viewport" class="flex-grow overflow-auto p-4 flex items-start justify-center">
+              <div class="relative bg-white shadow-xl rounded border border-black-500/20 max-w-full">
+                <canvas id="pdf-canvas" class="block max-w-full"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      let pdfCurrentPage = 1;
+      let pdfZoomLevel = 1.0;
+      let pdfRendering = false;
+      let pdfPendingPage = null;
+
+      const canvas = document.getElementById('pdf-canvas');
+      const ctx = canvas.getContext('2d');
+
+      const renderPdfPage = async (pageNum) => {
+        if (pdfRendering) {
+          pdfPendingPage = pageNum;
+          return;
+        }
+        pdfRendering = true;
+        pdfCurrentPage = pageNum;
+
+        try {
+          const page = await pdfDoc.getPage(pageNum);
+          const viewport = page.getViewport({ scale: pdfZoomLevel });
+          canvas.width = viewport.width;
+          canvas.height = viewport.height;
+
+          const renderContext = {
+            canvasContext: ctx,
+            viewport: viewport
+          };
+
+          await page.render(renderContext).promise;
+          pdfRendering = false;
+
+          // Update inputs
+          const pageInput = document.getElementById('pdf-current-page-input');
+          if (pageInput) pageInput.value = pageNum;
+
+          // Highlight current thumbnail
+          const items = document.querySelectorAll('.pdf-thumbnail-item');
+          items.forEach(item => {
+            const p = parseInt(item.getAttribute('data-page'), 10);
+            if (p === pageNum) {
+              item.classList.add('border-accent', 'bg-accent/10');
+              item.classList.remove('border-black-400/30');
+              item.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            } else {
+              item.classList.remove('border-accent', 'bg-accent/10');
+              item.classList.add('border-black-400/30');
+            }
+          });
+
+          if (pdfPendingPage !== null) {
+            const next = pdfPendingPage;
+            pdfPendingPage = null;
+            renderPdfPage(next);
+          }
+        } catch (err) {
+          console.error('Error rendering PDF page:', err);
+          pdfRendering = false;
+        }
+      };
+
+      // Populate thumbnails list
+      const thumbList = document.getElementById('pdf-thumbnails-list');
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            const thumbItem = entry.target;
+            const pNum = parseInt(thumbItem.getAttribute('data-page'), 10);
+            if (thumbItem.getAttribute('data-rendered') !== 'true') {
+              thumbItem.setAttribute('data-rendered', 'true');
+              renderThumbnail(pNum, thumbItem);
+            }
+          }
+        });
+      }, { root: thumbList, threshold: 0.1 });
+
+      const renderThumbnail = async (pNum, itemDiv) => {
+        try {
+          const page = await pdfDoc.getPage(pNum);
+          const thumbCanvas = document.createElement('canvas');
+          thumbCanvas.className = 'w-full object-contain shadow rounded border border-black-400/20';
+          const tCtx = thumbCanvas.getContext('2d');
+          
+          const viewport = page.getViewport({ scale: 0.15 });
+          thumbCanvas.width = viewport.width;
+          thumbCanvas.height = viewport.height;
+          
+          await page.render({ canvasContext: tCtx, viewport }).promise;
+          
+          itemDiv.innerHTML = '';
+          itemDiv.appendChild(thumbCanvas);
+          
+          const pageLabel = document.createElement('div');
+          pageLabel.className = 'text-[9px] text-black-50 font-mono mt-1 text-center';
+          pageLabel.textContent = pNum;
+          itemDiv.appendChild(pageLabel);
+        } catch (e) {
+          console.warn('Failed to render thumbnail for page', pNum, e);
+        }
+      };
+
+      for (let i = 1; i <= pdfDoc.numPages; i++) {
+        const itemDiv = document.createElement('div');
+        itemDiv.className = 'pdf-thumbnail-item border border-black-400/30 rounded p-1 cursor-pointer flex flex-col items-center hover:border-accent transition-colors';
+        itemDiv.setAttribute('data-page', i);
+        itemDiv.innerHTML = `
+          <div class="w-full aspect-[3/4] bg-black-600/30 flex items-center justify-center text-[10px] text-black-100 font-mono">
+            Page ${i}
+          </div>
+        `;
+        
+        itemDiv.onclick = () => {
+          renderPdfPage(i);
+        };
+        
+        thumbList.appendChild(itemDiv);
+        observer.observe(itemDiv);
+      }
+
+      // Event binds
+      document.getElementById('pdf-prev-page-btn').onclick = () => {
+        if (pdfCurrentPage > 1) {
+          renderPdfPage(pdfCurrentPage - 1);
+        }
+      };
+      
+      document.getElementById('pdf-next-page-btn').onclick = () => {
+        if (pdfCurrentPage < pdfDoc.numPages) {
+          renderPdfPage(pdfCurrentPage + 1);
+        }
+      };
+
+      document.getElementById('pdf-current-page-input').onchange = (e) => {
+        let val = parseInt(e.target.value, 10);
+        if (isNaN(val) || val < 1) val = 1;
+        if (val > pdfDoc.numPages) val = pdfDoc.numPages;
+        renderPdfPage(val);
+      };
+
+      document.getElementById('pdf-zoom-in-btn').onclick = () => {
+        pdfZoomLevel = Math.min(pdfZoomLevel + 0.2, 3.0);
+        document.getElementById('pdf-zoom-level-label').textContent = `${Math.round(pdfZoomLevel * 100)}%`;
+        renderPdfPage(pdfCurrentPage);
+      };
+
+      document.getElementById('pdf-zoom-out-btn').onclick = () => {
+        pdfZoomLevel = Math.max(pdfZoomLevel - 0.2, 0.5);
+        document.getElementById('pdf-zoom-level-label').textContent = `${Math.round(pdfZoomLevel * 100)}%`;
+        renderPdfPage(pdfCurrentPage);
+      };
+
+      // Search functionality
+      let pdfSearchResults = [];
+      let pdfSearchCurrentIndex = -1;
+
+      const countLabel = document.getElementById('pdf-search-results-count');
+      const searchInput = document.getElementById('pdf-search-input');
+
+      const performSearch = async () => {
+        const query = searchInput.value.trim();
+        if (!query) {
+          pdfSearchResults = [];
+          pdfSearchCurrentIndex = -1;
+          countLabel.textContent = '';
+          return;
+        }
+
+        countLabel.textContent = 'Searching...';
+        const matches = [];
+        const lowerQuery = query.toLowerCase();
+
+        for (let p = 1; p <= pdfDoc.numPages; p++) {
+          try {
+            const page = await pdfDoc.getPage(p);
+            const textContent = await page.getTextContent();
+            const textStr = textContent.items.map(item => item.str).join(' ');
+            if (textStr.toLowerCase().includes(lowerQuery)) {
+              matches.push(p);
+            }
+          } catch (e) {
+            console.warn('Error reading page text:', p, e);
+          }
+        }
+
+        pdfSearchResults = matches;
+        pdfSearchCurrentIndex = matches.length > 0 ? 0 : -1;
+
+        if (matches.length === 0) {
+          countLabel.textContent = 'No matches';
+        } else {
+          jumpToSearchMatch();
+        }
+      };
+
+      const jumpToSearchMatch = () => {
+        if (pdfSearchCurrentIndex < 0 || pdfSearchCurrentIndex >= pdfSearchResults.length) return;
+        countLabel.textContent = `${pdfSearchCurrentIndex + 1} of ${pdfSearchResults.length}`;
+        renderPdfPage(pdfSearchResults[pdfSearchCurrentIndex]);
+      };
+
+      searchInput.onchange = performSearch;
+      searchInput.onkeydown = (e) => {
+        if (e.key === 'Enter') {
+          performSearch();
+        }
+      };
+
+      document.getElementById('pdf-search-prev-btn').onclick = () => {
+        if (pdfSearchResults.length === 0) return;
+        pdfSearchCurrentIndex = (pdfSearchCurrentIndex - 1 + pdfSearchResults.length) % pdfSearchResults.length;
+        jumpToSearchMatch();
+      };
+
+      document.getElementById('pdf-search-next-btn').onclick = () => {
+        if (pdfSearchResults.length === 0) return;
+        pdfSearchCurrentIndex = (pdfSearchCurrentIndex + 1) % pdfSearchResults.length;
+        jumpToSearchMatch();
+      };
+
+      // Render first page initial
+      await renderPdfPage(1);
+
       if (spinner) spinner.remove();
-    };
-    
-    contentBody.innerHTML = '';
-    contentBody.appendChild(iframe);
+    } catch (err) {
+      console.error('Failed to load PDF.js viewer:', err);
+      contentBody.innerHTML = `
+        <div class="text-center text-red-500 py-8 text-sm">
+          <p>Failed to load PDF viewer.</p>
+          <p class="text-xs text-black-100 mt-1">${escapeHtml(err.message || err)}</p>
+        </div>
+      `;
+    }
   } 
   else if (format === 'epub') {
     // Show EPUB-specific controls

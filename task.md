@@ -29,7 +29,7 @@ This document tracks the tasks and missing features of the `audiobookshelf-go` p
   - [x] Shake-to-extend toggle and sensitivity control.
   - [x] Gradual audio fade-out timer customization.
 - [x] **Play History Panel**: Track and render detailed timelines of previous listening sessions, showing device name, duration, and exact timestamps.
-- [ ] **Active Playback Queue Manager**: UI to view, append, reorder (via drag handles), and clear current tracks or books queue.
+- [x] **Active Playback Queue Manager**: UI to view, append, reorder (via drag handles), and clear current tracks or books queue.
 - [x] **Bookmarks Manager Panel**: Bookmark creation with custom text notes, color tags, and export/import bookmarks.
 
 ### 2. E-Book Reader UI
@@ -37,7 +37,7 @@ This document tracks the tasks and missing features of the `audiobookshelf-go` p
 - [x] **Reader Typography & Themes Panel**: Custom settings for font size, line spacing, margins, font family (including OpenDyslexic), and color profiles (sepia, dark, warm, light).
 - [x] **Reader Bookmarks & Highlights Side-Panel**: View, navigate, and search within user-saved highlights and notes in the EPUB.
 - [x] **Text-To-Speech (TTS) Controls**: Built-in browser-based screen reader controls for EPUB reading.
-- [ ] **PDF Reader Enhancements**: Add page thumbnails side rail, search page index, and zoom in/out controls.
+- [x] **PDF Reader Enhancements**: Add page thumbnails side rail, search page index, and zoom in/out controls.
 
 ### 3. Library Sorting, Filtering & Presets
 - [ ] **Custom Search Presets**: Save and name custom combinations of filters/sort options as quick-access tabs on the main navigation.
