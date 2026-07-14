@@ -265,3 +265,104 @@ func TestSyncLocalSessions(t *testing.T) {
 		}
 	})
 }
+
+func TestSyncLocalSession(t *testing.T) {
+	db := setupSyncTestDB(t)
+	defer db.Close()
+
+	// Seed libraryItems and mock users
+	ctx := context.Background()
+	_, err := db.Exec(`INSERT INTO users (id, username, type, isActive, permissions) VALUES ('user-1', 'testuser', 'user', 1, '{}')`)
+	if err != nil {
+		t.Fatalf("Failed to seed user: %v", err)
+	}
+	_, err = db.Exec(`INSERT INTO books (id, title) VALUES ('book-1', 'Test Book')`)
+	if err != nil {
+		t.Fatalf("Failed to seed book: %v", err)
+	}
+	_, err = db.Exec(`INSERT INTO libraryItems (id, mediaId, mediaType, title) VALUES ('book-1', 'book-1', 'book', 'Test Book')`)
+	if err != nil {
+		t.Fatalf("Failed to seed libraryItems: %v", err)
+	}
+
+	t.Run("Sync single local session", func(t *testing.T) {
+		sessionItem := LocalSessionItem{
+			ID:            "sess-single-1",
+			LibraryID:     "lib-1",
+			LibraryItemID: "book-1",
+			TimeListening: 60.0,
+			StartTime:     0.0,
+			CurrentTime:   180.0,
+			Duration:      1000.0,
+			StartedAt:     "2026-07-10T10:00:00Z",
+			UpdatedAt:     "2026-07-10T10:30:00Z",
+			PlayMethod:    0, // Direct Play
+			DeviceInfo: map[string]interface{}{
+				"clientName": "ShelfPlayer",
+				"osName":     "iOS",
+			},
+		}
+
+		body, err := json.Marshal(sessionItem)
+		if err != nil {
+			t.Fatalf("Failed to marshal body: %v", err)
+		}
+
+		req := httptest.NewRequest("POST", "/api/session/local", bytes.NewReader(body))
+		userSess := &core.UserSession{ID: "user-1"}
+		req = req.WithContext(context.WithValue(req.Context(), core.UserContextKey, userSess))
+
+		rr := httptest.NewRecorder()
+		handleSyncLocalSession(db).ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusOK {
+			t.Errorf("Expected status 200, got %d. Body: %s", rr.Code, rr.Body.String())
+		}
+
+		var result SyncSessionResult
+		if err := json.NewDecoder(rr.Body).Decode(&result); err != nil {
+			t.Fatalf("Failed to decode response: %v", err)
+		}
+
+		if result.ID != "sess-single-1" {
+			t.Errorf("Expected session ID 'sess-single-1', got %q", result.ID)
+		}
+		if !result.Success {
+			t.Error("Expected Success to be true")
+		}
+		if !result.ProgressSynced {
+			t.Error("Expected ProgressSynced to be true")
+		}
+
+		// Verify database state
+		var count int
+		var extraStr string
+		err = db.QueryRowContext(ctx, `SELECT count(*), extraData FROM playbackSessions WHERE id = 'sess-single-1'`).Scan(&count, &extraStr)
+		if err != nil {
+			t.Fatalf("Failed to query playbackSessions: %v", err)
+		}
+		if count != 1 {
+			t.Errorf("Expected 1 playback session, got %d", count)
+		}
+
+		var extra map[string]interface{}
+		json.Unmarshal([]byte(extraStr), &extra)
+		if extra["deviceInfo"] != "ShelfPlayer / iOS" {
+			t.Errorf("Expected deviceInfo stringified to 'ShelfPlayer / iOS', got %q", extra["deviceInfo"])
+		}
+
+		// Verify mediaProgresses
+		var progressCount int
+		var progressTime float64
+		err = db.QueryRow(`SELECT count(*), currentTime FROM mediaProgresses WHERE userId = 'user-1' AND mediaItemId = 'book-1'`).Scan(&progressCount, &progressTime)
+		if err != nil {
+			t.Fatalf("Failed to query mediaProgresses: %v", err)
+		}
+		if progressCount != 1 {
+			t.Errorf("Expected 1 progress record, got %d", progressCount)
+		}
+		if progressTime != 180.0 {
+			t.Errorf("Expected progress currentTime to be updated to 180.0, got %f", progressTime)
+		}
+	})
+}
