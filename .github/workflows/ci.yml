@@ -8,26 +8,29 @@ on:
 
 jobs:
   build:
-    name: Build & Test
+    name: Build and Test
     runs-on: ubuntu-latest
-
     steps:
-    - name: Check out code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Set up Go
-      uses: actions/setup-go@v5
-      with:
-        go-version-file: 'go.mod'
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+          cache: true
 
-    - name: Verify dependencies
-      run: go mod verify
+      - name: Verify dependencies
+        run: go mod verify
 
-    - name: Run go vet
-      run: go vet ./...
+      - name: Check Formatting
+        run: make fmt-check
 
-    - name: Run tests
-      run: go test -v ./...
+      - name: Vet Code
+        run: make vet
 
-    - name: Build binary
-      run: go build -v .
+      - name: Run Tests
+        run: make test
+
+      - name: Build Binary
+        run: make build
