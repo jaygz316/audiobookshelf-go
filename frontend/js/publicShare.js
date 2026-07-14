@@ -46,6 +46,29 @@ export async function initPublicShare(slug) {
       lockContainer.classList.add('hidden');
       actionsContainer.classList.remove('hidden');
 
+      const card = document.getElementById('public-share-card');
+      const coverContainer = coverImg.parentElement;
+      if (response.embeddable) {
+        card.className = 'w-full max-w-sm bg-primary rounded-lg shadow-lg border border-black-600/50 p-4 flex flex-col items-center space-y-4';
+        if (coverContainer) {
+          coverContainer.className = 'w-24 h-36 flex-shrink-0 bg-black-700 rounded-md overflow-hidden shadow-md border border-black-600 flex items-center justify-center relative';
+        }
+        titleEl.className = 'text-xl font-bold tracking-wide mb-0.5 text-center truncate w-full';
+        authorEl.className = 'text-xs text-accent font-medium mb-2 text-center truncate w-full';
+        descEl.classList.add('hidden');
+        narratorDiv.classList.add('hidden');
+        downloadBtn.className = 'w-full bg-accent hover:opacity-90 text-primary font-bold py-1.5 rounded flex items-center justify-center space-x-1.5 transition duration-150 text-xs';
+      } else {
+        card.className = 'w-full max-w-2xl bg-primary rounded-lg shadow-2xl border border-black-600/50 p-8 flex flex-col md:flex-row items-center md:items-start space-y-6 md:space-y-0 md:space-x-8';
+        if (coverContainer) {
+          coverContainer.className = 'w-48 h-72 flex-shrink-0 bg-black-700 rounded-md overflow-hidden shadow-md border border-black-600 flex items-center justify-center relative';
+        }
+        titleEl.className = 'text-3xl font-bold tracking-wide mb-1 text-center md:text-left';
+        authorEl.className = 'text-lg text-accent font-medium mb-4 text-center md:text-left';
+        descEl.className = 'text-sm text-black-100 line-clamp-6 mb-6 leading-relaxed text-center md:text-left';
+        downloadBtn.className = 'w-full bg-accent hover:opacity-90 text-primary font-bold py-3 rounded flex items-center justify-center space-x-2 transition duration-150';
+      }
+
       const item = response.item || {};
       const media = item.media || {};
 
@@ -61,7 +84,7 @@ export async function initPublicShare(slug) {
       authorEl.textContent = authorName;
 
       // Narrator
-      if (media.narrators && media.narrators.length > 0) {
+      if (!response.embeddable && media.narrators && media.narrators.length > 0) {
         narratorEl.textContent = media.narrators.join(', ');
         narratorDiv.classList.remove('hidden');
       } else {
@@ -69,7 +92,9 @@ export async function initPublicShare(slug) {
       }
 
       // Description
-      descEl.textContent = media.description || 'No description available.';
+      if (!response.embeddable) {
+        descEl.textContent = media.description || 'No description available.';
+      }
 
       // Cover
       const passParam = password ? `&password=${encodeURIComponent(password)}` : '';

@@ -404,31 +404,31 @@ function renderPlaylistItemsRows(playlist, itemsDetails, libraryId) {
   }
   emptyState.classList.add('hidden');
 
+  let draggedIndex = null;
+
   itemsDetails.forEach((item, index) => {
     const li = document.createElement('li');
-    li.className = 'flex items-center justify-between bg-black-500/40 hover:bg-black-500/80 p-3 rounded border border-black-400/50 transition-colors';
+    li.className = 'flex items-center justify-between bg-black-500/40 hover:bg-black-500/80 p-3 rounded border border-black-400/50 transition-colors cursor-move';
+    li.draggable = true;
 
     const token = localStorage.getItem('token');
     const title = item.media?.metadata?.title || item.title || 'Untitled';
     const subtitle = item.mediaType === 'book' ? item.media?.metadata?.authorName || 'Unknown Author' : item.media?.metadata?.author || 'Unknown Author';
 
     li.innerHTML = `
-      <div class="flex items-center space-x-3 flex-grow cursor-pointer play-trigger">
-        <img src="${resolvePath(`/api/items/${item.id}/cover?token=${token}&width=80`)}" class="h-12 w-12 object-cover rounded shadow" alt="Cover">
-        <div class="truncate">
-          <p class="font-semibold text-white text-sm truncate">${escapeHtml(title)}</p>
-          <p class="text-xs text-black-50 truncate">${escapeHtml(subtitle)}</p>
+      <div class="flex items-center space-x-2 flex-grow min-w-0">
+        <!-- Drag Handle -->
+        <span class="material-symbols text-black-200 hover:text-white text-xl cursor-grab select-none mr-1 drag-handle">drag_handle</span>
+        <div class="flex items-center space-x-3 flex-grow cursor-pointer play-trigger min-w-0">
+          <img src="${resolvePath(`/api/items/${item.id}/cover?token=${token}&width=80`)}" class="h-12 w-12 object-cover rounded shadow flex-shrink-0" alt="Cover">
+          <div class="truncate">
+            <p class="font-semibold text-white text-sm truncate">${escapeHtml(title)}</p>
+            <p class="text-xs text-black-50 truncate">${escapeHtml(subtitle)}</p>
+          </div>
         </div>
       </div>
 
-      <div class="flex items-center space-x-3 ml-4">
-        <!-- Reorder triggers -->
-        <button class="up-btn text-black-50 hover:text-white p-1" ${index === 0 ? 'disabled opacity-20' : ''}>
-          <span class="material-symbols text-lg">arrow_upward</span>
-        </button>
-        <button class="down-btn text-black-50 hover:text-white p-1" ${index === itemsDetails.length - 1 ? 'disabled opacity-20' : ''}>
-          <span class="material-symbols text-lg">arrow_downward</span>
-        </button>
+      <div class="flex items-center space-x-3 ml-4 flex-shrink-0">
         <button class="remove-btn text-error hover:text-red-400 p-1" title="Remove from playlist">
           <span class="material-symbols text-lg">close</span>
         </button>
@@ -444,38 +444,52 @@ function renderPlaylistItemsRows(playlist, itemsDetails, libraryId) {
       }
     };
 
-    // Reorder actions
-    li.querySelector('.up-btn').onclick = async () => {
-      const newOrderIds = [...playlist.itemIds];
-      // swap index and index-1
-      const temp = newOrderIds[index];
-      newOrderIds[index] = newOrderIds[index - 1];
-      newOrderIds[index - 1] = temp;
-      
-      try {
-        await request('PATCH', `/api/playlists/${playlist.id}`, { items: newOrderIds });
-        loadPlaylistDetails(playlist.id, libraryId);
-      } catch (err) {
-        alert('Failed to reorder: ' + err.message);
+    // Attach HTML5 drag and drop events
+    li.addEventListener('dragstart', (e) => {
+      draggedIndex = index;
+      li.classList.add('opacity-40');
+      e.dataTransfer.effectAllowed = 'move';
+    });
+
+    li.addEventListener('dragend', () => {
+      li.classList.remove('opacity-40');
+      draggedIndex = null;
+    });
+
+    li.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+    });
+
+    li.addEventListener('dragenter', () => {
+      if (draggedIndex !== null && index !== draggedIndex) {
+        li.classList.add('bg-black-400/80');
       }
-    };
+    });
 
-    li.querySelector('.down-btn').onclick = async () => {
-      const newOrderIds = [...playlist.itemIds];
-      // swap index and index+1
-      const temp = newOrderIds[index];
-      newOrderIds[index] = newOrderIds[index + 1];
-      newOrderIds[index + 1] = temp;
+    li.addEventListener('dragleave', () => {
+      li.classList.remove('bg-black-400/80');
+    });
 
-      try {
-        await request('PATCH', `/api/playlists/${playlist.id}`, { items: newOrderIds });
-        loadPlaylistDetails(playlist.id, libraryId);
-      } catch (err) {
-        alert('Failed to reorder: ' + err.message);
+    li.addEventListener('drop', async (e) => {
+      e.preventDefault();
+      li.classList.remove('bg-black-400/80');
+      if (draggedIndex !== null && draggedIndex !== index) {
+        const newOrderIds = [...playlist.itemIds];
+        const element = newOrderIds.splice(draggedIndex, 1)[0];
+        newOrderIds.splice(index, 0, element);
+
+        try {
+          await request('PATCH', `/api/playlists/${playlist.id}`, { items: newOrderIds });
+          loadPlaylistDetails(playlist.id, libraryId);
+        } catch (err) {
+          alert('Failed to reorder: ' + err.message);
+        }
       }
-    };
+    });
 
-    li.querySelector('.remove-btn').onclick = async () => {
+    li.querySelector('.remove-btn').onclick = async (e) => {
+      e.stopPropagation();
       if (!confirm(`Remove "${title}" from playlist?`)) return;
       const newOrderIds = playlist.itemIds.filter(id => id !== item.id);
       try {

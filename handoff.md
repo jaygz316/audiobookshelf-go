@@ -1,18 +1,19 @@
 # Handoff: Audiobookshelf Go Port
 
 ## Targeted Task & Accomplishments
-- **Target Task**: Active Playback Queue Manager Drag-and-Drop Reordering.
+- **Target Task**: Playlist Reordering & Public Share Links Customizer
 - **Accomplishments**:
-  - Defined module-level tracking variable `draggedQueueIndex` in `frontend/js/player.js` to manage dragging states browser-independently.
-  - Enhanced the Playback Queue dialog items to be draggable using the HTML5 drag-and-drop APIs.
-  - Added visual drag handles (`drag_handle` material symbol) with grab/grabbing cursors to each queue row.
-  - Linked drag-and-drop actions (`dragstart`, `dragend`, `dragover`, `dragenter`, `dragleave`, `drop`) to call `reorderQueue` and automatically refresh the queue modal reactively.
-  - Formatted, compiled, and tested the Go backend cleanly.
+  - Implemented **Drag-and-Drop Playlist Reordering** in `frontend/js/playlists.js` using HTML5 drag-and-drop APIs. Replaced manual Up/Down buttons with an intuitive grab handle (`drag_handle`) that updates item lists in real-time.
+  - Enhanced **Public Share Links Customizer** with advanced capabilities:
+    - **Custom Expiration Date/Time**: Added a `datetime-local` input field matching expiration rules.
+    - **Password Protection**: Visual toggles to password-protect shared media.
+    - **Maximum Download Limits**: Enforced `MaxDownloads` limit check in the backend `/api/s/{slug}/download` handler and incremented `downloadsCount` on each successful request.
+    - **Embeddable Web Player Layout**: Dynamically toggles a premium visual compact card layout (hiding metadata descriptions and lists) when the embeddable flag is true.
+  - Updated SQLite database schema and backend models in `internal/share/share.go` to support new attributes (`maxDownloads`, `downloadsCount`, and `embeddable`).
+  - Successfully verified compile build and unit/integration tests (`go test ./...`). All backend tests pass.
 
 ## Outstanding Work / Next Gaps
-- **Granular Field Lock System (UI & Backend)**: Checkboxes in the metadata modal next to fields (Title, Author, Narrator, Series, etc.) to prevent overwrite during scan.
-- **Chapter Editor Suite**: Manual adjustment, automatic extraction, and lookup of chapters.
-- **Batch Metadata Editor**: Bulk updates of metadata on multi-selected library items.
+- **Podcast Subscriptions & Episode Downloader**: Subscription portal (iTunes / PodcastIndex APIs), downloader queue UI, and subscription cleanup policies.
 
 ## Next Steps
-- Implement the **Granular Field Lock System** in both the frontend metadata dialog (`frontend/js/itemDetails.js`) and backend database/API.
+- Implement iTunes/PodcastIndex subscription search and subscribe endpoints on the backend.

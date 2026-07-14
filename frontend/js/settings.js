@@ -3052,7 +3052,8 @@ async function renderSharesTab() {
               <tr class="border-b border-black-400/60 text-black-100 text-xs uppercase tracking-wider font-semibold">
                 <th class="px-4 py-3">Shared Item ID</th>
                 <th class="px-4 py-3">Slug / Link</th>
-                <th class="px-4 py-3">Downloadable</th>
+                <th class="px-4 py-3">Downloads / Limit</th>
+                <th class="px-4 py-3">Embeddable</th>
                 <th class="px-4 py-3">Password Protected</th>
                 <th class="px-4 py-3">Expires At</th>
                 <th class="px-4 py-3 text-right">Actions</th>
@@ -3061,11 +3062,12 @@ async function renderSharesTab() {
             <tbody id="shares-list-rows" class="divide-y divide-black-400">
               ${shares.length === 0 ? `
                 <tr>
-                  <td colspan="6" class="px-4 py-8 text-center text-black-100 text-xs">No active public share links found.</td>
+                  <td colspan="7" class="px-4 py-8 text-center text-black-100 text-xs">No active public share links found.</td>
                 </tr>
               ` : shares.map(s => {
                 const shareUrl = `${window.location.origin}/s/${s.id}`;
                 const expiresStr = s.expiresAt ? (window.formatDateTime ? window.formatDateTime(s.expiresAt) : new Date(s.expiresAt).toLocaleString()) : 'Never';
+                const limitStr = s.maxDownloads > 0 ? `${s.downloadsCount} / ${s.maxDownloads}` : `${s.downloadsCount} / Unlimited`;
                 return `
                   <tr class="hover:bg-black-500/30 text-xs text-white">
                     <td class="px-4 py-3 font-mono text-black-100">${escapeHtml(s.libraryItemId)}</td>
@@ -3075,7 +3077,8 @@ async function renderSharesTab() {
                         <span class="material-symbols text-xs">open_in_new</span>
                       </a>
                     </td>
-                    <td class="px-4 py-3">${s.isDownloadable ? 'Yes' : 'No'}</td>
+                    <td class="px-4 py-3">${limitStr}</td>
+                    <td class="px-4 py-3">${s.embeddable ? 'Yes' : 'No'}</td>
                     <td class="px-4 py-3">${s.hasPassword ? 'Yes' : 'No'}</td>
                     <td class="px-4 py-3 text-black-100">${expiresStr}</td>
                     <td class="px-4 py-3 text-right">
@@ -3302,8 +3305,11 @@ async function renderLibrariesTab() {
         let foldersList = (lib.folders || []).map(f => f.path || f.fullPath).join(', ');
         if (!foldersList) foldersList = 'No folders configured';
 
+        const isSelected = lib.id === getActiveLibraryId();
+        const borderClass = isSelected ? 'border-l-warning' : 'border-l-black-400';
+
         html += `
-          <div class="library-row border-y border-r border-l-[4px] border-black-455 border-l-accent bg-black-500 rounded-r p-4 flex flex-col md:flex-row justify-between items-start md:items-center space-y-4 md:space-y-0 cursor-move transition-colors hover:bg-black-450" draggable="true" data-id="${lib.id}">
+          <div class="library-row border-y border-r ${borderClass} bg-black-500 rounded-r p-4 flex flex-col md:flex-row justify-between items-start md:items-center space-y-4 md:space-y-0 cursor-move transition-colors hover:bg-black-450" draggable="true" data-id="${lib.id}">
             <div class="flex items-center space-x-3 w-full md:w-auto">
               <!-- Reorder Handle -->
               <span class="material-symbols text-black-200 hover:text-white text-xl select-none mr-1">drag_handle</span>
@@ -3319,10 +3325,25 @@ async function renderLibrariesTab() {
                 <p class="text-xs text-black-100"><span class="font-semibold">Provider:</span> ${escapeHtml(lib.provider || 'local')}</p>
               </div>
             </div>
-            <div class="flex items-center space-x-2 w-full md:w-auto justify-end">
+            <div class="flex items-center space-x-2 w-full md:w-auto justify-end relative">
               <button type="button" class="btn-scan-lib bg-accent/10 hover:bg-accent/20 border border-accent/30 text-accent text-xs font-semibold px-3 py-1.5 rounded transition-colors" data-id="${lib.id}">Scan</button>
-              <button type="button" class="btn-edit-lib bg-black-400 hover:bg-black-350 text-white text-xs font-semibold px-3 py-1.5 rounded transition-colors" data-id="${lib.id}">Edit</button>
-              <button type="button" class="btn-delete-lib bg-red-900/50 hover:bg-red-800/50 border border-red-900 text-red-200 text-xs font-semibold px-3 py-1.5 rounded transition-colors" data-id="${lib.id}">Delete</button>
+              
+              <!-- Action Menu Dropdown Container -->
+              <div class="relative inline-block text-left">
+                <button type="button" class="btn-library-actions p-1.5 bg-black-400 hover:bg-black-350 text-white hover:text-accent rounded-full transition-colors focus:outline-none flex items-center justify-center" data-id="${lib.id}" title="Actions">
+                  <span class="material-symbols text-lg">more_vert</span>
+                </button>
+                <div class="library-actions-menu absolute right-0 mt-1 w-32 bg-primary border border-black-300 rounded shadow-lg hidden py-1 z-50">
+                  <button type="button" class="btn-edit-lib w-full text-left px-4 py-2 text-xs text-black-50 hover:bg-black-400 hover:text-white transition-colors flex items-center space-x-2" data-id="${lib.id}">
+                    <span class="material-symbols text-sm">edit</span>
+                    <span>Edit</span>
+                  </button>
+                  <button type="button" class="btn-delete-lib w-full text-left px-4 py-2 text-xs text-error hover:bg-black-400 hover:text-red-400 transition-colors flex items-center space-x-2" data-id="${lib.id}">
+                    <span class="material-symbols text-sm">delete</span>
+                    <span>Delete</span>
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         `;
@@ -3448,6 +3469,30 @@ async function renderLibrariesTab() {
         }
       };
     });
+
+    // Toggle Action Menus
+    container.querySelectorAll('.btn-library-actions').forEach(btn => {
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        const menu = btn.nextElementSibling;
+        const isOpen = !menu.classList.contains('hidden');
+        
+        // Close all other action menus
+        container.querySelectorAll('.library-actions-menu').forEach(m => m.classList.add('hidden'));
+        
+        if (!isOpen) {
+          menu.classList.remove('hidden');
+        }
+      };
+    });
+
+    // Close action menus when clicking outside
+    if (!window.hasLibraryActionsListener) {
+      window.hasLibraryActionsListener = true;
+      document.addEventListener('click', () => {
+        document.querySelectorAll('.library-actions-menu').forEach(m => m.classList.add('hidden'));
+      });
+    }
 
   } catch (err) {
     container.innerHTML = `
