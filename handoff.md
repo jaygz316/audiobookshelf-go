@@ -1,26 +1,18 @@
 # Handoff: Audiobookshelf Go Port
 
 ## Targeted Task & Accomplishments
-- **Target Task**: Privilege Check Audit & Admin Route Security Hardening
+- **Target Task**: Audit client-side routing fallback support in the HTTP handler
 - **Accomplishments**:
-  - **Custom Metadata Providers Security Hardening**:
-    - Identified that `handleGetCustomMetadataProviders`, `handleCreateCustomMetadataProvider`, and `handleDeleteCustomMetadataProvider` in `internal/handlers/settings_metadata.go` lacked admin/root checks.
-    - Hardened them using the `userSess.IsAdminOrUp()` context check.
-    - Appended unit/integration tests inside `internal/handlers/settings_metadata_test.go` to explicitly verify that non-admin requests return `403 Forbidden` for all three endpoints.
-  - **Cron & Watcher Endpoint Hardening**:
-    - Audited `/api/validate-cron` (`handleValidateCron`) and `/api/watcher/update` (`handleWatcherUpdate`) and found they were callable by non-admin authenticated users.
-    - Restrained access to only admin or root users using `userSess.IsAdminOrUp()`.
-    - Created a new test suite at [cron_watcher_security_test.go](file:///home/jay/projects/audiobookshelf-go/internal/handlers/cron_watcher_security_test.go) verifying that these endpoints return `200 OK` for administrators and `403 Forbidden` for non-administrative users.
-  - **Comprehensive Endpoint Audit**:
-    - Inspected settings, backup, metadata, email, and API key handlers to ensure administrative route security.
-    - Verified all unit, integration, and E2E tests in the codebase pass (`go test ./...` returns `ok`).
-  - **Safe Commit & Push**:
-    - Staged, formatted, committed, and pushed the security hardening changes to remote `main`.
-    - Built and pushed the Docker image `jaygz/audiobookshelf-go:latest`.
+  - Hardened `serveStaticOrSPA` in [library_handlers.go](file:///home/jay/projects/audiobookshelf-go/internal/handlers/library_handlers.go):
+    - Enforced that SPA fallback routing (`index.html`) is only invoked for HTTP `GET` and `HEAD` methods. For any other methods, it returns `404 Not Found` immediately with a JSON response structure.
+    - Intercepted requests for missing static assets by checking for typical asset file extensions (e.g. `.js`, `.css`, `.png`, `.jpg`, `.jpeg`, `.gif`, `.ico`, `.svg`, `.json`, `.woff`, `.woff2`, `.ttf`, `.map`, `.webmanifest`, `.mp3`, `.m4b`, `.m4a`, `.epub`, `.pdf`). If the file is not found, the handler returns `404 Not Found` directly instead of serving the fallback `index.html`.
+  - Added test suite `TestRoutingFallbackRobustness` in [routing_verification_test.go](file:///home/jay/projects/audiobookshelf-go/internal/handlers/routing_verification_test.go) verifying that POST requests to non-existent routes and missing assets with standard extensions both result in a `404 Not Found`, while valid routes without extensions correctly fall back to `index.html`.
+  - Staged, formatted, committed, and pushed modifications to remote `main`.
+  - Built and pushed the Docker image `jaygz/audiobookshelf-go:latest`.
 
 ## Outstanding Work / Next Gaps
-- Audit client-side routing fallback support in the HTTP handler.
 - Verify user role boundaries for any newly added features.
+- Audit UI layout/parity in client settings menus.
 
 ## Next Steps
 - Audit UI layout/parity in client settings menus.
