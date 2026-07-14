@@ -1249,6 +1249,16 @@ func handleUpload(db *sql.DB) http.HandlerFunc {
 			libraryID = r.FormValue("libraryId")
 		}
 		if libraryID == "" {
+			p := r.URL.Path
+			if idx := strings.Index(p, "/api/libraries/"); idx != -1 {
+				sub := p[idx+len("/api/libraries/"):]
+				parts := strings.Split(sub, "/")
+				if len(parts) >= 1 && parts[0] != "" {
+					libraryID = parts[0]
+				}
+			}
+		}
+		if libraryID == "" {
 			http.Error(w, `{"error": "Missing library ID"}`, http.StatusBadRequest)
 			return
 		}

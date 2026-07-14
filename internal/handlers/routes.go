@@ -969,6 +969,8 @@ func handleLibrarySubRouteDispatch(db *sql.DB, w http.ResponseWriter, r *http.Re
 	case "items":
 		if r.Method == http.MethodGet {
 			AuthMiddlewareWrapper(db, http.HandlerFunc(HandleGetLibraryItems(db, libraryID))).ServeHTTP(w, r)
+		} else if r.Method == http.MethodPost {
+			AuthMiddlewareWrapper(db, handleUpload(db)).ServeHTTP(w, r)
 		} else {
 			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
 		}
