@@ -2782,19 +2782,35 @@ function triggerShareLinkModal(item) {
         body.innerHTML = `
           <form id="create-share-form" class="space-y-4">
             <div>
-              <label class="block text-[0.7rem] uppercase font-semibold text-black-100 mb-1.5">Expires In</label>
+              <label class="block text-[0.7rem] uppercase font-semibold text-black-100 mb-1.5 font-bold">Expires In</label>
               <select id="share-duration" class="w-full bg-black-500 text-white px-3 py-2 rounded border border-black-300 focus:outline-none focus:border-accent text-xs">
                 <option value="3600000">1 Hour</option>
                 <option value="86400000" selected>1 Day</option>
                 <option value="604800000">7 Days</option>
                 <option value="2592000000">30 Days</option>
                 <option value="0">Never</option>
+                <option value="custom">Custom Date & Time...</option>
               </select>
+            </div>
+
+            <div id="share-custom-expires-container" class="hidden">
+              <label class="block text-[0.7rem] uppercase font-semibold text-black-100 mb-1.5 font-bold">Custom Expiration Date & Time</label>
+              <input type="datetime-local" id="share-custom-expires" class="w-full bg-black-500 text-white px-3 py-2 rounded border border-black-300 focus:outline-none focus:border-accent text-xs">
+            </div>
+
+            <div>
+              <label class="block text-[0.7rem] uppercase font-semibold text-black-100 mb-1.5 font-bold">Max Downloads (0 for unlimited)</label>
+              <input type="number" id="share-max-downloads" min="0" value="0" class="w-full bg-black-500 text-white px-3 py-2 rounded border border-black-300 focus:outline-none focus:border-accent text-xs">
             </div>
 
             <div class="flex items-center space-x-2">
               <input type="checkbox" id="share-allow-download" checked class="rounded border-black-300 text-accent focus:ring-accent bg-black-500 h-4 w-4">
               <label for="share-allow-download" class="text-xs font-medium text-white">Allow downloads</label>
+            </div>
+
+            <div class="flex items-center space-x-2">
+              <input type="checkbox" id="share-embeddable" class="rounded border-black-300 text-accent focus:ring-accent bg-black-500 h-4 w-4">
+              <label for="share-embeddable" class="text-xs font-medium text-white">Enable embeddable mini-player layout</label>
             </div>
 
             <div class="space-y-2">
@@ -2813,6 +2829,21 @@ function triggerShareLinkModal(item) {
             </button>
           </form>
         `;
+
+        const durationSelect = body.querySelector('#share-duration');
+        const customExpiresContainer = body.querySelector('#share-custom-expires-container');
+        const customExpiresInput = body.querySelector('#share-custom-expires');
+
+        durationSelect.onchange = () => {
+          if (durationSelect.value === 'custom') {
+            customExpiresContainer.classList.remove('hidden');
+            customExpiresInput.required = true;
+          } else {
+            customExpiresContainer.classList.add('hidden');
+            customExpiresInput.required = false;
+            customExpiresInput.value = '';
+          }
+        };
 
         const passwordCheckbox = body.querySelector('#share-require-password');
         const passwordContainer = body.querySelector('#share-password-field-container');
@@ -2833,14 +2864,24 @@ function triggerShareLinkModal(item) {
         form.onsubmit = async (e) => {
           e.preventDefault();
           
-          const durationVal = parseInt(body.querySelector('#share-duration').value, 10);
+          const durationVal = durationSelect.value;
           const isDownloadable = body.querySelector('#share-allow-download').checked;
+          const embeddableVal = body.querySelector('#share-embeddable').checked;
+          const maxDownloadsVal = parseInt(body.querySelector('#share-max-downloads').value, 10) || 0;
           const passwordVal = passwordInput.value;
 
           const slug = generateSlug();
           let expiresAt = 0;
-          if (durationVal > 0) {
-            expiresAt = Date.now() + durationVal;
+          if (durationVal === 'custom') {
+            const customVal = customExpiresInput.value;
+            if (customVal) {
+              expiresAt = new Date(customVal).getTime();
+            }
+          } else {
+            const durationMs = parseInt(durationVal, 10);
+            if (durationMs > 0) {
+              expiresAt = Date.now() + durationMs;
+            }
           }
 
           try {
@@ -2850,7 +2891,9 @@ function triggerShareLinkModal(item) {
               mediaItemType: item.mediaType,
               expiresAt: expiresAt,
               isDownloadable: isDownloadable,
-              password: passwordVal
+              password: passwordVal,
+              maxDownloads: maxDownloadsVal,
+              embeddable: embeddableVal
             });
 
             alert('Share link generated successfully!');

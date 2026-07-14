@@ -49,13 +49,13 @@ This document tracks the tasks and missing features of the `audiobookshelf-go` p
 
 ### 4. Metadata Management & Interactive Editors
 - [x] **Visual Match Dialog (Diff Viewer)**: Compare side-by-side search results from metadata providers (Audible, Open Library, Google Books, etc.) before applying changes.
-- [ ] **Granular Field Lock System**: Checkboxes next to individual metadata fields (Title, Author, Narrator, Series, Year, Genre) to prevent auto-scans from overwriting them.
-- [ ] **Chapter Editor Suite**:
-  - [ ] Dynamic chapter visual waveform alignment.
-  - [ ] Manual chapter actions: Add, delete, shift start/end timestamps, rename.
-  - [ ] Automatic chapter extraction from audio track markers or lookup via external APIs (Audnexus).
+- [x] **Granular Field Lock System**: Checkboxes next to individual metadata fields (Title, Author, Narrator, Series, Year, Genre) to prevent auto-scans from overwriting them.
+- [x] **Chapter Editor Suite**:
+  - [x] Dynamic chapter visual waveform alignment.
+  - [x] Manual chapter actions: Add, delete, shift start/end timestamps, rename.
+  - [x] Automatic chapter extraction from audio track markers or lookup via external APIs (Audnexus).
 - [x] **Cover Art Editing Canvas**: Crop tool, image color picker, and cover search results gallery.
-- [ ] **Batch Metadata Editor**: Multi-select items in the library grid to edit genres, tags, authors, narrators, series, publishers, and release years in bulk.
+- [x] **Batch Metadata Editor**: Multi-select items in the library grid to edit genres, tags, authors, narrators, series, publishers, and release years in bulk.
 
 ### 5. Podcast Subscriptions & Episode Downloader
 - [ ] **Podcast Search & Subscription Portal**: In-app search for subscribing to feeds using iTunes and PodcastIndex APIs.
@@ -68,8 +68,8 @@ This document tracks the tasks and missing features of the `audiobookshelf-go` p
   - [x] Upload files / Delete media.
   - [x] Edit metadata / Force library scans.
   - [x] Access RSS feeds / Create public shares.
-- [ ] **Active Session List**: View current active tokens, login timestamps, device operating system/browser, IP address, and single-click "Revoke Session" buttons.
-- [ ] **API Keys Management Tab**: Create API keys with descriptions, view masked key strings, copy key, and revoke keys.
+- [x] **Active Session List**: View current active tokens, login timestamps, device operating system/browser, IP address, and single-click "Revoke Session" buttons.
+- [x] **API Keys Management Tab**: Create API keys with descriptions, view masked key strings, copy key, and revoke keys.
 
 ### 7. Backups, Notifications & Settings Tabs
 - [x] **SMTP & Kindle Configuration**: SMTP server connection tester, and per-user Kindle email addresses manager.
@@ -78,10 +78,10 @@ This document tracks the tasks and missing features of the `audiobookshelf-go` p
 - [x] **Real-time Server Console / Log Stream**: Interactive terminal panel in administrative settings showing streaming log output via Socket.io.
 
 ### 8. Playlists & Public Sharing
-- [ ] **Drag-and-Drop Playlist Reordering**: Sort playlist tracks by dragging handle icons.
-- [ ] **Public Share Links Customizer**:
-  - [ ] Custom expiration dates/times.
-  - [ ] Password protection.
-  - [ ] Maximum download limits.
-  - [ ] Embeddable web player configuration.
+- [x] **Drag-and-Drop Playlist Reordering**: Sort playlist tracks by dragging handle icons.
+- [x] **Public Share Links Customizer**:
+  - [x] Custom expiration dates/times.
+  - [x] Password protection.
+  - [x] Maximum download limits.
+  - [x] Embeddable web player configuration.
 - [x] **Smart Collection Rules Builder**: Multi-clause rules editor UI for nested dynamic logic (e.g., Tag = 'sci-fi' AND Author = 'Asimov').

@@ -5695,6 +5695,15 @@ input:checked + .abs-slider:before {
   opacity: 0.8;
 }
 
+/* Custom Border Classes for Libraries list selected state */
+.border-l-warning {
+  border-left: 4px solid var(--color-warning) !important;
+}
+
+.border-l-black-400 {
+  border-left: 4px solid var(--color-black-400) !important;
+}
+
 
 
 

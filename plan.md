@@ -1,11 +1,15 @@
-# Plan: Granular Field Lock System
+# Plan: Libraries List View UI Alignment
 
-Implement lock checkboxes/icons in the item edit details modal (`frontend/js/itemDetails.js`) for the metadata fields to protect them from being overwritten during folder/metadata scans.
+1. **Frontend Settings JS Refactor (`frontend/js/settings.js`)**:
+   - Determine active library status via `lib.id === getActiveLibraryId()`.
+   - Use `border-l-warning` (orange) for selected items and `border-l-black-400` (gray) for unselected items.
+   - Replace flat Edit/Delete buttons with a three-dot vertical menu dropdown (`more_vert`) toggleable via click handler, closing other dropdowns on open and click-outside.
+   - Maintain the reorder drag handle (`drag_handle`) and standard `Scan` button alignment.
 
-1. **Identify Lockable Fields**: title, subtitle, authors, narrators, series, description, publisher, publishedYear, publishedDate, isbn, asin, language, genres, tags.
-2. **UI Implementation**:
-   - Update `triggerEditItemDetailsModal` in `frontend/js/itemDetails.js` to render clickable material symbol locks (`lock` or `lock_open`) next to the field labels.
-   - Maintain a `currentLockedFields` Set initialized from `metadata.lockedFields` or `lockedFields`.
-   - Implement click event delegation for `.metadata-lock-btn` to toggle the lock state, updating the icon and CSS classes in real-time.
-   - Collect `lockedFields` array from the Set and submit it in the payload to `/api/items/${item.id}` during update.
-3. **Verify backend compatibility**: Ensure tests build and run cleanly.
+2. **Styles CSS Refactor (`frontend/css/styles.css`)**:
+   - Add utility classes: `.border-l-warning` and `.border-l-black-400`.
+   - Add dropdown support styles for `.library-actions-menu` if needed to ensure correct positioning.
+
+3. **Verify Build and Tests**:
+   - Go mod tidy, build, and test.
+   - Docker build and push.

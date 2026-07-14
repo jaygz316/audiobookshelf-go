@@ -22,6 +22,10 @@ type ShareLink struct {
 	PasswordHash   string    `json:"-"`
 	CreatedAt      time.Time `json:"createdAt"`
 	UpdatedAt      time.Time `json:"updatedAt"`
+	MaxDownloads   int       `json:"maxDownloads"`
+	DownloadsCount int       `json:"downloadsCount"`
+	Embeddable     bool      `json:"embeddable"`
+	HasPassword    bool      `json:"hasPassword"`
 }
 
 // ShareManager handles persistence and validation of public share links.
@@ -41,11 +45,19 @@ func NewShareManager(db *sql.DB) *ShareManager {
 		isDownloadable INTEGER,
 		pash TEXT,
 		createdAt TEXT,
-		updatedAt TEXT
+		updatedAt TEXT,
+		maxDownloads INTEGER DEFAULT 0,
+		downloadsCount INTEGER DEFAULT 0,
+		embeddable INTEGER DEFAULT 0
 	);`
 	if _, err := db.Exec(query); err != nil {
 		log.Printf("[Share] Failed to initialize shares table: %v", err)
 	}
+
+	// Gracefully handle existing SQLite databases by ensuring the columns exist
+	_, _ = db.Exec("ALTER TABLE shares ADD COLUMN maxDownloads INTEGER DEFAULT 0")
+	_, _ = db.Exec("ALTER TABLE shares ADD COLUMN downloadsCount INTEGER DEFAULT 0")
+	_, _ = db.Exec("ALTER TABLE shares ADD COLUMN embeddable INTEGER DEFAULT 0")
 
 	return &ShareManager{db: db}
 }
@@ -74,9 +86,14 @@ func (m *ShareManager) CreateShare(ctx context.Context, s *ShareLink) error {
 		isDownloadableInt = 1
 	}
 
+	embeddableInt := 0
+	if s.Embeddable {
+		embeddableInt = 1
+	}
+
 	query := `
-		INSERT INTO shares (id, libraryItemId, createdBy, expiresAt, isDownloadable, pash, createdAt, updatedAt)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO shares (id, libraryItemId, createdBy, expiresAt, isDownloadable, pash, createdAt, updatedAt, maxDownloads, downloadsCount, embeddable)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 	_, err := m.db.ExecContext(ctx, query,
 		s.ID,
@@ -87,6 +104,9 @@ func (m *ShareManager) CreateShare(ctx context.Context, s *ShareLink) error {
 		s.PasswordHash,
 		timeToDBStr(s.CreatedAt),
 		timeToDBStr(s.UpdatedAt),
+		s.MaxDownloads,
+		s.DownloadsCount,
+		embeddableInt,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to insert share link: %w", err)
@@ -99,7 +119,7 @@ func (m *ShareManager) CreateShare(ctx context.Context, s *ShareLink) error {
 // PORT: Checking if the share has expired, delete it and return nil if it is.
 func (m *ShareManager) GetShare(ctx context.Context, id string) (*ShareLink, error) {
 	query := `
-		SELECT id, libraryItemId, createdBy, expiresAt, isDownloadable, pash, createdAt, updatedAt
+		SELECT id, libraryItemId, createdBy, expiresAt, isDownloadable, pash, createdAt, updatedAt, maxDownloads, downloadsCount, embeddable
 		FROM shares
 		WHERE id = ?
 	`
@@ -108,9 +128,9 @@ func (m *ShareManager) GetShare(ctx context.Context, id string) (*ShareLink, err
 	var s ShareLink
 	var expiresAtStr sql.NullString
 	var createdAtStr, updatedAtStr string
-	var isDownloadableInt int
+	var isDownloadableInt, embeddableInt int
 
-	err := row.Scan(&s.ID, &s.LibraryItemID, &s.CreatedBy, &expiresAtStr, &isDownloadableInt, &s.PasswordHash, &createdAtStr, &updatedAtStr)
+	err := row.Scan(&s.ID, &s.LibraryItemID, &s.CreatedBy, &expiresAtStr, &isDownloadableInt, &s.PasswordHash, &createdAtStr, &updatedAtStr, &s.MaxDownloads, &s.DownloadsCount, &embeddableInt)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -119,6 +139,8 @@ func (m *ShareManager) GetShare(ctx context.Context, id string) (*ShareLink, err
 	}
 
 	s.IsDownloadable = isDownloadableInt != 0
+	s.Embeddable = embeddableInt != 0
+	s.HasPassword = s.PasswordHash != ""
 
 	s.CreatedAt, err = parseTimeStr(createdAtStr)
 	if err != nil {
@@ -151,7 +173,7 @@ func (m *ShareManager) GetShare(ctx context.Context, id string) (*ShareLink, err
 // GetShares retrieves all share links.
 func (m *ShareManager) GetShares(ctx context.Context) ([]*ShareLink, error) {
 	query := `
-		SELECT id, libraryItemId, createdBy, expiresAt, isDownloadable, pash, createdAt, updatedAt
+		SELECT id, libraryItemId, createdBy, expiresAt, isDownloadable, pash, createdAt, updatedAt, maxDownloads, downloadsCount, embeddable
 		FROM shares
 		ORDER BY createdAt DESC
 	`
@@ -166,14 +188,16 @@ func (m *ShareManager) GetShares(ctx context.Context) ([]*ShareLink, error) {
 		var s ShareLink
 		var expiresAtStr sql.NullString
 		var createdAtStr, updatedAtStr string
-		var isDownloadableInt int
+		var isDownloadableInt, embeddableInt int
 
-		err := rows.Scan(&s.ID, &s.LibraryItemID, &s.CreatedBy, &expiresAtStr, &isDownloadableInt, &s.PasswordHash, &createdAtStr, &updatedAtStr)
+		err := rows.Scan(&s.ID, &s.LibraryItemID, &s.CreatedBy, &expiresAtStr, &isDownloadableInt, &s.PasswordHash, &createdAtStr, &updatedAtStr, &s.MaxDownloads, &s.DownloadsCount, &embeddableInt)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan share link row: %w", err)
 		}
 
 		s.IsDownloadable = isDownloadableInt != 0
+		s.Embeddable = embeddableInt != 0
+		s.HasPassword = s.PasswordHash != ""
 		s.CreatedAt, _ = parseTimeStr(createdAtStr)
 		s.UpdatedAt, _ = parseTimeStr(updatedAtStr)
 		if expiresAtStr.Valid && expiresAtStr.String != "" {
@@ -183,6 +207,13 @@ func (m *ShareManager) GetShares(ctx context.Context) ([]*ShareLink, error) {
 		list = append(list, &s)
 	}
 	return list, nil
+}
+
+// IncrementDownloadsCount increments the downloads count of a share link.
+func (m *ShareManager) IncrementDownloadsCount(ctx context.Context, id string) error {
+	query := `UPDATE shares SET downloadsCount = downloadsCount + 1 WHERE id = ?`
+	_, err := m.db.ExecContext(ctx, query, id)
+	return err
 }
 
 // ValidateSharePassword matches a plaintext password with the hashed credentials.

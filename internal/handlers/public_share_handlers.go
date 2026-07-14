@@ -83,6 +83,9 @@ func handleGetPublicShare(db *sql.DB) http.HandlerFunc {
 			"libraryItemId":  s.LibraryItemID,
 			"isDownloadable": s.IsDownloadable,
 			"hasPassword":    hasPassword,
+			"maxDownloads":   s.MaxDownloads,
+			"downloadsCount": s.DownloadsCount,
+			"embeddable":     s.Embeddable,
 			"item":           minItem,
 		}
 
@@ -255,6 +258,15 @@ func handleGetPublicShareDownload(db *sql.DB) http.HandlerFunc {
 		if !s.IsDownloadable {
 			http.Error(w, `{"error": "Download is disabled for this share link"}`, http.StatusForbidden)
 			return
+		}
+
+		if s.MaxDownloads > 0 && s.DownloadsCount >= s.MaxDownloads {
+			http.Error(w, `{"error": "Download limit reached for this share link"}`, http.StatusForbidden)
+			return
+		}
+
+		if err := globalShareManager.IncrementDownloadsCount(r.Context(), s.ID); err != nil {
+			log.Errorf("[PublicShare] Failed to increment downloads count for %s: %v", s.ID, err)
 		}
 
 		// Check password

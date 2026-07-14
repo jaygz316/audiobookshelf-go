@@ -30,6 +30,8 @@ func handleCreateShare(db *sql.DB) http.HandlerFunc {
 			MediaItemType  string `json:"mediaItemType"`
 			IsDownloadable bool   `json:"isDownloadable"`
 			Password       string `json:"password"`
+			MaxDownloads   int    `json:"maxDownloads"`
+			Embeddable     bool   `json:"embeddable"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
@@ -67,6 +69,8 @@ func handleCreateShare(db *sql.DB) http.HandlerFunc {
 			ExpiresAt:      expiresTime,
 			IsDownloadable: req.IsDownloadable,
 			PasswordHash:   pash,
+			MaxDownloads:   req.MaxDownloads,
+			Embeddable:     req.Embeddable,
 		}
 
 		if err := globalShareManager.CreateShare(r.Context(), s); err != nil {
@@ -84,6 +88,10 @@ func handleCreateShare(db *sql.DB) http.HandlerFunc {
 			"userId":         s.CreatedBy,
 			"expiresAt":      nil,
 			"isDownloadable": s.IsDownloadable,
+			"maxDownloads":   s.MaxDownloads,
+			"downloadsCount": s.DownloadsCount,
+			"embeddable":     s.Embeddable,
+			"hasPassword":    s.HasPassword,
 			"createdAt":      s.CreatedAt.UnixNano() / int64(time.Millisecond),
 			"updatedAt":      s.UpdatedAt.UnixNano() / int64(time.Millisecond),
 		}
