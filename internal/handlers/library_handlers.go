@@ -186,7 +186,7 @@ func serveCover(db *sql.DB, metadataPath string) http.HandlerFunc {
 			}
 		}
 
-		if itemID == "" {
+		if itemID == "" || strings.Contains(itemID, "..") || strings.Contains(itemID, "\\") {
 			http.Error(w, `{"error": "Invalid Item ID"}`, http.StatusBadRequest)
 			return
 		}
@@ -246,6 +246,10 @@ func serveCover(db *sql.DB, metadataPath string) http.HandlerFunc {
 
 		cachePath, err := getCoverFromCache(metadataPath, itemID, width, height, format)
 		if err == nil {
+			if !utils.IsSafeFilePath(db, metadataPath, cachePath) {
+				http.Error(w, "Forbidden", http.StatusForbidden)
+				return
+			}
 			if r.URL.Query().Get("ts") != "" {
 				w.Header().Set("Cache-Control", "private, max-age=86400")
 			}
@@ -1000,6 +1004,11 @@ func handleUpdateCoverFromURL(db *sql.DB, cfg *core.Config, itemID string) http.
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Infof("[Go] POST /api/items/%s/cover-from-url", itemID)
 
+		if strings.Contains(itemID, "..") || strings.Contains(itemID, "/") || strings.Contains(itemID, "\\") {
+			http.Error(w, `{"error": "Invalid item ID"}`, http.StatusBadRequest)
+			return
+		}
+
 		userVal := r.Context().Value(core.UserContextKey)
 		if userVal == nil {
 			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
@@ -1114,6 +1123,10 @@ func downloadCoverFromURL(ctx context.Context, db *sql.DB, itemID string, coverU
 		}
 	}
 
+	if !utils.IsSafeFilePath(db, metadataPath, destPath) {
+		return "", fmt.Errorf("forbidden: unsafe cover destination path")
+	}
+
 	// Ensure parent directory exists
 	if err := os.MkdirAll(filepath.Dir(destPath), 0755); err != nil {
 		return "", err
@@ -1124,8 +1137,11 @@ func downloadCoverFromURL(ctx context.Context, db *sql.DB, itemID string, coverU
 	if err != nil {
 		// If existingCoverPath is not writeable, fallback to metadata items dir
 		itemDir := filepath.Join(metadataPath, "items", itemID)
+		destPath = filepath.Join(itemDir, "cover"+ext)
+		if !utils.IsSafeFilePath(db, metadataPath, destPath) {
+			return "", fmt.Errorf("forbidden: unsafe fallback cover destination path")
+		}
 		if err := os.MkdirAll(itemDir, 0755); err == nil {
-			destPath = filepath.Join(itemDir, "cover"+ext)
 			out, err = os.Create(destPath)
 		}
 		if err != nil {

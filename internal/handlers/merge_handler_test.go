@@ -85,6 +85,11 @@ func TestMergeAudioFiles(t *testing.T) {
 		t.Fatalf("Failed to seed library item: %v", err)
 	}
 
+	_, err = db.Exec(`INSERT INTO libraryFolders (id, path, libraryId) VALUES ('folder-123', ?, 'lib-123')`, tempDir)
+	if err != nil {
+		t.Fatalf("Failed to seed libraryFolders: %v", err)
+	}
+
 	// Admin user session for authentication
 	userSess := &core.UserSession{
 		ID:       "user-admin",

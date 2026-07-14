@@ -1391,6 +1391,11 @@ func handleUpdateLibraryItemByID(db *sql.DB, itemID string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Infof("[Go] PATCH /api/items/%s", itemID)
 
+		if strings.Contains(itemID, "..") || strings.Contains(itemID, "/") || strings.Contains(itemID, "\\") {
+			http.Error(w, `{"error": "Invalid item ID"}`, http.StatusBadRequest)
+			return
+		}
+
 		userVal := r.Context().Value(core.UserContextKey)
 		if userVal == nil {
 			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
@@ -1575,7 +1580,7 @@ func handleUpdateLibraryItemByID(db *sql.DB, itemID string) http.HandlerFunc {
 			metadataPath = filepath.Join(itemDir, "metadata.json")
 		}
 
-		if metadataPath != "" {
+		if metadataPath != "" && utils.IsSafeFilePath(db, MetadataPath, metadataPath) {
 			metaData := map[string]interface{}{
 				"title":         payload.Title,
 				"subtitle":      payload.Subtitle,

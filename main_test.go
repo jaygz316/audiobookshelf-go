@@ -521,6 +521,11 @@ func TestLoadOrCreateStream(t *testing.T) {
 		t.Fatalf("Failed to insert playback session: %v", err)
 	}
 
+	_, err = db.Exec(`INSERT INTO libraryFolders (id, path, libraryId) VALUES ('folder-1', '/fake', 'lib-1')`)
+	if err != nil {
+		t.Fatalf("Failed to seed libraryFolders: %v", err)
+	}
+
 	audioFilesJSON := `[
 		{"index":0, "exclude":false, "duration":100.0, "codec":"mp3", "mimeType":"audio/mpeg", "metadata":{"path":"/fake/path.mp3"}}
 	]`
