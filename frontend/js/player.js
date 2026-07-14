@@ -10,6 +10,9 @@ let progressInterval = null;
 let isMuted = false;
 let previousVolume = 1.0;
 let currentWaveform = null;
+let hoverPct = null;
+let hoverX = null;
+let playbackQueue = [];
 
 // Sleep Timer variables
 let sleepTimerId = null;
@@ -245,9 +248,19 @@ export async function playItem(item, startTime = 0) {
     audioContext.resume();
   }
   
+  let itemObj = item;
+  if (typeof item === 'string') {
+    try {
+      itemObj = await request('GET', `/api/items/${item}`);
+    } catch (err) {
+      console.error('Failed to fetch item for playback:', err);
+      return;
+    }
+  }
+  
   try {
     // 1. Create playback session
-    const playResponse = await request('POST', `/api/items/${item.id}/play`, { startTime });
+    const playResponse = await request('POST', `/api/items/${itemObj.id}/play`, { startTime });
     const sessionId = playResponse.id;
     let clientPlaylistUri = playResponse.clientPlaylistUri;
     const token = localStorage.getItem('token');
@@ -259,9 +272,9 @@ export async function playItem(item, startTime = 0) {
       }
     }
     
-    currentItem = item;
+    currentItem = itemObj;
     currentPlaylistUri = clientPlaylistUri;
-    fetchWaveform(item.id);
+    fetchWaveform(itemObj.id);
     
     // Restore saved playback speed or default speed
     let speedToUse = globalDefaultSpeed;
@@ -486,6 +499,48 @@ function setupUIEventListeners() {
       }
       drawWaveform();
     };
+
+    // Waveform interactive hover seeking and tooltip preview
+    let tooltip = document.getElementById('player-waveform-tooltip');
+    if (!tooltip && timeline.parentElement) {
+      tooltip = document.createElement('div');
+      tooltip.id = 'player-waveform-tooltip';
+      tooltip.className = 'absolute bg-black-700 text-white text-[10px] px-1.5 py-0.5 rounded border border-black-300 pointer-events-none hidden z-30 transition-opacity duration-150 shadow-md font-bold';
+      tooltip.style.bottom = '100%';
+      tooltip.style.marginBottom = '6px';
+      tooltip.style.transform = 'translateX(-50%)';
+      timeline.parentElement.appendChild(tooltip);
+    }
+
+    timeline.addEventListener('mouseenter', () => {
+      if (tooltip) tooltip.classList.remove('hidden');
+    });
+
+    timeline.addEventListener('mousemove', (e) => {
+      const rect = timeline.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const pct = Math.max(0, Math.min(1, x / rect.width));
+      
+      hoverPct = pct;
+      hoverX = x;
+
+      const duration = (remotePlayer && remotePlayer.isConnected) ? (remotePlayer.duration || 0) : (audio ? audio.duration : 0);
+      if (duration > 0) {
+        const hoverTime = pct * duration;
+        if (tooltip) {
+          tooltip.textContent = formatTime(hoverTime);
+          tooltip.style.left = `${pct * 100}%`;
+        }
+      }
+      drawWaveform();
+    });
+
+    timeline.addEventListener('mouseleave', () => {
+      hoverPct = null;
+      hoverX = null;
+      if (tooltip) tooltip.classList.add('hidden');
+      drawWaveform();
+    });
   }
   
   if (volumeBtn) {
@@ -584,6 +639,13 @@ function setupUIEventListeners() {
   if (settingsBtn) {
     settingsBtn.onclick = () => {
       triggerPlayerSettingsModal();
+    };
+  }
+
+  const queueBtn = document.getElementById('player-queue-btn');
+  if (queueBtn) {
+    queueBtn.onclick = () => {
+      triggerQueueModal();
     };
   }
 }
@@ -686,7 +748,18 @@ function updateMetadataUI(item) {
 
 async function onPlaybackEnded() {
   await reportProgress(true);
-  destroyPlayer();
+  if (playbackQueue && playbackQueue.length > 0) {
+    const nextItem = playbackQueue.shift();
+    updateQueueUI();
+    stopProgressReporting();
+    if (hls) {
+      hls.destroy();
+      hls = null;
+    }
+    playItem(nextItem, 0);
+  } else {
+    destroyPlayer();
+  }
 }
 
 function destroyPlayer() {
@@ -1342,15 +1415,32 @@ function drawWaveform() {
     const x = i * (barWidth + gap);
     const y = (height - barHeight) / 2;
 
-    const isPlayed = (i / barCount) <= pct;
+    const barPct = i / barCount;
+    const isPlayed = barPct <= pct;
+    const isHoverPreview = hoverPct !== null && (
+      (hoverPct >= pct && barPct > pct && barPct <= hoverPct) ||
+      (hoverPct < pct && barPct > hoverPct && barPct <= pct)
+    );
 
-    if (isPlayed) {
-      ctx.fillStyle = '#f59e0b';
+    if (isHoverPreview) {
+      ctx.fillStyle = '#fcd34d'; // lighter amber preview seek region
+    } else if (isPlayed) {
+      ctx.fillStyle = '#f59e0b'; // played amber
     } else {
-      ctx.fillStyle = '#4b5563';
+      ctx.fillStyle = '#4b5563'; // unplayed gray
     }
 
     drawRoundedRect(ctx, x, y, barWidth, barHeight, 1);
+  }
+
+  // Draw vertical seek cursor line on hover
+  if (hoverX !== null) {
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(hoverX, 0);
+    ctx.lineTo(hoverX, height);
+    ctx.stroke();
   }
 }
 
@@ -1525,6 +1615,231 @@ function triggerPlayerSettingsModal() {
     }
 
     closeModal();
+  };
+
+  dialog.showModal();
+}
+
+export async function addToQueue(item) {
+  let itemObj = item;
+  if (typeof item === 'string') {
+    try {
+      itemObj = await request('GET', `/api/items/${item}`);
+    } catch (err) {
+      console.error('Failed to fetch item to queue:', err);
+      showNotification('Failed to add item to queue');
+      return;
+    }
+  }
+
+  // Prevent duplicate items in queue
+  if (playbackQueue.some(q => q.id === itemObj.id)) {
+    showNotification('Item is already in queue');
+    return;
+  }
+
+  playbackQueue.push(itemObj);
+  updateQueueUI();
+  
+  const title = itemObj.media?.metadata?.title || itemObj.title || 'Item';
+  showNotification(`Added "${title}" to queue`);
+}
+
+export function getQueue() {
+  return playbackQueue;
+}
+
+export function clearQueue() {
+  playbackQueue = [];
+  updateQueueUI();
+  showNotification('Queue cleared');
+}
+
+export function removeFromQueue(index) {
+  if (index >= 0 && index < playbackQueue.length) {
+    const removed = playbackQueue.splice(index, 1)[0];
+    updateQueueUI();
+    const title = removed.media?.metadata?.title || removed.title || 'Item';
+    showNotification(`Removed "${title}" from queue`);
+  }
+}
+
+export function reorderQueue(fromIndex, toIndex) {
+  if (fromIndex >= 0 && fromIndex < playbackQueue.length && toIndex >= 0 && toIndex < playbackQueue.length) {
+    const element = playbackQueue.splice(fromIndex, 1)[0];
+    playbackQueue.splice(toIndex, 0, element);
+    updateQueueUI();
+  }
+}
+
+function updateQueueUI() {
+  const badge = document.getElementById('player-queue-badge');
+  if (badge) {
+    if (playbackQueue.length > 0) {
+      badge.textContent = playbackQueue.length;
+      badge.classList.remove('hidden');
+    } else {
+      badge.classList.add('hidden');
+    }
+  }
+
+  // If queue modal is open, re-render its content
+  const dialog = document.getElementById('player-queue-dialog');
+  if (dialog && dialog.open) {
+    renderQueueDialogContent(dialog);
+  }
+}
+
+function renderQueueDialogContent(dialog) {
+  const queueListContainer = dialog.querySelector('#queue-list-container');
+  if (!queueListContainer) return;
+
+  if (playbackQueue.length === 0) {
+    queueListContainer.innerHTML = `
+      <div class="text-center py-8 text-black-100 text-sm">
+        <span class="material-symbols text-4xl block mb-2 opacity-40">queue_music</span>
+        <span>Queue is empty</span>
+      </div>
+    `;
+    const clearBtn = dialog.querySelector('#clear-queue-btn');
+    if (clearBtn) clearBtn.disabled = true;
+    return;
+  }
+
+  const clearBtn = dialog.querySelector('#clear-queue-btn');
+  if (clearBtn) clearBtn.disabled = false;
+
+  const token = localStorage.getItem('token');
+  
+  queueListContainer.innerHTML = '';
+  playbackQueue.forEach((item, idx) => {
+    const ts = item.updatedAt || item.addedAt || Date.now();
+    const coverUrl = resolvePath(`/api/items/${item.id}/cover?token=${token}&ts=${ts}`);
+    
+    let title = 'Untitled';
+    let author = 'Unknown';
+    let durationStr = 'N/A';
+    
+    if (item.mediaType === 'book') {
+      const metadata = item.media?.metadata || {};
+      title = metadata.title || item.title || 'Untitled';
+      author = metadata.authorName || 'Unknown';
+      const durSec = item.media?.duration || 0;
+      durationStr = durSec ? formatTime(durSec) : 'N/A';
+    } else if (item.mediaType === 'podcast') {
+      const metadata = item.media?.metadata || {};
+      title = metadata.title || item.title || 'Untitled';
+      author = metadata.author || 'Unknown';
+      const durSec = item.media?.duration || 0;
+      durationStr = durSec ? formatTime(durSec) : 'N/A';
+    }
+
+    const row = document.createElement('div');
+    row.className = 'flex items-center space-x-3 p-2 bg-black-500/40 rounded border border-black-400/30 hover:border-black-400 transition-colors';
+    row.innerHTML = `
+      <img src="${coverUrl}" class="w-8 h-12 object-cover rounded shadow border border-black-400/20" onerror="this.onerror=null; this.src='assets/images/logo.png'">
+      <div class="flex-grow min-w-0 text-left">
+        <div class="text-xs font-semibold text-white truncate">${escapeHtml(title)}</div>
+        <div class="text-[10px] text-black-50 truncate">${escapeHtml(author)}</div>
+        <div class="text-[10px] text-accent font-mono mt-0.5">${durationStr}</div>
+      </div>
+      <div class="flex items-center space-x-1">
+        <button class="move-up-btn p-1 hover:bg-black-400 rounded text-black-50 hover:text-white transition-colors" data-index="${idx}" title="Move Up">
+          <span class="material-symbols text-base">arrow_upward</span>
+        </button>
+        <button class="move-down-btn p-1 hover:bg-black-400 rounded text-black-50 hover:text-white transition-colors" data-index="${idx}" title="Move Down">
+          <span class="material-symbols text-base">arrow_downward</span>
+        </button>
+        <button class="remove-btn p-1 hover:bg-red-900/60 rounded text-black-50 hover:text-red-400 transition-colors" data-index="${idx}" title="Remove">
+          <span class="material-symbols text-base">delete</span>
+        </button>
+      </div>
+    `;
+
+    // Hook events
+    row.querySelector('.move-up-btn').onclick = (e) => {
+      e.stopPropagation();
+      reorderQueue(idx, idx - 1);
+    };
+    row.querySelector('.move-down-btn').onclick = (e) => {
+      e.stopPropagation();
+      reorderQueue(idx, idx + 1);
+    };
+    row.querySelector('.remove-btn').onclick = (e) => {
+      e.stopPropagation();
+      removeFromQueue(idx);
+    };
+
+    queueListContainer.appendChild(row);
+  });
+}
+
+function triggerQueueModal() {
+  let dialog = document.getElementById('player-queue-dialog');
+  if (dialog) {
+    dialog.remove();
+  }
+
+  dialog = document.createElement('dialog');
+  dialog.id = 'player-queue-dialog';
+  dialog.setAttribute('closedby', 'any');
+  dialog.className = 'bg-primary border border-black-400 rounded-lg max-w-md w-full p-6 shadow-2xl space-y-4 focus:outline-none select-none text-white backdrop:bg-black-900/80 backdrop:backdrop-blur-sm open:flex open:flex-col open:items-stretch';
+
+  dialog.innerHTML = `
+    <div class="flex items-center justify-between border-b border-black-500 pb-3">
+      <h3 class="text-sm font-bold text-white uppercase tracking-wider flex items-center space-x-1.5">
+        <span class="material-symbols text-base text-accent">queue_music</span>
+        <span>Playback Queue</span>
+      </h3>
+      <button id="close-queue-modal" class="text-black-100 hover:text-white transition-colors">
+        <span class="material-symbols text-lg">close</span>
+      </button>
+    </div>
+
+    <div id="queue-list-container" class="max-h-[300px] overflow-y-auto space-y-2 pr-1 no-scroll">
+      <!-- Queue items dynamically injected -->
+    </div>
+
+    <div class="flex items-center justify-between pt-3 border-t border-black-500">
+      <button id="clear-queue-btn" class="bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded text-xs transition-colors flex items-center space-x-1">
+        <span class="material-symbols text-sm">clear_all</span>
+        <span>Clear Queue</span>
+      </button>
+      <button id="close-queue-btn" class="bg-black-500 hover:bg-black-400 text-white px-4 py-1.5 rounded text-xs transition-colors">
+        Close
+      </button>
+    </div>
+  `;
+
+  document.body.appendChild(dialog);
+
+  // Initial render
+  renderQueueDialogContent(dialog);
+
+  const closeModal = () => {
+    dialog.close();
+    dialog.remove();
+  };
+
+  if (!('closedBy' in HTMLDialogElement.prototype)) {
+    dialog.addEventListener('click', (event) => {
+      if (event.target !== dialog) return;
+      const rect = dialog.getBoundingClientRect();
+      const isDialogContent = (
+        rect.top <= event.clientY &&
+        event.clientY <= rect.top + rect.height &&
+        rect.left <= event.clientX &&
+        event.clientX <= rect.left + rect.width
+      );
+      if (isDialogContent) return;
+      closeModal();
+    });
+  }
+
+  dialog.querySelector('#close-queue-modal').onclick = closeModal;
+  dialog.querySelector('#close-queue-btn').onclick = closeModal;
+  dialog.querySelector('#clear-queue-btn').onclick = () => {
+    clearQueue();
   };
 
   dialog.showModal();

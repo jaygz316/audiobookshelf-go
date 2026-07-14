@@ -5646,6 +5646,56 @@ input:checked + .abs-slider:before {
   opacity: 0.9;
 }
 
+/* Interactive player timeline styling */
+#player-timeline {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  height: 24px; /* full container height to receive mouse events easily */
+}
+
+#player-timeline::-webkit-slider-runnable-track {
+  background: transparent;
+  border: none;
+  height: 24px;
+}
+
+#player-timeline::-moz-range-track {
+  background: transparent;
+  border: none;
+  height: 24px;
+}
+
+#player-timeline::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 2px;
+  height: 24px;
+  background: #ffffff;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+#player-timeline::-moz-range-thumb {
+  width: 2px;
+  height: 24px;
+  background: #ffffff;
+  border: none;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+#player-timeline:hover::-webkit-slider-thumb {
+  opacity: 0.8;
+}
+
+#player-timeline:hover::-moz-range-thumb {
+  opacity: 0.8;
+}
+
+
 
 
 

@@ -1,5 +1,5 @@
 import { request, resolvePath } from './api.js';
-import { playItem, getCurrentPlayingItem, getCurrentPlaybackTime } from './player.js';
+import { playItem, getCurrentPlayingItem, getCurrentPlaybackTime, addToQueue } from './player.js';
 import { openEbookReader } from './reader.js';
 
 let currentUser = null;
@@ -149,6 +149,10 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
                 <button id="details-play-action-btn" class="w-full bg-accent hover:opacity-90 text-primary font-bold py-2.5 px-4 rounded-md transition-all flex items-center justify-center space-x-2 text-sm shadow hover:scale-[1.02] duration-200">
                   <span class="material-symbols text-lg font-bold">play_arrow</span>
                   <span>Play Audiobook</span>
+                </button>
+                <button id="details-queue-action-btn" class="w-full bg-black-500 hover:bg-black-400 border border-black-300 text-white font-semibold py-2 px-4 rounded-md transition-all flex items-center justify-center space-x-2 text-xs shadow hover:scale-[1.02] duration-200 mt-2">
+                  <span class="material-symbols text-sm">playlist_add</span>
+                  <span>Add to Queue</span>
                 </button>
               ` : ''}
               
@@ -587,6 +591,13 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
           } catch (err) {
             console.error('Failed to start item playback:', err);
           }
+        };
+      }
+
+      const queueActionBtn = document.getElementById('details-queue-action-btn');
+      if (queueActionBtn) {
+        queueActionBtn.onclick = () => {
+          addToQueue(item);
         };
       }
 
