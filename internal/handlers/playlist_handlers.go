@@ -231,6 +231,10 @@ func queryCollectionsForLibrary(ctx context.Context, db *sql.DB, libraryID strin
 func handleGetLibraryPlaylists(db *sql.DB, libraryID string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		userSess := r.Context().Value(core.UserContextKey).(*core.UserSession)
+		if !userSess.CanAccessLibrary(libraryID) {
+			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
+			return
+		}
 		initManagers(db)
 
 		playlists, err := queryPlaylistsForUserAndLibrary(r.Context(), db, userSess.ID, libraryID)
@@ -254,6 +258,11 @@ func handleGetLibraryPlaylists(db *sql.DB, libraryID string) http.HandlerFunc {
 
 func handleGetLibraryCollections(db *sql.DB, libraryID string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		userSess := r.Context().Value(core.UserContextKey).(*core.UserSession)
+		if !userSess.CanAccessLibrary(libraryID) {
+			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
+			return
+		}
 		initManagers(db)
 
 		collections, err := queryCollectionsForLibrary(r.Context(), db, libraryID)
@@ -278,6 +287,10 @@ func handleGetLibraryCollections(db *sql.DB, libraryID string) http.HandlerFunc 
 func handleGetLibraryOPML(db *sql.DB, libraryID string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		userSess := r.Context().Value(core.UserContextKey).(*core.UserSession)
+		if !userSess.CanAccessLibrary(libraryID) {
+			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
+			return
+		}
 		initManagers(db)
 
 		opmlText, err := globalFeedManager.GenerateOPML(r.Context(), userSess.ID, libraryID)
