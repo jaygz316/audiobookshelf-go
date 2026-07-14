@@ -342,6 +342,24 @@ function setupEventHandlers() {
   const setStyle = (newStyle) => {
     localStorage.setItem('library-style', newStyle);
     updateStyleSwitcherUI(newStyle);
+
+    const shelfSizeCtrl = document.getElementById('shelf-size-control');
+    if (shelfSizeCtrl) {
+      let relPath = window.location.pathname;
+      if (typeof ROUTER_BASE_PATH !== 'undefined' && ROUTER_BASE_PATH && relPath.startsWith(ROUTER_BASE_PATH)) {
+        relPath = relPath.substring(ROUTER_BASE_PATH.length);
+      }
+      if (!relPath.startsWith('/')) {
+        relPath = '/' + relPath;
+      }
+      const showControls = (relPath === '/' || relPath === '/library');
+      if (showControls && newStyle !== 'list') {
+        shelfSizeCtrl.classList.remove('hidden');
+      } else {
+        shelfSizeCtrl.classList.add('hidden');
+      }
+    }
+
     const activeLibId = getActiveLibraryId();
     if (activeLibId) loadDashboard(activeLibId);
   };
@@ -552,7 +570,8 @@ function navigateTo(path, pushState = true) {
     else sortOrderToggle.classList.add('hidden');
   }
   if (shelfSizeControl) {
-    if (showControls) shelfSizeControl.classList.remove('hidden');
+    const currentStyle = localStorage.getItem('library-style') || 'shelf';
+    if (showControls && currentStyle !== 'list') shelfSizeControl.classList.remove('hidden');
     else shelfSizeControl.classList.add('hidden');
   }
   if (styleSwitcher) {

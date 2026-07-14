@@ -868,6 +868,15 @@ func GetFilteredLibraryItems(db *sql.DB, options GetFilteredLibraryItemsOptions)
 	conds = append(conds, "li.libraryId = ?")
 	args = append(args, options.LibraryID)
 
+	if len(options.Include) > 0 {
+		var placeholders []string
+		for _, inc := range options.Include {
+			placeholders = append(placeholders, "?")
+			args = append(args, inc)
+		}
+		conds = append(conds, fmt.Sprintf("li.id IN (%s)", strings.Join(placeholders, ", ")))
+	}
+
 	var tableAlias string
 	if options.MediaType == "book" {
 		tableAlias = "b"
