@@ -23,10 +23,12 @@ export async function openUploadModal(libraryId, initialFiles = []) {
   // Fetch library details to get folders
   let libraryFolders = [];
   let libraryName = 'Library';
+  let isPodcast = false;
   try {
     const lib = await request('GET', `/api/libraries/${libraryId}`);
     libraryFolders = lib.folders || [];
     libraryName = lib.name || 'Library';
+    isPodcast = lib.mediaType === 'podcast';
   } catch (err) {
     console.error('Failed to fetch library details:', err);
     showToast('Failed to fetch library folders: ' + err.message, 'error');
@@ -35,7 +37,11 @@ export async function openUploadModal(libraryId, initialFiles = []) {
   uploadModal = document.createElement('div');
   uploadModal.className = 'fixed inset-0 bg-black-900/80 z-50 flex items-center justify-center p-4 backdrop-blur-sm';
   
-  renderModal(libraryId, libraryName, libraryFolders);
+  if (isPodcast) {
+    renderPodcastModal(libraryId, libraryName, libraryFolders);
+  } else {
+    renderModal(libraryId, libraryName, libraryFolders);
+  }
   document.body.appendChild(uploadModal);
 }
 
@@ -480,4 +486,288 @@ function escapeHtml(str) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
+}
+
+function renderPodcastModal(libraryId, libraryName, folders) {
+  if (!uploadModal) return;
+
+  uploadModal.innerHTML = `
+    <div class="bg-primary border border-black-300 w-full max-w-2xl p-6 rounded-md shadow-2xl flex flex-col max-h-[90vh]">
+      <!-- Header -->
+      <div class="flex justify-between items-center border-b border-black-400 pb-3 mb-4 flex-shrink-0">
+        <h3 class="text-lg font-bold text-white flex items-center gap-2">
+          <span class="material-symbols text-accent text-xl">podcasts</span>
+          Add Podcast to ${escapeHtml(libraryName)}
+        </h3>
+        <button id="close-upload-modal-btn" class="text-black-100 hover:text-white transition-colors focus:outline-none">
+          <span class="material-symbols">close</span>
+        </button>
+      </div>
+
+      <!-- Config (Shared across both tabs) -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 flex-shrink-0 bg-black-500/10 p-3.5 rounded border border-black-400/20">
+        <!-- Target Folder Selection -->
+        <div class="flex flex-col space-y-1">
+          <label for="podcast-target-folder" class="text-[11px] font-bold text-black-50 uppercase tracking-wider">Target Folder</label>
+          <select id="podcast-target-folder" class="bg-black-500 text-white border border-black-300 rounded px-2.5 py-1.5 text-xs focus:outline-none focus:border-accent">
+            ${folders.map(f => `<option value="${f.id}">${escapeHtml(f.path)}</option>`).join('')}
+          </select>
+        </div>
+
+        <!-- Auto-download Toggle -->
+        <div class="flex items-center justify-between">
+          <div class="flex flex-col pr-2">
+            <span class="text-[11px] font-bold text-white uppercase tracking-wider">Auto-download episodes</span>
+            <span class="text-[9px] text-black-100 font-medium leading-tight">Automatically download new episodes</span>
+          </div>
+          <label class="relative inline-flex items-center cursor-pointer flex-shrink-0">
+            <input type="checkbox" id="podcast-auto-download" class="sr-only peer" checked>
+            <div class="w-8 h-4 bg-black-400 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-accent"></div>
+          </label>
+        </div>
+      </div>
+
+      <!-- Navigation Tabs -->
+      <div class="flex border-b border-black-400 mb-4 flex-shrink-0">
+        <button id="tab-search-itunes" class="px-4 py-2 text-xs font-bold uppercase tracking-wider border-b-2 border-accent text-accent focus:outline-none transition-all duration-150">
+          Search iTunes
+        </button>
+        <button id="tab-rss-feed" class="px-4 py-2 text-xs font-bold uppercase tracking-wider text-black-100 hover:text-white focus:outline-none transition-all duration-150 border-b-2 border-transparent">
+          Submit RSS Feed URL
+        </button>
+      </div>
+
+      <!-- Main Scrollable Body -->
+      <div id="upload-modal-body" class="flex-grow overflow-y-auto pr-1 scrollbar-thin">
+        
+        <!-- Tab 1: Search iTunes Pane -->
+        <div id="pane-search-itunes" class="space-y-4">
+          <form id="podcast-search-form" class="flex space-x-2">
+            <input type="text" id="podcast-search-input" class="flex-grow bg-black-500 text-white border border-black-300 rounded px-3 py-2 text-xs focus:outline-none focus:border-accent" placeholder="Search podcast title, host or author..." required>
+            <button type="submit" id="podcast-search-btn" class="bg-accent hover:bg-accent-hover text-primary font-bold px-4 py-2 rounded text-xs transition-colors focus:outline-none flex items-center gap-1">
+              <span class="material-symbols text-base">search</span> Search
+            </button>
+          </form>
+          
+          <!-- Podcast Search Results -->
+          <div id="podcast-search-results" class="space-y-2 max-h-[18rem] overflow-y-auto pr-1 scrollbar-thin">
+            <div class="text-center py-8 text-black-100 text-xs">
+              Search above to find podcasts to subscribe to.
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 2: Submit RSS Feed URL Pane (Hidden by Default) -->
+        <div id="pane-rss-feed" class="space-y-4 hidden">
+          <form id="podcast-rss-form" class="space-y-4">
+            <div class="flex flex-col space-y-1">
+              <label for="podcast-feed-url" class="text-xs font-semibold text-black-50">RSS Feed URL</label>
+              <input type="url" id="podcast-feed-url" class="bg-black-500 text-white border border-black-300 rounded px-3 py-2 text-xs focus:outline-none focus:border-accent" placeholder="https://example.com/podcast.xml" required>
+            </div>
+            
+            <div class="flex justify-end pt-2">
+              <button type="submit" id="subscribe-rss-btn" class="bg-accent hover:bg-accent-hover text-primary px-5 py-2 rounded text-xs font-bold uppercase tracking-wider transition-colors focus:outline-none">
+                Subscribe
+              </button>
+            </div>
+          </form>
+        </div>
+
+      </div>
+
+      <!-- Action Footer -->
+      <div id="upload-modal-footer" class="flex justify-end items-center border-t border-black-400 pt-4 mt-4 flex-shrink-0">
+        <button id="cancel-upload-btn" class="bg-black-400 hover:bg-black-300 border border-black-300 text-white px-4 py-1.5 rounded text-xs font-bold uppercase tracking-wider transition-colors focus:outline-none">
+          Close
+        </button>
+      </div>
+    </div>
+  `;
+
+  // Attach Event Handlers
+  const closeBtn = uploadModal.querySelector('#close-upload-modal-btn');
+  const cancelBtn = uploadModal.querySelector('#cancel-upload-btn');
+  
+  const closeModal = () => {
+    uploadModal.remove();
+    uploadModal = null;
+  };
+
+  closeBtn.onclick = closeModal;
+  cancelBtn.onclick = closeModal;
+
+  // Tabs wiring
+  const tabSearch = uploadModal.querySelector('#tab-search-itunes');
+  const tabRss = uploadModal.querySelector('#tab-rss-feed');
+  const paneSearch = uploadModal.querySelector('#pane-search-itunes');
+  const paneRss = uploadModal.querySelector('#pane-rss-feed');
+
+  tabSearch.onclick = () => {
+    tabSearch.classList.add('border-accent', 'text-accent');
+    tabSearch.classList.remove('border-transparent', 'text-black-100');
+    tabRss.classList.add('border-transparent', 'text-black-100');
+    tabRss.classList.remove('border-accent', 'text-accent');
+    paneSearch.classList.remove('hidden');
+    paneRss.classList.add('hidden');
+  };
+
+  tabRss.onclick = () => {
+    tabRss.classList.add('border-accent', 'text-accent');
+    tabRss.classList.remove('border-transparent', 'text-black-100');
+    tabSearch.classList.add('border-transparent', 'text-black-100');
+    tabSearch.classList.remove('border-accent', 'text-accent');
+    paneRss.classList.remove('hidden');
+    paneSearch.classList.add('hidden');
+  };
+
+  // Search wiring
+  const searchForm = uploadModal.querySelector('#podcast-search-form');
+  const searchInput = uploadModal.querySelector('#podcast-search-input');
+  const searchResults = uploadModal.querySelector('#podcast-search-results');
+
+  searchForm.onsubmit = async (e) => {
+    e.preventDefault();
+    const query = searchInput.value.trim();
+    if (!query) return;
+
+    searchResults.innerHTML = `
+      <div class="flex items-center justify-center py-12 text-black-100 text-xs gap-2">
+        <span class="animate-spin text-accent material-symbols text-lg">sync</span>
+        Searching iTunes...
+      </div>
+    `;
+
+    try {
+      const results = await request('GET', `/api/search/podcast?term=${encodeURIComponent(query)}`);
+      renderSearchResults(results);
+    } catch (err) {
+      console.error(err);
+      searchResults.innerHTML = `
+        <div class="text-center py-8 text-red-400 text-xs">
+          Failed to search iTunes: ${escapeHtml(err.message)}
+        </div>
+      `;
+    }
+  };
+
+  function renderSearchResults(results) {
+    if (!results || results.length === 0) {
+      searchResults.innerHTML = `
+        <div class="text-center py-8 text-black-100 text-xs">
+          No podcasts found. Try a different search term.
+        </div>
+      `;
+      return;
+    }
+
+    searchResults.innerHTML = '';
+    results.forEach((item, index) => {
+      const card = document.createElement('div');
+      card.className = 'flex items-center space-x-3 bg-black-500/20 hover:bg-black-500/40 border border-black-400/30 p-2.5 rounded transition-all';
+      
+      const authorText = item.authors ? item.authors.join(', ') : '';
+      const hasFeed = !!item.feedUrl;
+
+      card.innerHTML = `
+        <img src="${item.coverUrl || './images/cover_placeholder.png'}" onerror="this.src='./images/cover_placeholder.png'" class="w-12 h-12 rounded object-cover flex-shrink-0 bg-black-600 border border-black-400/30">
+        <div class="flex-grow min-w-0 pr-2">
+          <h4 class="font-semibold text-xs text-white truncate" title="${escapeHtml(item.title)}">${escapeHtml(item.title)}</h4>
+          <p class="text-[10px] text-black-100 truncate">${escapeHtml(authorText || 'Unknown Artist')}</p>
+          <p class="text-[9px] text-black-200 line-clamp-2 mt-0.5">${escapeHtml(item.description || '')}</p>
+        </div>
+        <div class="flex-shrink-0">
+          ${hasFeed ? `
+            <button id="sub-btn-${index}" class="bg-accent hover:bg-accent-hover text-primary text-xs font-bold px-2.5 py-1 rounded transition-colors focus:outline-none">
+              Subscribe
+            </button>
+          ` : `
+            <span class="text-[10px] text-black-100 italic">No Feed URL</span>
+          `}
+        </div>
+      `;
+
+      if (hasFeed) {
+        card.querySelector(`#sub-btn-${index}`).onclick = async (e) => {
+          e.preventDefault();
+          const targetFolderId = uploadModal.querySelector('#podcast-target-folder').value;
+          const autoDownload = uploadModal.querySelector('#podcast-auto-download').checked;
+          const btn = e.target;
+          const originalText = btn.textContent;
+          
+          btn.disabled = true;
+          btn.innerHTML = `<span class="animate-spin text-primary material-symbols text-xs">sync</span>`;
+
+          try {
+            await request('POST', '/api/podcasts', {
+              libraryId,
+              folderId: targetFolderId,
+              feedUrl: item.feedUrl,
+              autoDownloadEpisodes: autoDownload,
+              metadata: {
+                title: item.title,
+                author: authorText,
+                description: item.description,
+                feedUrl: item.feedUrl,
+                coverUrl: item.coverUrl
+              }
+            });
+            
+            showToast(`Subscribed to "${item.title}" successfully`, 'success');
+            btn.className = "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-xs font-bold px-2.5 py-1 rounded cursor-default focus:outline-none";
+            btn.innerHTML = `<span class="material-symbols text-xs">check</span> Subscribed`;
+            btn.onclick = null;
+            
+            window.dispatchEvent(new CustomEvent('library-changed', { detail: { libraryId } }));
+          } catch (err) {
+            console.error(err);
+            showToast(`Failed to subscribe: ${err.message}`, 'error');
+            btn.disabled = false;
+            btn.textContent = originalText;
+          }
+        };
+      }
+
+      searchResults.appendChild(card);
+    });
+  }
+
+  // RSS wiring
+  const rssForm = uploadModal.querySelector('#podcast-rss-form');
+  rssForm.onsubmit = async (e) => {
+    e.preventDefault();
+    const feedUrl = uploadModal.querySelector('#podcast-feed-url').value.trim();
+    const targetFolderId = uploadModal.querySelector('#podcast-target-folder').value;
+    const autoDownload = uploadModal.querySelector('#podcast-auto-download').checked;
+    
+    if (!feedUrl) return;
+
+    const subBtn = uploadModal.querySelector('#subscribe-rss-btn');
+    const originalText = subBtn.textContent;
+    subBtn.disabled = true;
+    subBtn.innerHTML = `<span class="animate-spin text-primary material-symbols text-xs">sync</span> Subscribing...`;
+
+    try {
+      await request('POST', '/api/podcasts', {
+        libraryId,
+        folderId: targetFolderId,
+        feedUrl: feedUrl,
+        autoDownloadEpisodes: autoDownload
+      });
+
+      showToast('Subscribed to podcast successfully', 'success');
+      
+      uploadModal.querySelector('#podcast-feed-url').value = '';
+      subBtn.disabled = false;
+      subBtn.textContent = originalText;
+      
+      window.dispatchEvent(new CustomEvent('library-changed', { detail: { libraryId } }));
+      
+      closeModal();
+    } catch (err) {
+      console.error(err);
+      showToast(`Failed to subscribe: ${err.message}`, 'error');
+      subBtn.disabled = false;
+      subBtn.textContent = originalText;
+    }
+  };
 }

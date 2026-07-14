@@ -28,6 +28,7 @@ type MetadataResult struct {
 	ISBN          string   `json:"isbn"`
 	ASIN          string   `json:"asin"`
 	CoverURL      string   `json:"coverUrl"`
+	FeedURL       string   `json:"feedUrl,omitempty"`
 }
 
 // Provider external metadata source client.

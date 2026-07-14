@@ -61,15 +61,21 @@ export async function loadDashboard(libraryId, filterBy = '', filterLabel = '') 
     const sortSelect = document.getElementById('sort-select');
     const sortOrderToggle = document.getElementById('sort-order-toggle-btn');
 
+    const searchInput = document.getElementById('global-search-input');
+    const searchTerm = searchInput ? searchInput.value.trim() : '';
+
     let activeFilter = filterBy || localStorage.getItem('library-filterBy') || '';
     let activeSort = localStorage.getItem('library-sortBy') || 'media.metadata.title';
     let activeSortDesc = localStorage.getItem('library-sortDesc') === 'true';
 
-    // 3. Fetch all items (up to 100 if filtered, 40 if not)
-    const limit = activeFilter ? 100 : 40;
+    // 3. Fetch all items (up to 100 if filtered/searched, 40 if not)
+    const limit = (activeFilter || searchTerm) ? 100 : 40;
     let url = `/api/libraries/${libraryId}/items?limit=${limit}&minified=1`;
     if (activeFilter) {
       url += `&filter=${encodeURIComponent(activeFilter)}`;
+    }
+    if (searchTerm) {
+      url += `&search=${encodeURIComponent(searchTerm)}`;
     }
     if (activeSort) {
       url += `&sort=${encodeURIComponent(activeSort)}`;
@@ -104,13 +110,13 @@ export async function loadDashboard(libraryId, filterBy = '', filterLabel = '') 
     }
 
     const noItems = shelves.length === 0 && (!allItemsPayload.results || allItemsPayload.results.length === 0);
-    const noFilteredItems = filterBy && (!allItemsPayload.results || allItemsPayload.results.length === 0);
+    const noFilteredItems = (filterBy || searchTerm) && (!allItemsPayload.results || allItemsPayload.results.length === 0);
 
     if (noItems || noFilteredItems) {
       bookshelfContainer.innerHTML = `
         <div class="flex flex-col items-center justify-center h-48 text-black-100">
           <span class="material-symbols text-4xl mb-2">library_books</span>
-          <p class="text-sm font-medium">${filterBy ? 'No matching items found' : 'No items found in this library'}</p>
+          <p class="text-sm font-medium">${(filterBy || searchTerm) ? 'No matching items found' : 'No items found in this library'}</p>
         </div>
       `;
       return;
@@ -243,8 +249,8 @@ export async function loadDashboard(libraryId, filterBy = '', filterLabel = '') 
         dropdownMenu.onclick = (e) => e.stopPropagation();
       }
     } else {
-      // Render personalized shelves only if not filtering
-      if (!filterBy) {
+      // Render personalized shelves only if not filtering/searching
+      if (!filterBy && !searchTerm) {
         shelves.forEach(shelf => {
           if (shelf.entities && shelf.entities.length > 0) {
             const section = createShelfSection(shelf.id, shelf.label, shelf.entities, libraryId);

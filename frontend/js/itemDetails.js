@@ -336,19 +336,88 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
               <div class="space-y-2">
                 <h3 class="font-bold text-sm text-white border-b border-black-400 pb-1">Episodes (${item.media.episodes.length})</h3>
                 <ul class="space-y-2 max-h-64 overflow-y-auto no-scroll border border-black-400/50 rounded-md p-2 bg-primary/20">
-                  ${item.media.episodes.map((ep, idx) => `
-                    <li class="flex items-center justify-between p-2 hover:bg-black-500/40 rounded transition-colors text-xs">
-                      <div class="truncate flex-grow mr-4">
-                        <p class="font-semibold text-white truncate">${escapeHtml(ep.title)}</p>
-                        ${ep.pubDate ? `<p class="text-[0.7rem] text-black-100 mt-0.5">${escapeHtml(ep.pubDate)}</p>` : ''}
-                      </div>
-                      <button class="podcast-ep-play-btn flex items-center space-x-1 bg-accent text-primary px-2.5 py-1 rounded font-bold hover:opacity-90" data-idx="${idx}">
-                        <span class="material-symbols text-sm font-bold">play_arrow</span>
-                        <span>Play</span>
-                      </button>
-                    </li>
-                  `).join('')}
+                  ${item.media.episodes.map((ep, idx) => {
+                    const isDownloaded = ep.audioFile && ep.audioFile.metadata && ep.audioFile.metadata.path;
+                    return `
+                      <li class="flex items-center justify-between p-2 hover:bg-black-500/40 rounded transition-colors text-xs">
+                        <div class="truncate flex-grow mr-4">
+                          <p class="font-semibold text-white truncate">${escapeHtml(ep.title)}</p>
+                          ${ep.pubDate ? `<p class="text-[0.7rem] text-black-100 mt-0.5">${escapeHtml(ep.pubDate)}</p>` : ''}
+                        </div>
+                        <div class="flex items-center space-x-1.5 flex-shrink-0">
+                          ${isDownloaded ? `
+                            <button class="podcast-ep-play-btn flex items-center space-x-1 bg-accent text-primary px-2.5 py-1 rounded font-bold hover:opacity-90" data-idx="${idx}">
+                              <span class="material-symbols text-sm font-bold">play_arrow</span>
+                              <span>Play</span>
+                            </button>
+                          ` : `
+                            <button class="podcast-ep-download-btn flex items-center space-x-1 bg-black-400 hover:bg-black-300 border border-black-300 text-white px-2.5 py-1 rounded font-bold" data-id="${ep.id}">
+                              <span class="material-symbols text-sm">download</span>
+                              <span>Download</span>
+                            </button>
+                          `}
+                        </div>
+                      </li>
+                    `;
+                  }).join('')}
                 </ul>
+              </div>
+            ` : ''}
+
+            ${mediaType === 'podcast' && item.media ? `
+              <div class="space-y-3 bg-black-500/10 p-3.5 rounded border border-black-400/20">
+                <h3 class="font-bold text-xs text-white border-b border-black-400 pb-1 flex items-center gap-1.5 uppercase tracking-wider">
+                  <span class="material-symbols text-sm text-accent">settings</span>
+                  Podcast Settings
+                </h3>
+                
+                <!-- Auto download toggle -->
+                <div class="flex items-center justify-between">
+                  <div class="flex flex-col pr-2">
+                    <span class="text-[10px] font-bold text-white uppercase tracking-wider">Auto-download episodes</span>
+                    <span class="text-[8px] text-black-100 font-medium leading-tight">Check for and download new episodes</span>
+                  </div>
+                  <label class="relative inline-flex items-center cursor-pointer flex-shrink-0">
+                    <input type="checkbox" id="podcast-details-auto-download" class="sr-only peer" ${item.media.autoDownloadEpisodes ? 'checked' : ''}>
+                    <div class="w-8 h-4 bg-black-400 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-accent"></div>
+                  </label>
+                </div>
+
+                <!-- Auto-delete played episodes toggle -->
+                <div class="flex items-center justify-between">
+                  <div class="flex flex-col pr-2">
+                    <span class="text-[10px] font-bold text-white uppercase tracking-wider">Auto-delete played episodes</span>
+                    <span class="text-[8px] text-black-100 font-medium leading-tight">Remove files of episodes marked as played</span>
+                  </div>
+                  <label class="relative inline-flex items-center cursor-pointer flex-shrink-0">
+                    <input type="checkbox" id="podcast-details-auto-delete-played" class="sr-only peer" ${item.media.autoDeletePlayed ? 'checked' : ''}>
+                    <div class="w-8 h-4 bg-black-400 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-accent"></div>
+                  </label>
+                </div>
+
+                <!-- Auto-download Schedule -->
+                <div class="flex flex-col space-y-1">
+                  <label for="podcast-details-schedule" class="text-[9px] font-bold text-black-50 uppercase tracking-wider">Download Schedule (Cron)</label>
+                  <input type="text" id="podcast-details-schedule" class="bg-black-500 text-white border border-black-300 rounded px-2 py-1 text-xs focus:outline-none focus:border-accent" value="${item.media.autoDownloadSchedule || ''}" placeholder="e.g. 0 0 * * * (empty for default)">
+                </div>
+
+                <!-- Max episodes to keep -->
+                <div class="grid grid-cols-2 gap-2">
+                  <div class="flex flex-col space-y-1">
+                    <label for="podcast-details-max-keep" class="text-[9px] font-bold text-black-50 uppercase tracking-wider">Episodes to Keep</label>
+                    <input type="number" id="podcast-details-max-keep" class="bg-black-500 text-white border border-black-300 rounded px-2 py-1 text-xs focus:outline-none focus:border-accent" value="${item.media.maxEpisodesToKeep || 0}" min="0">
+                  </div>
+                  <div class="flex flex-col space-y-1">
+                    <label for="podcast-details-max-new" class="text-[9px] font-bold text-black-50 uppercase tracking-wider">Max New Downloads</label>
+                    <input type="number" id="podcast-details-max-new" class="bg-black-500 text-white border border-black-300 rounded px-2 py-1 text-xs focus:outline-none focus:border-accent" value="${item.media.maxNewEpisodesToDownload || 0}" min="0">
+                  </div>
+                </div>
+
+                <div class="flex justify-end pt-1">
+                  <button id="podcast-details-save-settings-btn" class="bg-accent hover:bg-accent-hover text-primary text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded transition-colors focus:outline-none">
+                    Save Settings
+                  </button>
+                </div>
               </div>
             ` : ''}
 
@@ -623,6 +692,69 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
           playItem(mockItem, 0);
         };
       });
+
+      // Hook podcast episode downloads
+      const epDownloadBtns = container.querySelectorAll('.podcast-ep-download-btn');
+      epDownloadBtns.forEach(btn => {
+        btn.onclick = async () => {
+          const episodeId = btn.getAttribute('data-id');
+          const originalContent = btn.innerHTML;
+          btn.disabled = true;
+          btn.innerHTML = `<span class="animate-spin text-white material-symbols text-xs">sync</span><span>Downloading...</span>`;
+          try {
+            await request('POST', `/api/podcasts/${item.mediaId || item.media.id}/download-episodes`, [episodeId]);
+            showToast('Download started in background', 'success');
+            btn.className = "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold px-2.5 py-1 rounded cursor-default focus:outline-none";
+            btn.innerHTML = `<span class="material-symbols text-xs">sync_saved_locally</span><span>Queued</span>`;
+            btn.onclick = null;
+          } catch (err) {
+            console.error('Download failed:', err);
+            showToast('Failed to start download: ' + err.message, 'error');
+            btn.disabled = false;
+            btn.innerHTML = originalContent;
+          }
+        };
+      });
+
+      // Hook podcast settings save
+      const saveSettingsBtn = document.getElementById('podcast-details-save-settings-btn');
+      if (saveSettingsBtn) {
+        saveSettingsBtn.onclick = async () => {
+          const autoDownload = document.getElementById('podcast-details-auto-download').checked;
+          const autoDeletePlayed = document.getElementById('podcast-details-auto-delete-played').checked;
+          const autoDownloadSchedule = document.getElementById('podcast-details-schedule').value.trim();
+          const maxKeep = parseInt(document.getElementById('podcast-details-max-keep').value, 10) || 0;
+          const maxNew = parseInt(document.getElementById('podcast-details-max-new').value, 10) || 0;
+          
+          saveSettingsBtn.disabled = true;
+          const originalText = saveSettingsBtn.textContent;
+          saveSettingsBtn.innerHTML = `<span class="animate-spin text-primary material-symbols text-xs">sync</span>`;
+
+          try {
+            await request('PATCH', `/api/items/${item.id}`, {
+              title: item.media.metadata.title,
+              autoDownloadEpisodes: autoDownload,
+              autoDeletePlayed: autoDeletePlayed,
+              autoDownloadSchedule: autoDownloadSchedule,
+              maxEpisodesToKeep: maxKeep,
+              maxNewEpisodesToDownload: maxNew
+            });
+            showToast('Podcast settings saved successfully', 'success');
+            // Update local state
+            item.media.autoDownloadEpisodes = autoDownload;
+            item.media.autoDeletePlayed = autoDeletePlayed;
+            item.media.autoDownloadSchedule = autoDownloadSchedule;
+            item.media.maxEpisodesToKeep = maxKeep;
+            item.media.maxNewEpisodesToDownload = maxNew;
+          } catch (err) {
+            console.error('Failed to save podcast settings:', err);
+            showToast('Failed to save settings: ' + err.message, 'error');
+          } finally {
+            saveSettingsBtn.disabled = false;
+            saveSettingsBtn.textContent = originalText;
+          }
+        };
+      }
     }
 
     if (hasEbook) {

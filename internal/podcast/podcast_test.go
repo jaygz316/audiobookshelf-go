@@ -42,7 +42,8 @@ func setupTestDB(t *testing.T, hasExtraColumns bool) *sql.DB {
 			feedURL TEXT,
 			autoDownloadEpisodes INTEGER,
 			maxEpisodesToKeep INTEGER,
-			maxNewEpisodesToDownload INTEGER
+			maxNewEpisodesToDownload INTEGER,
+			autoDeletePlayed INTEGER
 		)`,
 		`CREATE TABLE libraryItems (
 			id TEXT PRIMARY KEY,

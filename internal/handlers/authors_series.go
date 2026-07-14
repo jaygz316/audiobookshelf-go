@@ -1238,12 +1238,16 @@ func handleGetLibraryItemByID(db *sql.DB, itemID string) http.HandlerFunc {
 			var pTitle, pAuthor, pDescription, pLanguage, pPodcastType, pCoverPath sql.NullString
 			var pExplicit sql.NullInt64
 			var pTags, pGenres, pLockedFields []byte
+			var autoDownloadVal, maxKeepVal, maxNewVal, autoDeleteVal int
+			var scheduleVal sql.NullString
 
 			err = db.QueryRow(`
-				SELECT title, author, description, language, podcastType, explicit, coverPath, tags, genres, lockedFields
+				SELECT title, author, description, language, podcastType, explicit, coverPath, tags, genres, lockedFields,
+				       autoDownloadEpisodes, autoDownloadSchedule, maxEpisodesToKeep, maxNewEpisodesToDownload, autoDeletePlayed
 				FROM podcasts WHERE id = ?
 			`, mediaID).Scan(
 				&pTitle, &pAuthor, &pDescription, &pLanguage, &pPodcastType, &pExplicit, &pCoverPath, &pTags, &pGenres, &pLockedFields,
+				&autoDownloadVal, &scheduleVal, &maxKeepVal, &maxNewVal, &autoDeleteVal,
 			)
 			if err == nil {
 				var tags []string
@@ -1360,19 +1364,29 @@ func handleGetLibraryItemByID(db *sql.DB, itemID string) http.HandlerFunc {
 				}
 
 				payload["media"] = map[string]interface{}{
-					"id":        mediaID,
-					"coverPath": utils.NullIfEmpty(pCoverPath.String),
-					"tags":      tags,
-					"episodes":  episodes,
+					"id":                       mediaID,
+					"coverPath":                utils.NullIfEmpty(pCoverPath.String),
+					"tags":                     tags,
+					"episodes":                 episodes,
+					"autoDownloadEpisodes":     autoDownloadVal == 1,
+					"autoDownloadSchedule":     scheduleVal.String,
+					"maxEpisodesToKeep":        maxKeepVal,
+					"maxNewEpisodesToDownload": maxNewVal,
+					"autoDeletePlayed":         autoDeleteVal == 1,
 					"metadata": map[string]interface{}{
-						"title":        pTitle.String,
-						"author":       pAuthor.String,
-						"description":  utils.NullIfEmpty(pDescription.String),
-						"language":     utils.NullIfEmpty(pLanguage.String),
-						"podcastType":  utils.NullIfEmpty(pPodcastType.String),
-						"explicit":     pExplicit.Valid && pExplicit.Int64 != 0,
-						"genres":       genres,
-						"lockedFields": lockedFields,
+						"title":                    pTitle.String,
+						"author":                   pAuthor.String,
+						"description":              utils.NullIfEmpty(pDescription.String),
+						"language":                 utils.NullIfEmpty(pLanguage.String),
+						"podcastType":              utils.NullIfEmpty(pPodcastType.String),
+						"explicit":                 pExplicit.Valid && pExplicit.Int64 != 0,
+						"genres":                   genres,
+						"lockedFields":             lockedFields,
+						"autoDownloadEpisodes":     autoDownloadVal == 1,
+						"autoDownloadSchedule":     scheduleVal.String,
+						"maxEpisodesToKeep":        maxKeepVal,
+						"maxNewEpisodesToDownload": maxNewVal,
+						"autoDeletePlayed":         autoDeleteVal == 1,
 					},
 				}
 			} else {
@@ -1476,24 +1490,29 @@ func handleUpdateLibraryItemByID(db *sql.DB, itemID string) http.HandlerFunc {
 		}
 
 		var payload struct {
-			Title          string   `json:"title"`
-			Subtitle       string   `json:"subtitle"`
-			Authors        []string `json:"authors"`
-			Narrators      []string `json:"narrators"`
-			SeriesName     string   `json:"seriesName"`
-			SeriesSequence string   `json:"seriesSequence"`
-			Publisher      string   `json:"publisher"`
-			PublishedYear  string   `json:"publishedYear"`
-			PublishedDate  string   `json:"publishedDate"`
-			Description    string   `json:"description"`
-			Isbn           string   `json:"isbn"`
-			Asin           string   `json:"asin"`
-			Language       string   `json:"language"`
-			Explicit       bool     `json:"explicit"`
-			Abridged       bool     `json:"abridged"`
-			Tags           []string `json:"tags"`
-			Genres         []string `json:"genres"`
-			LockedFields   []string `json:"lockedFields"`
+			Title                    string   `json:"title"`
+			Subtitle                 string   `json:"subtitle"`
+			Authors                  []string `json:"authors"`
+			Narrators                []string `json:"narrators"`
+			SeriesName               string   `json:"seriesName"`
+			SeriesSequence           string   `json:"seriesSequence"`
+			Publisher                string   `json:"publisher"`
+			PublishedYear            string   `json:"publishedYear"`
+			PublishedDate            string   `json:"publishedDate"`
+			Description              string   `json:"description"`
+			Isbn                     string   `json:"isbn"`
+			Asin                     string   `json:"asin"`
+			Language                 string   `json:"language"`
+			Explicit                 bool     `json:"explicit"`
+			Abridged                 bool     `json:"abridged"`
+			Tags                     []string `json:"tags"`
+			Genres                   []string `json:"genres"`
+			LockedFields             []string `json:"lockedFields"`
+			AutoDownloadEpisodes     *bool    `json:"autoDownloadEpisodes"`
+			AutoDownloadSchedule     *string  `json:"autoDownloadSchedule"`
+			MaxEpisodesToKeep        *int     `json:"maxEpisodesToKeep"`
+			MaxNewEpisodesToDownload *int     `json:"maxNewEpisodesToDownload"`
+			AutoDeletePlayed         *bool    `json:"autoDeletePlayed"`
 		}
 
 		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
@@ -1593,11 +1612,38 @@ func handleUpdateLibraryItemByID(db *sql.DB, itemID string) http.HandlerFunc {
 			prefixes := idb.GetSortingPrefixes(db)
 			titleIgnorePrefix := getTitleIgnorePrefixGo(payload.Title, prefixes)
 
+			var currAutoDownload, currMaxKeep, currMaxNew, currAutoDelete int
+			var currSchedule sql.NullString
+			_ = db.QueryRow("SELECT autoDownloadEpisodes, maxEpisodesToKeep, maxNewEpisodesToDownload, autoDeletePlayed, autoDownloadSchedule FROM podcasts WHERE id = ?", mediaID).Scan(&currAutoDownload, &currMaxKeep, &currMaxNew, &currAutoDelete, &currSchedule)
+
+			autoDownloadVal := currAutoDownload
+			if payload.AutoDownloadEpisodes != nil {
+				autoDownloadVal = boolToInt(*payload.AutoDownloadEpisodes)
+			}
+			maxKeepVal := currMaxKeep
+			if payload.MaxEpisodesToKeep != nil {
+				maxKeepVal = *payload.MaxEpisodesToKeep
+			}
+			maxNewVal := currMaxNew
+			if payload.MaxNewEpisodesToDownload != nil {
+				maxNewVal = *payload.MaxNewEpisodesToDownload
+			}
+			autoDeleteVal := currAutoDelete
+			if payload.AutoDeletePlayed != nil {
+				autoDeleteVal = boolToInt(*payload.AutoDeletePlayed)
+			}
+			scheduleVal := currSchedule.String
+			if payload.AutoDownloadSchedule != nil {
+				scheduleVal = *payload.AutoDownloadSchedule
+			}
+
 			_, err = tx.Exec(`
 				UPDATE podcasts
-				SET title = ?, titleIgnorePrefix = ?, author = ?, description = ?, language = ?, explicit = ?, tags = ?, genres = ?, lockedFields = ?
+				SET title = ?, titleIgnorePrefix = ?, author = ?, description = ?, language = ?, explicit = ?, tags = ?, genres = ?, lockedFields = ?,
+				    autoDownloadEpisodes = ?, maxEpisodesToKeep = ?, maxNewEpisodesToDownload = ?, autoDeletePlayed = ?, autoDownloadSchedule = ?
 				WHERE id = ?
-			`, payload.Title, titleIgnorePrefix, author, payload.Description, payload.Language, boolToInt(payload.Explicit), tagsJSON, genresJSON, lockedFieldsJSON, mediaID)
+			`, payload.Title, titleIgnorePrefix, author, payload.Description, payload.Language, boolToInt(payload.Explicit), tagsJSON, genresJSON, lockedFieldsJSON,
+				autoDownloadVal, maxKeepVal, maxNewVal, autoDeleteVal, scheduleVal, mediaID)
 			if err != nil {
 				http.Error(w, "failed to update podcast: "+err.Error(), http.StatusInternalServerError)
 				return

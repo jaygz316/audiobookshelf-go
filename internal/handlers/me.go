@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 
@@ -409,6 +410,35 @@ func handleCreateUpdateMeProgress(db *sql.DB) http.HandlerFunc {
 			log.Errorf("[Me Progress] Save error: %v", err)
 			http.Error(w, "Database error", http.StatusInternalServerError)
 			return
+		}
+
+		if isFinishedVal {
+			var pID string
+			var autoDeletePlayedVal int
+			var audioFileStr string
+			errDb := db.QueryRowContext(r.Context(), `
+				SELECT p.id, p.autoDeletePlayed, pe.audioFile
+				FROM podcastEpisodes pe
+				JOIN podcasts p ON pe.podcastId = p.id
+				WHERE pe.id = ?
+			`, mediaItemID).Scan(&pID, &autoDeletePlayedVal, &audioFileStr)
+			if errDb == nil && autoDeletePlayedVal == 1 && audioFileStr != "" && audioFileStr != "{}" {
+				var af struct {
+					Metadata struct {
+						Path string `json:"path"`
+					} `json:"metadata"`
+				}
+				if json.Unmarshal([]byte(audioFileStr), &af) == nil && af.Metadata.Path != "" {
+					if _, err := os.Stat(af.Metadata.Path); err == nil {
+						log.Infof("[AutoDeletePlayed] Deleting played episode file: %s", af.Metadata.Path)
+						if err := os.Remove(af.Metadata.Path); err == nil {
+							_, _ = db.ExecContext(r.Context(), "UPDATE podcastEpisodes SET audioFile = '{}' WHERE id = ?", mediaItemID)
+						} else {
+							log.Errorf("[AutoDeletePlayed] Failed to delete file %s: %v", af.Metadata.Path, err)
+						}
+					}
+				}
+			}
 		}
 
 		// Update active playback session if currentTime changed

@@ -51,13 +51,13 @@ function highlightSidebarLink(pageName) {
     if (!p) return;
     const name = p.textContent.trim();
     if (name === pageName) {
-      link.classList.remove('hover:bg-black-500');
+      link.classList.remove('hover:bg-black-500', 'text-black-50');
       link.classList.add('bg-primary/80', 'text-accent');
       const activeBar = link.querySelector('.active-indicator');
       if (activeBar) activeBar.classList.remove('hidden');
     } else {
       link.classList.remove('bg-primary/80', 'text-accent');
-      link.classList.add('hover:bg-black-500');
+      link.classList.add('hover:bg-black-500', 'text-black-50');
       const activeBar = link.querySelector('.active-indicator');
       if (activeBar) activeBar.classList.add('hidden');
     }
@@ -1051,6 +1051,32 @@ function bootstrapApp(payload) {
     }
   }
 
+  // Set up global search input listener
+  const globalSearchInput = document.getElementById('global-search-input');
+  if (globalSearchInput) {
+    let searchDebounceTimeout = null;
+    globalSearchInput.oninput = (e) => {
+      clearTimeout(searchDebounceTimeout);
+      searchDebounceTimeout = setTimeout(() => {
+        const activeLibId = getActiveLibraryId();
+        let relPath = window.location.pathname;
+        if (typeof ROUTER_BASE_PATH !== 'undefined' && ROUTER_BASE_PATH && relPath.startsWith(ROUTER_BASE_PATH)) {
+          relPath = relPath.substring(ROUTER_BASE_PATH.length);
+        }
+        if (!relPath.startsWith('/')) {
+          relPath = '/' + relPath;
+        }
+        const isDashboard = (relPath === '/' || relPath === '/library');
+        if (!isDashboard) {
+          // Redirect to dashboard (home) which will pick up the search term from globalSearchInput
+          navigateTo('/');
+        } else if (activeLibId) {
+          loadDashboard(activeLibId);
+        }
+      }, 300);
+    };
+  }
+
   // Initialize library dropdown
   initLibrary(payload);
 
@@ -1137,6 +1163,11 @@ function navigateTo(path, pushState = true) {
 
   const showControls = (relPath === '/' || relPath === '/library');
   
+  const globalSearchInput = document.getElementById('global-search-input');
+  if (!showControls && globalSearchInput) {
+    globalSearchInput.value = '';
+  }
+  
   if (filterBtn) {
     if (showControls) filterBtn.parentElement.classList.remove('hidden');
     else filterBtn.parentElement.classList.add('hidden');
@@ -1211,7 +1242,7 @@ function navigateTo(path, pushState = true) {
     // Deselect sidebar highlights
     document.querySelectorAll('#siderail-buttons-container a').forEach(l => {
       l.classList.remove('bg-primary/80', 'text-accent');
-      l.classList.add('hover:bg-black-500');
+      l.classList.add('hover:bg-black-500', 'text-black-50');
       const activeBar = l.querySelector('.active-indicator');
       if (activeBar) activeBar.classList.add('hidden');
     });

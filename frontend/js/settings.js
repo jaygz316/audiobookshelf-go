@@ -129,6 +129,10 @@ export async function loadSettings() {
           <span class="material-symbols text-lg">share</span>
           <span>Public Shares</span>
         </button>
+        <button class="w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2" data-tab="tasks">
+          <span class="material-symbols text-lg">downloading</span>
+          <span>Tasks & Downloads</span>
+        </button>
       </div>
 
       <!-- Right Content Column -->
@@ -148,6 +152,7 @@ export async function loadSettings() {
         <div id="tab-feeds" class="space-y-6 hidden"></div>
         <div id="tab-emails" class="space-y-6 hidden"></div>
         <div id="tab-shares" class="space-y-6 hidden"></div>
+        <div id="tab-tasks" class="space-y-6 hidden"></div>
       </div>
     </div>
   `;
@@ -169,6 +174,9 @@ export async function loadSettings() {
           content.classList.add('hidden');
         }
       });
+      if (activeTabId === 'tasks') {
+        renderTasksTab();
+      }
     };
   });
 
@@ -3692,6 +3700,195 @@ export function applyServerThemeAndCss(settings) {
     styleEl.textContent = settings.customCss;
   } else if (styleEl) {
     styleEl.remove();
+  }
+}
+
+let tasksPollInterval = null;
+
+async function renderTasksTab() {
+  const container = document.getElementById('tab-tasks');
+  if (!container) return;
+
+  container.innerHTML = `
+    <div class="space-y-4 text-left">
+      <div class="flex justify-between items-center">
+        <div>
+          <h3 class="text-lg font-semibold text-white">Active Tasks & Downloads</h3>
+          <p class="text-xs text-black-100 font-medium">Monitor and manage real-time episode downloads and background operations.</p>
+        </div>
+        <button id="cancel-all-tasks-btn" class="bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 font-bold px-3 py-1.5 rounded text-xs transition-colors flex items-center gap-1 focus:outline-none">
+          <span class="material-symbols text-sm">cancel</span>
+          <span>Cancel All Tasks</span>
+        </button>
+      </div>
+
+      <div class="border border-black-300 rounded-md bg-primary overflow-x-auto">
+        <table class="w-full text-left text-sm">
+          <thead>
+            <tr class="border-b border-black-400/60 text-black-100 text-xs uppercase tracking-wider font-semibold">
+              <th class="px-4 py-3">Podcast</th>
+              <th class="px-4 py-3">Episode / Action</th>
+              <th class="px-4 py-3">Status</th>
+              <th class="px-4 py-3">Progress</th>
+              <th class="px-4 py-3 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="tasks-list-rows" class="divide-y divide-black-400">
+            <tr>
+              <td colspan="5" class="px-4 py-8 text-center text-black-100 text-xs">Loading tasks...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+
+  const cancelAllBtn = container.querySelector('#cancel-all-tasks-btn');
+  cancelAllBtn.onclick = async () => {
+    if (confirm('Are you sure you want to cancel all running and queued tasks?')) {
+      try {
+        await request('POST', '/api/tasks/cancel-all');
+        showToast('All tasks cancelled', 'success');
+        updateTasksList();
+      } catch (err) {
+        showToast('Failed to cancel tasks: ' + err.message, 'error');
+      }
+    }
+  };
+
+  // Start polling
+  if (tasksPollInterval) clearInterval(tasksPollInterval);
+  updateTasksList();
+  tasksPollInterval = setInterval(updateTasksList, 2000);
+}
+
+async function updateTasksList() {
+  const tbody = document.getElementById('tasks-list-rows');
+  const tabTasks = document.getElementById('tab-tasks');
+  if (!tbody || !tabTasks || tabTasks.classList.contains('hidden')) {
+    if (tasksPollInterval) {
+      clearInterval(tasksPollInterval);
+      tasksPollInterval = null;
+    }
+    return;
+  }
+
+  try {
+    const data = await request('GET', '/api/tasks');
+    const tasks = data.tasks || [];
+
+    if (tasks.length === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="5" class="px-4 py-8 text-center text-black-100 text-xs">No active tasks or downloads.</td>
+        </tr>
+      `;
+      return;
+    }
+
+    tbody.innerHTML = tasks.map(task => {
+      let progressPct = 0;
+      if (task.bytesTotal > 0) {
+        progressPct = Math.round((task.bytesDownloaded / task.bytesTotal) * 100);
+      }
+      
+      const downloadedMb = (task.bytesDownloaded / (1024 * 1024)).toFixed(1);
+      const totalMb = (task.bytesTotal / (1024 * 1024)).toFixed(1);
+      
+      let statusBadge = '';
+      if (task.status === 'running') {
+        statusBadge = `<span class="bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider">Downloading</span>`;
+      } else if (task.status === 'paused') {
+        statusBadge = `<span class="bg-yellow-500/20 text-yellow-400 px-2 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider">Paused</span>`;
+      } else if (task.status === 'failed') {
+        statusBadge = `<span class="bg-red-500/20 text-red-400 px-2 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider">Failed</span>`;
+      } else if (task.status === 'finished') {
+        statusBadge = `<span class="bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider">Completed</span>`;
+      } else {
+        statusBadge = `<span class="bg-black-400 text-black-100 px-2 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider">${task.status}</span>`;
+      }
+
+      let progressInfo = '';
+      if (task.status === 'running') {
+        progressInfo = `
+          <div class="flex items-center space-x-2 min-w-[120px]">
+            <div class="w-24 bg-black-500 rounded-full h-1.5 overflow-hidden">
+              <div class="bg-accent h-1.5 rounded-full" style="width: ${progressPct}%"></div>
+            </div>
+            <span class="text-[10px] font-mono">${progressPct}% (${downloadedMb}/${totalMb} MB)</span>
+          </div>
+        `;
+      } else if (task.status === 'queued') {
+        progressInfo = `<span class="text-[10px] text-black-100">Waiting in queue</span>`;
+      } else if (task.status === 'paused') {
+        progressInfo = `
+          <div class="flex items-center space-x-2 min-w-[120px]">
+            <div class="w-24 bg-black-500 rounded-full h-1.5 overflow-hidden opacity-50">
+              <div class="bg-yellow-500 h-1.5 rounded-full" style="width: ${progressPct}%"></div>
+            </div>
+            <span class="text-[10px] font-mono text-black-100">${progressPct}% (${downloadedMb}/${totalMb} MB)</span>
+          </div>
+        `;
+      } else if (task.status === 'failed' && task.error) {
+        progressInfo = `<span class="text-[10px] text-red-400 truncate max-w-[200px]" title="${escapeHtml(task.error)}">${escapeHtml(task.error)}</span>`;
+      } else {
+        progressInfo = `<span class="text-[10px] text-black-100">-</span>`;
+      }
+
+      const showPause = task.status === 'running';
+      const showResume = task.status === 'paused' || task.status === 'failed';
+      const showCancel = task.status === 'running' || task.status === 'queued' || task.status === 'paused';
+
+      return `
+        <tr class="hover:bg-black-500/30 text-xs text-white">
+          <td class="px-4 py-3 font-semibold text-white max-w-[150px] truncate" title="${escapeHtml(task.podcastTitle || '')}">
+            ${escapeHtml(task.podcastTitle || 'Podcast')}
+          </td>
+          <td class="px-4 py-3 max-w-[250px] truncate" title="${escapeHtml(task.episodeTitle || '')}">
+            ${escapeHtml(task.episodeTitle || 'Episode')}
+          </td>
+          <td class="px-4 py-3">${statusBadge}</td>
+          <td class="px-4 py-3">${progressInfo}</td>
+          <td class="px-4 py-3 text-right">
+            <div class="flex justify-end space-x-1.5">
+              ${showPause ? `
+                <button class="task-action-btn hover:text-white text-black-100 p-1 rounded hover:bg-black-400" data-id="${task.id}" data-action="pause" title="Pause Download">
+                  <span class="material-symbols text-sm">pause</span>
+                </button>
+              ` : ''}
+              ${showResume ? `
+                <button class="task-action-btn hover:text-accent text-black-100 p-1 rounded hover:bg-black-400" data-id="${task.id}" data-action="resume" title="Resume/Retry Download">
+                  <span class="material-symbols text-sm">play_arrow</span>
+                </button>
+              ` : ''}
+              ${showCancel ? `
+                <button class="task-action-btn hover:text-red-400 text-black-100 p-1 rounded hover:bg-black-400" data-id="${task.id}" data-action="cancel" title="Cancel Download">
+                  <span class="material-symbols text-sm">cancel</span>
+                </button>
+              ` : ''}
+            </div>
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    tbody.querySelectorAll('.task-action-btn').forEach(btn => {
+      btn.onclick = async (e) => {
+        e.preventDefault();
+        const taskId = btn.dataset.id;
+        const action = btn.dataset.action;
+        try {
+          await request('POST', `/api/tasks/${taskId}/${action}`);
+          showToast(`Task ${action}d successfully`, 'success');
+          updateTasksList();
+        } catch (err) {
+          showToast(`Failed to ${action} task: ` + err.message, 'error');
+        }
+      };
+    });
+
+  } catch (err) {
+    console.error('Failed to update tasks list:', err);
   }
 }
 
