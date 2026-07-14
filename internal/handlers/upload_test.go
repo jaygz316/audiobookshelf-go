@@ -200,4 +200,28 @@ func TestHandleUpload_SuccessAndTraversal(t *testing.T) {
 	if rrAdversarial.Code != http.StatusBadRequest {
 		t.Errorf("expected Bad Request for partial-prefix traversal attempt, got %d. Body: %s", rrAdversarial.Code, rrAdversarial.Body.String())
 	}
+
+	// 4. Test Successful File Upload with Library ID in Path
+	bodyPathLib := &bytes.Buffer{}
+	writerPathLib := multipart.NewWriter(bodyPathLib)
+	_ = writerPathLib.WriteField("folder", "folder-1")
+	partPathLib, _ := createFormFileWithPath(writerPathLib, "files", "path_lib_test.epub")
+	_, _ = partPathLib.Write([]byte("path library file content"))
+	writerPathLib.Close()
+
+	reqPathLib := httptest.NewRequest(http.MethodPost, "/api/libraries/lib-1/items", bodyPathLib)
+	reqPathLib.Header.Set("Content-Type", writerPathLib.FormDataContentType())
+	reqPathLib = reqPathLib.WithContext(context.WithValue(reqPathLib.Context(), core.UserContextKey, adminSess))
+
+	rrPathLib := httptest.NewRecorder()
+	handler.ServeHTTP(rrPathLib, reqPathLib)
+
+	if rrPathLib.Code != http.StatusOK {
+		t.Errorf("expected status OK (200) for path library upload, got %d: %s", rrPathLib.Code, rrPathLib.Body.String())
+	}
+
+	pathLibFile := filepath.Join(tempDir, "path_lib_test.epub")
+	if _, err := os.Stat(pathLibFile); os.IsNotExist(err) {
+		t.Error("expected path_lib_test.epub to exist on disk")
+	}
 }
