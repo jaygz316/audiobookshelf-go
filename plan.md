@@ -1,7 +1,10 @@
-# Plan - Bookmarks Manager & Roadmap Checklist Updates
+# Plan: EPUB Reader Enhancements
 
-1. Verify that the current modified files for Bookmarks Manager Panel (with custom notes, colors, import/export) are fully functional and pass tests.
-2. Update `task.md` (roadmap checklist) to check off the implemented Bookmarks Manager Panel, Playback Speed Controls, Play History Panel, and Sleep Timer settings.
-3. Commit the changes: `feat(ui): implement Bookmarks Manager with notes, colors, and import/export; update feature checklist`.
-4. Rebuild the server Docker image `jaygz/audiobookshelf-go:latest` and push it to Docker Hub.
-5. Create `handoff.md` summarizing the accomplishments and next steps.
+## Goals:
+1. **Flow vs. Paginated Layouts**: Add settings toggle and logic to support continuous vertical scroll (`scrolled-doc`) and page-by-page rendering (`paginated`).
+2. **Warm Theme**: Add color profile `warm` (background: `#fbf0e3`, text: `#5c4033`) in theme selection.
+3. **Reader Bookmarks & Highlights Side-Panel**: View, navigate, and search user highlights and notes. Support selecting text in the reader to create a highlight with a note.
+4. **TTS Controls**: Built-in screen reader using Web Speech API to read chapter text aloud.
+
+## Files to Modify:
+- `frontend/js/reader.js`: Implement settings popover updates, EpubJS render changes for scrolled flow, highlight selection listener, side-panel render/actions, and speech synthesis logic.

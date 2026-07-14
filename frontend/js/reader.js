@@ -20,11 +20,17 @@ function loadScript(src) {
 function getThemeButtonActiveStyle(theme) {
   if (theme === 'light') return 'px-2.5 py-1 text-xs rounded transition-colors bg-white text-black font-bold shadow';
   if (theme === 'sepia') return 'px-2.5 py-1 text-xs rounded transition-colors bg-[#f4ecd8] text-[#5b4636] font-bold shadow';
+  if (theme === 'warm') return 'px-2.5 py-1 text-xs rounded transition-colors bg-[#fbf0e3] text-[#5c4033] font-bold shadow';
   return 'px-2.5 py-1 text-xs rounded transition-colors bg-[#1a1a1a] text-white font-bold border border-black-300 shadow';
 }
 
 function getThemeButtonInactiveStyle(theme) {
   return 'px-2.5 py-1 text-xs rounded transition-colors text-black-100 hover:text-white hover:bg-black-500';
+}
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
 }
 
 /**
@@ -81,6 +87,12 @@ export async function openEbookReader(item, token) {
           <button id="reader-toc-btn" class="p-2 hover:bg-black-500 rounded text-black-50 hover:text-white transition-colors focus:outline-none" title="Table of Contents">
             <span class="material-symbols text-xl">menu</span>
           </button>
+          
+          <!-- Text-To-Speech Trigger -->
+          <button id="reader-tts-btn" class="p-2 hover:bg-black-500 rounded text-black-50 hover:text-white transition-colors focus:outline-none" title="Text-to-Speech (Read Aloud)">
+            <span class="material-symbols text-xl">volume_up</span>
+          </button>
+
           <!-- Font Size Decrease -->
           <button id="reader-font-dec-btn" class="p-2 hover:bg-black-500 rounded text-black-50 hover:text-white transition-colors focus:outline-none" title="Decrease Font Size">
             <span class="text-xs font-bold font-mono">A-</span>
@@ -94,6 +106,7 @@ export async function openEbookReader(item, token) {
           <div class="flex items-center bg-black-600 border border-black-400 rounded p-0.5 space-x-0.5">
             <button id="theme-light-btn" class="px-2.5 py-1 text-xs rounded transition-colors text-black-100 hover:text-white" data-theme="light">Light</button>
             <button id="theme-sepia-btn" class="px-2.5 py-1 text-xs rounded transition-colors text-black-100 hover:text-white" data-theme="sepia">Sepia</button>
+            <button id="theme-warm-btn" class="px-2.5 py-1 text-xs rounded transition-colors text-black-100 hover:text-white" data-theme="warm">Warm</button>
             <button id="theme-dark-btn" class="px-2.5 py-1 text-xs rounded transition-colors text-black-100 hover:text-white" data-theme="dark">Dark</button>
           </div>
 
@@ -147,8 +160,17 @@ export async function openEbookReader(item, token) {
         </div>
       </div>
 
-      <!-- Reader Layout choice -->
+      <!-- Flow Layout choice -->
       <div class="space-y-1.5">
+        <label class="text-xs text-black-100 font-semibold">Layout Flow</label>
+        <div class="grid grid-cols-2 gap-1 bg-black-600 p-0.5 rounded border border-black-400">
+          <button id="reader-flow-paginated-btn" class="text-xs py-1 text-center rounded transition-colors" data-val="paginated">Paginated</button>
+          <button id="reader-flow-scrolled-btn" class="text-xs py-1 text-center rounded transition-colors" data-val="scrolled-doc">Continuous</button>
+        </div>
+      </div>
+
+      <!-- Reader Layout choice -->
+      <div class="space-y-1.5" id="reader-page-layout-section">
         <label class="text-xs text-black-100 font-semibold">Page Layout</label>
         <div class="grid grid-cols-2 gap-1 bg-black-600 p-0.5 rounded border border-black-400">
           <button id="reader-layout-single-btn" class="text-xs py-1 text-center rounded transition-colors" data-val="none">Single Page</button>
@@ -157,18 +179,107 @@ export async function openEbookReader(item, token) {
       </div>
     </div>
 
+    <!-- TTS Controller Popover -->
+    <div id="reader-tts-popover" class="hidden absolute right-16 top-16 bg-[#1a1a1a]/95 border border-black-400 rounded-lg shadow-2xl p-4 z-50 w-72 backdrop-blur-md space-y-4 text-white font-sans">
+      <div class="border-b border-black-600/50 pb-2 mb-2 flex justify-between items-center">
+        <h4 class="text-xs font-bold text-white uppercase tracking-wider flex items-center space-x-1">
+          <span class="material-symbols text-sm">volume_up</span>
+          <span>Text-To-Speech</span>
+        </h4>
+        <button id="close-tts-btn" class="text-black-100 hover:text-white transition-colors">
+          <span class="material-symbols text-sm">close</span>
+        </button>
+      </div>
+
+      <!-- Play / Pause / Stop controls -->
+      <div class="flex items-center justify-center space-x-3">
+        <button id="tts-prev-sentence-btn" class="p-1.5 bg-black-600 border border-black-400 hover:bg-black-500 rounded transition-colors text-white" title="Previous Sentence">
+          <span class="material-symbols text-lg">skip_previous</span>
+        </button>
+        <button id="tts-play-btn" class="p-2.5 bg-accent text-primary rounded-full hover:opacity-90 transition-opacity font-bold shadow" title="Play / Pause">
+          <span class="material-symbols text-xl" id="tts-play-icon">play_arrow</span>
+        </button>
+        <button id="tts-stop-btn" class="p-1.5 bg-black-600 border border-black-400 hover:bg-black-500 rounded transition-colors text-white" title="Stop">
+          <span class="material-symbols text-lg">stop</span>
+        </button>
+        <button id="tts-next-sentence-btn" class="p-1.5 bg-black-600 border border-black-400 hover:bg-black-500 rounded transition-colors text-white" title="Next Sentence">
+          <span class="material-symbols text-lg">skip_next</span>
+        </button>
+      </div>
+
+      <!-- Speech Speed -->
+      <div class="space-y-1">
+        <div class="flex justify-between text-xs text-black-100 font-semibold">
+          <span>Speed</span>
+          <span id="tts-speed-val">1.0x</span>
+        </div>
+        <input type="range" id="tts-speed-slider" min="0.5" max="2.0" step="0.1" value="1.0" class="w-full accent-accent bg-black-600 h-1 rounded" />
+      </div>
+
+      <!-- Voice Selector -->
+      <div class="space-y-1.5">
+        <label class="text-xs text-black-100 font-semibold">Voice</label>
+        <select id="tts-voice-select" class="w-full bg-black-600 text-white text-xs px-2 py-1.5 rounded border border-black-400 focus:outline-none focus:border-accent font-sans">
+          <!-- Voice options populated dynamically -->
+        </select>
+      </div>
+    </div>
+
+    <!-- Highlight Modal -->
+    <div id="reader-highlight-modal" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center z-70">
+      <div class="bg-primary border border-black-400 rounded-lg shadow-2xl p-4 w-96 max-w-[90vw] text-white space-y-4">
+        <h4 class="text-sm font-bold border-b border-black-600/50 pb-2">Add Highlight / Bookmark</h4>
+        
+        <div class="space-y-1">
+          <label class="text-xs text-black-100 font-semibold">Selected Text</label>
+          <div id="highlight-selected-text" class="text-xs bg-black-600 p-2 rounded max-h-24 overflow-y-auto italic text-black-50 border border-black-400"></div>
+        </div>
+
+        <div class="space-y-1">
+          <label class="text-xs text-black-100 font-semibold">Note / Thoughts</label>
+          <textarea id="highlight-note-input" class="w-full bg-black-600 text-white text-xs px-2 py-1.5 rounded border border-black-400 focus:outline-none focus:border-accent h-16 resize-none" placeholder="Add custom note..."></textarea>
+        </div>
+
+        <div class="space-y-1">
+          <label class="text-xs text-black-100 font-semibold">Highlight Color</label>
+          <div class="flex items-center space-x-2">
+            <button class="hl-color-btn w-6 h-6 rounded-full border border-black-300 transition-transform hover:scale-110" data-color="#ffeb3b" style="background-color: #ffeb3b;" title="Yellow"></button>
+            <button class="hl-color-btn w-6 h-6 rounded-full border border-black-300 transition-transform hover:scale-110" data-color="#8bc34a" style="background-color: #8bc34a;" title="Green"></button>
+            <button class="hl-color-btn w-6 h-6 rounded-full border border-black-300 transition-transform hover:scale-110" data-color="#f48fb1" style="background-color: #f48fb1;" title="Pink"></button>
+            <button class="hl-color-btn w-6 h-6 rounded-full border border-black-300 transition-transform hover:scale-110" data-color="#29b6f6" style="background-color: #29b6f6;" title="Blue"></button>
+          </div>
+        </div>
+
+        <div class="flex justify-end space-x-2 pt-2">
+          <button id="highlight-cancel-btn" class="bg-black-400 hover:bg-black-300 text-white font-semibold px-4 py-2 rounded text-xs transition-colors">Cancel</button>
+          <button id="highlight-save-btn" class="bg-accent hover:opacity-90 text-primary font-bold px-4 py-2 rounded text-xs transition-opacity shadow">Save</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Center Content Area -->
     <div class="flex-grow flex relative min-h-0 bg-[#121212]" id="reader-main-viewport">
       <!-- Sidebar / Table of Contents Drawer -->
       <div id="reader-toc-drawer" class="absolute left-0 top-0 bottom-0 w-80 bg-primary border-r border-black-600/50 shadow-2xl z-40 flex flex-col" style="transform: translateX(-100%); transition: transform 0.3s ease; max-width: 85vw;">
-        <div class="p-4 border-b border-black-600/50 flex justify-between items-center flex-shrink-0">
-          <h4 class="font-bold text-sm text-white uppercase tracking-wider">Chapters</h4>
-          <button id="close-toc-btn" class="text-black-100 hover:text-white transition-colors focus:outline-none">
-            <span class="material-symbols text-lg">close</span>
-          </button>
+        <div class="p-2 border-b border-black-600/50 flex flex-col flex-shrink-0">
+          <div class="flex justify-between items-center px-2 py-1">
+            <h4 class="font-bold text-xs text-white uppercase tracking-wider">Reader Navigation</h4>
+            <button id="close-toc-btn" class="text-black-100 hover:text-white transition-colors focus:outline-none">
+              <span class="material-symbols text-lg">close</span>
+            </button>
+          </div>
+          <div class="flex mt-1 bg-black-600 p-0.5 rounded border border-black-400">
+            <button id="drawer-tab-chapters" class="flex-1 text-center py-1 text-xs rounded transition-colors bg-accent text-primary font-bold shadow">Chapters</button>
+            <button id="drawer-tab-bookmarks" class="flex-1 text-center py-1 text-xs rounded transition-colors text-black-100 hover:text-white">Bookmarks</button>
+          </div>
         </div>
+        <!-- Chapters list -->
         <div id="reader-toc-list" class="flex-grow overflow-y-auto p-2 space-y-1 no-scroll">
           <!-- Table of Contents items go here -->
+        </div>
+        <!-- Bookmarks list -->
+        <div id="reader-bookmarks-list" class="hidden flex-grow overflow-y-auto p-2 space-y-2 no-scroll">
+          <!-- Bookmarks and highlights go here -->
         </div>
       </div>
 
@@ -227,9 +338,23 @@ export async function openEbookReader(item, token) {
   let currentLineHeight = '1.5';
   let currentMargin = '15%';
   let currentLayout = 'auto'; // 'none' for single, 'auto' for two-page spread
+  let currentFlow = 'paginated'; // 'paginated' or 'scrolled-doc'
   let progressSaveTimeout = null;
   let currentProgress = 0;
   let tocDrawerOpen = false;
+
+  // Selected Text & Highlight Variables
+  let selectedCfiRange = null;
+  let selectedTextStr = "";
+  let activeColor = "#ffeb3b";
+
+  // TTS Variables
+  let ttsUtterance = null;
+  let ttsSentences = [];
+  let currentSentenceIdx = 0;
+  let isTtsPlaying = false;
+  let ttsRate = 1.0;
+  let selectedVoiceName = "";
 
   const activeBtnClass = "bg-accent text-primary font-bold shadow";
   const inactiveBtnClass = "text-black-100 hover:text-white hover:bg-black-500 bg-black-600";
@@ -242,7 +367,8 @@ export async function openEbookReader(item, token) {
       fontFamily: currentFont,
       lineHeight: currentLineHeight,
       margin: currentMargin,
-      layout: currentLayout
+      layout: currentLayout,
+      flow: currentFlow
     }));
   };
 
@@ -266,11 +392,17 @@ export async function openEbookReader(item, token) {
       }).catch(err => console.error("Error saving final progress:", err));
     }
 
+    // Stop TTS speaking
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
+
     // Unbind event listeners
     document.removeEventListener('keyup', keyListener);
     window.removeEventListener('resize', handleResize);
     document.removeEventListener('click', clickOutsideTOC);
     document.removeEventListener('click', clickOutsideSettings);
+    document.removeEventListener('click', clickOutsideTts);
 
     // Remove overlay
     overlay.remove();
@@ -338,6 +470,7 @@ export async function openEbookReader(item, token) {
       if (parsed.lineHeight) currentLineHeight = parsed.lineHeight;
       if (parsed.margin) currentMargin = parsed.margin;
       if (parsed.layout) currentLayout = parsed.layout;
+      if (parsed.flow) currentFlow = parsed.flow;
     }
   } catch (err) {
     console.error("Failed to load ereader settings:", err);
@@ -394,7 +527,6 @@ export async function openEbookReader(item, token) {
       // Create rendition container
       const viewer = document.createElement('div');
       viewer.id = 'epub-viewer';
-      viewer.className = 'w-full h-full max-w-4xl bg-white shadow-2xl rounded-md transition-colors duration-300 overflow-hidden';
       
       contentBody.innerHTML = '';
       contentBody.appendChild(viewer);
@@ -409,20 +541,17 @@ export async function openEbookReader(item, token) {
       // Initialize book & rendition
       const ebookUrl = resolvePath(`/api/items/${itemId}/ebook?token=${token}`);
       book = ePub(ebookUrl, { openAs: 'epub' });
-      rendition = book.renderTo(viewer, {
-        width: "100%",
-        height: "100%",
-        flow: "paginated",
-        manager: "default",
-        spread: currentLayout
-      });
 
       // Mouse wheel navigation handler
       let lastScrollTime = 0;
       const scrollThrottle = 350; // ms
       const handleWheel = (e) => {
-        // Prevent default scrolling to avoid vertical page shifting
-        e.preventDefault();
+        // Prevent default scrolling only in paginated mode
+        if (currentFlow === 'paginated') {
+          e.preventDefault();
+        } else {
+          return; // Let normal scrolling happen in scrolled flow
+        }
 
         const now = Date.now();
         if (now - lastScrollTime < scrollThrottle) return;
@@ -451,34 +580,6 @@ export async function openEbookReader(item, token) {
         }
       };
 
-      // Register content hook for click, keyup, scroll and font injection inside iframe
-      rendition.hooks.content.register((contents) => {
-        // Inject custom fonts
-        const linkDyslexic = contents.document.createElement('link');
-        linkDyslexic.rel = 'stylesheet';
-        linkDyslexic.href = 'https://cdn.jsdelivr.net/npm/open-dyslexic@1.0.3/open-dyslexic.css';
-        contents.document.head.appendChild(linkDyslexic);
-        
-        const linkInter = contents.document.createElement('link');
-        linkInter.rel = 'stylesheet';
-        linkInter.href = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap';
-        contents.document.head.appendChild(linkInter);
-
-        const linkMerriweather = contents.document.createElement('link');
-        linkMerriweather.rel = 'stylesheet';
-        linkMerriweather.href = 'https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&display=swap';
-        contents.document.head.appendChild(linkMerriweather);
-
-        contents.document.addEventListener("click", () => {
-          closeTOCDrawer();
-          const popover = document.getElementById('reader-settings-popover');
-          if (popover) popover.classList.add('hidden');
-        });
-        contents.document.addEventListener("keyup", keyListener);
-        contents.document.addEventListener("wheel", handleWheel, { passive: false });
-      });
-
-      // Style helper
       const getThemeRules = (theme, font, lineHeight, margin) => {
         let bg, fg;
         if (theme === 'light') {
@@ -487,6 +588,9 @@ export async function openEbookReader(item, token) {
         } else if (theme === 'sepia') {
           bg = '#f4ecd8';
           fg = '#5b4636';
+        } else if (theme === 'warm') {
+          bg = '#fbf0e3';
+          fg = '#5c4033';
         } else {
           bg = '#1a1a1a';
           fg = '#e0e0e0';
@@ -505,19 +609,162 @@ export async function openEbookReader(item, token) {
         };
       };
 
-      // Display book at saved location
-      await rendition.display(savedLocation || undefined);
+      const renderExistingHighlights = () => {
+        if (!rendition) return;
+        const curUser = window.currentUser || {};
+        const bms = (curUser.bookmarks || []).filter(b => b.libraryItemId === itemId && b.cfi);
+        
+        // Remove existing annotations first to avoid duplicates
+        bms.forEach(bm => {
+          try {
+            let hlClass = "epubjs-hl-yellow";
+            if (bm.color === '#8bc34a') hlClass = "epubjs-hl-green";
+            else if (bm.color === '#f48fb1') hlClass = "epubjs-hl-pink";
+            else if (bm.color === '#29b6f6') hlClass = "epubjs-hl-blue";
+            rendition.annotations.remove(bm.cfi, "highlight");
+          } catch(e) {}
+        });
+
+        // Add back
+        bms.forEach(bm => {
+          try {
+            let hlClass = "epubjs-hl-yellow";
+            if (bm.color === '#8bc34a') hlClass = "epubjs-hl-green";
+            else if (bm.color === '#f48fb1') hlClass = "epubjs-hl-pink";
+            else if (bm.color === '#29b6f6') hlClass = "epubjs-hl-blue";
+            
+            rendition.annotations.add("highlight", bm.cfi, {}, () => {}, hlClass);
+          } catch (e) {
+            console.warn("Failed to render highlight:", bm.cfi, e);
+          }
+        });
+      };
+
+      const initRendition = async (targetLocation) => {
+        if (rendition) {
+          try {
+            rendition.destroy();
+          } catch(e) {}
+        }
+        
+        if (currentFlow === 'scrolled-doc') {
+          viewer.className = 'w-full h-full max-w-4xl bg-white shadow-2xl rounded-md transition-colors duration-300 overflow-y-auto';
+        } else {
+          viewer.className = 'w-full h-full max-w-4xl bg-white shadow-2xl rounded-md transition-colors duration-300 overflow-hidden';
+        }
+        
+        viewer.innerHTML = '';
+
+        rendition = book.renderTo(viewer, {
+          width: "100%",
+          height: "100%",
+          flow: currentFlow,
+          manager: currentFlow === 'scrolled-doc' ? 'continuous' : 'default',
+          spread: currentFlow === 'scrolled-doc' ? 'none' : currentLayout
+        });
+
+        // Register content hook for click, keyup, scroll and font injection inside iframe
+        rendition.hooks.content.register((contents) => {
+          // Inject custom fonts
+          const linkDyslexic = contents.document.createElement('link');
+          linkDyslexic.rel = 'stylesheet';
+          linkDyslexic.href = 'https://cdn.jsdelivr.net/npm/open-dyslexic@1.0.3/open-dyslexic.css';
+          contents.document.head.appendChild(linkDyslexic);
+          
+          const linkInter = contents.document.createElement('link');
+          linkInter.rel = 'stylesheet';
+          linkInter.href = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap';
+          contents.document.head.appendChild(linkInter);
+
+          const linkMerriweather = contents.document.createElement('link');
+          linkMerriweather.rel = 'stylesheet';
+          linkMerriweather.href = 'https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&display=swap';
+          contents.document.head.appendChild(linkMerriweather);
+
+          // Highlight Stylesheet inside iframe
+          const style = contents.document.createElement('style');
+          style.innerHTML = `
+            ::selection { background-color: rgba(255, 235, 59, 0.45) !important; }
+            .epubjs-hl-yellow { background-color: rgba(255, 235, 59, 0.45) !important; cursor: pointer; }
+            .epubjs-hl-green { background-color: rgba(139, 195, 74, 0.45) !important; cursor: pointer; }
+            .epubjs-hl-pink { background-color: rgba(244, 143, 177, 0.45) !important; cursor: pointer; }
+            .epubjs-hl-blue { background-color: rgba(41, 182, 246, 0.45) !important; cursor: pointer; }
+          `;
+          contents.document.head.appendChild(style);
+
+          contents.document.addEventListener("click", () => {
+            closeTOCDrawer();
+            const popover = document.getElementById('reader-settings-popover');
+            if (popover) popover.classList.add('hidden');
+          });
+          contents.document.addEventListener("keyup", keyListener);
+          contents.document.addEventListener("wheel", handleWheel, { passive: false });
+        });
+
+        // Relocated event
+        rendition.on("relocated", (location) => {
+          const cfi = location.start.cfi;
+          
+          let pct = currentProgress;
+          if (book.locations && book.locations.total > 0) {
+            pct = book.locations.percentageFromCfi(cfi);
+            currentProgress = pct;
+          }
+          
+          const progressPercentText = document.getElementById('reader-progress-percent');
+          const progressBarFill = document.getElementById('reader-progress-bar-fill');
+          const pctDisplay = Math.round(pct * 100);
+          
+          if (progressPercentText) progressPercentText.textContent = `Progress: ${pctDisplay}%`;
+          if (progressBarFill) progressBarFill.style.width = `${pctDisplay}%`;
+          
+          const pageInfo = document.getElementById('epub-page-info');
+          if (pageInfo) {
+            if (location.start.displayed && location.start.displayed.page && location.start.displayed.total) {
+              pageInfo.textContent = `Page ${location.start.displayed.page} of ${location.start.displayed.total}`;
+            } else {
+              pageInfo.textContent = '';
+            }
+          }
+          
+          queueSaveProgress(cfi, pct);
+          
+          // Render annotations/highlights
+          renderExistingHighlights();
+          
+          // Clear TTS sentences when relocation happens
+          if (isTtsPlaying) {
+            pauseTts();
+          }
+          ttsSentences = [];
+          currentSentenceIdx = 0;
+        });
+
+        // Selected event for highlight creation
+        rendition.on("selected", (cfiRange, contents) => {
+          const selection = contents.window.getSelection();
+          const text = selection.toString().trim();
+          if (!text) return;
+          showHighlightModal(cfiRange, text);
+        });
+
+        await rendition.display(targetLocation || undefined);
+        applyTypography();
+      };
 
       const applyTypography = () => {
         if (!rendition) return;
         
         rendition.themes.register("light", getThemeRules("light", currentFont, currentLineHeight, currentMargin));
         rendition.themes.register("sepia", getThemeRules("sepia", currentFont, currentLineHeight, currentMargin));
+        rendition.themes.register("warm", getThemeRules("warm", currentFont, currentLineHeight, currentMargin));
         rendition.themes.register("dark", getThemeRules("dark", currentFont, currentLineHeight, currentMargin));
         
         rendition.themes.select(currentTheme);
         
-        rendition.spread(currentLayout);
+        if (currentFlow === 'paginated') {
+          rendition.spread(currentLayout);
+        }
         rendition.resize();
         
         updateSettingsUIActiveStates();
@@ -545,18 +792,45 @@ export async function openEbookReader(item, token) {
             btn.className = `reader-margin-btn text-xs py-1 text-center rounded transition-colors ${inactiveBtnClass}`;
           }
         });
+
+        const flowPaginatedBtn = document.getElementById('reader-flow-paginated-btn');
+        const flowScrolledBtn = document.getElementById('reader-flow-scrolled-btn');
+        if (flowPaginatedBtn && flowScrolledBtn) {
+          if (currentFlow === 'paginated') {
+            flowPaginatedBtn.className = `text-xs py-1 text-center rounded transition-colors ${activeBtnClass}`;
+            flowScrolledBtn.className = `text-xs py-1 text-center rounded transition-colors ${inactiveBtnClass}`;
+          } else {
+            flowPaginatedBtn.className = `text-xs py-1 text-center rounded transition-colors ${inactiveBtnClass}`;
+            flowScrolledBtn.className = `text-xs py-1 text-center rounded transition-colors ${activeBtnClass}`;
+          }
+        }
         
         const layoutSingleBtn = document.getElementById('reader-layout-single-btn');
         const layoutSpreadBtn = document.getElementById('reader-layout-spread-btn');
-        if (layoutSingleBtn && layoutSpreadBtn) {
-          if (currentLayout === 'none') {
-            layoutSingleBtn.className = `text-xs py-1 text-center rounded transition-colors ${activeBtnClass}`;
-            layoutSpreadBtn.className = `text-xs py-1 text-center rounded transition-colors ${inactiveBtnClass}`;
-          } else {
-            layoutSingleBtn.className = `text-xs py-1 text-center rounded transition-colors ${inactiveBtnClass}`;
-            layoutSpreadBtn.className = `text-xs py-1 text-center rounded transition-colors ${activeBtnClass}`;
+        const layoutSection = document.getElementById('reader-page-layout-section');
+        
+        if (currentFlow === 'scrolled-doc') {
+          if (layoutSection) layoutSection.classList.add('hidden');
+        } else {
+          if (layoutSection) layoutSection.classList.remove('hidden');
+          if (layoutSingleBtn && layoutSpreadBtn) {
+            if (currentLayout === 'none') {
+              layoutSingleBtn.className = `text-xs py-1 text-center rounded transition-colors ${activeBtnClass}`;
+              layoutSpreadBtn.className = `text-xs py-1 text-center rounded transition-colors ${inactiveBtnClass}`;
+            } else {
+              layoutSingleBtn.className = `text-xs py-1 text-center rounded transition-colors ${inactiveBtnClass}`;
+              layoutSpreadBtn.className = `text-xs py-1 text-center rounded transition-colors ${activeBtnClass}`;
+            }
           }
         }
+      };
+
+      const changeFlowOrLayout = async (newFlow, newLayout) => {
+        const currentCfi = rendition ? rendition.location.start.cfi : (savedLocation || undefined);
+        currentFlow = newFlow;
+        currentLayout = newLayout;
+        saveSettings();
+        await initRendition(currentCfi);
       };
 
       // Throttled progress save
@@ -574,38 +848,9 @@ export async function openEbookReader(item, token) {
         }, 3000);
       };
 
-      // Handle relocated event
-      rendition.on("relocated", (location) => {
-        const cfi = location.start.cfi;
-        
-        let pct = currentProgress;
-        if (book.locations && book.locations.total > 0) {
-          pct = book.locations.percentageFromCfi(cfi);
-          currentProgress = pct;
-        }
-        
-        const progressPercentText = document.getElementById('reader-progress-percent');
-        const progressBarFill = document.getElementById('reader-progress-bar-fill');
-        const pctDisplay = Math.round(pct * 100);
-        
-        if (progressPercentText) progressPercentText.textContent = `Progress: ${pctDisplay}%`;
-        if (progressBarFill) progressBarFill.style.width = `${pctDisplay}%`;
-        
-        const pageInfo = document.getElementById('epub-page-info');
-        if (pageInfo) {
-          if (location.start.displayed && location.start.displayed.page && location.start.displayed.total) {
-            pageInfo.textContent = `Page ${location.start.displayed.page} of ${location.start.displayed.total}`;
-          } else {
-            pageInfo.textContent = '';
-          }
-        }
-        
-        queueSaveProgress(cfi, pct);
-      });
+      // First initial rendition load
+      await initRendition(savedLocation || undefined);
 
-      // Apply initial font size and theme settings
-      rendition.themes.fontSize(`${currentFontSize}%`);
-      
       const applyTheme = (theme) => {
         currentTheme = theme;
         saveSettings();
@@ -625,6 +870,12 @@ export async function openEbookReader(item, token) {
             vContainer.style.color = '#5b4636';
           }
           if (cBody) cBody.style.backgroundColor = '#e9dfc4';
+        } else if (theme === 'warm') {
+          if (vContainer) {
+            vContainer.style.backgroundColor = '#fbf0e3';
+            vContainer.style.color = '#5c4033';
+          }
+          if (cBody) cBody.style.backgroundColor = '#eddccb';
         } else {
           // dark
           if (vContainer) {
@@ -637,6 +888,7 @@ export async function openEbookReader(item, token) {
         if (rendition) {
           rendition.themes.register("light", getThemeRules("light", currentFont, currentLineHeight, currentMargin));
           rendition.themes.register("sepia", getThemeRules("sepia", currentFont, currentLineHeight, currentMargin));
+          rendition.themes.register("warm", getThemeRules("warm", currentFont, currentLineHeight, currentMargin));
           rendition.themes.register("dark", getThemeRules("dark", currentFont, currentLineHeight, currentMargin));
           rendition.themes.select(theme);
         }
@@ -706,19 +958,31 @@ export async function openEbookReader(item, token) {
         };
       });
 
+      // Flow Layout choice Button click events
+      const flowPaginatedBtn = document.getElementById('reader-flow-paginated-btn');
+      if (flowPaginatedBtn) {
+        flowPaginatedBtn.onclick = () => {
+          changeFlowOrLayout('paginated', currentLayout);
+        };
+      }
+      const flowScrolledBtn = document.getElementById('reader-flow-scrolled-btn');
+      if (flowScrolledBtn) {
+        flowScrolledBtn.onclick = () => {
+          changeFlowOrLayout('scrolled-doc', 'none');
+        };
+      }
+
       // Layout Button click events
       const layoutSingleBtn = document.getElementById('reader-layout-single-btn');
       if (layoutSingleBtn) {
         layoutSingleBtn.onclick = () => {
-          currentLayout = 'none';
-          applyTypography();
+          changeFlowOrLayout('paginated', 'none');
         };
       }
       const layoutSpreadBtn = document.getElementById('reader-layout-spread-btn');
       if (layoutSpreadBtn) {
         layoutSpreadBtn.onclick = () => {
-          currentLayout = 'auto';
-          applyTypography();
+          changeFlowOrLayout('paginated', 'auto');
         };
       }
 
@@ -738,14 +1002,426 @@ export async function openEbookReader(item, token) {
         }
       };
 
+      // Highlight/Bookmark logic
+      const showHighlightModal = (cfiRange, text) => {
+        selectedCfiRange = cfiRange;
+        selectedTextStr = text;
+        
+        const modal = document.getElementById('reader-highlight-modal');
+        const textBox = document.getElementById('highlight-selected-text');
+        const noteInput = document.getElementById('highlight-note-input');
+        
+        if (textBox) textBox.textContent = text;
+        if (noteInput) noteInput.value = "";
+        
+        document.querySelectorAll('.hl-color-btn').forEach(btn => {
+          if (btn.getAttribute('data-color') === activeColor) {
+            btn.classList.add('ring-2', 'ring-accent', 'ring-offset-2', 'ring-offset-primary');
+          } else {
+            btn.classList.remove('ring-2', 'ring-accent', 'ring-offset-2', 'ring-offset-primary');
+          }
+        });
+
+        if (modal) modal.classList.remove('hidden');
+      };
+
+      document.querySelectorAll('.hl-color-btn').forEach(btn => {
+        btn.onclick = (e) => {
+          activeColor = e.target.getAttribute('data-color');
+          document.querySelectorAll('.hl-color-btn').forEach(b => {
+            if (b.getAttribute('data-color') === activeColor) {
+              b.classList.add('ring-2', 'ring-accent', 'ring-offset-2', 'ring-offset-primary');
+            } else {
+              b.classList.remove('ring-2', 'ring-accent', 'ring-offset-2', 'ring-offset-primary');
+            }
+          });
+        };
+      });
+
+      document.getElementById('highlight-save-btn').onclick = async () => {
+        const noteInput = document.getElementById('highlight-note-input');
+        const noteText = noteInput ? noteInput.value.trim() : "";
+        
+        try {
+          const resp = await request('POST', `/api/me/item/${itemId}/bookmark`, {
+            time: Date.now() / 1000,
+            title: selectedTextStr,
+            note: noteText,
+            color: activeColor,
+            cfi: selectedCfiRange
+          });
+          
+          document.getElementById('reader-highlight-modal').classList.add('hidden');
+          
+          // Deselect text in viewer iframe
+          if (rendition) {
+            try {
+              const contents = rendition.getContents();
+              if (contents && contents.length > 0) {
+                contents[0].window.getSelection().removeAllRanges();
+              }
+            } catch (e) {}
+          }
+
+          // Trigger rendering highlights and refresh side drawer
+          renderExistingHighlights();
+          await refreshBookmarksTab();
+          
+        } catch (err) {
+          console.error("Failed to save highlight:", err);
+          alert("Failed to save highlight");
+        }
+      };
+
+      document.getElementById('highlight-cancel-btn').onclick = () => {
+        document.getElementById('reader-highlight-modal').classList.add('hidden');
+        if (rendition) {
+          try {
+            const contents = rendition.getContents();
+            if (contents && contents.length > 0) {
+              contents[0].window.getSelection().removeAllRanges();
+            }
+          } catch (e) {}
+        }
+      };
+
+      // Drawer Tab Swapping
+      const tabChapters = document.getElementById('drawer-tab-chapters');
+      const tabBookmarks = document.getElementById('drawer-tab-bookmarks');
+      const listChapters = document.getElementById('reader-toc-list');
+      const listBookmarks = document.getElementById('reader-bookmarks-list');
+
+      if (tabChapters && tabBookmarks && listChapters && listBookmarks) {
+        tabChapters.onclick = () => {
+          tabChapters.className = `flex-1 text-center py-1 text-xs rounded transition-colors ${activeBtnClass}`;
+          tabBookmarks.className = `flex-1 text-center py-1 text-xs rounded transition-colors ${inactiveBtnClass}`;
+          listChapters.classList.remove('hidden');
+          listBookmarks.classList.add('hidden');
+        };
+        tabBookmarks.onclick = () => {
+          tabBookmarks.className = `flex-1 text-center py-1 text-xs rounded transition-colors ${activeBtnClass}`;
+          tabChapters.className = `flex-1 text-center py-1 text-xs rounded transition-colors ${inactiveBtnClass}`;
+          listChapters.classList.add('hidden');
+          listBookmarks.classList.remove('hidden');
+          refreshBookmarksTab();
+        };
+      }
+
+      // TTS implementation
+      const ttsBtn = document.getElementById('reader-tts-btn');
+      const ttsPopover = document.getElementById('reader-tts-popover');
+      
+      const populateVoices = () => {
+        const select = document.getElementById('tts-voice-select');
+        if (!select) return;
+        
+        const voices = window.speechSynthesis.getVoices();
+        select.innerHTML = '';
+        
+        voices.forEach(voice => {
+          const opt = document.createElement('option');
+          opt.value = voice.name;
+          opt.textContent = `${voice.name} (${voice.lang})`;
+          if (voice.default || voice.lang.startsWith('en')) {
+            opt.selected = true;
+            if (!selectedVoiceName) selectedVoiceName = voice.name;
+          }
+          select.appendChild(opt);
+        });
+      };
+
+      if (ttsBtn && ttsPopover) {
+        ttsBtn.onclick = (e) => {
+          e.stopPropagation();
+          ttsPopover.classList.toggle('hidden');
+          if (!ttsPopover.classList.contains('hidden')) {
+            populateVoices();
+          }
+        };
+      }
+
+      const closeTtsBtn = document.getElementById('close-tts-btn');
+      if (closeTtsBtn) {
+        closeTtsBtn.onclick = () => {
+          ttsPopover.classList.add('hidden');
+        };
+      }
+
+      const clickOutsideTts = (e) => {
+        if (ttsPopover && !ttsPopover.contains(e.target) && e.target !== ttsBtn && !ttsBtn.contains(e.target)) {
+          ttsPopover.classList.add('hidden');
+        }
+      };
+      document.addEventListener('click', clickOutsideTts);
+
+      if ('speechSynthesis' in window) {
+        if (window.speechSynthesis.onvoiceschanged !== undefined) {
+          window.speechSynthesis.onvoiceschanged = populateVoices;
+        }
+        populateVoices();
+      }
+
+      const getCleanSentences = () => {
+        if (!rendition) return [];
+        const contents = rendition.getContents();
+        if (!contents || contents.length === 0) return [];
+        const bodyText = contents[0].document.body.innerText || "";
+        const raw = bodyText.split(/(?<=[.!?])\s+/);
+        return raw.map(s => s.trim()).filter(s => s.length > 2);
+      };
+
+      const speakCurrentSentence = () => {
+        if (!('speechSynthesis' in window)) {
+          alert("Text-to-speech is not supported in this browser.");
+          return;
+        }
+        
+        window.speechSynthesis.cancel();
+        
+        if (currentSentenceIdx < 0 || currentSentenceIdx >= ttsSentences.length) {
+          if (rendition) {
+            rendition.next().then(() => {
+              setTimeout(() => {
+                ttsSentences = getCleanSentences();
+                currentSentenceIdx = 0;
+                if (isTtsPlaying) {
+                  speakCurrentSentence();
+                }
+              }, 600);
+            });
+          }
+          return;
+        }
+
+        const sentence = ttsSentences[currentSentenceIdx];
+        ttsUtterance = new SpeechSynthesisUtterance(sentence);
+        ttsUtterance.rate = ttsRate;
+        
+        if (selectedVoiceName) {
+          const voices = window.speechSynthesis.getVoices();
+          const voice = voices.find(v => v.name === selectedVoiceName);
+          if (voice) ttsUtterance.voice = voice;
+        }
+
+        ttsUtterance.onend = () => {
+          if (isTtsPlaying) {
+            currentSentenceIdx++;
+            speakCurrentSentence();
+          }
+        };
+
+        ttsUtterance.onerror = (e) => {
+          console.error("SpeechSynthesis error:", e);
+          isTtsPlaying = false;
+          updateTtsUI();
+        };
+
+        window.speechSynthesis.speak(ttsUtterance);
+      };
+
+      const updateTtsUI = () => {
+        const playIcon = document.getElementById('tts-play-icon');
+        if (playIcon) {
+          playIcon.textContent = isTtsPlaying ? 'pause' : 'play_arrow';
+        }
+      };
+
+      const playTts = () => {
+        if (ttsSentences.length === 0) {
+          ttsSentences = getCleanSentences();
+          currentSentenceIdx = 0;
+        }
+        
+        if (ttsSentences.length === 0) {
+          alert("No readable text found on this page.");
+          return;
+        }
+
+        isTtsPlaying = true;
+        updateTtsUI();
+        speakCurrentSentence();
+      };
+
+      const pauseTts = () => {
+        isTtsPlaying = false;
+        updateTtsUI();
+        window.speechSynthesis.cancel();
+      };
+
+      const stopTts = () => {
+        isTtsPlaying = false;
+        updateTtsUI();
+        window.speechSynthesis.cancel();
+        ttsSentences = [];
+        currentSentenceIdx = 0;
+      };
+
+      const speedSlider = document.getElementById('tts-speed-slider');
+      const speedVal = document.getElementById('tts-speed-val');
+      if (speedSlider && speedVal) {
+        speedSlider.oninput = (e) => {
+          ttsRate = parseFloat(e.target.value);
+          speedVal.textContent = `${ttsRate.toFixed(1)}x`;
+          if (isTtsPlaying) {
+            speakCurrentSentence();
+          }
+        };
+      }
+
+      const voiceSelect = document.getElementById('tts-voice-select');
+      if (voiceSelect) {
+        voiceSelect.onchange = (e) => {
+          selectedVoiceName = e.target.value;
+          if (isTtsPlaying) {
+            speakCurrentSentence();
+          }
+        };
+      }
+
+      const playBtn = document.getElementById('tts-play-btn');
+      if (playBtn) {
+        playBtn.onclick = () => {
+          if (isTtsPlaying) {
+            pauseTts();
+          } else {
+            playTts();
+          }
+        };
+      }
+
+      const stopBtn = document.getElementById('tts-stop-btn');
+      if (stopBtn) {
+        stopBtn.onclick = () => {
+          stopTts();
+        };
+      }
+
+      const prevSentenceBtn = document.getElementById('tts-prev-sentence-btn');
+      if (prevSentenceBtn) {
+        prevSentenceBtn.onclick = () => {
+          if (currentSentenceIdx > 0) {
+            currentSentenceIdx--;
+            if (isTtsPlaying) speakCurrentSentence();
+          }
+        };
+      }
+      const nextSentenceBtn = document.getElementById('tts-next-sentence-btn');
+      if (nextSentenceBtn) {
+        nextSentenceBtn.onclick = () => {
+          if (currentSentenceIdx < ttsSentences.length - 1) {
+            currentSentenceIdx++;
+            if (isTtsPlaying) speakCurrentSentence();
+          }
+        };
+      }
+
       // Event listeners
       document.addEventListener('keyup', keyListener);
       window.addEventListener('resize', handleResize);
       document.addEventListener('click', clickOutsideTOC);
-      viewer.addEventListener('wheel', handleWheel, { passive: false });
 
-      // Apply initial typography rules (like custom font family/margins)
-      applyTypography();
+      // Bookmarks view refresh helper
+      const refreshBookmarksTab = async () => {
+        try {
+          window.currentUser = await request('GET', '/api/me');
+        } catch (e) {
+          console.warn("Failed to sync bookmarks:", e);
+        }
+        
+        const curUser = window.currentUser || {};
+        const bms = (curUser.bookmarks || []).filter(b => b.libraryItemId === itemId);
+        
+        bms.sort((a, b) => b.createdAt - a.createdAt);
+        
+        const container = document.getElementById('reader-bookmarks-list');
+        if (!container) return;
+        
+        const searchVal = document.getElementById('bookmarks-search-input')?.value || "";
+        
+        const filteredBms = bms.filter(b => {
+          if (!searchVal) return true;
+          const q = searchVal.toLowerCase();
+          return (b.title || "").toLowerCase().includes(q) || (b.note || "").toLowerCase().includes(q);
+        });
+
+        container.innerHTML = `
+          <div class="px-2 pb-2">
+            <input id="bookmarks-search-input" type="text" placeholder="Search highlights & notes..." class="w-full bg-black-600 border border-black-400 text-white rounded text-xs px-2 py-1.5 focus:outline-none focus:border-accent" value="${escapeHtml(searchVal)}" />
+          </div>
+          <div class="space-y-2 p-1 max-h-[calc(100vh-12rem)] overflow-y-auto no-scroll" id="bookmarks-items-container">
+            ${filteredBms.length === 0 ? `
+              <p class="text-xs text-black-100 italic text-center py-4">No highlights or notes found.</p>
+            ` : filteredBms.map((b, idx) => {
+              const isHighlight = !!b.cfi;
+              const hlColor = b.color || '#ffeb3b';
+              const borderStyle = isHighlight ? `border-left: 4px solid ${hlColor}; padding-left: 8px;` : '';
+              
+              return `
+                <div class="bg-black-600/50 hover:bg-black-500/50 border border-black-400/30 rounded p-2.5 transition-colors relative group cursor-pointer" data-idx="${idx}" style="${borderStyle}">
+                  <div class="flex justify-between items-start space-x-2">
+                    <div class="flex-grow min-w-0 pr-4">
+                      ${b.title ? `<p class="text-xs font-semibold text-white/90 line-clamp-3 italic">${escapeHtml(b.title)}</p>` : ''}
+                      ${b.note ? `<p class="text-xs text-black-50 mt-1.5">${escapeHtml(b.note)}</p>` : ''}
+                      <span class="text-[10px] text-black-100 block mt-2">${new Date(b.createdAt || b.time * 1000).toLocaleString()}</span>
+                    </div>
+                    <button class="delete-bookmark-btn text-black-100 hover:text-error transition-colors p-1 rounded hover:bg-black-400 focus:outline-none" data-time="${b.time}" title="Delete highlight">
+                      <span class="material-symbols text-sm">delete</span>
+                    </button>
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        `;
+
+        const searchInput = document.getElementById('bookmarks-search-input');
+        if (searchInput) {
+          searchInput.oninput = () => {
+            refreshBookmarksTab();
+          };
+        }
+
+        container.querySelectorAll('[data-idx]').forEach(el => {
+          el.onclick = (e) => {
+            if (e.target.closest('.delete-bookmark-btn')) return;
+            const idx = parseInt(el.getAttribute('data-idx'));
+            const bm = filteredBms[idx];
+            if (bm && rendition) {
+              if (bm.cfi) {
+                rendition.display(bm.cfi);
+              }
+              closeTOCDrawer();
+            }
+          };
+        });
+
+        container.querySelectorAll('.delete-bookmark-btn').forEach(btn => {
+          btn.onclick = async (e) => {
+            e.stopPropagation();
+            const timeVal = parseFloat(btn.getAttribute('data-time'));
+            
+            if (confirm("Are you sure you want to delete this highlight?")) {
+              try {
+                await request('DELETE', `/api/me/item/${itemId}/bookmark/${timeVal}`);
+                
+                const bm = bms.find(b => b.time === timeVal);
+                if (bm && bm.cfi && rendition) {
+                  let hlClass = "epubjs-hl-yellow";
+                  if (bm.color === '#8bc34a') hlClass = "epubjs-hl-green";
+                  else if (bm.color === '#f48fb1') hlClass = "epubjs-hl-pink";
+                  else if (bm.color === '#29b6f6') hlClass = "epubjs-hl-blue";
+                  rendition.annotations.remove(bm.cfi, hlClass);
+                }
+
+                await refreshBookmarksTab();
+              } catch (err) {
+                console.error("Failed to delete bookmark:", err);
+                alert("Failed to delete bookmark");
+              }
+            }
+          };
+        });
+      };
 
       // Navigation arrows click events
       document.getElementById('epub-prev-page-btn').onclick = () => rendition.prev();
