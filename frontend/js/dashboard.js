@@ -36,17 +36,9 @@ export async function loadDashboard(libraryId, filterBy = '', filterLabel = '') 
     const sortSelect = document.getElementById('sort-select');
     const sortOrderToggle = document.getElementById('sort-order-toggle-btn');
 
-    if (filterBy && filterSelect) {
-      filterSelect.value = filterBy;
-    }
-
-    let activeFilter = filterBy || (filterSelect ? filterSelect.value : '');
-    let activeSort = sortSelect ? sortSelect.value : 'media.metadata.title';
-    let activeSortDesc = false;
-    if (sortOrderToggle) {
-      const icon = document.getElementById('sort-order-icon');
-      activeSortDesc = icon && icon.textContent === 'arrow_downward';
-    }
+    let activeFilter = filterBy || localStorage.getItem('library-filterBy') || '';
+    let activeSort = localStorage.getItem('library-sortBy') || 'media.metadata.title';
+    let activeSortDesc = localStorage.getItem('library-sortDesc') === 'true';
 
     // 3. Fetch all items (up to 100 if filtered, 40 if not)
     const limit = activeFilter ? 100 : 40;
@@ -107,7 +99,8 @@ export async function loadDashboard(libraryId, filterBy = '', filterLabel = '') 
       
       allItemsPayload.results.forEach(item => {
         const card = createCard(item, false, libraryId);
-        card.className = 'relative cursor-pointer select-none box-shadow-book rounded-sm overflow-hidden flex-shrink-0 transition-transform hover:scale-105 group w-full';
+        card.classList.remove('w-28e', 'h-40e', 'mr-8e');
+        card.classList.add('w-full');
         card.style.width = 'var(--bookshelf-card-width)';
         card.style.height = 'var(--bookshelf-card-height)';
         gridContainer.appendChild(card);
@@ -153,7 +146,7 @@ export async function loadDashboard(libraryId, filterBy = '', filterLabel = '') 
       // Render "All Books" / "All Podcasts" shelf
       if (allItemsPayload.results && allItemsPayload.results.length > 0) {
         const allLabel = filterLabel || (lib.mediaType === 'podcast' ? 'All Podcasts' : 'All Books');
-        const section = createShelfSection('all-books', allLabel, allItemsPayload.results, libraryId);
+        const section = createShelfGridSection('all-books', allLabel, allItemsPayload.results, libraryId);
         bookshelfContainer.appendChild(section);
       }
     }
@@ -202,6 +195,34 @@ function createShelfSection(shelfId, label, entities, libraryId) {
   `;
   shelfWrapper.appendChild(plaqueDiv);
   
+  return shelfWrapper;
+}
+
+function createShelfGridSection(shelfId, label, entities, libraryId) {
+  const shelfWrapper = document.createElement('div');
+  shelfWrapper.className = 'relative w-full flex flex-col mt-4';
+  
+  const plaqueDiv = document.createElement('div');
+  plaqueDiv.className = 'relative h-12 mb-2';
+  plaqueDiv.innerHTML = `
+    <div class="relative text-center categoryPlacard z-30 top-0 w-44e rounded-md mx-auto">
+      <div class="shinyBlack flex items-center justify-center border rounded px-2 py-1">
+        <h3 class="text-[0.85em] font-semibold tracking-wider font-mono">${label.toUpperCase()}</h3>
+      </div>
+    </div>
+  `;
+  shelfWrapper.appendChild(plaqueDiv);
+
+  const gridDiv = document.createElement('div');
+  gridDiv.className = 'library-shelf-grid w-full z-10';
+  
+  entities.forEach(item => {
+    const card = createCard(item, false, libraryId);
+    card.classList.remove('w-28e', 'h-40e', 'mr-8e');
+    gridDiv.appendChild(card);
+  });
+  
+  shelfWrapper.appendChild(gridDiv);
   return shelfWrapper;
 }
 

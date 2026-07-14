@@ -86,6 +86,12 @@ export function onEvent(event, callback) {
   eventListeners[event].push(callback);
 }
 
+export function offEvent(event, callback) {
+  if (eventListeners[event]) {
+    eventListeners[event] = eventListeners[event].filter(cb => cb !== callback);
+  }
+}
+
 function triggerEvent(event, data) {
   const listeners = eventListeners[event];
   if (listeners) {

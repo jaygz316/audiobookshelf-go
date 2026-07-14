@@ -428,6 +428,30 @@ func getFilterWhere(filterBy string, mediaType string, tableAlias string, liAlia
 		}
 	case "missing":
 		return fmt.Sprintf("(%s.isMissing = 1 OR %s.isInvalid = 1)", liAlias, liAlias), nil
+	case "decades":
+		if mediaType == "book" {
+			var startYear int
+			_, err := fmt.Sscanf(value, "%d", &startYear)
+			if err == nil {
+				return fmt.Sprintf("CAST(%s.publishedYear AS INTEGER) >= ? AND CAST(%s.publishedYear AS INTEGER) < ?", tableAlias, tableAlias), []interface{}{startYear, startYear + 10}
+			}
+		}
+	case "years":
+		if mediaType == "book" {
+			return fmt.Sprintf("%s.publishedYear = ?", tableAlias), []interface{}{value}
+		}
+	case "duration":
+		if value == "under-1h" {
+			return fmt.Sprintf("%s.duration < 3600", tableAlias), nil
+		} else if value == "1h-5h" {
+			return fmt.Sprintf("%s.duration >= 3600 AND %s.duration < 18000", tableAlias, tableAlias), nil
+		} else if value == "5h-10h" {
+			return fmt.Sprintf("%s.duration >= 18000 AND %s.duration < 36000", tableAlias, tableAlias), nil
+		} else if value == "over-10h" {
+			return fmt.Sprintf("%s.duration >= 36000", tableAlias), nil
+		}
+	case "folder":
+		return fmt.Sprintf("%s.libraryFolderId = ?", liAlias), []interface{}{value}
 	}
 	return "", nil
 }

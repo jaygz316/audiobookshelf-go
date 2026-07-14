@@ -182,15 +182,15 @@ function createSeriesCard(series) {
     if (books.length === 1) {
       const ts = books[0].updatedAt || books[0].addedAt || Date.now();
       const coverUrl = resolvePath(`/api/items/${books[0].id}/cover?token=${token}&ts=${ts}`);
-      imagesHtml = `<img src="${coverUrl}" class="w-full h-full object-cover rounded-md shadow-md transition-transform duration-300 group-hover:scale-105" onerror="this.onerror=null; this.src='assets/images/logo.png'">`;
+      imagesHtml = `<img src="${coverUrl}" class="series-cover-front" onerror="this.onerror=null; this.src='assets/images/logo.png'">`;
     } else if (books.length === 2) {
       const ts0 = books[0].updatedAt || books[0].addedAt || Date.now();
       const ts1 = books[1].updatedAt || books[1].addedAt || Date.now();
       const cover0 = resolvePath(`/api/items/${books[0].id}/cover?token=${token}&ts=${ts0}`);
       const cover1 = resolvePath(`/api/items/${books[1].id}/cover?token=${token}&ts=${ts1}`);
       imagesHtml = `
-        <img src="${cover1}" class="absolute w-[90%] h-[90%] object-cover rounded-md shadow-md transform -translate-x-2 translate-y-1 rotate-[-6deg] z-10 opacity-80 transition-transform duration-300 group-hover:rotate-[-10deg] group-hover:-translate-x-3" onerror="this.onerror=null; this.src='assets/images/logo.png'">
-        <img src="${cover0}" class="absolute w-[92%] h-[92%] object-cover rounded-md shadow-lg z-20 transition-transform duration-300 group-hover:scale-105" onerror="this.onerror=null; this.src='assets/images/logo.png'">
+        <img src="${cover1}" class="series-cover-back-two" onerror="this.onerror=null; this.src='assets/images/logo.png'">
+        <img src="${cover0}" class="series-cover-front" onerror="this.onerror=null; this.src='assets/images/logo.png'">
       `;
     } else {
       const ts0 = books[0].updatedAt || books[0].addedAt || Date.now();
@@ -200,13 +200,13 @@ function createSeriesCard(series) {
       const cover1 = resolvePath(`/api/items/${books[1].id}/cover?token=${token}&ts=${ts1}`);
       const cover2 = resolvePath(`/api/items/${books[2].id}/cover?token=${token}&ts=${ts2}`);
       imagesHtml = `
-        <img src="${cover2}" class="absolute w-[82%] h-[82%] object-cover rounded-md shadow-sm transform -translate-x-4 translate-y-2 rotate-[-12deg] z-10 opacity-60 transition-transform duration-300 group-hover:rotate-[-16deg] group-hover:-translate-x-5" onerror="this.onerror=null; this.src='assets/images/logo.png'">
-        <img src="${cover1}" class="absolute w-[86%] h-[86%] object-cover rounded-md shadow-md transform translate-x-3 translate-y-1.5 rotate-[8deg] z-15 opacity-80 transition-transform duration-300 group-hover:rotate-[12deg] group-hover:translate-x-4" onerror="this.onerror=null; this.src='assets/images/logo.png'">
-        <img src="${cover0}" class="absolute w-[90%] h-[90%] object-cover rounded-md shadow-lg z-20 transition-transform duration-300 group-hover:scale-105" onerror="this.onerror=null; this.src='assets/images/logo.png'">
+        <img src="${cover2}" class="series-cover-back" onerror="this.onerror=null; this.src='assets/images/logo.png'">
+        <img src="${cover1}" class="series-cover-middle" onerror="this.onerror=null; this.src='assets/images/logo.png'">
+        <img src="${cover0}" class="series-cover-front" onerror="this.onerror=null; this.src='assets/images/logo.png'">
       `;
     }
     coversHtml = `
-      <div class="relative w-28 h-40 mb-3 flex items-center justify-center flex-shrink-0">
+      <div class="series-cover-stack">
         <div class="absolute -top-1.5 -right-1.5 bg-accent text-primary text-[10px] font-bold px-2 py-0.5 rounded-full z-30 shadow-md border border-accent/20">
           ${numBooks}
         </div>
@@ -215,7 +215,7 @@ function createSeriesCard(series) {
     `;
   } else {
     coversHtml = `
-      <div class="relative w-28 h-40 mb-3 flex items-center justify-center bg-black-400/30 rounded-md flex-shrink-0 text-black-100">
+      <div class="series-cover-stack bg-black-400/30 rounded-md text-black-100">
         <div class="absolute -top-1.5 -right-1.5 bg-accent text-primary text-[10px] font-bold px-2 py-0.5 rounded-full z-30 shadow-md border border-accent/20">
           ${numBooks}
         </div>

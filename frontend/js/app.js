@@ -423,6 +423,7 @@ function setupEventHandlers() {
         }
       };
       filterMenu.addEventListener('transitionend', handleTransitionEnd);
+      closeSubmenu();
     };
 
     filterBtn.onclick = (e) => {
@@ -436,6 +437,7 @@ function setupEventHandlers() {
         filterMenu.offsetHeight; // reflow
         filterMenu.classList.remove('scale-95', 'opacity-0');
         filterMenu.classList.add('scale-100', 'opacity-100');
+        renderFilterMenu();
       }
     };
     filterMenu.closeDropdown = closeFilter;
@@ -483,43 +485,342 @@ function setupEventHandlers() {
     const activeFilter = localStorage.getItem('library-filterBy') || '';
     const activeSort = localStorage.getItem('library-sortBy') || 'media.metadata.title';
 
-    // Update Filter UI elements
-    const filterLabels = {
-      "": "Filter: All",
-      "progress.not-started": "Unstarted",
-      "progress.in-progress": "In Progress",
-      "progress.finished": "Completed"
+    let cachedFilterData = null;
+    const submenu = document.getElementById('filter-submenu');
+    const submenuItems = document.getElementById('filter-submenu-items');
+    const searchContainer = document.getElementById('filter-search-container');
+    const searchInput = document.getElementById('filter-search-input');
+
+    let currentSubmenuCat = null;
+    let submenuItemsData = [];
+
+    const closeSubmenu = () => {
+      if (submenu) submenu.classList.add('hidden');
+      currentSubmenuCat = null;
     };
 
-    const updateFilterLabel = (val) => {
-      const labelEl = document.getElementById('filter-selected-label');
-      if (labelEl) labelEl.textContent = filterLabels[val] || 'Filter: All';
-      
-      filterMenu.querySelectorAll('.filter-option-btn').forEach(btn => {
-        const check = btn.querySelector('.check-icon');
-        if (btn.getAttribute('data-value') === val) {
-          check?.classList.remove('hidden');
-          btn.classList.add('text-accent', 'font-medium');
-        } else {
-          check?.classList.add('hidden');
-          btn.classList.remove('text-accent', 'font-medium');
+    const getDecodedSubVal = (s) => {
+      try {
+        return decodeURIComponent(escape(atob(s)));
+      } catch (e) {
+        try {
+          return decodeURIComponent(s);
+        } catch (err) {
+          return s;
         }
+      }
+    };
+
+    const getFriendlyFilterLabel = (val, filterData) => {
+      if (!val) return 'Filter: All';
+      const parts = val.split('.');
+      const category = parts[0];
+      const subVal = parts[1];
+
+      switch (category) {
+        case 'progress':
+          if (subVal === 'not-started') return 'Unstarted';
+          if (subVal === 'in-progress') return 'In Progress';
+          if (subVal === 'finished') return 'Completed';
+          break;
+        case 'authors':
+          if (filterData && filterData.authors) {
+            const auth = filterData.authors.find(a => a.id === subVal);
+            if (auth) return `Author: ${auth.name}`;
+          }
+          return 'Author';
+        case 'series':
+          if (subVal === 'no-series') return 'No Series';
+          if (filterData && filterData.series) {
+            const ser = filterData.series.find(s => s.id === subVal);
+            if (ser) return `Series: ${ser.name}`;
+          }
+          return 'Series';
+        case 'narrators':
+          return `Narrator: ${getDecodedSubVal(subVal)}`;
+        case 'genres':
+          return `Genre: ${getDecodedSubVal(subVal)}`;
+        case 'tags':
+          return `Tag: ${getDecodedSubVal(subVal)}`;
+        case 'publishers':
+          return `Publisher: ${getDecodedSubVal(subVal)}`;
+        case 'languages':
+          return `Language: ${getDecodedSubVal(subVal)}`;
+        case 'decades':
+          return `Decade: ${getDecodedSubVal(subVal)}s`;
+        case 'duration':
+          if (subVal === 'under-1h') return 'Duration: < 1h';
+          if (subVal === '1h-5h') return 'Duration: 1-5h';
+          if (subVal === '5h-10h') return 'Duration: 5-10h';
+          if (subVal === 'over-10h') return 'Duration: > 10h';
+          break;
+        case 'missing':
+          return 'Missing / Invalid';
+      }
+      return 'Filtered';
+    };
+
+    const updateFilterLabel = (val, filterData) => {
+      const labelEl = document.getElementById('filter-selected-label');
+      if (labelEl) labelEl.textContent = getFriendlyFilterLabel(val, filterData);
+    };
+
+    const renderSubmenuItems = (filterText = '') => {
+      if (!submenuItems) return;
+      const activeFilterVal = localStorage.getItem('library-filterBy') || '';
+      const filtered = submenuItemsData.filter(item => 
+        item.label.toLowerCase().includes(filterText.toLowerCase())
+      );
+
+      if (filtered.length === 0) {
+        submenuItems.innerHTML = `
+          <div class="px-3 py-2 text-xs text-black-200">No items found</div>
+        `;
+        return;
+      }
+
+      submenuItems.innerHTML = filtered.map(item => {
+        const isSelected = activeFilterVal === item.value;
+        return `
+          <button class="filter-submenu-option-btn w-full text-left px-3 py-1.5 text-xs text-black-50 hover:bg-black-500 hover:text-white flex items-center justify-between transition-colors focus:outline-none ${isSelected ? 'text-accent font-medium' : ''}" data-value="${item.value}">
+            <span class="truncate pr-2">${item.label}</span>
+            <span class="material-symbols text-[14px] check-icon ${isSelected ? '' : 'hidden'}">check</span>
+          </button>
+        `;
+      }).join('');
+
+      submenuItems.querySelectorAll('.filter-submenu-option-btn').forEach(btn => {
+        btn.onclick = (e) => {
+          e.stopPropagation();
+          const val = btn.getAttribute('data-value');
+          localStorage.setItem('library-filterBy', val);
+          updateFilterLabel(val, cachedFilterData);
+          closeFilter();
+          closeSubmenu();
+          const activeLibId = getActiveLibraryId();
+          if (activeLibId) loadDashboard(activeLibId);
+        };
       });
     };
 
-    updateFilterLabel(activeFilter);
+    const openSubmenu = (cat, data, btnEl) => {
+      if (!submenu || !submenuItems) return;
+      if (currentSubmenuCat === cat) return;
+      currentSubmenuCat = cat;
 
-    filterMenu.querySelectorAll('.filter-option-btn').forEach(btn => {
-      btn.onclick = (e) => {
-        e.stopPropagation();
-        const val = btn.getAttribute('data-value');
-        localStorage.setItem('library-filterBy', val);
-        updateFilterLabel(val);
-        closeFilter();
-        const activeLibId = getActiveLibraryId();
-        if (activeLibId) loadDashboard(activeLibId);
-      };
-    });
+      submenuItemsData = [];
+
+      switch (cat) {
+        case 'progress':
+          submenuItemsData = [
+            { label: 'Unstarted', value: 'progress.not-started' },
+            { label: 'In Progress', value: 'progress.in-progress' },
+            { label: 'Completed', value: 'progress.finished' }
+          ];
+          break;
+        case 'authors':
+          submenuItemsData = (data.authors || []).map(a => ({
+            label: a.name,
+            value: `authors.${a.id}`
+          }));
+          break;
+        case 'series':
+          submenuItemsData = [
+            { label: 'No Series', value: 'series.no-series' },
+            ...(data.series || []).map(s => ({
+              label: s.name,
+              value: `series.${s.id}`
+            }))
+          ];
+          break;
+        case 'narrators':
+          submenuItemsData = (data.narrators || []).map(n => ({
+            label: n,
+            value: `narrators.${btoa(unescape(encodeURIComponent(n)))}`
+          }));
+          break;
+        case 'genres':
+          submenuItemsData = (data.genres || []).map(g => ({
+            label: g,
+            value: `genres.${btoa(unescape(encodeURIComponent(g)))}`
+          }));
+          break;
+        case 'tags':
+          submenuItemsData = (data.tags || []).map(t => ({
+            label: t,
+            value: `tags.${btoa(unescape(encodeURIComponent(t)))}`
+          }));
+          break;
+        case 'publishers':
+          submenuItemsData = (data.publishers || []).map(p => ({
+            label: p,
+            value: `publishers.${btoa(unescape(encodeURIComponent(p)))}`
+          }));
+          break;
+        case 'languages':
+          submenuItemsData = (data.languages || []).map(l => ({
+            label: l,
+            value: `languages.${btoa(unescape(encodeURIComponent(l)))}`
+          }));
+          break;
+        case 'decades':
+          submenuItemsData = (data.publishedDecades || []).map(d => ({
+            label: `${d}s`,
+            value: `decades.${btoa(d)}`
+          }));
+          break;
+        case 'duration':
+          submenuItemsData = [
+            { label: 'Under 1 Hour', value: 'duration.under-1h' },
+            { label: '1 - 5 Hours', value: 'duration.1h-5h' },
+            { label: '5 - 10 Hours', value: 'duration.5h-10h' },
+            { label: 'Over 10 Hours', value: 'duration.over-10h' }
+          ];
+          break;
+        case 'missing':
+          submenuItemsData = [
+            { label: 'Missing / Invalid', value: 'missing' }
+          ];
+          break;
+      }
+
+      if (submenuItemsData.length > 6) {
+        if (searchContainer) searchContainer.classList.remove('hidden');
+        if (searchInput) {
+          searchInput.value = '';
+        }
+      } else {
+        if (searchContainer) searchContainer.classList.add('hidden');
+      }
+
+      renderSubmenuItems();
+
+      const rect = btnEl.getBoundingClientRect();
+      const parentRect = btnEl.offsetParent.getBoundingClientRect();
+      const relativeTop = rect.top - parentRect.top;
+      submenu.style.top = `${relativeTop}px`;
+
+      submenu.classList.remove('hidden');
+
+      if (submenuItemsData.length > 6 && searchInput) {
+        searchInput.focus();
+      }
+    };
+
+    const renderFilterMenu = async () => {
+      const activeLibId = getActiveLibraryId();
+      if (!activeLibId) return;
+
+      filterMenu.innerHTML = `
+        <div class="px-3 py-2 text-xs text-black-200 flex items-center justify-center space-x-1">
+          <svg class="animate-spin h-4 w-4 text-accent" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          <span>Loading...</span>
+        </div>
+      `;
+
+      try {
+        if (!cachedFilterData || cachedFilterData.libraryId !== activeLibId) {
+          const data = await request('GET', `/api/libraries/${activeLibId}/filterdata`);
+          data.libraryId = activeLibId;
+          cachedFilterData = data;
+        }
+
+        const data = cachedFilterData;
+        const currentActiveFilter = localStorage.getItem('library-filterBy') || '';
+
+        updateFilterLabel(currentActiveFilter, data);
+
+        let menuHtml = `
+          <button class="filter-option-btn w-full text-left px-3 py-1.5 text-xs text-black-50 hover:bg-black-500 hover:text-white flex items-center justify-between transition-colors focus:outline-none" data-value="">
+            <span>Clear Filter</span>
+            <span class="material-symbols text-[14px] check-icon ${!currentActiveFilter ? '' : 'hidden'}">check</span>
+          </button>
+          <div class="h-[1px] bg-black-400/40 my-1"></div>
+          <div class="px-3 py-1 text-[10px] font-bold text-black-300 uppercase tracking-wider">Filter By</div>
+        `;
+
+        const categories = [
+          { key: 'progress', label: 'Progress State' },
+          { key: 'authors', label: 'Author', count: data.authors?.length || 0 },
+          { key: 'series', label: 'Series', count: data.series?.length || 0 },
+          { key: 'narrators', label: 'Narrator', count: data.narrators?.length || 0 },
+          { key: 'genres', label: 'Genre', count: data.genres?.length || 0 },
+          { key: 'tags', label: 'Tag', count: data.tags?.length || 0 },
+          { key: 'publishers', label: 'Publisher', count: data.publishers?.length || 0 },
+          { key: 'languages', label: 'Language', count: data.languages?.length || 0 },
+          { key: 'decades', label: 'Decade', count: data.publishedDecades?.length || 0 },
+          { key: 'duration', label: 'Duration' },
+          { key: 'missing', label: 'Issues', count: data.numIssues || 0 }
+        ];
+
+        categories.forEach(cat => {
+          if (cat.count === 0 && cat.key !== 'progress' && cat.key !== 'duration' && cat.key !== 'missing') return;
+
+          const isActiveCat = currentActiveFilter && currentActiveFilter.startsWith(cat.key + '.');
+          const isMissingActive = cat.key === 'missing' && currentActiveFilter === 'missing';
+          const highlightClass = (isActiveCat || isMissingActive) ? 'text-accent font-medium' : '';
+
+          menuHtml += `
+            <button class="filter-cat-row-btn w-full text-left px-3 py-1.5 text-xs text-black-50 hover:bg-black-500 hover:text-white flex items-center justify-between transition-colors focus:outline-none ${highlightClass}" data-cat="${cat.key}">
+              <span>${cat.label}</span>
+              <span class="material-symbols text-[14px] text-black-200">chevron_right</span>
+            </button>
+          `;
+        });
+
+        filterMenu.innerHTML = menuHtml;
+
+        filterMenu.querySelectorAll('.filter-cat-row-btn').forEach(btn => {
+          const cat = btn.getAttribute('data-cat');
+          btn.onmouseenter = () => openSubmenu(cat, data, btn);
+          btn.onclick = (e) => {
+            e.stopPropagation();
+            openSubmenu(cat, data, btn);
+          };
+        });
+
+        const clearBtn = filterMenu.querySelector('.filter-option-btn');
+        if (clearBtn) {
+          clearBtn.onclick = (e) => {
+            e.stopPropagation();
+            localStorage.setItem('library-filterBy', '');
+            updateFilterLabel('', data);
+            closeFilter();
+            closeSubmenu();
+            const activeLibId = getActiveLibraryId();
+            if (activeLibId) loadDashboard(activeLibId);
+          };
+        }
+      } catch (err) {
+        console.error('Failed to load filter data:', err);
+        filterMenu.innerHTML = `
+          <div class="px-3 py-2 text-xs text-red-500">Failed to load filters</div>
+        `;
+      }
+    };
+
+    if (submenu) {
+      submenu.onclick = (e) => e.stopPropagation();
+    }
+    if (searchInput) {
+      searchInput.oninput = (e) => renderSubmenuItems(e.target.value);
+    }
+
+    const initialActiveLibId = getActiveLibraryId();
+    if (initialActiveLibId) {
+      request('GET', `/api/libraries/${initialActiveLibId}/filterdata`)
+        .then(data => {
+          data.libraryId = initialActiveLibId;
+          cachedFilterData = data;
+          updateFilterLabel(activeFilter, data);
+        })
+        .catch(err => console.error('Failed to load initial filter data:', err));
+    } else {
+      updateFilterLabel(activeFilter);
+    }
 
     // Update Sort UI elements
     const sortLabels = {
@@ -802,6 +1103,14 @@ function bootstrapApp(payload) {
 }
 
 function navigateTo(path, pushState = true) {
+  if (window.cleanupSettings) {
+    try {
+      window.cleanupSettings();
+    } catch (e) {
+      console.error(e);
+    }
+    window.cleanupSettings = null;
+  }
   const resolved = resolvePath(path);
   if (pushState) {
     window.history.pushState(null, '', resolved);

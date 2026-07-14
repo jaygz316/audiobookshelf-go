@@ -41,7 +41,7 @@ This document tracks the tasks and missing features of the `audiobookshelf-go` p
 
 ### 3. Library Sorting, Filtering & Presets
 - [ ] **Custom Search Presets**: Save and name custom combinations of filters/sort options as quick-access tabs on the main navigation.
-- [ ] **Comprehensive Grid Filters**: Dropdown selection filters for Publisher, Release Year, Narrator, Series, Progress State (unstarted, in-progress, completed), Duration (under 1h, 1-5h, etc.), and Folder Path.
+- [x] **Comprehensive Grid Filters**: Dropdown selection filters for Publisher, Release Year, Narrator, Series, Progress State (unstarted, in-progress, completed), Duration (under 1h, 1-5h, etc.), and Folder Path.
 - [ ] **Grid Layout Sizing & Bookshelf Customizer**:
   - [x] Bookshelf shelf size adjuster slider (`- 120 +`).
   - [x] Bookshelf style switcher (wooden shelf graphic vs. flat grid vs. detail list).
@@ -72,10 +72,10 @@ This document tracks the tasks and missing features of the `audiobookshelf-go` p
 - [ ] **API Keys Management Tab**: Create API keys with descriptions, view masked key strings, copy key, and revoke keys.
 
 ### 7. Backups, Notifications & Settings Tabs
-- [ ] **SMTP & Kindle Configuration**: SMTP server connection tester, and per-user Kindle email addresses manager.
-- [ ] **Notification Integrations Panel**: Form fields to configure Discord, Matrix, Gotify, Telegram, Slack, or Webhook notifications.
-- [ ] **Backup Operations UI**: Create scheduled backup crons, lists of backup ZIPs with Download, Restore, and Delete actions.
-- [ ] **Real-time Server Console / Log Stream**: Interactive terminal panel in administrative settings showing streaming log output via Socket.io.
+- [x] **SMTP & Kindle Configuration**: SMTP server connection tester, and per-user Kindle email addresses manager.
+- [x] **Notification Integrations Panel**: Form fields to configure Discord, Matrix, Gotify, Telegram, Slack, or Webhook notifications.
+- [x] **Backup Operations UI**: Create scheduled backup crons, lists of backup ZIPs with Download, Restore, and Delete actions.
+- [x] **Real-time Server Console / Log Stream**: Interactive terminal panel in administrative settings showing streaming log output via Socket.io.
 
 ### 8. Playlists & Public Sharing
 - [ ] **Drag-and-Drop Playlist Reordering**: Sort playlist tracks by dragging handle icons.
@@ -84,4 +84,4 @@ This document tracks the tasks and missing features of the `audiobookshelf-go` p
   - [ ] Password protection.
   - [ ] Maximum download limits.
   - [ ] Embeddable web player configuration.
-- [ ] **Smart Collection Rules Builder**: Multi-clause rules editor UI for nested dynamic logic (e.g., Tag = 'sci-fi' AND Author = 'Asimov').
+- [x] **Smart Collection Rules Builder**: Multi-clause rules editor UI for nested dynamic logic (e.g., Tag = 'sci-fi' AND Author = 'Asimov').
