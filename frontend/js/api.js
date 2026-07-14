@@ -4,8 +4,9 @@ export function getBasePath() {
   const path = window.location.pathname;
   const segments = path.split('/');
   let basePath = '';
+  const knownRoutes = ['playlists', 'collections', 'authors', 'series', 'narrators', 'stats', 'settings', 'item', 'playlist', 'collection', 'author', 'library', 'login', 'logout', 'init'];
   // If path is e.g. "/audiobookshelf/" or "/audiobookshelf/index.html", segments[1] is "audiobookshelf"
-  if (segments.length > 1 && segments[1] && !segments[1].includes('.') && segments[1] !== 'index.html' && segments[1] !== 's') {
+  if (segments.length > 1 && segments[1] && !segments[1].includes('.') && segments[1] !== 'index.html' && segments[1] !== 's' && !knownRoutes.includes(segments[1])) {
     basePath = '/' + segments[1];
   }
   return basePath;

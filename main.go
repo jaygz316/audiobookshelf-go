@@ -97,6 +97,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to initialize embedded frontend filesystem: %v", err)
 	}
+	handlers.SetSubFS(subFS)
 
 	subDocs, err := fs.Sub(docsFS, "docs")
 	if err == nil {
