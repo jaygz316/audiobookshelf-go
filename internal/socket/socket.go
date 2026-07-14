@@ -287,6 +287,9 @@ func validateToken(tokenStr string, tokenSecret string) (string, error) {
 	if err != nil || !token.Valid {
 		return "", fmt.Errorf("invalid token: %v", err)
 	}
+	if claims.Type == "refresh" {
+		return "", fmt.Errorf("invalid token type: refresh token not allowed")
+	}
 	return claims.UserID, nil
 }
 

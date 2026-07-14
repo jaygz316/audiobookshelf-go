@@ -128,6 +128,12 @@ func AuthMiddleware(db *sql.DB, tokenSecret string, next http.Handler) http.Hand
 			return
 		}
 
+		if claims.Type == "refresh" {
+			log.Warn("Unauthorized: Cannot use refresh token for standard API access", "method", r.Method, "path", r.URL.Path)
+			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
+			return
+		}
+
 		// Authenticate based on token type
 		var userSession *core.UserSession
 		var authErr error

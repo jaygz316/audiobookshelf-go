@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 
@@ -84,11 +85,32 @@ func handleUpdateMePassword(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		_, err = db.ExecContext(r.Context(), "UPDATE users SET pash = ?, updatedAt = ? WHERE id = ?", string(hashed), idb.TimeToDBStr(time.Now()), user.ID)
+		secret := getTokenSecret(db)
+		apiToken := jwt.NewWithClaims(jwt.SigningMethodHS256, &core.AuthClaims{
+			UserID:   user.ID,
+			Username: user.Username,
+			Type:     user.Type,
+			RegisteredClaims: jwt.RegisteredClaims{
+				Issuer: "audiobookshelf",
+			},
+		})
+		tokenStr, err := apiToken.SignedString([]byte(secret))
+		if err != nil {
+			log.Errorf("[Me] Failed to sign new token: %v", err)
+			http.Error(w, `{"error": "Failed to update password"}`, http.StatusInternalServerError)
+			return
+		}
+
+		_, err = db.ExecContext(r.Context(), "UPDATE users SET pash = ?, token = ?, updatedAt = ? WHERE id = ?", string(hashed), tokenStr, idb.TimeToDBStr(time.Now()), user.ID)
 		if err != nil {
 			log.Errorf("[Me] Password update DB error: %v", err)
 			http.Error(w, `{"error": "Internal Server Error"}`, http.StatusInternalServerError)
 			return
+		}
+
+		_, err = db.ExecContext(r.Context(), "DELETE FROM sessions WHERE userId = ?", user.ID)
+		if err != nil {
+			log.Errorf("[Me] Failed to clear user sessions: %v", err)
 		}
 
 		w.WriteHeader(http.StatusOK)
