@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"runtime"
 	"sync/atomic"
+
+	"audiobookshelf/internal/core"
 )
 
 var (
@@ -69,6 +71,19 @@ func MetricsMiddleware(next http.Handler) http.Handler {
 // handleMetrics serves a Prometheus-compatible metrics page.
 func handleMetrics(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if db != nil {
+			userVal := r.Context().Value(core.UserContextKey)
+			if userVal == nil {
+				http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
+				return
+			}
+			userSess, ok := userVal.(*core.UserSession)
+			if !ok || (userSess.Type != "root" && userSess.Type != "admin") {
+				http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
+				return
+			}
+		}
+
 		// Gather runtime memory/goroutine metrics
 		var m runtime.MemStats
 		runtime.ReadMemStats(&m)

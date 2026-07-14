@@ -883,7 +883,7 @@ func registerMiscRoutes(mux *http.ServeMux, cfg *core.Config, db *sql.DB, appRoo
 	mux.Handle(joinPath(cfg.RouterBasePath, "/opds/"), AuthMiddlewareWrapper(db, ServeOPDS(db)))
 
 	// Metrics route (Prometheus scraper endpoint)
-	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/metrics"), handleMetrics(db))
+	mux.Handle(joinPath(cfg.RouterBasePath, "/metrics"), AuthMiddlewareWrapper(db, handleMetrics(db)))
 }
 
 func registerEmailRoutes(mux *http.ServeMux, cfg *core.Config, db *sql.DB) {
