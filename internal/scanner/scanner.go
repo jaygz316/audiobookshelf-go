@@ -13,8 +13,10 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -30,6 +32,18 @@ import (
 )
 
 var MetadataPath string
+var probeSemaphore chan struct{}
+
+func init() {
+	concurrency := runtime.NumCPU()
+	if concurrency < 4 {
+		concurrency = 4
+	}
+	if concurrency > 8 {
+		concurrency = 8
+	}
+	probeSemaphore = make(chan struct{}, concurrency)
+}
 
 // FileItem represents a file found during library scanning.
 type FileItem struct {
@@ -301,6 +315,9 @@ type AudioMetadata struct {
 }
 
 func probeAudioFile(path string) (*AudioMetadata, error) {
+	probeSemaphore <- struct{}{}
+	defer func() { <-probeSemaphore }()
+
 	cmd := exec.Command("ffprobe", "-v", "error", "-show_format", "-show_streams", "-show_chapters", "-of", "json", path)
 	out, err := cmd.Output()
 	if err != nil {
@@ -834,119 +851,156 @@ func parseMetadataForGroup(dbConn *sql.DB, itemID string, groupFiles []FileItem,
 	var totalDuration float64
 	var audioFilesData []interface{}
 
+	type parsedAudioFile struct {
+		index     int
+		afObj     map[string]interface{}
+		duration  float64
+		tagTitle  string
+		tagArtist string
+		tagGenre  string
+		tagYear   string
+		tagAlbum  string
+		chapters  []Chapter
+	}
+
+	parsedFiles := make([]parsedAudioFile, len(audioFiles))
+	var wg sync.WaitGroup
+
 	for i, f := range audioFiles {
-		log.Printf("[Scanner] [%s] Probing audio file (%d/%d): %s", itemPath, i+1, len(audioFiles), f.Path)
-		probe, err := probeAudioFile(f.Path)
-		var duration float64
-		var bitrate int64
-		var codec string
-		var channels int
-		var sampleRate int
-		var chapters []Chapter
-		if err == nil {
-			duration = probe.Duration
-			bitrate = probe.BitRate
-			codec = probe.Codec
-			channels = probe.Channels
-			sampleRate = probe.SampleRate
-			chapters = probe.Chapters
-			totalDuration += duration
-		} else {
-			log.Printf("[Scanner] [%s] Probing audio file failed: %v", itemPath, err)
-		}
+		wg.Add(1)
+		go func(i int, f FileItem) {
+			defer wg.Done()
 
-		log.Printf("[Scanner] [%s] Parsing audio tags for: %s", itemPath, f.Path)
-		tags, tagsErr := parseAudioTags(f.Path)
-		var trackNum, discNum int
-		var tagTitle, tagArtist, tagAlbum, tagGenre, tagYear string
-		if tags != nil {
-			tagTitle = tags.Title
-			tagArtist = tags.Artist
-			tagAlbum = tags.Album
-			tagGenre = tags.Genre
-			tagYear = tags.Year
-			trackNum = tags.Track
-			discNum = tags.Disc
-		} else if tagsErr != nil {
-			log.Printf("[Scanner] [%s] Parsing audio tags failed: %v", itemPath, tagsErr)
-		}
+			log.Printf("[Scanner] [%s] Probing audio file (%d/%d): %s", itemPath, i+1, len(audioFiles), f.Path)
+			probe, err := probeAudioFile(f.Path)
+			var duration float64
+			var bitrate int64
+			var codec string
+			var channels int
+			var sampleRate int
+			var chapters []Chapter
+			if err == nil {
+				duration = probe.Duration
+				bitrate = probe.BitRate
+				codec = probe.Codec
+				channels = probe.Channels
+				sampleRate = probe.SampleRate
+				chapters = probe.Chapters
+			} else {
+				log.Printf("[Scanner] [%s] Probing audio file failed: %v", itemPath, err)
+			}
 
-		afObj := map[string]interface{}{
-			"index":                i,
-			"ino":                  f.Ino,
-			"addedAt":              time.Now().UnixMilli(),
-			"updatedAt":            time.Now().UnixMilli(),
-			"trackNumFromMeta":     nullIfZero(trackNum),
-			"discNumFromMeta":      nullIfZero(discNum),
-			"trackNumFromFilename": extractTrackNumberFromFilename(f.Name),
-			"discNumFromFilename":  nil,
-			"manuallyVerified":     false,
-			"exclude":              false,
-			"error":                nil,
-			"format":               strings.TrimPrefix(f.Extension, "."),
-			"duration":             duration,
-			"bitRate":              bitrate,
-			"language":             nil,
-			"codec":                codec,
-			"timeBase":             "1/1000",
-			"channels":             channels,
-			"sampleRate":           sampleRate,
-			"channelLayout":        nil,
-			"chapters":             chapters,
-			"embeddedCoverArt":     nil,
-			"metaTags": map[string]interface{}{
-				"tagTitle":       tagTitle,
-				"tagArtist":      tagArtist,
-				"tagAlbum":       tagAlbum,
-				"tagGenre":       tagGenre,
-				"tagDate":        tagYear,
-				"tagTrack":       nullIfZero(trackNum),
-				"tagDisc":        nullIfZero(discNum),
-				"tagAlbumArtist": nil,
-			},
-			"mimeType": "audio/" + strings.TrimPrefix(f.Extension, "."),
-			"metadata": map[string]interface{}{
-				"path":     f.Path,
-				"relPath":  f.RelPath,
-				"filename": f.Name,
-				"ext":      f.Extension,
-				"size":     f.Size,
-				"mtime":    f.MtimeMs,
-				"ctime":    f.CtimeMs,
-			},
-		}
-		audioFilesData = append(audioFilesData, afObj)
+			log.Printf("[Scanner] [%s] Parsing audio tags for: %s", itemPath, f.Path)
+			tags, tagsErr := parseAudioTags(f.Path)
+			var trackNum, discNum int
+			var tagTitle, tagArtist, tagAlbum, tagGenre, tagYear string
+			if tags != nil {
+				tagTitle = tags.Title
+				tagArtist = tags.Artist
+				tagAlbum = tags.Album
+				tagGenre = tags.Genre
+				tagYear = tags.Year
+				trackNum = tags.Track
+				discNum = tags.Disc
+			} else if tagsErr != nil {
+				log.Printf("[Scanner] [%s] Parsing audio tags failed: %v", itemPath, tagsErr)
+			}
+
+			afObj := map[string]interface{}{
+				"index":                i,
+				"ino":                  f.Ino,
+				"addedAt":              time.Now().UnixMilli(),
+				"updatedAt":            time.Now().UnixMilli(),
+				"trackNumFromMeta":     nullIfZero(trackNum),
+				"discNumFromMeta":      nullIfZero(discNum),
+				"trackNumFromFilename": extractTrackNumberFromFilename(f.Name),
+				"discNumFromFilename":  nil,
+				"manuallyVerified":     false,
+				"exclude":              false,
+				"error":                nil,
+				"format":               strings.TrimPrefix(f.Extension, "."),
+				"duration":             duration,
+				"bitRate":              bitrate,
+				"language":             nil,
+				"codec":                codec,
+				"timeBase":             "1/1000",
+				"channels":             channels,
+				"sampleRate":           sampleRate,
+				"channelLayout":        nil,
+				"chapters":             chapters,
+				"embeddedCoverArt":     nil,
+				"metaTags": map[string]interface{}{
+					"tagTitle":       tagTitle,
+					"tagArtist":      tagArtist,
+					"tagAlbum":       tagAlbum,
+					"tagGenre":       tagGenre,
+					"tagDate":        tagYear,
+					"tagTrack":       nullIfZero(trackNum),
+					"tagDisc":        nullIfZero(discNum),
+					"tagAlbumArtist": nil,
+				},
+				"mimeType": "audio/" + strings.TrimPrefix(f.Extension, "."),
+				"metadata": map[string]interface{}{
+					"path":     f.Path,
+					"relPath":  f.RelPath,
+					"filename": f.Name,
+					"ext":      f.Extension,
+					"size":     f.Size,
+					"mtime":    f.MtimeMs,
+					"ctime":    f.CtimeMs,
+				},
+			}
+
+			parsedFiles[i] = parsedAudioFile{
+				index:     i,
+				afObj:     afObj,
+				duration:  duration,
+				tagTitle:  tagTitle,
+				tagArtist: tagArtist,
+				tagGenre:  tagGenre,
+				tagYear:   tagYear,
+				tagAlbum:  tagAlbum,
+				chapters:  chapters,
+			}
+		}(i, f)
+	}
+	wg.Wait()
+
+	for i, f := range audioFiles {
+		pf := parsedFiles[i]
+		totalDuration += pf.duration
+		audioFilesData = append(audioFilesData, pf.afObj)
 
 		if mediaType == "podcast" {
-			epTitle := tagTitle
+			epTitle := pf.tagTitle
 			if epTitle == "" {
 				epTitle = strings.TrimSuffix(f.Name, f.Extension)
 			}
 			meta.PodcastEpisodes = append(meta.PodcastEpisodes, PodcastEpisodeScanData{
 				ID:        uuidStr(),
 				Title:     epTitle,
-				AudioFile: afObj,
+				AudioFile: pf.afObj,
 			})
 		}
 
 		if i == 0 {
-			if tagTitle != "" && meta.Title == "" {
-				meta.Title = tagTitle
+			if pf.tagTitle != "" && meta.Title == "" {
+				meta.Title = pf.tagTitle
 			}
-			if tagArtist != "" && len(meta.Authors) == 0 {
-				meta.Authors = []string{tagArtist}
+			if pf.tagArtist != "" && len(meta.Authors) == 0 {
+				meta.Authors = []string{pf.tagArtist}
 			}
-			if tagGenre != "" && len(meta.Genres) == 0 {
-				meta.Genres = []string{tagGenre}
+			if pf.tagGenre != "" && len(meta.Genres) == 0 {
+				meta.Genres = []string{pf.tagGenre}
 			}
-			if tagYear != "" && meta.PublishedYear == "" {
-				meta.PublishedYear = tagYear
+			if pf.tagYear != "" && meta.PublishedYear == "" {
+				meta.PublishedYear = pf.tagYear
 			}
-			if tagAlbum != "" && meta.SeriesName == "" {
-				meta.SeriesName = tagAlbum
+			if pf.tagAlbum != "" && meta.SeriesName == "" {
+				meta.SeriesName = pf.tagAlbum
 			}
-			if len(chapters) > 0 && len(meta.Chapters) == 0 {
-				meta.Chapters = chapters
+			if len(pf.chapters) > 0 && len(meta.Chapters) == 0 {
+				meta.Chapters = pf.chapters
 			}
 		}
 	}
@@ -1254,6 +1308,27 @@ func ScanLibrary(db *sql.DB, libraryID string, socketAuth *isocket.Authority) er
 		grouped := GroupFileItemsIntoLibraryItemDirs(mediaType, files, libSettings.AudiobooksOnly)
 		log.Printf("[Scanner] Grouped into %d library item directories", len(grouped))
 
+		type itemInfo struct {
+			folderID          string
+			itemPath          string
+			groupFiles        []FileItem
+			isFile            bool
+			maxMtime          int64
+			maxCtime          int64
+			totalSize         int64
+			ino               string
+			itemRelPath       string
+			needsScan         bool
+			isNew             bool
+			existingID        string
+			itemID            string
+			existingIsMissing int
+			meta              *GroupMetadata
+		}
+
+		var items []*itemInfo
+
+		// Phase 1: Sequential Database Verification (Read-Only)
 		for groupDir, groupFiles := range grouped {
 			var itemPath string
 			var isFile bool
@@ -1264,9 +1339,6 @@ func ScanLibrary(db *sql.DB, libraryID string, socketAuth *isocket.Authority) er
 				itemPath = filepath.ToSlash(filepath.Join(folder.path, groupDir))
 				isFile = false
 			}
-
-			log.Printf("[Scanner] Processing grouped item: %s (%d files, isFile: %t)", itemPath, len(groupFiles), isFile)
-			foundPaths = append(foundPaths, itemPath)
 
 			var maxMtime, maxCtime int64
 			var totalSize int64
@@ -1285,33 +1357,123 @@ func ScanLibrary(db *sql.DB, libraryID string, socketAuth *isocket.Authority) er
 				ino = groupFiles[0].Ino
 			}
 
+			var itemRelPath string
+			if isFile {
+				itemRelPath = groupFiles[0].RelPath
+			} else {
+				itemRelPath = filepath.Dir(groupFiles[0].RelPath)
+				if itemRelPath == "." {
+					itemRelPath = ""
+				}
+			}
+
 			var existingID string
 			var existingMtimeStr string
 			var existingIsMissing int
 			err = db.QueryRow("SELECT id, mtime, isMissing FROM libraryItems WHERE path = ? AND libraryId = ?", itemPath, libraryID).Scan(&existingID, &existingMtimeStr, &existingIsMissing)
 
-			if err == sql.ErrNoRows {
-				log.Printf("[Scanner] Scanning new item at: %s", itemPath)
-				err := scanNewLibraryItem(db, libraryID, folder.id, itemPath, groupFiles, mediaType, isFile, maxMtime, maxCtime, totalSize, ino, libSettings.AudiobooksOnly, prefixes, socketAuth)
-				if err != nil {
-					log.Printf("[Scanner] Error scanning new item at %s: %v", itemPath, err)
-				}
-			} else if err == nil {
-				if existingIsMissing != 0 {
-					log.Printf("[Scanner] Item %s marked as missing but exists now. Restoring.", itemPath)
-					_, _ = db.Exec("UPDATE libraryItems SET isMissing = 0 WHERE id = ?", existingID)
-				}
+			item := &itemInfo{
+				folderID:          folder.id,
+				itemPath:          itemPath,
+				groupFiles:        groupFiles,
+				isFile:            isFile,
+				maxMtime:          maxMtime,
+				maxCtime:          maxCtime,
+				totalSize:         totalSize,
+				ino:               ino,
+				itemRelPath:       itemRelPath,
+				existingID:        existingID,
+				existingIsMissing: existingIsMissing,
+			}
 
+			if err == sql.ErrNoRows {
+				item.needsScan = true
+				item.isNew = true
+				item.itemID = uuidStr()
+			} else if err == nil {
 				existingMtime := parseEpochMillis(existingMtimeStr)
 				if maxMtime != existingMtime {
-					log.Printf("[Scanner] Mtime changed for existing item %s (mtime: %d != existing: %d), rescanning", itemPath, maxMtime, existingMtime)
-					err := scanExistingLibraryItem(db, existingID, libraryID, folder.id, itemPath, groupFiles, mediaType, isFile, maxMtime, maxCtime, totalSize, ino, libSettings.AudiobooksOnly, prefixes, socketAuth)
+					item.needsScan = true
+					item.isNew = false
+					item.itemID = existingID
+				} else {
+					item.needsScan = false
+					item.itemID = existingID
+				}
+			}
+
+			items = append(items, item)
+		}
+
+		// Phase 2: Concurrent Metadata Parsing
+		var tasks []*itemInfo
+		for _, item := range items {
+			if item.needsScan {
+				tasks = append(tasks, item)
+			}
+		}
+
+		if len(tasks) > 0 {
+			log.Printf("[Scanner] Parsing metadata concurrently for %d items", len(tasks))
+			concurrency := runtime.NumCPU()
+			if concurrency < 4 {
+				concurrency = 4
+			}
+			if concurrency > 8 {
+				concurrency = 8
+			}
+			if concurrency > len(tasks) {
+				concurrency = len(tasks)
+			}
+
+			taskChan := make(chan *itemInfo, len(tasks))
+			for _, t := range tasks {
+				taskChan <- t
+			}
+			close(taskChan)
+
+			var wg sync.WaitGroup
+			for i := 0; i < concurrency; i++ {
+				wg.Add(1)
+				go func() {
+					defer wg.Done()
+					for item := range taskChan {
+						item.meta = parseMetadataForGroup(db, item.itemID, item.groupFiles, mediaType, item.itemPath, item.itemRelPath, libSettings.AudiobooksOnly)
+					}
+				}()
+			}
+			wg.Wait()
+			log.Printf("[Scanner] Concurrent metadata parsing complete")
+		}
+
+		// Phase 3: Sequential Database Writes
+		for _, item := range items {
+			foundPaths = append(foundPaths, item.itemPath)
+
+			if item.needsScan {
+				if item.isNew {
+					log.Printf("[Scanner] Scanning new item at: %s", item.itemPath)
+					err := scanNewLibraryItem(db, libraryID, item.folderID, item.itemPath, item.groupFiles, mediaType, item.isFile, item.maxMtime, item.maxCtime, item.totalSize, item.ino, libSettings.AudiobooksOnly, prefixes, socketAuth, item.meta)
 					if err != nil {
-						log.Printf("[Scanner] Error updating existing item at %s: %v", itemPath, err)
+						log.Printf("[Scanner] Error scanning new item at %s: %v", item.itemPath, err)
 					}
 				} else {
-					log.Printf("[Scanner] Item %s mtime unchanged (%d), skipping rescan", itemPath, maxMtime)
+					if item.existingIsMissing != 0 {
+						log.Printf("[Scanner] Item %s marked as missing but exists now. Restoring.", item.itemPath)
+						_, _ = db.Exec("UPDATE libraryItems SET isMissing = 0 WHERE id = ?", item.existingID)
+					}
+					log.Printf("[Scanner] Mtime changed for existing item %s (mtime: %d != existing), rescanning", item.itemPath, item.maxMtime)
+					err := scanExistingLibraryItem(db, item.existingID, libraryID, item.folderID, item.itemPath, item.groupFiles, mediaType, item.isFile, item.maxMtime, item.maxCtime, item.totalSize, item.ino, libSettings.AudiobooksOnly, prefixes, socketAuth, item.meta)
+					if err != nil {
+						log.Printf("[Scanner] Error updating existing item at %s: %v", item.itemPath, err)
+					}
 				}
+			} else {
+				if item.existingID != "" && item.existingIsMissing != 0 {
+					log.Printf("[Scanner] Item %s marked as missing but exists now. Restoring.", item.itemPath)
+					_, _ = db.Exec("UPDATE libraryItems SET isMissing = 0 WHERE id = ?", item.existingID)
+				}
+				log.Printf("[Scanner] Item %s mtime unchanged, skipping rescan", item.itemPath)
 			}
 		}
 	}
@@ -1354,7 +1516,7 @@ func ScanLibrary(db *sql.DB, libraryID string, socketAuth *isocket.Authority) er
 	return nil
 }
 
-func scanNewLibraryItem(db *sql.DB, libraryID, folderID, itemPath string, groupFiles []FileItem, mediaType string, isFile bool, mtime, ctime, totalSize int64, ino string, audiobooksOnly bool, prefixes []string, socketAuth *isocket.Authority) error {
+func scanNewLibraryItem(db *sql.DB, libraryID, folderID, itemPath string, groupFiles []FileItem, mediaType string, isFile bool, mtime, ctime, totalSize int64, ino string, audiobooksOnly bool, prefixes []string, socketAuth *isocket.Authority, meta *GroupMetadata) error {
 	itemID := uuidStr()
 	mediaID := uuidStr()
 	nowStr := time.Now().Format("2006-01-02 15:04:05.000")
@@ -1375,9 +1537,6 @@ func scanNewLibraryItem(db *sql.DB, libraryID, folderID, itemPath string, groupF
 			itemRelPath = ""
 		}
 	}
-
-	log.Printf("[Scanner] [%s] scanNewLibraryItem: Parsing metadata", itemPath)
-	meta := parseMetadataForGroup(db, itemID, groupFiles, mediaType, itemPath, itemRelPath, audiobooksOnly)
 
 	var title, authorNamesFirstLast, authorNamesLastFirst string
 	title = meta.Title
@@ -1645,7 +1804,7 @@ func scanNewLibraryItem(db *sql.DB, libraryID, folderID, itemPath string, groupF
 	return nil
 }
 
-func scanExistingLibraryItem(db *sql.DB, itemID, libraryID, folderID, itemPath string, groupFiles []FileItem, mediaType string, isFile bool, mtime, ctime, totalSize int64, ino string, audiobooksOnly bool, prefixes []string, socketAuth *isocket.Authority) error {
+func scanExistingLibraryItem(db *sql.DB, itemID, libraryID, folderID, itemPath string, groupFiles []FileItem, mediaType string, isFile bool, mtime, ctime, totalSize int64, ino string, audiobooksOnly bool, prefixes []string, socketAuth *isocket.Authority, meta *GroupMetadata) error {
 	var mediaID string
 	err := db.QueryRow("SELECT mediaId FROM libraryItems WHERE id = ?", itemID).Scan(&mediaID)
 	if err != nil {
@@ -1670,9 +1829,6 @@ func scanExistingLibraryItem(db *sql.DB, itemID, libraryID, folderID, itemPath s
 			itemRelPath = ""
 		}
 	}
-
-	log.Printf("[Scanner] [%s] scanExistingLibraryItem: Parsing metadata", itemPath)
-	meta := parseMetadataForGroup(db, itemID, groupFiles, mediaType, itemPath, itemRelPath, audiobooksOnly)
 
 	var title, authorNamesFirstLast, authorNamesLastFirst string
 	title = meta.Title
