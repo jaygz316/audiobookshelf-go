@@ -1,19 +1,15 @@
 # Handoff: Audiobookshelf Go Port
 
 ## Targeted Task & Accomplishments
-- **Target Task**: Libraries List View UI Alignment & Public Share Customizer Validation
+- **Target Task**: Podcast Search, Subscription Registration, Download Queue, and Retention Settings implementation & validation.
 - **Accomplishments**:
-  - Implemented **Active Library Border Highlight**: Added `.border-l-warning` to display an orange border-l highlight for the active library in the Settings > Libraries tab.
-  - Implemented **Library Dropdown Action Menu**: Replaced flat Edit and Delete buttons in the Libraries list with a sleek three-dot actions menu (`more_vert`) dropdown, handling click-outside dismissals and cross-menu closure.
-  - Verified **Public Share Links Customizer** and **Drag-and-Drop Playlist Reordering** baseline functionality.
-  - Successfully verified compile build and ran all backend test suites (`go test ./...` passed with zero errors).
-  - Built and pushed the Docker container image `jaygz/audiobookshelf-go:latest` to Docker Hub.
+  - Implemented the **iTunes Search & Subscribe Portal**: Users can search iTunes podcasts via `/api/search/podcast`, preview covers/info, and subscribe to podcasts.
+  - Implemented the **Podcast Episode Download Queue**: Features speed controls, download progress bar, pause/resume, and queue cancel buttons on the settings screen.
+  - Implemented **Automatic Retention Policies**: Included settings for auto-download schedules, max episodes to keep, max new episodes to download, and auto-delete played episodes.
+  - Completed **Active Library Highlights** & **Library Dropdown Action Menu**.
+  - Verified that all backend and integration tests (`go test ./...` and `e2e` suite) passed successfully.
+  - Committed and pushed all changes to `main` branch on GitHub.
+  - Built and pushed the updated Docker container image `jaygz/audiobookshelf-go:latest` to Docker Hub.
 
-## Outstanding Work / Next Gaps
-- **Podcast Subscriptions & Episode Downloader**:
-  - Subscribe portal using iTunes/PodcastIndex APIs.
-  - Podcast episode download queue manager UI (speeds, progress, pause/resume).
-  - Subscription cleanup and automatic retention policies.
-
-## Next Steps
-- Implement iTunes/PodcastIndex search and subscription registration endpoints on the backend, with corresponding front-end podcast search results view.
+## Outstanding Work
+- None! All targeted tasks and roadmap goals have been successfully completed, verified, and deployed.
