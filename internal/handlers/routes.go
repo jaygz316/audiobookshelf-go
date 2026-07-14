@@ -319,6 +319,22 @@ func registerAuthAndUserRoutes(mux *http.ServeMux, cfg *core.Config, db *sql.DB,
 		})).ServeHTTP(w, r)
 	})
 
+	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/v1/session"), func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			AuthMiddlewareWrapper(db, handleGetSession(db)).ServeHTTP(w, r)
+		} else {
+			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
+		}
+	})
+
+	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/session"), func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			AuthMiddlewareWrapper(db, handleGetSession(db)).ServeHTTP(w, r)
+		} else {
+			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
+		}
+	})
+
 	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/users/online"), func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
 			AuthMiddlewareWrapper(db, handleGetOnlineUsers(db)).ServeHTTP(w, r)
