@@ -639,6 +639,10 @@ func handleUserCRUD(db *sql.DB) http.HandlerFunc {
 			if userType == "" {
 				userType = "user"
 			}
+			if userType == "root" && userSess.Type != "root" {
+				http.Error(w, `{"error": "Only root users can create root users"}`, http.StatusForbidden)
+				return
+			}
 
 			perms := map[string]interface{}{
 				"download":                  true,
@@ -921,12 +925,26 @@ func handleUserCRUD(db *sql.DB) http.HandlerFunc {
 				hasUpdates = true
 			}
 
-			if body.Type != nil && targetUser.Type != "root" {
-				targetUser.Type = *body.Type
-				hasUpdates = true
+			if body.Type != nil {
+				if *body.Type == "root" && userSess.Type != "root" {
+					http.Error(w, `{"error": "Only root users can escalate to root"}`, http.StatusForbidden)
+					return
+				}
+				if targetUser.Type == "root" && *body.Type != "root" {
+					http.Error(w, `{"error": "Cannot change type of root user"}`, http.StatusBadRequest)
+					return
+				}
+				if targetUser.Type != "root" {
+					targetUser.Type = *body.Type
+					hasUpdates = true
+				}
 			}
 
 			if body.IsActive != nil {
+				if targetUser.Type == "root" && !*body.IsActive {
+					http.Error(w, `{"error": "Cannot deactivate root user"}`, http.StatusBadRequest)
+					return
+				}
 				targetUser.IsActive = *body.IsActive
 				hasUpdates = true
 			}
@@ -1030,6 +1048,11 @@ func handleUserCRUD(db *sql.DB) http.HandlerFunc {
 			targetUser, err := idb.GetUserFullByID(r.Context(), db, targetUserID)
 			if err != nil || targetUser == nil {
 				http.Error(w, `{"error": "idb.User not found"}`, http.StatusNotFound)
+				return
+			}
+
+			if targetUser.Type == "root" {
+				http.Error(w, `{"error": "Cannot delete root user"}`, http.StatusForbidden)
 				return
 			}
 
