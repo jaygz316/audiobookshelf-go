@@ -31,7 +31,11 @@ func BasePathRewriteMiddleware(routerBasePath string, next http.Handler) http.Ha
 
 // AuthMiddlewareWrapper wraps the standard AuthMiddleware from auth.go using the DB-derived token secret.
 func AuthMiddlewareWrapper(db *sql.DB, next http.Handler) http.Handler {
-	return AuthMiddleware(db, getTokenSecret(db), next)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		actualDB := getDB(db)
+		secret := getTokenSecret(actualDB)
+		AuthMiddleware(actualDB, secret, next).ServeHTTP(w, r)
+	})
 }
 
 var (
@@ -55,6 +59,7 @@ func authNotNeeded(r *http.Request) bool {
 // AuthMiddleware authenticates incoming requests
 func AuthMiddleware(db *sql.DB, tokenSecret string, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		db = getDB(db)
 		// Public routes/patterns that bypass auth
 		if authNotNeeded(r) {
 			next.ServeHTTP(w, r)
@@ -65,6 +70,10 @@ func AuthMiddleware(db *sql.DB, tokenSecret string, next http.Handler) http.Hand
 			log.Error("Database is not connected")
 			http.Error(w, `{"error": "Database not connected"}`, http.StatusInternalServerError)
 			return
+		}
+
+		if tokenSecret == "" {
+			tokenSecret = getTokenSecret(db)
 		}
 
 		// Extract token
@@ -313,3 +322,12 @@ func RateLimitMiddleware(limiter *RateLimiter) func(http.Handler) http.Handler {
 		})
 	}
 }
+
+// getDB returns the passed db if non-nil, otherwise falls back to the package-level globalDB.
+func getDB(db *sql.DB) *sql.DB {
+	if db != nil {
+		return db
+	}
+	return globalDB
+}
+

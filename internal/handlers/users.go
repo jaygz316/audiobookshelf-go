@@ -25,6 +25,7 @@ import (
 func handleInit(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Info("[Go] POST /init")
+		db = getDB(db)
 		if db == nil {
 			http.Error(w, `{"error": "Database not connected"}`, http.StatusInternalServerError)
 			return
@@ -107,6 +108,7 @@ func handleInit(db *sql.DB) http.HandlerFunc {
 func handleLogin(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Info("[Go] POST /login")
+		db = getDB(db)
 		if db == nil {
 			http.Error(w, `{"error": "Database not connected"}`, http.StatusInternalServerError)
 			return
@@ -237,6 +239,11 @@ func handleLogin(db *sql.DB) http.HandlerFunc {
 func handleAuthorize(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Info("[Go] /api/authorize")
+		db = getDB(db)
+		if db == nil {
+			http.Error(w, `{"error": "Database not connected"}`, http.StatusInternalServerError)
+			return
+		}
 		if r.Method != http.MethodPost && r.Method != http.MethodGet {
 			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
 			return
@@ -279,6 +286,7 @@ func handleAuthorize(db *sql.DB) http.HandlerFunc {
 func handleLogout(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Info("[Go] POST /logout")
+		db = getDB(db)
 		if db == nil {
 			http.Error(w, `{"error": "Database not connected"}`, http.StatusInternalServerError)
 			return
@@ -310,6 +318,7 @@ func handleLogout(db *sql.DB) http.HandlerFunc {
 func handleRefresh(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Info("[Go] POST /auth/refresh")
+		db = getDB(db)
 		if db == nil {
 			http.Error(w, `{"error": "Database not connected"}`, http.StatusInternalServerError)
 			return

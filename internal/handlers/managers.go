@@ -78,6 +78,14 @@ func reinitManagers(db *sql.DB) {
 	globalPlaylistManager = playlist.NewPlaylistManager(db)
 	globalFeedManager = feed.NewFeedManager(db, MetadataPath)
 	globalPodcastManager = podcast.NewPodcastManager(db)
+	globalFinder = finders.NewFinder(db, []providers.Provider{
+		&providers.AudibleProvider{},
+		&providers.AudnexusProvider{},
+		&providers.FantLabProvider{},
+		&providers.GoogleBooksProvider{},
+		&providers.ITunesProvider{},
+		&providers.OpenLibraryProvider{},
+	})
 }
 
 // ShutdownStreamManager shuts down all active transcoding sessions to prevent orphaned FFmpeg processes.

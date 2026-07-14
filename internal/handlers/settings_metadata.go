@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"net/http"
+	"net/url"
 	"time"
 
 	"audiobookshelf/internal/core"
@@ -109,6 +110,12 @@ func handleCreateCustomMetadataProvider(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
+		parsedURL, err := url.Parse(body.URL)
+		if err != nil || (parsedURL.Scheme != "http" && parsedURL.Scheme != "https") {
+			http.Error(w, `{"error": "url must be a valid http or https link"}`, http.StatusBadRequest)
+			return
+		}
+
 		if body.MediaType != "book" && body.MediaType != "podcast" {
 			http.Error(w, `{"error": "mediaType must be book or podcast"}`, http.StatusBadRequest)
 			return
@@ -122,7 +129,7 @@ func handleCreateCustomMetadataProvider(db *sql.DB) http.HandlerFunc {
 			authVal = *body.AuthHeaderValue
 		}
 
-		_, err := db.Exec("INSERT INTO customMetadataProviders (id, name, mediaType, url, authHeaderValue, extraData, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, '{}', ?, ?)",
+		_, err = db.Exec("INSERT INTO customMetadataProviders (id, name, mediaType, url, authHeaderValue, extraData, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, '{}', ?, ?)",
 			id, body.Name, body.MediaType, body.URL, authVal, nowStr, nowStr)
 		if err != nil {
 			log.Errorf("[Custom Provider] Creation failed: %v", err)

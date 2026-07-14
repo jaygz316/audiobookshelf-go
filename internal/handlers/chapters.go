@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"regexp"
 	"time"
 
 	"audiobookshelf/internal/core"
@@ -132,6 +133,11 @@ func handleLookupChapters(db *sql.DB, itemID string) http.HandlerFunc {
 		err = db.QueryRow("SELECT asin FROM books WHERE id = ?", mediaID).Scan(&asin)
 		if err != nil || asin == "" {
 			http.Error(w, `{"error": "Book must have a valid ASIN for Audnexus chapter lookup."}`, http.StatusBadRequest)
+			return
+		}
+
+		if !regexp.MustCompile(`^[A-Za-z0-9]{10}$`).MatchString(asin) {
+			http.Error(w, `{"error": "Invalid ASIN format"}`, http.StatusBadRequest)
 			return
 		}
 
