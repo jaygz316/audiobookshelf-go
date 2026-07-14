@@ -25,6 +25,7 @@ import (
 	idb "audiobookshelf/internal/db"
 	iscanner "audiobookshelf/internal/scanner"
 	isocket "audiobookshelf/internal/socket"
+	"audiobookshelf/internal/utils"
 )
 
 var (
@@ -1243,14 +1244,10 @@ func handleUpload(db *sql.DB) http.HandlerFunc {
 				}
 
 				destPath := filepath.Join(folderPath, relPath)
-				absFolder, err1 := filepath.Abs(folderPath)
-				absDest, err2 := filepath.Abs(destPath)
-				if err1 == nil && err2 == nil {
-					if !strings.HasPrefix(absDest, absFolder) {
-						log.Warnf("[Upload] Traversal check failed: %s is not in %s", absDest, absFolder)
-						http.Error(w, `{"error": "Invalid file path (directory traversal blocked)"}`, http.StatusBadRequest)
-						return
-					}
+				if !utils.IsSameOrSubPath(folderPath, destPath) {
+					log.Warnf("[Upload] Traversal check failed: %s is not in %s", destPath, folderPath)
+					http.Error(w, `{"error": "Invalid file path (directory traversal blocked)"}`, http.StatusBadRequest)
+					return
 				}
 
 				if err := os.MkdirAll(filepath.Dir(destPath), 0755); err != nil {
