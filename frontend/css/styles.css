@@ -5515,6 +5515,15 @@ input:checked + .abs-slider:before {
   transform: translateX(20px);
 }
 
+.scale-95 {
+  transform: scale(0.95) !important;
+}
+
+.scale-100 {
+  transform: scale(1) !important;
+}
+
+
 
 
 

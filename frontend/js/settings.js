@@ -575,12 +575,18 @@ async function renderAuthSettingsTab() {
         <div>
           <label class="block text-xs font-semibold text-black-100 uppercase tracking-wider mb-2">Active Authentication Methods</label>
           <div class="flex items-center space-x-6 text-sm">
-            <label class="flex items-center space-x-2 cursor-pointer">
-              <input type="checkbox" id="auth-method-local" value="local" ${activeMethods.includes('local') ? 'checked' : ''} class="rounded text-accent focus:ring-accent bg-black-500 border-black-300">
+            <label class="flex items-center space-x-3 cursor-pointer">
+              <span class="abs-switch">
+                <input type="checkbox" id="auth-method-local" value="local" ${activeMethods.includes('local') ? 'checked' : ''}>
+                <span class="abs-slider"></span>
+              </span>
               <span>Local Accounts</span>
             </label>
-            <label class="flex items-center space-x-2 cursor-pointer">
-              <input type="checkbox" id="auth-method-openid" value="openid" ${activeMethods.includes('openid') ? 'checked' : ''} class="rounded text-accent focus:ring-accent bg-black-500 border-black-300">
+            <label class="flex items-center space-x-3 cursor-pointer">
+              <span class="abs-switch">
+                <input type="checkbox" id="auth-method-openid" value="openid" ${activeMethods.includes('openid') ? 'checked' : ''}>
+                <span class="abs-slider"></span>
+              </span>
               <span>OpenID Connect (SSO)</span>
             </label>
           </div>
@@ -616,13 +622,19 @@ async function renderAuthSettingsTab() {
             </div>
           </div>
           
-          <div class="flex items-center space-x-6 pt-2">
-            <label class="flex items-center space-x-2 cursor-pointer text-xs">
-              <input type="checkbox" id="oidc-autolaunch" ${auth.authOpenIDAutoLaunch ? 'checked' : ''} class="rounded text-accent bg-black-500 border-black-300">
+          <div class="flex flex-col md:flex-row md:items-center md:space-x-6 space-y-3 md:space-y-0 pt-2 text-sm">
+            <label class="flex items-center space-x-3 cursor-pointer">
+              <span class="abs-switch">
+                <input type="checkbox" id="oidc-autolaunch" ${auth.authOpenIDAutoLaunch ? 'checked' : ''}>
+                <span class="abs-slider"></span>
+              </span>
               <span>Auto-Launch OpenID (Skips login form)</span>
             </label>
-            <label class="flex items-center space-x-2 cursor-pointer text-xs">
-              <input type="checkbox" id="oidc-autoregister" ${auth.authOpenIDAutoRegister ? 'checked' : ''} class="rounded text-accent bg-black-500 border-black-300">
+            <label class="flex items-center space-x-3 cursor-pointer">
+              <span class="abs-switch">
+                <input type="checkbox" id="oidc-autoregister" ${auth.authOpenIDAutoRegister ? 'checked' : ''}>
+                <span class="abs-slider"></span>
+              </span>
               <span>Auto-Register New Users</span>
             </label>
           </div>
@@ -731,11 +743,11 @@ async function renderBackupsTab() {
         <div class="overflow-x-auto">
           <table class="w-full text-left text-sm text-black-50">
             <thead>
-              <tr class="border-b border-black-400 text-xs text-black-100 uppercase tracking-wider">
-                <th class="py-2.5">Date</th>
-                <th class="py-2.5">Filename</th>
-                <th class="py-2.5">Size</th>
-                <th class="py-2.5 text-right">Actions</th>
+              <tr class="border-b border-black-400/60 text-xs text-black-100 uppercase tracking-wider font-semibold">
+                <th class="px-4 py-3">Date</th>
+                <th class="px-4 py-3">Filename</th>
+                <th class="px-4 py-3">Size</th>
+                <th class="px-4 py-3 text-right">Actions</th>
               </tr>
             </thead>
             <tbody id="backups-list-rows" class="divide-y divide-black-400/50">
@@ -823,7 +835,7 @@ function renderBackupsListRows(backups) {
 
   backups.forEach(b => {
     const tr = document.createElement('tr');
-    tr.className = 'hover:bg-black-500/20';
+    tr.className = 'hover:bg-black-500/30';
 
     const sizeFormatted = (b.fileSize / (1024 * 1024)).toFixed(2) + ' MB';
     
@@ -831,10 +843,10 @@ function renderBackupsListRows(backups) {
     const downloadUrl = resolvePath(`/api/backups/${b.id}/download?token=${localStorage.getItem('token')}`);
 
     tr.innerHTML = `
-      <td class="py-3 font-medium text-white">${b.datePretty}</td>
-      <td class="py-3 font-mono text-xs">${escapeHtml(b.filename)}</td>
-      <td class="py-3">${sizeFormatted}</td>
-      <td class="py-3 text-right space-x-2">
+      <td class="px-4 py-3 font-medium text-white">${b.datePretty}</td>
+      <td class="px-4 py-3 font-mono text-xs">${escapeHtml(b.filename)}</td>
+      <td class="px-4 py-3">${sizeFormatted}</td>
+      <td class="px-4 py-3 text-right space-x-2">
         <button class="apply-btn bg-emerald-800 hover:bg-emerald-700 text-emerald-100 text-xs font-semibold px-2.5 py-1 rounded" data-id="${b.id}">Restore</button>
         <a href="${downloadUrl}" class="inline-block bg-black-400 hover:bg-black-300 text-white text-xs font-semibold px-2.5 py-1 rounded">Download</a>
         <button class="delete-btn bg-red-900 hover:bg-red-800 text-red-200 text-xs font-semibold px-2.5 py-1 rounded" data-id="${b.id}">Delete</button>
@@ -939,11 +951,11 @@ async function renderProvidersTab() {
         <div class="overflow-x-auto">
           <table class="w-full text-left text-sm text-black-50">
             <thead>
-              <tr class="border-b border-black-400 text-xs text-black-100 uppercase tracking-wider">
-                <th class="py-2.5">Name</th>
-                <th class="py-2.5">Media Type</th>
-                <th class="py-2.5">URL</th>
-                <th class="py-2.5 text-right">Action</th>
+              <tr class="border-b border-black-400/60 text-xs text-black-100 uppercase tracking-wider font-semibold">
+                <th class="px-4 py-3">Name</th>
+                <th class="px-4 py-3">Media Type</th>
+                <th class="px-4 py-3">URL</th>
+                <th class="px-4 py-3 text-right">Action</th>
               </tr>
             </thead>
             <tbody id="custom-providers-rows" class="divide-y divide-black-400/50">
@@ -997,13 +1009,13 @@ function renderCustomProvidersRows(customProviders) {
 
   customProviders.forEach(p => {
     const tr = document.createElement('tr');
-    tr.className = 'hover:bg-black-500/20';
+    tr.className = 'hover:bg-black-500/30';
 
     tr.innerHTML = `
-      <td class="py-3 font-semibold text-white">${escapeHtml(p.name)}</td>
-      <td class="py-3 uppercase text-xs">${escapeHtml(p.mediaType)}</td>
-      <td class="py-3 font-mono text-xs truncate max-w-xs">${escapeHtml(p.url)}</td>
-      <td class="py-3 text-right">
+      <td class="px-4 py-3 font-semibold text-white">${escapeHtml(p.name)}</td>
+      <td class="px-4 py-3 uppercase text-xs">${escapeHtml(p.mediaType)}</td>
+      <td class="px-4 py-3 font-mono text-xs truncate max-w-xs">${escapeHtml(p.url)}</td>
+      <td class="px-4 py-3 text-right">
         <button class="delete-prov-btn bg-red-900 hover:bg-red-800 text-red-200 text-xs font-semibold px-2.5 py-1 rounded" data-id="${p.id}">Delete</button>
       </td>
     `;
@@ -1202,12 +1214,12 @@ async function renderUsersTab() {
         <div class="overflow-x-auto">
           <table class="w-full text-left text-sm text-black-50">
             <thead>
-              <tr class="border-b border-black-400 text-xs text-black-100 uppercase tracking-wider font-semibold">
-                <th class="py-2.5">Username</th>
-                <th class="py-2.5">Account Type</th>
-                <th class="py-2.5">Last Seen</th>
-                <th class="py-2.5">Created At</th>
-                <th class="py-2.5 text-right">Actions</th>
+              <tr class="border-b border-black-400/60 text-xs text-black-100 uppercase tracking-wider font-semibold">
+                <th class="px-4 py-3">Username</th>
+                <th class="px-4 py-3">Account Type</th>
+                <th class="px-4 py-3">Last Seen</th>
+                <th class="px-4 py-3">Created At</th>
+                <th class="px-4 py-3 text-right">Actions</th>
               </tr>
             </thead>
             <tbody id="users-list-rows" class="divide-y divide-black-400/50"></tbody>
@@ -1242,7 +1254,7 @@ function renderUsersListRows(users, currentUser) {
 
   users.forEach(u => {
     const tr = document.createElement('tr');
-    tr.className = 'hover:bg-black-500/20';
+    tr.className = 'hover:bg-black-500/30';
 
     const lastSeenFormatted = u.lastSeen ? window.formatDateTime(u.lastSeen) : 'Never';
     const createdAtFormatted = u.createdAt ? window.formatDateTime(u.createdAt) : 'Unknown';
@@ -1256,15 +1268,15 @@ function renderUsersListRows(users, currentUser) {
     const canEdit = currentUser.type === 'root' || (currentUser.type === 'admin' && u.type !== 'root');
 
     tr.innerHTML = `
-      <td class="py-3 font-semibold text-white flex items-center space-x-2">
+      <td class="px-4 py-3 font-semibold text-white flex items-center space-x-2">
         <span>${escapeHtml(u.username)}</span>
         ${u.isActive ? '' : '<span class="bg-red-900/50 text-red-200 text-[10px] px-1.5 py-0.5 rounded font-normal uppercase">Inactive</span>'}
         ${u.hasOpenIDLink ? '<span class="bg-blue-900/50 text-blue-200 text-[10px] px-1.5 py-0.5 rounded font-normal uppercase">OIDC</span>' : ''}
       </td>
-      <td class="py-3 text-xs capitalize">${typeDisplay}</td>
-      <td class="py-3 text-xs text-black-100">${lastSeenFormatted}</td>
-      <td class="py-3 text-xs text-black-100">${createdAtFormatted}</td>
-      <td class="py-3 text-right space-x-2">
+      <td class="px-4 py-3 text-xs capitalize">${typeDisplay}</td>
+      <td class="px-4 py-3 text-xs text-black-100">${lastSeenFormatted}</td>
+      <td class="px-4 py-3 text-xs text-black-100">${createdAtFormatted}</td>
+      <td class="px-4 py-3 text-right space-x-2">
         ${u.hasOpenIDLink && canEdit ? '<button class="unlink-oidc-btn bg-yellow-900 hover:bg-yellow-800 text-yellow-200 text-xs font-semibold px-2 py-1 rounded" data-id="' + u.id + '">Unlink</button>' : ''}
         <button class="edit-user-btn bg-black-400 hover:bg-black-300 text-white text-xs font-semibold px-2.5 py-1 rounded disabled:opacity-40 disabled:cursor-not-allowed" ${canEdit ? '' : 'disabled'} data-id="${u.id}">Edit</button>
         <button class="delete-user-btn bg-red-900 hover:bg-red-800 text-red-200 text-xs font-semibold px-2.5 py-1 rounded disabled:opacity-40 disabled:cursor-not-allowed" ${canDelete ? '' : 'disabled'} data-id="${u.id}">Delete</button>
@@ -1365,8 +1377,11 @@ async function triggerUserModal(user = null, currentUser, onSaveSuccess) {
             </select>
           </div>
           <div class="flex items-end pb-2">
-            <label class="flex items-center space-x-2 text-sm cursor-pointer ${isEdit && user.type === 'root' ? 'opacity-50 pointer-events-none' : ''}">
-              <input type="checkbox" id="user-isactive" ${!isEdit || user.isActive ? 'checked' : ''} ${isEdit && user.type === 'root' ? 'disabled' : ''} class="rounded text-accent bg-black-600 border-black-300">
+            <label class="flex items-center space-x-3 cursor-pointer text-sm ${isEdit && user.type === 'root' ? 'opacity-50 pointer-events-none' : ''}">
+              <span class="abs-switch">
+                <input type="checkbox" id="user-isactive" ${!isEdit || user.isActive ? 'checked' : ''} ${isEdit && user.type === 'root' ? 'disabled' : ''}>
+                <span class="abs-slider"></span>
+              </span>
               <span>Account is Active</span>
             </label>
           </div>
@@ -1376,17 +1391,26 @@ async function triggerUserModal(user = null, currentUser, onSaveSuccess) {
         <div class="border-t border-black-400 pt-3 space-y-3">
           <h4 class="text-xs font-semibold text-accent uppercase tracking-wider">Permissions</h4>
           
-          <div class="flex flex-col space-y-2">
-            <label class="flex items-center space-x-2 text-xs cursor-pointer">
-              <input type="checkbox" id="perm-download" ${perms.download !== false ? 'checked' : ''} class="rounded text-accent bg-black-600 border-black-300">
+          <div class="flex flex-col space-y-3">
+            <label class="flex items-center space-x-3 cursor-pointer text-sm">
+              <span class="abs-switch">
+                <input type="checkbox" id="perm-download" ${perms.download !== false ? 'checked' : ''}>
+                <span class="abs-slider"></span>
+              </span>
               <span>Allow downloading files</span>
             </label>
-            <label class="flex items-center space-x-2 text-xs cursor-pointer">
-              <input type="checkbox" id="perm-explicit" ${perms.accessExplicitContent ? 'checked' : ''} class="rounded text-accent bg-black-600 border-black-300">
+            <label class="flex items-center space-x-3 cursor-pointer text-sm">
+              <span class="abs-switch">
+                <input type="checkbox" id="perm-explicit" ${perms.accessExplicitContent ? 'checked' : ''}>
+                <span class="abs-slider"></span>
+              </span>
               <span>Allow explicit content access</span>
             </label>
-            <label class="flex items-center space-x-2 text-xs cursor-pointer">
-              <input type="checkbox" id="perm-all-libraries" ${perms.accessAllLibraries !== false ? 'checked' : ''} class="rounded text-accent bg-black-600 border-black-300">
+            <label class="flex items-center space-x-3 cursor-pointer text-sm">
+              <span class="abs-switch">
+                <input type="checkbox" id="perm-all-libraries" ${perms.accessAllLibraries !== false ? 'checked' : ''}>
+                <span class="abs-slider"></span>
+              </span>
               <span>Allow access to all libraries</span>
             </label>
           </div>
@@ -1407,9 +1431,12 @@ async function triggerUserModal(user = null, currentUser, onSaveSuccess) {
         <div class="border-t border-black-400 pt-3 space-y-3">
           <h4 class="text-xs font-semibold text-accent uppercase tracking-wider">Tag Restrictions</h4>
           
-          <div class="flex flex-col space-y-2">
-            <label class="flex items-center space-x-2 text-xs cursor-pointer">
-              <input type="checkbox" id="perm-all-tags" ${accessAllTags ? 'checked' : ''} class="rounded text-accent bg-black-600 border-black-300">
+          <div class="flex flex-col space-y-3">
+            <label class="flex items-center space-x-3 cursor-pointer text-sm">
+              <span class="abs-switch">
+                <input type="checkbox" id="perm-all-tags" ${accessAllTags ? 'checked' : ''}>
+                <span class="abs-slider"></span>
+              </span>
               <span>Allow access to all tags</span>
             </label>
           </div>
@@ -1575,7 +1602,7 @@ async function renderApiKeysTab() {
         <div class="border border-black-300 rounded-md bg-primary overflow-x-auto">
           <table class="w-full text-left text-sm">
             <thead>
-              <tr class="border-b border-black-400 text-black-100 text-xs uppercase">
+              <tr class="border-b border-black-400/60 text-black-100 text-xs uppercase tracking-wider font-semibold">
                 <th class="px-4 py-3">Name</th>
                 <th class="px-4 py-3">User</th>
                 <th class="px-4 py-3">Expires At</th>
@@ -1816,7 +1843,7 @@ async function renderListeningSessionsTab() {
         <div class="border border-black-300 rounded-md bg-primary overflow-x-auto">
           <table class="w-full text-left text-sm">
             <thead>
-              <tr class="border-b border-black-400 text-black-100 text-xs uppercase">
+              <tr class="border-b border-black-400/60 text-black-100 text-xs uppercase tracking-wider font-semibold">
                 <th class="px-4 py-3">User</th>
                 <th class="px-4 py-3">Item</th>
                 <th class="px-4 py-3">Play Method</th>
@@ -2134,7 +2161,7 @@ export async function renderNotificationsTab() {
         <div class="border border-black-300 rounded-md bg-primary overflow-x-auto">
           <table class="w-full text-left text-sm">
             <thead>
-              <tr class="border-b border-black-400 text-black-100 text-xs uppercase">
+              <tr class="border-b border-black-400/60 text-black-100 text-xs uppercase tracking-wider font-semibold">
                 <th class="px-4 py-3">ID</th>
                 <th class="px-4 py-3">Event</th>
                 <th class="px-4 py-3">Enabled</th>
@@ -2292,8 +2319,11 @@ function triggerCreateNotificationModal(allSettings, onSaveSuccess) {
         </div>
 
         <div class="flex items-center pb-2">
-          <label class="flex items-center space-x-2 text-sm cursor-pointer">
-            <input type="checkbox" id="notif-enabled" checked class="rounded text-accent bg-black-600 border-black-300">
+          <label class="flex items-center space-x-3 cursor-pointer text-sm">
+            <span class="abs-switch">
+              <input type="checkbox" id="notif-enabled" checked>
+              <span class="abs-slider"></span>
+            </span>
             <span>Enabled</span>
           </label>
         </div>
@@ -2379,7 +2409,7 @@ async function renderFeedsTab() {
         <div class="border border-black-300 rounded-md bg-primary overflow-x-auto">
           <table class="w-full text-left text-sm">
             <thead>
-              <tr class="border-b border-black-400 text-black-100 text-xs uppercase">
+              <tr class="border-b border-black-400/60 text-black-100 text-xs uppercase tracking-wider font-semibold">
                 <th class="px-4 py-3">Title / Entity</th>
                 <th class="px-4 py-3">Type</th>
                 <th class="px-4 py-3">RSS Feed URL</th>
@@ -2424,7 +2454,7 @@ async function renderFeedsTab() {
 
     feeds.forEach(feed => {
       const tr = document.createElement('tr');
-      tr.className = 'hover:bg-primary-light';
+      tr.className = 'hover:bg-black-500/30';
       tr.innerHTML = `
         <td class="px-4 py-3 font-medium text-white">${escapeHtml(feed.title || feed.entityId)}</td>
         <td class="px-4 py-3 text-black-50 uppercase text-xs">${escapeHtml(feed.type)}</td>
@@ -2538,13 +2568,19 @@ export async function renderEmailsTab() {
             </div>
           </div>
 
-          <div class="flex flex-col space-y-2 pt-2">
-            <label class="flex items-center space-x-2 cursor-pointer text-sm">
-              <input type="checkbox" id="email-secure" ${secure ? 'checked' : ''} class="rounded text-accent focus:ring-accent bg-black-500 border-black-300">
+          <div class="flex flex-col space-y-3 pt-2">
+            <label class="flex items-center space-x-3 cursor-pointer text-sm">
+              <span class="abs-switch">
+                <input type="checkbox" id="email-secure" ${secure ? 'checked' : ''}>
+                <span class="abs-slider"></span>
+              </span>
               <span>Secure connection (SSL/TLS)</span>
             </label>
-            <label class="flex items-center space-x-2 cursor-pointer text-sm">
-              <input type="checkbox" id="email-reject-unauthorized" ${rejectUnauthorized ? 'checked' : ''} class="rounded text-accent focus:ring-accent bg-black-500 border-black-300">
+            <label class="flex items-center space-x-3 cursor-pointer text-sm">
+              <span class="abs-switch">
+                <input type="checkbox" id="email-reject-unauthorized" ${rejectUnauthorized ? 'checked' : ''}>
+                <span class="abs-slider"></span>
+              </span>
               <span>Reject unauthorized SSL certificates</span>
             </label>
           </div>
@@ -2569,7 +2605,7 @@ export async function renderEmailsTab() {
         <div class="border border-black-300 rounded-md bg-primary overflow-x-auto">
           <table class="w-full text-left text-sm">
             <thead>
-              <tr class="border-b border-black-400 text-black-100 text-xs uppercase">
+              <tr class="border-b border-black-400/60 text-black-100 text-xs uppercase tracking-wider font-semibold">
                 <th class="px-4 py-3">Device Name</th>
                 <th class="px-4 py-3">Device Email</th>
                 <th class="px-4 py-3">Availability</th>
@@ -2688,7 +2724,7 @@ function renderEreaderDevicesRows(devices, users, settings) {
   rowsContainer.innerHTML = '';
   devices.forEach((dev, idx) => {
     const tr = document.createElement('tr');
-    tr.className = 'hover:bg-black-400/30 transition-colors';
+    tr.className = 'hover:bg-black-500/30 transition-colors';
 
     let availText = '';
     if (dev.availabilityOption === 'allUsers') {
@@ -2870,7 +2906,7 @@ async function renderSharesTab() {
         <div class="border border-black-300 rounded-md bg-primary overflow-x-auto">
           <table class="w-full text-left text-sm">
             <thead>
-              <tr class="border-b border-black-400 text-black-100 text-xs uppercase">
+              <tr class="border-b border-black-400/60 text-black-100 text-xs uppercase tracking-wider font-semibold">
                 <th class="px-4 py-3">Shared Item ID</th>
                 <th class="px-4 py-3">Slug / Link</th>
                 <th class="px-4 py-3">Downloadable</th>
@@ -2888,7 +2924,7 @@ async function renderSharesTab() {
                 const shareUrl = `${window.location.origin}/s/${s.id}`;
                 const expiresStr = s.expiresAt ? (window.formatDateTime ? window.formatDateTime(s.expiresAt) : new Date(s.expiresAt).toLocaleString()) : 'Never';
                 return `
-                  <tr class="hover:bg-black-600/20 text-xs text-white">
+                  <tr class="hover:bg-black-500/30 text-xs text-white">
                     <td class="px-4 py-3 font-mono text-black-100">${escapeHtml(s.libraryItemId)}</td>
                     <td class="px-4 py-3">
                       <a href="${shareUrl}" target="_blank" class="text-accent hover:underline flex items-center space-x-1">
@@ -2966,7 +3002,7 @@ async function renderLoginSessionsTab() {
         <div class="border border-black-300 rounded-md bg-primary overflow-x-auto">
           <table class="w-full text-left text-sm">
             <thead>
-              <tr class="border-b border-black-400 text-black-100 text-xs uppercase">
+              <tr class="border-b border-black-400/60 text-black-100 text-xs uppercase tracking-wider font-semibold">
                 <th class="px-4 py-3">Device / User Agent</th>
                 <th class="px-4 py-3">IP Address</th>
                 <th class="px-4 py-3">Created At</th>
@@ -3124,15 +3160,21 @@ async function renderLibrariesTab() {
         if (!foldersList) foldersList = 'No folders configured';
 
         html += `
-          <div class="border border-black-455 bg-black-500 rounded p-4 flex flex-col md:flex-row justify-between items-start md:items-center space-y-4 md:space-y-0">
-            <div class="space-y-1">
-              <div class="flex items-center space-x-2">
-                <span class="material-symbols text-lg text-accent">${mediaIcon}</span>
-                <span class="font-bold text-white">${escapeHtml(lib.name)}</span>
-                <span class="bg-black-400 text-black-50 text-[10px] px-1.5 py-0.5 rounded font-semibold uppercase">${lib.mediaType}</span>
+          <div class="library-row border-y border-r border-l-[4px] border-black-455 border-l-accent bg-black-500 rounded-r p-4 flex flex-col md:flex-row justify-between items-start md:items-center space-y-4 md:space-y-0 cursor-move transition-colors hover:bg-black-450" draggable="true" data-id="${lib.id}">
+            <div class="flex items-center space-x-3 w-full md:w-auto">
+              <!-- Reorder Handle -->
+              <span class="material-symbols text-black-200 hover:text-white text-xl select-none mr-1">drag_handle</span>
+              
+              <!-- Content -->
+              <div class="space-y-1">
+                <div class="flex items-center space-x-2">
+                  <span class="material-symbols text-lg text-accent">${mediaIcon}</span>
+                  <span class="font-bold text-white">${escapeHtml(lib.name)}</span>
+                  <span class="bg-black-400 text-black-50 text-[10px] px-1.5 py-0.5 rounded font-semibold uppercase">${lib.mediaType}</span>
+                </div>
+                <p class="text-xs text-black-100"><span class="font-semibold">Folders:</span> ${escapeHtml(foldersList)}</p>
+                <p class="text-xs text-black-100"><span class="font-semibold">Provider:</span> ${escapeHtml(lib.provider || 'local')}</p>
               </div>
-              <p class="text-xs text-black-100"><span class="font-semibold">Folders:</span> ${escapeHtml(foldersList)}</p>
-              <p class="text-xs text-black-100"><span class="font-semibold">Provider:</span> ${escapeHtml(lib.provider || 'local')}</p>
             </div>
             <div class="flex items-center space-x-2 w-full md:w-auto justify-end">
               <button type="button" class="btn-scan-lib bg-accent/10 hover:bg-accent/20 border border-accent/30 text-accent text-xs font-semibold px-3 py-1.5 rounded transition-colors" data-id="${lib.id}">Scan</button>
@@ -3151,6 +3193,70 @@ async function renderLibrariesTab() {
 
     container.innerHTML = html;
 
+    // Helper to update libraries order
+    const updateLibrariesOrder = async () => {
+      const rows = container.querySelectorAll('.library-row');
+      const promises = [];
+      rows.forEach((row, index) => {
+        const id = row.dataset.id;
+        promises.push(request('PATCH', `/api/libraries/${id}`, { displayOrder: index + 1 }));
+      });
+      try {
+        await Promise.all(promises);
+        const res = await request('GET', '/api/libraries');
+        initLibrary(res);
+      } catch (err) {
+        console.error('Failed to update library display order:', err);
+      }
+    };
+
+    // Attach HTML5 drag and drop events
+    let draggedRow = null;
+    const libraryRows = container.querySelectorAll('.library-row');
+    libraryRows.forEach(row => {
+      row.addEventListener('dragstart', (e) => {
+        draggedRow = row;
+        row.classList.add('opacity-40');
+        e.dataTransfer.effectAllowed = 'move';
+      });
+
+      row.addEventListener('dragend', async () => {
+        row.classList.remove('opacity-40');
+        draggedRow = null;
+        await updateLibrariesOrder();
+      });
+
+      row.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+      });
+
+      row.addEventListener('dragenter', (e) => {
+        if (row !== draggedRow) {
+          row.classList.add('bg-black-400');
+        }
+      });
+
+      row.addEventListener('dragleave', () => {
+        row.classList.remove('bg-black-400');
+      });
+
+      row.addEventListener('drop', (e) => {
+        e.preventDefault();
+        row.classList.remove('bg-black-400');
+        if (row !== draggedRow) {
+          const children = Array.from(row.parentNode.children);
+          const draggedIndex = children.indexOf(draggedRow);
+          const targetIndex = children.indexOf(row);
+          if (draggedIndex < targetIndex) {
+            row.parentNode.insertBefore(draggedRow, row.nextSibling);
+          } else {
+            row.parentNode.insertBefore(draggedRow, row);
+          }
+        }
+      });
+    });
+
     // Attach Event Listeners
     const createBtn = document.getElementById('btn-create-library');
     if (createBtn) {
@@ -3158,7 +3264,8 @@ async function renderLibrariesTab() {
     }
 
     container.querySelectorAll('.btn-scan-lib').forEach(btn => {
-      btn.onclick = async () => {
+      btn.onclick = async (e) => {
+        e.stopPropagation();
         const id = btn.dataset.id;
         try {
           await request('POST', `/api/libraries/${id}/scan`);
@@ -3170,7 +3277,8 @@ async function renderLibrariesTab() {
     });
 
     container.querySelectorAll('.btn-edit-lib').forEach(btn => {
-      btn.onclick = () => {
+      btn.onclick = (e) => {
+        e.stopPropagation();
         const id = btn.dataset.id;
         const lib = libs.find(l => l.id === id);
         if (lib) showLibraryModal(lib);
@@ -3178,7 +3286,8 @@ async function renderLibrariesTab() {
     });
 
     container.querySelectorAll('.btn-delete-lib').forEach(btn => {
-      btn.onclick = async () => {
+      btn.onclick = async (e) => {
+        e.stopPropagation();
         const id = btn.dataset.id;
         const lib = libs.find(l => l.id === id);
         if (!lib) return;

@@ -1599,13 +1599,13 @@ async function renderBookmarks(item) {
     }
 
     container.innerHTML = `
-      <ul class="space-y-1.5 border border-black-400/50 rounded-md p-2 bg-primary/20 max-h-60 overflow-y-auto no-scroll">
+      <ul class="space-y-1 border border-black-400/50 rounded-md p-2 bg-primary/20 max-h-60 overflow-y-auto no-scroll">
         ${bookmarks.map((b, idx) => `
           <li class="flex items-center justify-between p-2 hover:bg-black-500/40 rounded transition-colors text-xs" data-time="${b.time}">
             <div class="flex items-center space-x-2 truncate flex-grow cursor-pointer bookmark-jump-btn mr-4">
               <span class="material-symbols text-sm text-accent">bookmark</span>
               <div class="truncate">
-                <p class="font-semibold text-white truncate">${escapeHtml(b.title)}</p>
+                <p class="font-medium text-white truncate">${escapeHtml(b.title)}</p>
                 <p class="text-[0.7rem] text-black-100 mt-0.5">${formatDuration(b.time)}</p>
               </div>
             </div>

@@ -383,7 +383,7 @@
         <div class="w-full h-12 flex items-center justify-between px-6 bg-black-500/30 border-b border-black-600/30">
           <div class="flex items-center space-x-2">
             <h2 id="view-title" class="font-semibold text-lg text-white">Home</h2>
-            <span class="text-xs text-black-100 font-mono pt-1">|</span>
+            <span id="view-title-separator" class="text-xs text-black-100 font-mono pt-1">|</span>
             <span id="book-count" class="text-xs text-black-50 font-mono pt-1">0 Books</span>
           </div>
           
@@ -398,28 +398,66 @@
               <span>OPML</span>
             </button>
             
-            <!-- Filter Dropdown Select -->
-            <div class="flex items-center space-x-1 bg-black-600/40 px-2 py-1 rounded border border-black-300/30 text-black-50 hover:text-white">
-              <span class="material-symbols text-[14px]">filter_list</span>
-              <select id="filter-select" class="bg-transparent border-none text-xs text-white focus:outline-none cursor-pointer pr-1">
-                <option value="" class="bg-primary text-white">Filter: All</option>
-                <option value="progress.not-started" class="bg-primary text-white">Unstarted</option>
-                <option value="progress.in-progress" class="bg-primary text-white">In Progress</option>
-                <option value="progress.finished" class="bg-primary text-white">Completed</option>
-              </select>
+            <!-- Custom Filter Dropdown -->
+            <div class="relative">
+              <button id="filter-dropdown-btn" class="flex items-center space-x-1 bg-black-600/40 hover:bg-black-500 px-2.5 py-1 rounded border border-black-300/30 text-black-50 hover:text-white transition duration-150 focus:outline-none">
+                <span class="material-symbols text-[14px]">filter_list</span>
+                <span id="filter-selected-label">Filter: All</span>
+                <span class="material-symbols text-[12px] text-black-100">keyboard_arrow_down</span>
+              </button>
+              <div id="filter-dropdown-menu" class="absolute right-0 mt-1.5 w-44 bg-primary border border-black-400/50 rounded shadow-2xl py-1 hidden z-50 transform origin-top-right transition-all scale-95 opacity-0 duration-150">
+                <button class="filter-option-btn w-full text-left px-3 py-2 text-xs text-black-50 hover:bg-black-500 hover:text-white flex items-center justify-between transition-colors focus:outline-none" data-value="">
+                  <span>Filter: All</span>
+                  <span class="material-symbols text-[12px] check-icon hidden">check</span>
+                </button>
+                <button class="filter-option-btn w-full text-left px-3 py-2 text-xs text-black-50 hover:bg-black-500 hover:text-white flex items-center justify-between transition-colors focus:outline-none" data-value="progress.not-started">
+                  <span>Unstarted</span>
+                  <span class="material-symbols text-[12px] check-icon hidden">check</span>
+                </button>
+                <button class="filter-option-btn w-full text-left px-3 py-2 text-xs text-black-50 hover:bg-black-500 hover:text-white flex items-center justify-between transition-colors focus:outline-none" data-value="progress.in-progress">
+                  <span>In Progress</span>
+                  <span class="material-symbols text-[12px] check-icon hidden">check</span>
+                </button>
+                <button class="filter-option-btn w-full text-left px-3 py-2 text-xs text-black-50 hover:bg-black-500 hover:text-white flex items-center justify-between transition-colors focus:outline-none" data-value="progress.finished">
+                  <span>Completed</span>
+                  <span class="material-symbols text-[12px] check-icon hidden">check</span>
+                </button>
+              </div>
             </div>
 
-            <!-- Sort Dropdown Select -->
-            <div class="flex items-center space-x-1 bg-black-600/40 px-2 py-1 rounded border border-black-300/30 text-black-50 hover:text-white">
-              <span class="material-symbols text-[14px]">sort</span>
-              <select id="sort-select" class="bg-transparent border-none text-xs text-white focus:outline-none cursor-pointer pr-1">
-                <option value="media.metadata.title" class="bg-primary text-white">Title</option>
-                <option value="media.metadata.authorName" class="bg-primary text-white">Author</option>
-                <option value="media.metadata.publishedYear" class="bg-primary text-white">Year</option>
-                <option value="addedAt" class="bg-primary text-white">Date Added</option>
-                <option value="media.duration" class="bg-primary text-white">Duration</option>
-                <option value="random" class="bg-primary text-white">Random</option>
-              </select>
+            <!-- Custom Sort Dropdown -->
+            <div class="relative">
+              <button id="sort-dropdown-btn" class="flex items-center space-x-1 bg-black-600/40 hover:bg-black-500 px-2.5 py-1 rounded border border-black-300/30 text-black-50 hover:text-white transition duration-150 focus:outline-none">
+                <span class="material-symbols text-[14px]">sort</span>
+                <span id="sort-selected-label">Sort: Title</span>
+                <span class="material-symbols text-[12px] text-black-100">keyboard_arrow_down</span>
+              </button>
+              <div id="sort-dropdown-menu" class="absolute right-0 mt-1.5 w-44 bg-primary border border-black-400/50 rounded shadow-2xl py-1 hidden z-50 transform origin-top-right transition-all scale-95 opacity-0 duration-150">
+                <button class="sort-option-btn w-full text-left px-3 py-2 text-xs text-black-50 hover:bg-black-500 hover:text-white flex items-center justify-between transition-colors focus:outline-none" data-value="media.metadata.title">
+                  <span>Title</span>
+                  <span class="material-symbols text-[12px] check-icon hidden">check</span>
+                </button>
+                <button class="sort-option-btn w-full text-left px-3 py-2 text-xs text-black-50 hover:bg-black-500 hover:text-white flex items-center justify-between transition-colors focus:outline-none" data-value="media.metadata.authorName">
+                  <span>Author</span>
+                  <span class="material-symbols text-[12px] check-icon hidden">check</span>
+                </button>
+                <button class="sort-option-btn w-full text-left px-3 py-2 text-xs text-black-50 hover:bg-black-500 hover:text-white flex items-center justify-between transition-colors focus:outline-none" data-value="media.metadata.publishedYear">
+                  <span>Year</span>
+                  <span class="material-symbols text-[12px] check-icon hidden">check</span>
+                </button>
+                <button class="sort-option-btn w-full text-left px-3 py-2 text-xs text-black-50 hover:bg-black-500 hover:text-white flex items-center justify-between transition-colors focus:outline-none" data-value="addedAt">
+                  <span>Date Added</span>
+                  <span class="material-symbols text-[12px] check-icon hidden">check</span>
+                </button>
+                <button class="sort-option-btn w-full text-left px-3 py-2 text-xs text-black-50 hover:bg-black-500 hover:text-white flex items-center justify-between transition-colors focus:outline-none" data-value="media.duration">
+                  <span>Duration</span>
+                  <span class="material-symbols text-[12px] check-icon hidden">check</span>
+                </button>
+                <button class="sort-option-btn w-full text-left px-3 py-2 text-xs text-black-50 hover:bg-black-500 hover:text-white flex items-center justify-between transition-colors focus:outline-none" data-value="random">
+                  <span>Random</span>
+                  <span class="material-symbols text-[12px] check-icon hidden">check</span>
+                </button>
+              </div>
             </div>
 
             <!-- Sort Order Toggle Button -->

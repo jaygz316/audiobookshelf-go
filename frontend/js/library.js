@@ -57,6 +57,25 @@ function setupDropdown() {
 
   if (!dropdownBtn || !dropdownMenu) return;
 
+  let isOpen = false;
+  dropdownMenu.classList.add('transition-all', 'duration-150', 'ease-out', 'transform', 'scale-95', 'opacity-0');
+
+  const closeDropdown = () => {
+    if (!isOpen) return;
+    isOpen = false;
+    dropdownMenu.classList.remove('scale-100', 'opacity-100');
+    dropdownMenu.classList.add('scale-95', 'opacity-0');
+    const handleTransitionEnd = (e) => {
+      if (e.propertyName === 'opacity' && !isOpen) {
+        dropdownMenu.classList.add('hidden');
+        dropdownMenu.removeEventListener('transitionend', handleTransitionEnd);
+      }
+    };
+    dropdownMenu.addEventListener('transitionend', handleTransitionEnd);
+  };
+
+  dropdownMenu.closeDropdown = closeDropdown;
+
   // Render menu items
   dropdownMenu.innerHTML = '';
   libraries.forEach(lib => {
@@ -80,7 +99,7 @@ function setupDropdown() {
     item.addEventListener('click', (e) => {
       e.stopPropagation();
       setActiveLibrary(lib.id);
-      dropdownMenu.classList.add('hidden');
+      closeDropdown();
     });
 
     dropdownMenu.appendChild(item);
@@ -89,12 +108,21 @@ function setupDropdown() {
   // Click button toggles dropdown
   dropdownBtn.onclick = (e) => {
     e.stopPropagation();
-    dropdownMenu.classList.toggle('hidden');
+    window.closeAllDropdowns(dropdownMenu);
+    if (isOpen) {
+      closeDropdown();
+    } else {
+      isOpen = true;
+      dropdownMenu.classList.remove('hidden');
+      dropdownMenu.offsetHeight; // reflow
+      dropdownMenu.classList.remove('scale-95', 'opacity-0');
+      dropdownMenu.classList.add('scale-100', 'opacity-100');
+    }
   };
 
   // Close dropdown when clicking elsewhere
   document.addEventListener('click', () => {
-    dropdownMenu.classList.add('hidden');
+    closeDropdown();
   });
 }
 
