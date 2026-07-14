@@ -819,6 +819,12 @@ func handleGetLoggerData(db *sql.DB) http.HandlerFunc {
 // handleValidateCron validates simple cron expression fields
 func handleValidateCron(w http.ResponseWriter, r *http.Request) {
 	log.Infof("[Go] POST /api/validate-cron")
+	userSess, ok := r.Context().Value(core.UserContextKey).(*core.UserSession)
+	if !ok || !userSess.IsAdminOrUp() {
+		http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
+		return
+	}
+
 	var body struct {
 		Expression string `json:"expression"`
 	}
@@ -839,6 +845,11 @@ func handleValidateCron(w http.ResponseWriter, r *http.Request) {
 // handleWatcherUpdate stub for file watcher updates
 func handleWatcherUpdate(w http.ResponseWriter, r *http.Request) {
 	log.Infof("[Go] POST /api/watcher/update")
+	userSess, ok := r.Context().Value(core.UserContextKey).(*core.UserSession)
+	if !ok || !userSess.IsAdminOrUp() {
+		http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
+		return
+	}
 	w.WriteHeader(http.StatusOK)
 }
 
