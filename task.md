@@ -33,10 +33,10 @@ This document tracks the tasks and missing features of the `audiobookshelf-go` p
 - [x] **Bookmarks Manager Panel**: Bookmark creation with custom text notes, color tags, and export/import bookmarks.
 
 ### 2. E-Book Reader UI
-- [ ] **Flow vs. Paginated Layouts**: Add toggle for continuous vertical scroll vs. page-by-page view.
-- [ ] **Reader Typography & Themes Panel**: Custom settings for font size, line spacing, margins, font family (including OpenDyslexic), and color profiles (sepia, dark, warm, light).
-- [ ] **Reader Bookmarks & Highlights Side-Panel**: View, navigate, and search within user-saved highlights and notes in the EPUB.
-- [ ] **Text-To-Speech (TTS) Controls**: Built-in browser-based screen reader controls for EPUB reading.
+- [x] **Flow vs. Paginated Layouts**: Add toggle for continuous vertical scroll vs. page-by-page view.
+- [x] **Reader Typography & Themes Panel**: Custom settings for font size, line spacing, margins, font family (including OpenDyslexic), and color profiles (sepia, dark, warm, light).
+- [x] **Reader Bookmarks & Highlights Side-Panel**: View, navigate, and search within user-saved highlights and notes in the EPUB.
+- [x] **Text-To-Speech (TTS) Controls**: Built-in browser-based screen reader controls for EPUB reading.
 - [ ] **PDF Reader Enhancements**: Add page thumbnails side rail, search page index, and zoom in/out controls.
 
 ### 3. Library Sorting, Filtering & Presets

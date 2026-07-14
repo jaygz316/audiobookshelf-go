@@ -861,6 +861,7 @@ type Bookmark struct {
 	Title         string  `json:"title"`
 	Note          string  `json:"note"`
 	Color         string  `json:"color"`
+	Cfi           string  `json:"cfi,omitempty"`
 	CreatedAt     int64   `json:"createdAt"`
 }
 
@@ -886,6 +887,7 @@ func handleMeCreateBookmark(db *sql.DB) http.HandlerFunc {
 			Title string  `json:"title"`
 			Note  string  `json:"note"`
 			Color string  `json:"color"`
+			Cfi   string  `json:"cfi"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 			http.Error(w, `{"error": "Invalid request body"}`, http.StatusBadRequest)
@@ -915,6 +917,7 @@ func handleMeCreateBookmark(db *sql.DB) http.HandlerFunc {
 			Title:         body.Title,
 			Note:          body.Note,
 			Color:         body.Color,
+			Cfi:           body.Cfi,
 			CreatedAt:     time.Now().UnixMilli(),
 		}
 		bookmarks = append(bookmarks, newBookmark)
@@ -960,6 +963,7 @@ func handleMeUpdateBookmark(db *sql.DB) http.HandlerFunc {
 			Title string  `json:"title"`
 			Note  string  `json:"note"`
 			Color string  `json:"color"`
+			Cfi   string  `json:"cfi"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 			http.Error(w, `{"error": "Invalid request body"}`, http.StatusBadRequest)
@@ -984,6 +988,9 @@ func handleMeUpdateBookmark(db *sql.DB) http.HandlerFunc {
 				bookmarks[i].Title = body.Title
 				bookmarks[i].Note = body.Note
 				bookmarks[i].Color = body.Color
+				if body.Cfi != "" {
+					bookmarks[i].Cfi = body.Cfi
+				}
 				updated = bookmarks[i]
 				found = true
 				break
