@@ -352,7 +352,7 @@ func InitDB(dbPath string) (*sql.DB, error) {
 	isNew := false
 	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
 		isNew = true
-		log.Printf("[DB] Database file not found, creating new database at %s", dbPath)
+		log.Infof("[DB] Database file not found, creating new database at %s", dbPath)
 	}
 
 	dsn := fmt.Sprintf("file:%s?_pragma=journal_mode=WAL&_pragma=busy_timeout=5000", dbPath)
@@ -377,7 +377,7 @@ func InitDB(dbPath string) (*sql.DB, error) {
 			db.Close()
 			return nil, fmt.Errorf("failed to bootstrap schema: %w", err)
 		}
-		log.Printf("[DB] Schema bootstrapped successfully")
+		log.Info("[DB] Schema bootstrapped successfully")
 	} else {
 		if err := migrateDatabase(db); err != nil {
 			db.Close()
@@ -388,124 +388,127 @@ func InitDB(dbPath string) (*sql.DB, error) {
 	return db, nil
 }
 
-func migrateDatabase(db *sql.DB) error {
-	var exists int
-	err := db.QueryRow("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='apiKeys'").Scan(&exists)
-	if err != nil {
-		return fmt.Errorf("failed to check if apiKeys table exists: %w", err)
-	}
-
-	if exists == 0 {
-		log.Printf("[DB] Table apiKeys does not exist, creating table")
-		_, err = db.Exec("CREATE TABLE apiKeys (id TEXT PRIMARY KEY, isActive INTEGER, expiresAt TEXT, userId TEXT, name TEXT, createdAt TEXT)")
-		if err != nil {
-			return fmt.Errorf("failed to create apiKeys table: %w", err)
-		}
-	}
-
-	rows, err := db.Query("PRAGMA table_info(apiKeys)")
-	if err != nil {
-		return fmt.Errorf("failed to query table_info: %w", err)
-	}
-	defer rows.Close()
-
-	hasName := false
-	hasCreatedAt := false
-
-	for rows.Next() {
-		var cid int
-		var name string
-		var typeStr string
-		var notnull int
-		var dfltValue sql.NullString
-		var pk int
-		if err := rows.Scan(&cid, &name, &typeStr, &notnull, &dfltValue, &pk); err != nil {
-			return fmt.Errorf("failed to scan table_info row: %w", err)
-		}
-		if name == "name" {
-			hasName = true
-		}
-		if name == "createdAt" {
-			hasCreatedAt = true
-		}
-	}
-
-	if !hasName {
-		log.Printf("[DB] Migrating apiKeys table: adding name column")
-		if _, err := db.Exec("ALTER TABLE apiKeys ADD COLUMN name TEXT"); err != nil {
-			return fmt.Errorf("failed to add name column: %w", err)
-		}
-	}
-
-	if !hasCreatedAt {
-		log.Printf("[DB] Migrating apiKeys table: adding createdAt column")
-		if _, err := db.Exec("ALTER TABLE apiKeys ADD COLUMN createdAt TEXT"); err != nil {
-			return fmt.Errorf("failed to add createdAt column: %w", err)
-		}
-	}
-
-	// Migrate playbackSessions table to include createdAt and updatedAt if missing
-	var psExists int
-	err = db.QueryRow("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='playbackSessions'").Scan(&psExists)
-	if err != nil {
-		return fmt.Errorf("failed to check if playbackSessions table exists: %w", err)
-	}
-
-	if psExists > 0 {
-		psRows, err := db.Query("PRAGMA table_info(playbackSessions)")
-		if err != nil {
-			return fmt.Errorf("failed to query table_info for playbackSessions: %w", err)
-		}
-		defer psRows.Close()
-
-		hasPsCreatedAt := false
-		hasPsUpdatedAt := false
-
-		for psRows.Next() {
-			var cid int
-			var name string
-			var typeStr string
-			var notnull int
-			var dfltValue sql.NullString
-			var pk int
-			if err := psRows.Scan(&cid, &name, &typeStr, &notnull, &dfltValue, &pk); err != nil {
-				return fmt.Errorf("failed to scan playbackSessions table_info row: %w", err)
+var dbMigrations = []struct {
+	version     int
+	description string
+	run         func(db *sql.DB) error
+}{
+	{
+		version:     1,
+		description: "Ensure apiKeys table exists and has name and createdAt columns",
+		run: func(db *sql.DB) error {
+			var exists int
+			err := db.QueryRow("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='apiKeys'").Scan(&exists)
+			if err != nil {
+				return err
 			}
-			if name == "createdAt" {
-				hasPsCreatedAt = true
+			if exists == 0 {
+				_, err = db.Exec("CREATE TABLE apiKeys (id TEXT PRIMARY KEY, isActive INTEGER, expiresAt TEXT, userId TEXT, name TEXT, createdAt TEXT)")
+				return err
 			}
-			if name == "updatedAt" {
-				hasPsUpdatedAt = true
+			rows, err := db.Query("PRAGMA table_info(apiKeys)")
+			if err != nil {
+				return err
 			}
-		}
-
-		if !hasPsCreatedAt {
-			log.Printf("[DB] Migrating playbackSessions table: adding createdAt column")
-			if _, err := db.Exec("ALTER TABLE playbackSessions ADD COLUMN createdAt TEXT"); err != nil {
-				return fmt.Errorf("failed to add createdAt column to playbackSessions: %w", err)
+			defer rows.Close()
+			hasName, hasCreatedAt := false, false
+			for rows.Next() {
+				var cid int
+				var name, typeStr string
+				var notnull int
+				var dfltValue sql.NullString
+				var pk int
+				if err := rows.Scan(&cid, &name, &typeStr, &notnull, &dfltValue, &pk); err != nil {
+					return err
+				}
+				if name == "name" {
+					hasName = true
+				}
+				if name == "createdAt" {
+					hasCreatedAt = true
+				}
 			}
-		}
-
-		if !hasPsUpdatedAt {
-			log.Printf("[DB] Migrating playbackSessions table: adding updatedAt column")
-			if _, err := db.Exec("ALTER TABLE playbackSessions ADD COLUMN updatedAt TEXT"); err != nil {
-				return fmt.Errorf("failed to add updatedAt column to playbackSessions: %w", err)
+			if !hasName {
+				if _, err := db.Exec("ALTER TABLE apiKeys ADD COLUMN name TEXT"); err != nil {
+					return err
+				}
 			}
-		}
-	}
-
-	// Migrate books table to include lockedFields if missing
-	var booksExists int
-	err = db.QueryRow("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='books'").Scan(&booksExists)
-	if err == nil && booksExists > 0 {
-		rows, err := db.Query("PRAGMA table_info(books)")
-		if err == nil {
+			if !hasCreatedAt {
+				if _, err := db.Exec("ALTER TABLE apiKeys ADD COLUMN createdAt TEXT"); err != nil {
+					return err
+				}
+			}
+			return nil
+		},
+	},
+	{
+		version:     2,
+		description: "Ensure playbackSessions table has createdAt and updatedAt columns",
+		run: func(db *sql.DB) error {
+			var exists int
+			err := db.QueryRow("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='playbackSessions'").Scan(&exists)
+			if err != nil {
+				return err
+			}
+			if exists == 0 {
+				return nil
+			}
+			rows, err := db.Query("PRAGMA table_info(playbackSessions)")
+			if err != nil {
+				return err
+			}
+			defer rows.Close()
+			hasCreatedAt, hasUpdatedAt := false, false
+			for rows.Next() {
+				var cid int
+				var name, typeStr string
+				var notnull int
+				var dfltValue sql.NullString
+				var pk int
+				if err := rows.Scan(&cid, &name, &typeStr, &notnull, &dfltValue, &pk); err != nil {
+					return err
+				}
+				if name == "createdAt" {
+					hasCreatedAt = true
+				}
+				if name == "updatedAt" {
+					hasUpdatedAt = true
+				}
+			}
+			if !hasCreatedAt {
+				if _, err := db.Exec("ALTER TABLE playbackSessions ADD COLUMN createdAt TEXT"); err != nil {
+					return err
+				}
+			}
+			if !hasUpdatedAt {
+				if _, err := db.Exec("ALTER TABLE playbackSessions ADD COLUMN updatedAt TEXT"); err != nil {
+					return err
+				}
+			}
+			return nil
+		},
+	},
+	{
+		version:     3,
+		description: "Ensure books table has lockedFields column",
+		run: func(db *sql.DB) error {
+			var exists int
+			err := db.QueryRow("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='books'").Scan(&exists)
+			if err != nil {
+				return err
+			}
+			if exists == 0 {
+				return nil
+			}
+			rows, err := db.Query("PRAGMA table_info(books)")
+			if err != nil {
+				return err
+			}
 			defer rows.Close()
 			hasLockedFields := false
 			for rows.Next() {
 				var cid int
-				var name string
-				var typeStr string
+				var name, typeStr string
 				var notnull int
 				var dfltValue sql.NullString
 				var pk int
@@ -516,26 +519,34 @@ func migrateDatabase(db *sql.DB) error {
 				}
 			}
 			if !hasLockedFields {
-				log.Printf("[DB] Migrating books table: adding lockedFields column")
 				if _, err := db.Exec("ALTER TABLE books ADD COLUMN lockedFields BLOB"); err != nil {
-					return fmt.Errorf("failed to add lockedFields column to books: %w", err)
+					return err
 				}
 			}
-		}
-	}
-
-	// Migrate podcasts table to include lockedFields if missing
-	var podcastsExists int
-	err = db.QueryRow("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='podcasts'").Scan(&podcastsExists)
-	if err == nil && podcastsExists > 0 {
-		rows, err := db.Query("PRAGMA table_info(podcasts)")
-		if err == nil {
+			return nil
+		},
+	},
+	{
+		version:     4,
+		description: "Ensure podcasts table has lockedFields column",
+		run: func(db *sql.DB) error {
+			var exists int
+			err := db.QueryRow("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='podcasts'").Scan(&exists)
+			if err != nil {
+				return err
+			}
+			if exists == 0 {
+				return nil
+			}
+			rows, err := db.Query("PRAGMA table_info(podcasts)")
+			if err != nil {
+				return err
+			}
 			defer rows.Close()
 			hasLockedFields := false
 			for rows.Next() {
 				var cid int
-				var name string
-				var typeStr string
+				var name, typeStr string
 				var notnull int
 				var dfltValue sql.NullString
 				var pk int
@@ -546,42 +557,50 @@ func migrateDatabase(db *sql.DB) error {
 				}
 			}
 			if !hasLockedFields {
-				log.Printf("[DB] Migrating podcasts table: adding lockedFields column")
 				if _, err := db.Exec("ALTER TABLE podcasts ADD COLUMN lockedFields BLOB"); err != nil {
-					return fmt.Errorf("failed to add lockedFields column to podcasts: %w", err)
+					return err
 				}
 			}
-		}
-	}
-
-	// Migrate to create customMetadataProviders table if missing
-	var cmpExists int
-	err = db.QueryRow("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='customMetadataProviders'").Scan(&cmpExists)
-	if err != nil {
-		return fmt.Errorf("failed to check if customMetadataProviders table exists: %w", err)
-	}
-
-	if cmpExists == 0 {
-		log.Printf("[DB] Table customMetadataProviders does not exist, creating table")
-		_, err = db.Exec("CREATE TABLE customMetadataProviders (id TEXT PRIMARY KEY, name TEXT, mediaType TEXT, url TEXT, authHeaderValue TEXT, extraData TEXT, createdAt INTEGER, updatedAt INTEGER)")
-		if err != nil {
-			return fmt.Errorf("failed to create customMetadataProviders table: %w", err)
-		}
-	}
-
-	// Migrate collections table to include isSmart and rules if missing
-	var collExists int
-	err = db.QueryRow("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='collections'").Scan(&collExists)
-	if err == nil && collExists > 0 {
-		rows, err := db.Query("PRAGMA table_info(collections)")
-		if err == nil {
+			return nil
+		},
+	},
+	{
+		version:     5,
+		description: "Ensure customMetadataProviders table exists",
+		run: func(db *sql.DB) error {
+			var exists int
+			err := db.QueryRow("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='customMetadataProviders'").Scan(&exists)
+			if err != nil {
+				return err
+			}
+			if exists == 0 {
+				_, err = db.Exec("CREATE TABLE customMetadataProviders (id TEXT PRIMARY KEY, name TEXT, mediaType TEXT, url TEXT, authHeaderValue TEXT, extraData TEXT, createdAt INTEGER, updatedAt INTEGER)")
+				return err
+			}
+			return nil
+		},
+	},
+	{
+		version:     6,
+		description: "Ensure collections table has isSmart and rules columns",
+		run: func(db *sql.DB) error {
+			var exists int
+			err := db.QueryRow("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='collections'").Scan(&exists)
+			if err != nil {
+				return err
+			}
+			if exists == 0 {
+				return nil
+			}
+			rows, err := db.Query("PRAGMA table_info(collections)")
+			if err != nil {
+				return err
+			}
 			defer rows.Close()
-			hasIsSmart := false
-			hasRules := false
+			hasIsSmart, hasRules := false, false
 			for rows.Next() {
 				var cid int
-				var name string
-				var typeStr string
+				var name, typeStr string
 				var notnull int
 				var dfltValue sql.NullString
 				var pk int
@@ -595,20 +614,40 @@ func migrateDatabase(db *sql.DB) error {
 				}
 			}
 			if !hasIsSmart {
-				log.Printf("[DB] Migrating collections table: adding isSmart column")
 				if _, err := db.Exec("ALTER TABLE collections ADD COLUMN isSmart INTEGER DEFAULT 0"); err != nil {
-					return fmt.Errorf("failed to add isSmart column to collections: %w", err)
+					return err
 				}
 			}
 			if !hasRules {
-				log.Printf("[DB] Migrating collections table: adding rules column")
 				if _, err := db.Exec("ALTER TABLE collections ADD COLUMN rules TEXT"); err != nil {
-					return fmt.Errorf("failed to add rules column to collections: %w", err)
+					return err
 				}
 			}
-		}
+			return nil
+		},
+	},
+}
+
+func migrateDatabase(db *sql.DB) error {
+	var currentVersion int
+	err := db.QueryRow("PRAGMA user_version").Scan(&currentVersion)
+	if err != nil {
+		return fmt.Errorf("failed to read database version: %w", err)
 	}
 
+	for _, m := range dbMigrations {
+		if m.version > currentVersion {
+			log.Infof("[DB] Running migration version %d: %s", m.version, m.description)
+			if err := m.run(db); err != nil {
+				return fmt.Errorf("failed running migration %d (%s): %w", m.version, m.description, err)
+			}
+			_, err = db.Exec(fmt.Sprintf("PRAGMA user_version = %d", m.version))
+			if err != nil {
+				return fmt.Errorf("failed setting database version to %d: %w", m.version, err)
+			}
+			log.Infof("[DB] Successfully migrated to version %d", m.version)
+		}
+	}
 	return nil
 }
 
@@ -646,6 +685,14 @@ func bootstrapSchema(db *sql.DB) error {
 			return fmt.Errorf("query failed (%s...): %w", q[:min(50, len(q))], err)
 		}
 	}
+
+	// Set database version to the latest version on fresh bootstrap
+	latestVersion := len(dbMigrations)
+	_, err := db.Exec(fmt.Sprintf("PRAGMA user_version = %d", latestVersion))
+	if err != nil {
+		return fmt.Errorf("failed setting database version to latest %d: %w", latestVersion, err)
+	}
+
 	return nil
 }
 
