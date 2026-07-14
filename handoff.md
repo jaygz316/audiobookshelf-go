@@ -1,18 +1,16 @@
 # Handoff: Audiobookshelf Go Port
 
 ## Targeted Task & Accomplishments
-- **Target Task**: Security Hardening & API Parity - Cover and Author Image Route Authorization.
+- **Target Task**: Security Hardening & API Parity - Public Share Cover Parameter Validation & Resizing.
 - **Accomplishments**:
-  - Identified that GET `/api/items/{id}/cover` and GET `/api/authors/{id}/image` were completely unauthenticated in the Go port because they lacked `AuthMiddlewareWrapper`.
-  - Discovered that the `authNotNeeded` bypass regex in `middleware.go` was hardcoded to `/audiobookshelf/` prefix, breaking base-path flexibility and leaking author images.
-  - Wrapped both GET `/api/items/{id}/cover` and GET `/api/authors/{id}/image` in `AuthMiddlewareWrapper` in `routes.go`.
-  - Updated `authNotNeeded` in `middleware.go` to remove author image bypass (requiring JWT/session auth for author images to match original Node.js behavior) and updated the cover regex to support any base-path prefix dynamically (`(?i)/api/items/[^/]+/cover/?$`).
-  - Added security integration test suite `internal/handlers/cover_security_test.go` verifying correct behavior (covers allowed without token, author images rejected with 401 without auth, and author images accepted with valid token).
-  - Fixed pre-existing global state leakage in `internal/handlers/metrics_test.go` by resetting status metrics counters (`metricHTTPRequests2xx`, etc.) at test startup.
-  - All tests verified and passing successfully.
+  - Identified that the public share cover endpoint (`GET /api/s/{slug}/cover`) was not validating `width`, `height`, and `format` parameters, posing a path traversal vulnerability.
+  - Hardened the public share cover endpoint in [public_share_handlers.go](file:///home/jay/projects/audiobookshelf-go/internal/handlers/public_share_handlers.go) by implementing strict validation (allowing only digits for dimensions and limiting formats to standard web formats).
+  - Implemented resize-on-cache-miss logic for `/api/s/{slug}/cover` using the shared `resizeImage` helper, bringing it to full functional parity with `/api/items/{id}/cover`.
+  - Added comprehensive security tests to [public_share_handlers_test.go](file:///home/jay/projects/audiobookshelf-go/internal/handlers/public_share_handlers_test.go) verifying that invalid dimensions/formats and traversal attempts (e.g. `../` injection) are properly rejected with `400 Bad Request`.
+  - Validated that all handler unit tests and codebase-wide tests pass successfully.
 
 ## Outstanding Work / Next Gaps
-- None. The Go port repository is fully secure, verified, and has passing tests.
+- None for the current phase. The public share cover route is now secured and aligned with standard cover handling.
 
 ## Next Steps
-- Continue auditing and hardening other media processing or third-party API integration points.
+- Continue path traversal and SQL injection auditing on other database-driven or dynamic path endpoints (e.g., library scanning, downloading, streaming).

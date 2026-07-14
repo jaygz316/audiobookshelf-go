@@ -191,4 +191,65 @@ func TestPublicShareHandlers(t *testing.T) {
 			t.Errorf("Expected mediaTitle 'Test Book', got %v", first["mediaTitle"])
 		}
 	})
+
+	// Create a dummy cover image file for tests
+	tmpCover, err := os.CreateTemp("", "test-cover-*.jpg")
+	if err != nil {
+		t.Fatalf("Failed to create temp cover file: %v", err)
+	}
+	defer os.Remove(tmpCover.Name())
+	_, _ = tmpCover.WriteString("dummy cover image data")
+	tmpCover.Close()
+
+	_, err = db.Exec("UPDATE books SET coverPath = ? WHERE id = 'book1'", tmpCover.Name())
+	if err != nil {
+		t.Fatalf("Failed to update book coverPath: %v", err)
+	}
+
+	t.Run("Get public share cover - invalid parameters", func(t *testing.T) {
+		// Test invalid width
+		req := httptest.NewRequest(http.MethodGet, "/api/s/"+slug1+"/cover?width=123a", nil)
+		w := httptest.NewRecorder()
+		handleGetPublicShareCover(db, t.TempDir()).ServeHTTP(w, req)
+		if w.Code != http.StatusBadRequest {
+			t.Errorf("Expected status 400 for invalid width, got %d", w.Code)
+		}
+
+		// Test invalid height
+		req = httptest.NewRequest(http.MethodGet, "/api/s/"+slug1+"/cover?height=abc", nil)
+		w = httptest.NewRecorder()
+		handleGetPublicShareCover(db, t.TempDir()).ServeHTTP(w, req)
+		if w.Code != http.StatusBadRequest {
+			t.Errorf("Expected status 400 for invalid height, got %d", w.Code)
+		}
+
+		// Test invalid format
+		req = httptest.NewRequest(http.MethodGet, "/api/s/"+slug1+"/cover?format=gif", nil)
+		w = httptest.NewRecorder()
+		handleGetPublicShareCover(db, t.TempDir()).ServeHTTP(w, req)
+		if w.Code != http.StatusBadRequest {
+			t.Errorf("Expected status 400 for invalid format, got %d", w.Code)
+		}
+
+		// Test path traversal in width
+		req = httptest.NewRequest(http.MethodGet, "/api/s/"+slug1+"/cover?width=../../", nil)
+		w = httptest.NewRecorder()
+		handleGetPublicShareCover(db, t.TempDir()).ServeHTTP(w, req)
+		if w.Code != http.StatusBadRequest {
+			t.Errorf("Expected status 400 for path traversal in width, got %d", w.Code)
+		}
+	})
+
+	t.Run("Get public share cover - serves raw cover", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/api/s/"+slug1+"/cover?raw=1", nil)
+		w := httptest.NewRecorder()
+		handleGetPublicShareCover(db, t.TempDir()).ServeHTTP(w, req)
+
+		if w.Code != http.StatusOK {
+			t.Errorf("Expected status 200, got %d. Body: %s", w.Code, w.Body.String())
+		}
+		if w.Body.String() != "dummy cover image data" {
+			t.Errorf("Expected body 'dummy cover image data', got %q", w.Body.String())
+		}
+	})
 }

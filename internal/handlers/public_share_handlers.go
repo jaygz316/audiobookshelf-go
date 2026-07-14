@@ -160,12 +160,52 @@ func handleGetPublicShareCover(db *sql.DB, metadataPath string) http.HandlerFunc
 		}
 		height := r.URL.Query().Get("height")
 
+		// Validate parameters to prevent path traversal and ffmpeg parameter injection
+		for _, char := range width {
+			if char < '0' || char > '9' {
+				http.Error(w, "Invalid width", http.StatusBadRequest)
+				return
+			}
+		}
+		for _, char := range height {
+			if char < '0' || char > '9' {
+				http.Error(w, "Invalid height", http.StatusBadRequest)
+				return
+			}
+		}
+		if format != "webp" && format != "jpeg" && format != "jpg" && format != "png" {
+			http.Error(w, "Invalid format", http.StatusBadRequest)
+			return
+		}
+
 		cachePath, err := getCoverFromCache(metadataPath, s.LibraryItemID, width, height, format)
 		if err == nil {
+			if r.URL.Query().Get("ts") != "" {
+				w.Header().Set("Cache-Control", "private, max-age=86400")
+			}
 			w.Header().Set("Content-Type", "image/"+format)
 			http.ServeFile(w, r, cachePath)
 			return
 		}
+
+		// Cache miss: generate the resized cover
+		cacheFilename := s.LibraryItemID + "_" + width
+		if height != "" {
+			cacheFilename += "x" + height
+		}
+		cacheFilename += "." + format
+		cachePath = filepath.Join(metadataPath, "cache", "covers", cacheFilename)
+
+		errResize := resizeImage(coverPath, cachePath, width, height, format)
+		if errResize == nil {
+			if r.URL.Query().Get("ts") != "" {
+				w.Header().Set("Cache-Control", "private, max-age=86400")
+			}
+			w.Header().Set("Content-Type", "image/"+format)
+			http.ServeFile(w, r, cachePath)
+			return
+		}
+		log.Errorf("[PublicShareCover] Resize failed for item %s: %v. Falling back to raw cover.", s.LibraryItemID, errResize)
 
 		// Fallback to serving raw cover
 		w.Header().Set("Content-Type", "image/jpeg")
