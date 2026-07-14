@@ -352,6 +352,17 @@ async function renderServerSettingsTab() {
 
         <button type="submit" class="bg-accent hover:opacity-90 text-primary font-bold px-4 py-2 rounded transition-opacity">Save & Recompute Prefixes</button>
       </form>
+
+      <!-- Troubleshooting / Cache Tools -->
+      <div class="space-y-6 bg-primary border border-black-300 p-6 rounded-md mt-6">
+        <h3 class="text-lg font-semibold border-b border-black-400 pb-2">Troubleshooting / Cache Tools</h3>
+        <p class="text-sm text-black-100">Perform maintenance operations on server caches and temporary storage.</p>
+        
+        <div class="flex flex-wrap gap-4 pt-2">
+          <button type="button" id="btn-purge-all-cache" class="bg-black-600 hover:bg-black-500 text-white font-semibold px-4 py-2 rounded-md transition-colors border border-black-400/40">Purge All Cache</button>
+          <button type="button" id="btn-purge-items-cache" class="bg-black-600 hover:bg-black-500 text-white font-semibold px-4 py-2 rounded-md transition-colors border border-black-400/40">Purge Items Cache</button>
+        </div>
+      </div>
     `;
 
     // Hook forms
@@ -427,6 +438,42 @@ async function renderServerSettingsTab() {
         alert('Failed to save prefixes: ' + err.message);
       }
     };
+
+    const btnPurgeAll = document.getElementById('btn-purge-all-cache');
+    if (btnPurgeAll) {
+      btnPurgeAll.onclick = async () => {
+        if (!confirm('Are you sure you want to purge all cache? This includes resized cover images.')) return;
+        try {
+          btnPurgeAll.disabled = true;
+          btnPurgeAll.textContent = 'Purging...';
+          await request('POST', '/api/cache/purge-all');
+          alert('Cache purged successfully!');
+        } catch (err) {
+          alert('Failed to purge cache: ' + err.message);
+        } finally {
+          btnPurgeAll.disabled = false;
+          btnPurgeAll.textContent = 'Purge All Cache';
+        }
+      };
+    }
+
+    const btnPurgeItems = document.getElementById('btn-purge-items-cache');
+    if (btnPurgeItems) {
+      btnPurgeItems.onclick = async () => {
+        if (!confirm('Are you sure you want to purge item cover cache? All resized cover images will be deleted.')) return;
+        try {
+          btnPurgeItems.disabled = true;
+          btnPurgeItems.textContent = 'Purging...';
+          await request('POST', '/api/cache/purge-items');
+          alert('Items cover cache purged successfully!');
+        } catch (err) {
+          alert('Failed to purge items cover cache: ' + err.message);
+        } finally {
+          btnPurgeItems.disabled = false;
+          btnPurgeItems.textContent = 'Purge Items Cache';
+        }
+      };
+    }
 
   } catch (err) {
     container.innerHTML = `<p class="text-red-400 text-sm">Failed to load server settings: ${err.message}</p>`;

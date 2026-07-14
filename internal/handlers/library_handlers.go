@@ -353,6 +353,10 @@ func streamDirAsZip(w io.Writer, dirPath string) error {
 		if fileInfo.IsDir() {
 			return nil
 		}
+		if fileInfo.Mode()&os.ModeSymlink != 0 {
+			log.Warnf("[Download] Skipping symlink in zip: %s", path)
+			return nil
+		}
 		rel, err := filepath.Rel(dirPath, path)
 		if err != nil {
 			return err

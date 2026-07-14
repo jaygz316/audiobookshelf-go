@@ -13,6 +13,7 @@ import (
 
 	"audiobookshelf/internal/core"
 	"audiobookshelf/internal/share"
+	"audiobookshelf/internal/utils"
 )
 
 func TestPublicShareStream_PathTraversalAdversarial(t *testing.T) {
@@ -349,3 +350,52 @@ func TestGetFilesystem_PathTraversalAdversarial(t *testing.T) {
 		}
 	}
 }
+
+func TestIsSafeFilePath_SymlinkTraversal(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	tempDir := t.TempDir()
+	libraryPath := filepath.Join(tempDir, "library")
+	privateDir := t.TempDir()
+	privatePath := filepath.Join(privateDir, "private")
+
+	err := os.MkdirAll(libraryPath, 0755)
+	if err != nil {
+		t.Fatalf("failed to create library directory: %v", err)
+	}
+	err = os.MkdirAll(privatePath, 0755)
+	if err != nil {
+		t.Fatalf("failed to create private directory: %v", err)
+	}
+
+	secretFile := filepath.Join(privatePath, "secret.txt")
+	err = os.WriteFile(secretFile, []byte("sensitive info"), 0644)
+	if err != nil {
+		t.Fatalf("failed to write secret file: %v", err)
+	}
+
+	// Insert library folder to satisfy path safety check
+	_, err = db.Exec(`INSERT INTO libraryFolders (id, path, libraryId) VALUES ('folder1', ?, 'lib1')`, libraryPath)
+	if err != nil {
+		t.Fatalf("Failed to insert library folder: %v", err)
+	}
+
+	// 1. Create a symlink inside library pointing to the secret file outside library
+	symlinkPath := filepath.Join(libraryPath, "secret_symlink.txt")
+	err = os.Symlink(secretFile, symlinkPath)
+	if err != nil {
+		// On some operating systems/configurations, creating symlinks might fail due to privileges.
+		// If it fails, skip this test.
+		t.Skip("skipping symlink test; failed to create symlink: ", err)
+		return
+	}
+
+	// 2. Verify that IsSafeFilePath correctly rejects the symlink path
+	// because it resolves to privatePath/secret.txt which is outside libraryPath.
+	isSafe := utils.IsSafeFilePath(db, tempDir, symlinkPath)
+	if isSafe {
+		t.Error("SECURITY HOLE: IsSafeFilePath reported a symlink pointing to an outside file as safe!")
+	}
+}
+

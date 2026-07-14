@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"flag"
+	"fmt"
 	"io/fs"
 	"net/http"
 	"os"
@@ -831,6 +832,52 @@ func registerTasksAndOtherRoutes(mux *http.ServeMux, cfg *core.Config, db *sql.D
 	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/authors/"), handleAuthorsDispatch(db, cfg))
 	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/series/"), handleSeriesDispatch(db, cfg))
 
+	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/cache/purge-all"), func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
+			return
+		}
+		AuthMiddlewareWrapper(db, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			userSess, ok := r.Context().Value(core.UserContextKey).(*core.UserSession)
+			if !ok || (userSess.Type != "root" && userSess.Type != "admin") {
+				http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
+				return
+			}
+			cacheDir := filepath.Join(metadataPath, "cache")
+			if err := removeContents(cacheDir); err != nil {
+				log.Errorf("[Cache Purge] Failed to purge cache: %v", err)
+				http.Error(w, fmt.Sprintf(`{"error": "Failed to purge cache: %s"}`, err.Error()), http.StatusInternalServerError)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`{"message": "Cache purged successfully"}`))
+		})).ServeHTTP(w, r)
+	})
+
+	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/cache/purge-items"), func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
+			return
+		}
+		AuthMiddlewareWrapper(db, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			userSess, ok := r.Context().Value(core.UserContextKey).(*core.UserSession)
+			if !ok || (userSess.Type != "root" && userSess.Type != "admin") {
+				http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
+				return
+			}
+			coversDir := filepath.Join(metadataPath, "cache", "covers")
+			if err := removeContents(coversDir); err != nil {
+				log.Errorf("[Cache Purge] Failed to purge items cover cache: %v", err)
+				http.Error(w, fmt.Sprintf(`{"error": "Failed to purge items cover cache: %s"}`, err.Error()), http.StatusInternalServerError)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`{"message": "Items cover cache purged successfully"}`))
+		})).ServeHTTP(w, r)
+	})
+
 	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/feed/"), func(w http.ResponseWriter, r *http.Request) {
 		initManagers(db)
 		pathWithoutPrefix := trimBasePath(r.URL.Path, cfg.RouterBasePath)
@@ -1517,3 +1564,26 @@ func handleNotificationsDispatch(db *sql.DB, cfg *core.Config) http.HandlerFunc 
 		http.Error(w, `{"error": "Not Found"}`, http.StatusNotFound)
 	}
 }
+
+func removeContents(dir string) error {
+	d, err := os.Open(dir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil // Already deleted or doesn't exist yet
+		}
+		return err
+	}
+	defer d.Close()
+	names, err := d.Readdirnames(-1)
+	if err != nil {
+		return err
+	}
+	for _, name := range names {
+		err = os.RemoveAll(filepath.Join(dir, name))
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
