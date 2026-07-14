@@ -541,10 +541,13 @@ func CreateUserFromOpenIdUserInfo(ctx context.Context, db *sql.DB, userinfo map[
 		}
 	}
 
-	claims := jwt.MapClaims{
-		"id":       userId,
-		"username": username,
-		"exp":      time.Now().Add(30 * 24 * time.Hour).Unix(),
+	claims := &core.AuthClaims{
+		UserID:   userId,
+		Username: username,
+		Type:     userType,
+		RegisteredClaims: jwt.RegisteredClaims{
+			Issuer: "audiobookshelf",
+		},
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	tokenString, err := token.SignedString([]byte(tokenSecret))
@@ -594,10 +597,13 @@ func CreateUserFromOpenIdUserInfo(ctx context.Context, db *sql.DB, userinfo map[
 }
 
 func UpdateUserTypeAndToken(ctx context.Context, db *sql.DB, u *User, newType string, tokenSecret string) error {
-	claims := jwt.MapClaims{
-		"id":       u.ID,
-		"username": u.Username,
-		"exp":      time.Now().Add(30 * 24 * time.Hour).Unix(),
+	claims := &core.AuthClaims{
+		UserID:   u.ID,
+		Username: u.Username,
+		Type:     newType,
+		RegisteredClaims: jwt.RegisteredClaims{
+			Issuer: "audiobookshelf",
+		},
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	tokenString, err := token.SignedString([]byte(tokenSecret))
