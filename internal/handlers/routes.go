@@ -564,10 +564,17 @@ func registerSettingsRoutes(mux *http.ServeMux, cfg *core.Config, db *sql.DB) {
 	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/session/"), func(w http.ResponseWriter, r *http.Request) {
 		subPath := strings.TrimPrefix(r.URL.Path, joinPath(cfg.RouterBasePath, "/api/session/"))
 		parts := strings.Split(subPath, "/")
-		if len(parts) == 1 && parts[0] == "local-all" {
-			if r.Method == http.MethodPost {
-				AuthMiddlewareWrapper(db, handleSyncLocalSessions(db)).ServeHTTP(w, r)
-				return
+		if len(parts) == 1 {
+			if parts[0] == "local-all" {
+				if r.Method == http.MethodPost {
+					AuthMiddlewareWrapper(db, handleSyncLocalSessions(db)).ServeHTTP(w, r)
+					return
+				}
+			} else if parts[0] == "local" {
+				if r.Method == http.MethodPost {
+					AuthMiddlewareWrapper(db, handleSyncLocalSession(db)).ServeHTTP(w, r)
+					return
+				}
 			}
 		}
 		http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
