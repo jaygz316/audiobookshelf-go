@@ -1,17 +1,18 @@
 # Handoff: Audiobookshelf Go Port
 
 ## Targeted Task & Accomplishments
-- **Target Task**: SQLite Database Query Performance Optimization
+- **Target Task**: Concurrent Library Folder Scanner Optimization
 - **Accomplishments**:
-  - Identified O(N) loop queries in `DeleteLibrary` and `UpdateLibrary` functions (inside `internal/db/db_queries.go`) where related items were being queried and deleted one by one.
-  - Replaced O(N) loops with efficient O(1) batch `DELETE` statement executions using SQL subqueries.
-  - Successfully ran database benchmarks, showing a **2.5x speedup (from 10.78 ms/op to 4.15 ms/op, a 61.5% reduction)** for library updates and a **11% speedup** for library deletion.
-  - Confirmed all integration, unit, and E2E tests pass completely.
-  - Successfully built and pushed Docker image `jaygz/audiobookshelf-go:latest`.
+  - Bounded concurrent `ffprobe` processes using a package-level semaphore (`probeSemaphore`).
+  - Parallelized audio file parsing inside `parseMetadataForGroup` using `sync.WaitGroup` to probe metadata and tags in parallel.
+  - Redesigned `ScanLibrary` to decouple CPU/IO-heavy parsing from sequential SQLite writes by utilizing a concurrent worker pool for metadata extraction.
+  - Added new benchmark `BenchmarkParseMetadataForGroup` and verified scanner test suite.
+  - Successfully ran tests, built, and pushed Docker image `jaygz/audiobookshelf-go:latest`.
 
 ## Outstanding Work / Next Gaps
-- Continuously monitor other areas of the application for loop database queries (N+1 queries).
-- Focus on profiling the library/folder scanner logic to see if file metadata extraction or directory traversals can be parallelized or optimized.
+- Continuously monitor other backend modules for N+1 query patterns.
+- Profile socket communication and event handling mechanism.
+- Check security boundaries around files, streaming, and route access control.
 
 ## Next Steps
-- Profile the library folder scanner and identify opportunities for optimization.
+- Audit API endpoints in `internal/handlers/` and SQLite queries in `internal/db/` for path traversal and SQL injection vulnerabilities.
