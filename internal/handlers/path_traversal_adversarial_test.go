@@ -283,3 +283,69 @@ func TestUpdateAuthor_PathTraversalAdversarial(t *testing.T) {
 		t.Error("VULNERABILITY: Metadata file outside metadata path was successfully updated/modified!")
 	}
 }
+
+func TestGetFilesystem_PathTraversalAdversarial(t *testing.T) {
+	userSess := &core.UserSession{
+		ID:       "user1",
+		Username: "testuser",
+		Type:     "admin",
+		IsActive: true,
+	}
+
+	appRoot := t.TempDir()
+	// Create an excluded directory inside appRoot
+	metaDir := filepath.Join(appRoot, "metadata")
+	_ = os.MkdirAll(metaDir, 0755)
+
+	// Create a safe directory inside appRoot
+	safeDir := filepath.Join(appRoot, "safe_dir")
+	_ = os.MkdirAll(safeDir, 0755)
+
+	// 1. Direct access to /sys should be blocked
+	{
+		req := httptest.NewRequest("GET", "/api/filesystem?path=/sys", nil)
+		req = req.WithContext(context.WithValue(req.Context(), core.UserContextKey, userSess))
+		rr := httptest.NewRecorder()
+
+		handleGetFilesystem(appRoot).ServeHTTP(rr, req)
+		if rr.Code != http.StatusForbidden {
+			t.Errorf("Expected 403 Forbidden for direct access to /sys, got %d", rr.Code)
+		}
+	}
+
+	// 2. Nested access to /sys/class (or /sys/../sys/class) should be blocked
+	{
+		req := httptest.NewRequest("GET", "/api/filesystem?path=/sys/../sys/class", nil)
+		req = req.WithContext(context.WithValue(req.Context(), core.UserContextKey, userSess))
+		rr := httptest.NewRecorder()
+
+		handleGetFilesystem(appRoot).ServeHTTP(rr, req)
+		if rr.Code != http.StatusForbidden {
+			t.Errorf("Expected 403 Forbidden for nested traversal to /sys, got %d", rr.Code)
+		}
+	}
+
+	// 3. Direct access to appRoot's metadata folder should be blocked
+	{
+		req := httptest.NewRequest("GET", "/api/filesystem?path="+filepath.ToSlash(metaDir), nil)
+		req = req.WithContext(context.WithValue(req.Context(), core.UserContextKey, userSess))
+		rr := httptest.NewRecorder()
+
+		handleGetFilesystem(appRoot).ServeHTTP(rr, req)
+		if rr.Code != http.StatusForbidden {
+			t.Errorf("Expected 403 Forbidden for access to metadata directory, got %d", rr.Code)
+		}
+	}
+
+	// 4. Safe folder should be allowed
+	{
+		req := httptest.NewRequest("GET", "/api/filesystem?path="+filepath.ToSlash(safeDir), nil)
+		req = req.WithContext(context.WithValue(req.Context(), core.UserContextKey, userSess))
+		rr := httptest.NewRecorder()
+
+		handleGetFilesystem(appRoot).ServeHTTP(rr, req)
+		if rr.Code != http.StatusOK {
+			t.Errorf("Expected 200 OK for safe directory, got %d. Body: %s", rr.Code, rr.Body.String())
+		}
+	}
+}
