@@ -47,12 +47,11 @@ func getTokenSecret(database *sql.DB) string {
 	if database == nil {
 		return ""
 	}
-	settings, err := db.GetServerSettings(database)
-	if err == nil && settings != nil && settings.TokenSecret != "" {
-		cachedSecret = settings.TokenSecret
-		return cachedSecret
+	secret := db.GetTokenSecret(database)
+	if secret != "" {
+		cachedSecret = secret
 	}
-	return ""
+	return secret
 }
 
 func getVersion(appRoot string) string {

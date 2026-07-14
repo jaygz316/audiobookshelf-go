@@ -142,3 +142,55 @@ func TestInitDBConnectionPooling(t *testing.T) {
 		t.Errorf("Expected MaxOpenConnections to be 15, got %d", stats.MaxOpenConnections)
 	}
 }
+
+func TestGetTokenSecret(t *testing.T) {
+	// Setup test database
+	tmpDir, err := os.MkdirTemp("", "testdb-token-dir")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	dbPath := filepath.Join(tmpDir, "test_token.db")
+	database, err := InitDB(dbPath)
+	if err != nil {
+		t.Fatalf("InitDB failed: %v", err)
+	}
+	defer database.Close()
+
+	// Backup environment variables
+	origEnvSecret := os.Getenv("JWT_SECRET_KEY")
+	os.Unsetenv("JWT_SECRET_KEY")
+	defer func() {
+		if origEnvSecret != "" {
+			os.Setenv("JWT_SECRET_KEY", origEnvSecret)
+		} else {
+			os.Unsetenv("JWT_SECRET_KEY")
+		}
+	}()
+
+	// 1. Verify a nil database returns empty string
+	nilSecret := GetTokenSecret(nil)
+	if nilSecret != "" {
+		t.Errorf("Expected GetTokenSecret(nil) to be empty, got: %s", nilSecret)
+	}
+
+	// 2. Call GetTokenSecret on empty settings. It should generate and save a new secret.
+	secret1 := GetTokenSecret(database)
+	if len(secret1) != 64 { // 32 bytes encoded in hex
+		t.Errorf("Expected 64-char hex secret, got length %d: %s", len(secret1), secret1)
+	}
+
+	// 3. Subsequent calls should return the same secret
+	secret2 := GetTokenSecret(database)
+	if secret1 != secret2 {
+		t.Errorf("Expected subsequent calls to return same secret, got: %s vs %s", secret1, secret2)
+	}
+
+	// 4. Verify environment variable override
+	os.Setenv("JWT_SECRET_KEY", "env-override-secret-value-12345")
+	envSecret := GetTokenSecret(database)
+	if envSecret != "env-override-secret-value-12345" {
+		t.Errorf("Expected environment override to take precedence, got: %s", envSecret)
+	}
+}
