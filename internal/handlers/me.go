@@ -22,7 +22,7 @@ import (
 // handleGetMe returns the logged-in user details
 func handleGetMe(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[Go] GET /api/me")
+		log.Infof("[Go] GET /api/me")
 		userSess, ok := r.Context().Value(core.UserContextKey).(*core.UserSession)
 		if !ok {
 			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
@@ -31,7 +31,7 @@ func handleGetMe(db *sql.DB) http.HandlerFunc {
 
 		user, err := idb.GetUserFullByID(r.Context(), db, userSess.ID)
 		if err != nil || user == nil {
-			log.Printf("[Me] idb.User lookup failed: %v", err)
+			log.Errorf("[Me] idb.User lookup failed: %v", err)
 			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
 			return
 		}
@@ -44,7 +44,7 @@ func handleGetMe(db *sql.DB) http.HandlerFunc {
 // handleUpdateMePassword allows the user to update their password
 func handleUpdateMePassword(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[Go] PATCH /api/me/password")
+		log.Infof("[Go] PATCH /api/me/password")
 		userSess, ok := r.Context().Value(core.UserContextKey).(*core.UserSession)
 		if !ok {
 			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
@@ -73,7 +73,7 @@ func handleUpdateMePassword(db *sql.DB) http.HandlerFunc {
 
 		err = bcrypt.CompareHashAndPassword([]byte(user.Pash), []byte(body.Password))
 		if err != nil {
-			log.Printf("[Me] Invalid current password for user %s", user.Username)
+			log.Warnf("[Me] Invalid current password for user %s", user.Username)
 			http.Error(w, `{"error": "Invalid current password"}`, http.StatusBadRequest)
 			return
 		}
@@ -86,7 +86,7 @@ func handleUpdateMePassword(db *sql.DB) http.HandlerFunc {
 
 		_, err = db.ExecContext(r.Context(), "UPDATE users SET pash = ?, updatedAt = ? WHERE id = ?", string(hashed), idb.TimeToDBStr(time.Now()), user.ID)
 		if err != nil {
-			log.Printf("[Me] Password update DB error: %v", err)
+			log.Errorf("[Me] Password update DB error: %v", err)
 			http.Error(w, `{"error": "Internal Server Error"}`, http.StatusInternalServerError)
 			return
 		}
@@ -106,7 +106,7 @@ func trimPathPrefix(path, prefix string) string {
 // handleGetMeProgress retrieves a specific media progress object
 func handleGetMeProgress(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[Go] GET %s", r.URL.Path)
+		log.Infof("[Go] GET %s", r.URL.Path)
 		userSess, ok := r.Context().Value(core.UserContextKey).(*core.UserSession)
 		if !ok {
 			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
@@ -138,7 +138,7 @@ func handleGetMeProgress(db *sql.DB) http.HandlerFunc {
 
 		progressMap, err := scanMediaProgress(row)
 		if err != nil {
-			log.Printf("[Me Progress] Scan error: %v", err)
+			log.Errorf("[Me Progress] Scan error: %v", err)
 			http.Error(w, `{"error": "Internal Server Error"}`, http.StatusInternalServerError)
 			return
 		}
@@ -155,7 +155,7 @@ func handleGetMeProgress(db *sql.DB) http.HandlerFunc {
 // handleCreateUpdateMeProgress handles PATCH /api/me/progress/:libraryItemId/:episodeId?
 func handleCreateUpdateMeProgress(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[Go] PATCH %s", r.URL.Path)
+		log.Infof("[Go] PATCH %s", r.URL.Path)
 		userSess, ok := r.Context().Value(core.UserContextKey).(*core.UserSession)
 		if !ok {
 			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
@@ -239,7 +239,7 @@ func handleCreateUpdateMeProgress(db *sql.DB) http.HandlerFunc {
 		if err == sql.ErrNoRows {
 			exists = false
 		} else if err != nil {
-			log.Printf("[Me Progress] Lookup error: %v", err)
+			log.Errorf("[Me Progress] Lookup error: %v", err)
 			http.Error(w, "Database error", http.StatusInternalServerError)
 			return
 		}
@@ -384,7 +384,7 @@ func handleCreateUpdateMeProgress(db *sql.DB) http.HandlerFunc {
 		}
 
 		if err != nil {
-			log.Printf("[Me Progress] Save error: %v", err)
+			log.Errorf("[Me Progress] Save error: %v", err)
 			http.Error(w, "Database error", http.StatusInternalServerError)
 			return
 		}
@@ -434,7 +434,7 @@ func handleCreateUpdateMeProgress(db *sql.DB) http.HandlerFunc {
 				sessExtraBytes, _ := json.Marshal(sessExtra)
 				_, errSessUpdate := db.ExecContext(r.Context(), `UPDATE playbackSessions SET extraData = ?, updatedAt = ? WHERE id = ?`, string(sessExtraBytes), nowStr, sessID)
 				if errSessUpdate != nil {
-					log.Printf("[Me Progress] Failed to update playback session: %v", errSessUpdate)
+					log.Errorf("[Me Progress] Failed to update playback session: %v", errSessUpdate)
 				} else if isocket.GlobalAuth != nil {
 					isocket.GlobalAuth.BroadcastPlaybackSessionUpdated(userSess.ID, sessID)
 				}
@@ -462,7 +462,7 @@ func handleCreateUpdateMeProgress(db *sql.DB) http.HandlerFunc {
 				_, errSessInsert := db.ExecContext(r.Context(), `INSERT INTO playbackSessions (id, userId, mediaItemId, mediaItemType, startTime, libraryId, extraData, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 					sessID, userSess.ID, mediaItemID, mediaItemType, currentTimeVal, resolvedLibraryID, string(sessExtraBytes), nowStr, nowStr)
 				if errSessInsert != nil {
-					log.Printf("[Me Progress] Failed to create fallback playback session: %v", errSessInsert)
+					log.Errorf("[Me Progress] Failed to create fallback playback session: %v", errSessInsert)
 				} else if isocket.GlobalAuth != nil {
 					isocket.GlobalAuth.BroadcastPlaybackSessionAdded(userSess.ID, sessID)
 				}
@@ -485,7 +485,7 @@ func handleCreateUpdateMeProgress(db *sql.DB) http.HandlerFunc {
 // handleRemoveMeProgress handles DELETE /api/me/progress/:id
 func handleRemoveMeProgress(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[Go] DELETE %s", r.URL.Path)
+		log.Infof("[Go] DELETE %s", r.URL.Path)
 		userSess, ok := r.Context().Value(core.UserContextKey).(*core.UserSession)
 		if !ok {
 			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
@@ -508,7 +508,7 @@ func handleRemoveMeProgress(db *sql.DB) http.HandlerFunc {
 
 		_, err := db.ExecContext(r.Context(), "DELETE FROM mediaProgresses WHERE id = ?", progressID)
 		if err != nil {
-			log.Printf("[Me Progress] Delete error: %v", err)
+			log.Errorf("[Me Progress] Delete error: %v", err)
 			http.Error(w, "Database error", http.StatusInternalServerError)
 			return
 		}
@@ -529,7 +529,7 @@ func handleRemoveMeProgress(db *sql.DB) http.HandlerFunc {
 // handleGetAllLibraryItemsInProgress handles GET /api/me/items-in-progress
 func handleGetAllLibraryItemsInProgress(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[Go] GET /api/me/items-in-progress")
+		log.Infof("[Go] GET /api/me/items-in-progress")
 		userSess, ok := r.Context().Value(core.UserContextKey).(*core.UserSession)
 		if !ok {
 			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
@@ -549,7 +549,7 @@ func handleGetAllLibraryItemsInProgress(db *sql.DB) http.HandlerFunc {
 			FROM mediaProgresses WHERE userId = ? AND isFinished = 0 AND (currentTime > 0 OR ebookProgress > 0) AND (hideFromContinueListening = 0)
 			ORDER BY updatedAt DESC LIMIT ?`, userSess.ID, limit)
 		if err != nil {
-			log.Printf("[Me Progress] In progress query error: %v", err)
+			log.Errorf("[Me Progress] In progress query error: %v", err)
 			http.Error(w, "Database error", http.StatusInternalServerError)
 			return
 		}
@@ -571,7 +571,7 @@ func handleGetAllLibraryItemsInProgress(db *sql.DB) http.HandlerFunc {
 
 			err := rows.Scan(&id, &mediaItemId, &mediaItemType, &duration, &currentTime, &isFinishedInt, &hideFromContinueListeningInt, &ebookLocation, &ebookProgress, &finishedAt, &extraData, &createdAt, &updatedAt, &podcastId)
 			if err != nil {
-				log.Printf("[Me Progress] Failed to scan progress row: %v", err)
+				log.Warnf("[Me Progress] Failed to scan progress row: %v", err)
 				continue
 			}
 
@@ -593,7 +593,7 @@ func handleGetAllLibraryItemsInProgress(db *sql.DB) http.HandlerFunc {
 			}
 		}
 		if err := rows.Err(); err != nil {
-			log.Printf("[Me Progress] Progresses iteration error: %v", err)
+			log.Errorf("[Me Progress] Progresses iteration error: %v", err)
 			http.Error(w, "Database error", http.StatusInternalServerError)
 			return
 		}
@@ -610,7 +610,7 @@ func handleGetAllLibraryItemsInProgress(db *sql.DB) http.HandlerFunc {
 			query := fmt.Sprintf("SELECT id, mediaType, mediaId, title FROM libraryItems WHERE id IN (%s)", strings.Join(qPlaceholders, ","))
 			itemRows, err := db.QueryContext(r.Context(), query, qArgs...)
 			if err != nil {
-				log.Printf("[Me Progress] Failed to query library items: %v", err)
+				log.Errorf("[Me Progress] Failed to query library items: %v", err)
 				http.Error(w, "Database error", http.StatusInternalServerError)
 				return
 			}
@@ -619,7 +619,7 @@ func handleGetAllLibraryItemsInProgress(db *sql.DB) http.HandlerFunc {
 			for itemRows.Next() {
 				var id, mediaType, mediaId, title string
 				if err := itemRows.Scan(&id, &mediaType, &mediaId, &title); err != nil {
-					log.Printf("[Me Progress] Failed to scan library item row: %v", err)
+					log.Warnf("[Me Progress] Failed to scan library item row: %v", err)
 					continue
 				}
 				// Match updatedAt
@@ -640,7 +640,7 @@ func handleGetAllLibraryItemsInProgress(db *sql.DB) http.HandlerFunc {
 				})
 			}
 			if err := itemRows.Err(); err != nil {
-				log.Printf("[Me Progress] Library items query iteration error: %v", err)
+				log.Errorf("[Me Progress] Library items query iteration error: %v", err)
 				http.Error(w, "Database error", http.StatusInternalServerError)
 				return
 			}
@@ -656,7 +656,7 @@ func handleGetAllLibraryItemsInProgress(db *sql.DB) http.HandlerFunc {
 // handleRemoveSeriesFromContinueListening handles GET /api/me/series/:id/remove-from-continue-listening
 func handleRemoveSeriesFromContinueListening(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[Go] GET %s", r.URL.Path)
+		log.Infof("[Go] GET %s", r.URL.Path)
 		userSess, ok := r.Context().Value(core.UserContextKey).(*core.UserSession)
 		if !ok {
 			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
@@ -706,7 +706,7 @@ func handleRemoveSeriesFromContinueListening(db *sql.DB) http.HandlerFunc {
 			extraBytes, _ := json.Marshal(extra)
 			_, err = db.ExecContext(r.Context(), "UPDATE users SET extraData = ?, updatedAt = ? WHERE id = ?", string(extraBytes), idb.TimeToDBStr(time.Now()), user.ID)
 			if err != nil {
-				log.Printf("[Me Series] DB error: %v", err)
+				log.Errorf("[Me Series] DB error: %v", err)
 				http.Error(w, "Database error", http.StatusInternalServerError)
 				return
 			}
@@ -726,7 +726,7 @@ func handleRemoveSeriesFromContinueListening(db *sql.DB) http.HandlerFunc {
 // handleReaddSeriesFromContinueListening handles GET /api/me/series/:id/readd-to-continue-listening
 func handleReaddSeriesFromContinueListening(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[Go] GET %s", r.URL.Path)
+		log.Infof("[Go] GET %s", r.URL.Path)
 		userSess, ok := r.Context().Value(core.UserContextKey).(*core.UserSession)
 		if !ok {
 			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
@@ -770,7 +770,7 @@ func handleReaddSeriesFromContinueListening(db *sql.DB) http.HandlerFunc {
 			extraBytes, _ := json.Marshal(extra)
 			_, err = db.ExecContext(r.Context(), "UPDATE users SET extraData = ?, updatedAt = ? WHERE id = ?", string(extraBytes), idb.TimeToDBStr(time.Now()), user.ID)
 			if err != nil {
-				log.Printf("[Me Series] DB error: %v", err)
+				log.Errorf("[Me Series] DB error: %v", err)
 				http.Error(w, "Database error", http.StatusInternalServerError)
 				return
 			}
@@ -790,7 +790,7 @@ func handleReaddSeriesFromContinueListening(db *sql.DB) http.HandlerFunc {
 // handleHideMeProgressFromContinueListening handles GET /api/me/progress/:id/remove-from-continue-listening
 func handleHideMeProgressFromContinueListening(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[Go] GET %s", r.URL.Path)
+		log.Infof("[Go] GET %s", r.URL.Path)
 		userSess, ok := r.Context().Value(core.UserContextKey).(*core.UserSession)
 		if !ok {
 			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
@@ -808,7 +808,7 @@ func handleHideMeProgressFromContinueListening(db *sql.DB) http.HandlerFunc {
 		_, err := db.ExecContext(r.Context(), "UPDATE mediaProgresses SET hideFromContinueListening = 1, updatedAt = ? WHERE id = ? AND userId = ?",
 			idb.TimeToDBStr(time.Now()), progressID, userSess.ID)
 		if err != nil {
-			log.Printf("[Me Progress] Hide progress error: %v", err)
+			log.Errorf("[Me Progress] Hide progress error: %v", err)
 			http.Error(w, "Database error", http.StatusInternalServerError)
 			return
 		}
@@ -842,7 +842,7 @@ type Bookmark struct {
 
 func handleMeCreateBookmark(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[Go] POST %s", r.URL.Path)
+		log.Infof("[Go] POST %s", r.URL.Path)
 		userSess, ok := r.Context().Value(core.UserContextKey).(*core.UserSession)
 		if !ok {
 			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
@@ -894,7 +894,7 @@ func handleMeCreateBookmark(db *sql.DB) http.HandlerFunc {
 		bookmarksBytes, _ := json.Marshal(bookmarks)
 		_, err = db.ExecContext(r.Context(), "UPDATE users SET bookmarks = ?, updatedAt = ? WHERE id = ?", string(bookmarksBytes), idb.TimeToDBStr(time.Now()), user.ID)
 		if err != nil {
-			log.Printf("[Me Bookmark] DB error: %v", err)
+			log.Errorf("[Me Bookmark] DB error: %v", err)
 			http.Error(w, "Database error", http.StatusInternalServerError)
 			return
 		}
@@ -912,7 +912,7 @@ func handleMeCreateBookmark(db *sql.DB) http.HandlerFunc {
 
 func handleMeUpdateBookmark(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[Go] PATCH %s", r.URL.Path)
+		log.Infof("[Go] PATCH %s", r.URL.Path)
 		userSess, ok := r.Context().Value(core.UserContextKey).(*core.UserSession)
 		if !ok {
 			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
@@ -966,7 +966,7 @@ func handleMeUpdateBookmark(db *sql.DB) http.HandlerFunc {
 		bookmarksBytes, _ := json.Marshal(bookmarks)
 		_, err = db.ExecContext(r.Context(), "UPDATE users SET bookmarks = ?, updatedAt = ? WHERE id = ?", string(bookmarksBytes), idb.TimeToDBStr(time.Now()), user.ID)
 		if err != nil {
-			log.Printf("[Me Bookmark] DB error: %v", err)
+			log.Errorf("[Me Bookmark] DB error: %v", err)
 			http.Error(w, "Database error", http.StatusInternalServerError)
 			return
 		}
@@ -984,7 +984,7 @@ func handleMeUpdateBookmark(db *sql.DB) http.HandlerFunc {
 
 func handleMeRemoveBookmark(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[Go] DELETE %s", r.URL.Path)
+		log.Infof("[Go] DELETE %s", r.URL.Path)
 		userSess, ok := r.Context().Value(core.UserContextKey).(*core.UserSession)
 		if !ok {
 			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
@@ -1041,7 +1041,7 @@ func handleMeRemoveBookmark(db *sql.DB) http.HandlerFunc {
 		bookmarksBytes, _ := json.Marshal(newBookmarks)
 		_, err = db.ExecContext(r.Context(), "UPDATE users SET bookmarks = ?, updatedAt = ? WHERE id = ?", string(bookmarksBytes), idb.TimeToDBStr(time.Now()), user.ID)
 		if err != nil {
-			log.Printf("[Me Bookmark] DB error: %v", err)
+			log.Errorf("[Me Bookmark] DB error: %v", err)
 			http.Error(w, "Database error", http.StatusInternalServerError)
 			return
 		}

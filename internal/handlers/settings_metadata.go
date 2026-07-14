@@ -15,11 +15,11 @@ import (
 // handleGetMetadataProviders maps to GET /api/search/providers
 func handleGetMetadataProviders(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[Go] GET /api/search/providers")
+		log.Infof("[Go] GET /api/search/providers")
 
 		customBookProviders, customPodcastProviders, err := queryCustomMetadataProviders(db)
 		if err != nil {
-			log.Printf("[Settings] Failed to query custom metadata providers: %v", err)
+			log.Errorf("[Settings] Failed to query custom metadata providers: %v", err)
 		}
 
 		response := buildMetadataProvidersResponse(customBookProviders, customPodcastProviders)
@@ -32,7 +32,7 @@ func handleGetMetadataProviders(db *sql.DB) http.HandlerFunc {
 // handleGetCustomMetadataProviders maps to GET /api/custom-metadata-providers
 func handleGetCustomMetadataProviders(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[Go] GET /api/custom-metadata-providers")
+		log.Infof("[Go] GET /api/custom-metadata-providers")
 
 		rows, err := db.Query("SELECT id, name, mediaType, url, authHeaderValue, extraData, createdAt, updatedAt FROM customMetadataProviders")
 		if err != nil {
@@ -46,7 +46,7 @@ func handleGetCustomMetadataProviders(db *sql.DB) http.HandlerFunc {
 			var id, name, mediaType, url string
 			var authHeaderVal, extraData, createdAt, updatedAt sql.NullString
 			if err := rows.Scan(&id, &name, &mediaType, &url, &authHeaderVal, &extraData, &createdAt, &updatedAt); err != nil {
-				log.Printf("[Settings] Failed to scan custom metadata provider: %v", err)
+				log.Errorf("[Settings] Failed to scan custom metadata provider: %v", err)
 				http.Error(w, `{"error": "Internal Error"}`, http.StatusInternalServerError)
 				return
 			}
@@ -65,7 +65,7 @@ func handleGetCustomMetadataProviders(db *sql.DB) http.HandlerFunc {
 			list = append(list, m)
 		}
 		if err := rows.Err(); err != nil {
-			log.Printf("[Settings] Custom metadata providers query iteration error: %v", err)
+			log.Errorf("[Settings] Custom metadata providers query iteration error: %v", err)
 			http.Error(w, `{"error": "Internal Error"}`, http.StatusInternalServerError)
 			return
 		}
@@ -80,7 +80,7 @@ func handleGetCustomMetadataProviders(db *sql.DB) http.HandlerFunc {
 // handleCreateCustomMetadataProvider maps to POST /api/custom-metadata-providers
 func handleCreateCustomMetadataProvider(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[Go] POST /api/custom-metadata-providers")
+		log.Infof("[Go] POST /api/custom-metadata-providers")
 
 		var body struct {
 			Name            string  `json:"name"`
@@ -114,7 +114,7 @@ func handleCreateCustomMetadataProvider(db *sql.DB) http.HandlerFunc {
 		_, err := db.Exec("INSERT INTO customMetadataProviders (id, name, mediaType, url, authHeaderValue, extraData, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, '{}', ?, ?)",
 			id, body.Name, body.MediaType, body.URL, authVal, nowStr, nowStr)
 		if err != nil {
-			log.Printf("[Custom Provider] Creation failed: %v", err)
+			log.Errorf("[Custom Provider] Creation failed: %v", err)
 			http.Error(w, `{"error": "Failed to create custom provider"}`, http.StatusInternalServerError)
 			return
 		}
@@ -137,7 +137,7 @@ func handleCreateCustomMetadataProvider(db *sql.DB) http.HandlerFunc {
 func handleDeleteCustomMetadataProvider(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := trimPathPrefix(r.URL.Path, "/api/custom-metadata-providers/")
-		log.Printf("[Go] DELETE /api/custom-metadata-providers/%s", id)
+		log.Infof("[Go] DELETE /api/custom-metadata-providers/%s", id)
 
 		// Delete from customMetadataProviders
 		_, err := db.Exec("DELETE FROM customMetadataProviders WHERE id = ?", id)
@@ -166,7 +166,7 @@ func queryCustomMetadataProviders(db *sql.DB) (books []map[string]interface{}, p
 	for rows.Next() {
 		var id, name, mediaType string
 		if err := rows.Scan(&id, &name, &mediaType); err != nil {
-			log.Printf("[Settings] Failed to scan custom metadata provider: %v", err)
+			log.Errorf("[Settings] Failed to scan custom metadata provider: %v", err)
 			continue
 		}
 		p := map[string]interface{}{

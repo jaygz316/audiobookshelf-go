@@ -122,7 +122,7 @@ func getListeningStatsInternal(dbConn *sql.DB, targetUserID string, isServer boo
 			&id, &userId, &username, &mediaItemId, &mediaItemType, &startTime, &updatedAt, &extraDataStr, &title, &author, &genresStr,
 		)
 		if err != nil {
-			log.Printf("[Listening Stats] Failed to scan row: %v", err)
+			log.Errorf("[Listening Stats] Failed to scan row: %v", err)
 			continue
 		}
 
@@ -338,7 +338,7 @@ func handleGetUserListeningSessions(dbConn *sql.DB, targetUserID string, page in
 			&id, &userId, &username, &mediaItemId, &mediaItemType, &startTime, &updatedAt, &extraDataStr, &title, &author,
 		)
 		if err != nil {
-			log.Printf("[Listening Sessions] Failed to scan row: %v", err)
+			log.Errorf("[Listening Sessions] Failed to scan row: %v", err)
 			continue
 		}
 
@@ -410,7 +410,7 @@ func handleGetMeListeningStats(db *sql.DB) http.HandlerFunc {
 
 		stats, err := getUserListeningStats(db, userSess.ID)
 		if err != nil {
-			log.Printf("[Listening Stats] Failed to query stats: %v", err)
+			log.Errorf("[Listening Stats] Failed to query stats: %v", err)
 			http.Error(w, `{"error": "Internal Server Error"}`, http.StatusInternalServerError)
 			return
 		}
@@ -444,7 +444,7 @@ func handleGetMeListeningSessions(db *sql.DB) http.HandlerFunc {
 
 		sessions, err := handleGetUserListeningSessions(db, userSess.ID, page, itemsPerPage)
 		if err != nil {
-			log.Printf("[Listening Sessions] Failed to query sessions: %v", err)
+			log.Errorf("[Listening Sessions] Failed to query sessions: %v", err)
 			http.Error(w, `{"error": "Internal Server Error"}`, http.StatusInternalServerError)
 			return
 		}
@@ -470,7 +470,7 @@ func handleGetServerListeningStats(db *sql.DB) http.HandlerFunc {
 
 		stats, err := getServerListeningStats(db)
 		if err != nil {
-			log.Printf("[Server Listening Stats] Failed to query stats: %v", err)
+			log.Errorf("[Server Listening Stats] Failed to query stats: %v", err)
 			http.Error(w, `{"error": "Internal Server Error"}`, http.StatusInternalServerError)
 			return
 		}
@@ -509,7 +509,7 @@ func handleGetServerListeningSessions(db *sql.DB) http.HandlerFunc {
 
 		sessions, err := handleGetUserListeningSessions(db, "", page, itemsPerPage)
 		if err != nil {
-			log.Printf("[Listening Sessions] Failed to query server sessions: %v", err)
+			log.Errorf("[Listening Sessions] Failed to query server sessions: %v", err)
 			http.Error(w, `{"error": "Internal Server Error"}`, http.StatusInternalServerError)
 			return
 		}

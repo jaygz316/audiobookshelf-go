@@ -40,6 +40,9 @@ var (
 
 	// LoginRateLimiter limits login and initialization attempts (5 requests per minute per IP)
 	LoginRateLimiter = NewRateLimiter(5, time.Minute)
+
+	// ShareRateLimiter limits public share requests (30 requests per minute per IP)
+	ShareRateLimiter = NewRateLimiter(30, time.Minute)
 )
 
 // authNotNeeded checks if a request does not require authentication

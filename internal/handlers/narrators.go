@@ -19,7 +19,7 @@ type NarratorJSON struct {
 // handleGetLibraryNarrators resolves GET /api/libraries/{id}/narrators
 func handleGetLibraryNarrators(db *sql.DB, libraryID string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[Go] GET /api/libraries/%s/narrators", libraryID)
+		log.Infof("[Go] GET /api/libraries/%s/narrators", libraryID)
 
 		sortBy := r.URL.Query().Get("sort")
 		if sortBy == "" {
@@ -43,7 +43,7 @@ func handleGetLibraryNarrators(db *sql.DB, libraryID string) http.HandlerFunc {
 			WHERE li.libraryId = ? AND li.isMissing = 0 AND li.isInvalid = 0
 		`, libraryID)
 		if err != nil {
-			log.Printf("[Go] Failed to query narrators: %v", err)
+			log.Errorf("[Go] Failed to query narrators: %v", err)
 			http.Error(w, `{"error": "Failed to query narrators"}`, http.StatusInternalServerError)
 			return
 		}

@@ -56,7 +56,7 @@ func handleApplyBackup(db *sql.DB, configPath string, metadataPath string, trigg
 func reconnectDB(dbPath string) error {
 	dbFile, err := idb.InitDB(dbPath)
 	if err != nil {
-		log.Printf("[Apply Backup] Failed to reconnect to restored DB: %v", err)
+		log.Errorf("[Apply Backup] Failed to reconnect to restored DB: %v", err)
 		return err
 	}
 	globalDB = dbFile

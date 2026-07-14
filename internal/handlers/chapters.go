@@ -22,7 +22,7 @@ type ChapterPayload struct {
 
 func handleUpdateChapters(db *sql.DB, itemID string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[Go] POST /api/items/%s/chapters", itemID)
+		log.Infof("[Go] POST /api/items/%s/chapters", itemID)
 
 		userVal := r.Context().Value(core.UserContextKey)
 		if userVal == nil {
@@ -102,7 +102,7 @@ func handleUpdateChapters(db *sql.DB, itemID string) http.HandlerFunc {
 
 func handleLookupChapters(db *sql.DB, itemID string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[Go] POST /api/items/%s/chapters/lookup", itemID)
+		log.Infof("[Go] POST /api/items/%s/chapters/lookup", itemID)
 
 		userVal := r.Context().Value(core.UserContextKey)
 		if userVal == nil {

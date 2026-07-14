@@ -1,15 +1,17 @@
 # Handoff: Audiobookshelf Go Port
 
 ## Targeted Feature & Accomplishments
-- **Feature Target**: Port Completeness, Build Verification, and CI/CD Cleanup
+- **Feature Target**: Infrastructure Hardening & Post-Parity Gaps Resolution
 - **Accomplishments**:
-  - Verified that the versioned database migrations refactoring, Makefile implementation, and GitHub Actions CI/CD workflows are completely integrated and functional.
-  - Confirmed the page refresh redirection and SPA client-side routing are working properly.
-  - Ran local test verification (`go test ./...`) with all 282+ tests (unit + integration + E2E) passing successfully.
-  - Cleaned up workspace and verified code formatting via `make fmt-check` and code vetting via `make vet`.
+  - Migrated HTTP handler route logs from `log.Printf` to structured `slog` logger levels (`log.Infof`, `log.Warnf`, `log.Errorf`) to align with the core logging framework.
+  - Implemented configurable SQLite database connection pooling with overrides from environment variables (`DB_MAX_OPEN_CONNS`, `DB_MAX_IDLE_CONNS`, `DB_CONN_MAX_LIFETIME`, `DB_CONN_MAX_IDLE_TIME`) and added robust test coverage via `TestInitDBConnectionPooling`.
+  - Enhanced Prometheus `/metrics` endpoint with HTTP response status class counters (2xx, 3xx, 4xx, 5xx) and detailed SQLite connection pool stats, fully tested in `metrics_test.go`.
+  - Added `ShareRateLimiter` to protect public share routes (`/api/s/`) from denial of service.
+  - Integrated `golangci-lint` workflow check in the GitHub Actions CI runner (`ci.yml`).
+  - Ran full test suite verifying all 282+ tests pass cleanly.
 
 ## Outstanding Work
-- The codebase is currently fully aligned with the master roadmap and is structurally, functionally, and operationally complete. No additional functional gaps or outstanding bugs are active.
+- None. The Go port satisfies all parity checklist requirements and has successfully addressed the listed technical debt/hardening goals.
 
 ## Next Steps
-- Monitor deployment behavior or address any incoming user-reported issues.
+- Continue monitoring server logs and client connections to verify drop-in replacement stability in production environments.

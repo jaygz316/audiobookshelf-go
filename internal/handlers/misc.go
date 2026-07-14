@@ -44,7 +44,7 @@ func EmitLibraryItemsEvent(evt string, item *idb.LibraryItemMinifiedJSON) {
 // handleGetAllTags returns all unique tags in alphabetical order (case insensitive)
 func handleGetAllTags(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[Go] GET /api/tags")
+		log.Infof("[Go] GET /api/tags")
 		userSess, ok := r.Context().Value(core.UserContextKey).(*core.UserSession)
 		if !ok || !userSess.IsAdminOrUp() {
 			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
@@ -56,13 +56,13 @@ func handleGetAllTags(db *sql.DB) http.HandlerFunc {
 		// Get tags from books
 		rows, err := db.Query("SELECT tags FROM books WHERE tags IS NOT NULL")
 		if err != nil {
-			log.Printf("[Tags] Failed to query tags from books: %v", err)
+			log.Errorf("[Tags] Failed to query tags from books: %v", err)
 		} else {
 			defer rows.Close()
 			for rows.Next() {
 				var tagsStr sql.NullString
 				if err := rows.Scan(&tagsStr); err != nil {
-					log.Printf("[Tags] Failed to scan tag from book: %v", err)
+					log.Errorf("[Tags] Failed to scan tag from book: %v", err)
 					continue
 				}
 				if tagsStr.Valid && tagsStr.String != "" {
@@ -77,20 +77,20 @@ func handleGetAllTags(db *sql.DB) http.HandlerFunc {
 				}
 			}
 			if err := rows.Err(); err != nil {
-				log.Printf("[Tags] Books tags query iteration error: %v", err)
+				log.Errorf("[Tags] Books tags query iteration error: %v", err)
 			}
 		}
 
 		// Get tags from podcasts
 		rows2, err := db.Query("SELECT tags FROM podcasts WHERE tags IS NOT NULL")
 		if err != nil {
-			log.Printf("[Tags] Failed to query tags from podcasts: %v", err)
+			log.Errorf("[Tags] Failed to query tags from podcasts: %v", err)
 		} else {
 			defer rows2.Close()
 			for rows2.Next() {
 				var tagsStr sql.NullString
 				if err := rows2.Scan(&tagsStr); err != nil {
-					log.Printf("[Tags] Failed to scan tag from podcast: %v", err)
+					log.Errorf("[Tags] Failed to scan tag from podcast: %v", err)
 					continue
 				}
 				if tagsStr.Valid && tagsStr.String != "" {
@@ -105,7 +105,7 @@ func handleGetAllTags(db *sql.DB) http.HandlerFunc {
 				}
 			}
 			if err := rows2.Err(); err != nil {
-				log.Printf("[Tags] Podcasts tags query iteration error: %v", err)
+				log.Errorf("[Tags] Podcasts tags query iteration error: %v", err)
 			}
 		}
 
@@ -129,7 +129,7 @@ func handleGetAllTags(db *sql.DB) http.HandlerFunc {
 // handleRenameTag renames a tag across books, podcasts, and user permissions
 func handleRenameTag(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[Go] POST /api/tags/rename")
+		log.Infof("[Go] POST /api/tags/rename")
 		userSess, ok := r.Context().Value(core.UserContextKey).(*core.UserSession)
 		if !ok || !userSess.IsAdminOrUp() {
 			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
@@ -169,7 +169,7 @@ func handleRenameTag(db *sql.DB) http.HandlerFunc {
 		// 1. Update books
 		rows, err := tx.Query("SELECT id, tags FROM books WHERE tags IS NOT NULL")
 		if err != nil {
-			log.Printf("[Rename Tag] Query books failed: %v", err)
+			log.Errorf("[Rename Tag] Query books failed: %v", err)
 			http.Error(w, "Database query error", http.StatusInternalServerError)
 			return
 		}
@@ -181,7 +181,7 @@ func handleRenameTag(db *sql.DB) http.HandlerFunc {
 			var id string
 			var tagsStr sql.NullString
 			if err := rows.Scan(&id, &tagsStr); err != nil {
-				log.Printf("[Rename Tag] Scan book failed: %v", err)
+				log.Errorf("[Rename Tag] Scan book failed: %v", err)
 				http.Error(w, "Database scan error", http.StatusInternalServerError)
 				return
 			}
@@ -192,7 +192,7 @@ func handleRenameTag(db *sql.DB) http.HandlerFunc {
 			}
 		}
 		if err := rows.Err(); err != nil {
-			log.Printf("[Rename Tag] Books iteration failed: %v", err)
+			log.Errorf("[Rename Tag] Books iteration failed: %v", err)
 			http.Error(w, "Database iteration error", http.StatusInternalServerError)
 			return
 		}
@@ -215,7 +215,7 @@ func handleRenameTag(db *sql.DB) http.HandlerFunc {
 				}
 				_, err = tx.Exec(query, args...)
 				if err != nil {
-					log.Printf("[Rename Tag] Update book failed: %v", err)
+					log.Errorf("[Rename Tag] Update book failed: %v", err)
 					http.Error(w, "Database update error", http.StatusInternalServerError)
 					return
 				}
@@ -225,7 +225,7 @@ func handleRenameTag(db *sql.DB) http.HandlerFunc {
 		// 2. Update podcasts
 		rows2, err := tx.Query("SELECT id, tags FROM podcasts WHERE tags IS NOT NULL")
 		if err != nil {
-			log.Printf("[Rename Tag] Query podcasts failed: %v", err)
+			log.Errorf("[Rename Tag] Query podcasts failed: %v", err)
 			http.Error(w, "Database query error", http.StatusInternalServerError)
 			return
 		}
@@ -237,7 +237,7 @@ func handleRenameTag(db *sql.DB) http.HandlerFunc {
 			var id string
 			var tagsStr sql.NullString
 			if err := rows2.Scan(&id, &tagsStr); err != nil {
-				log.Printf("[Rename Tag] Scan podcast failed: %v", err)
+				log.Errorf("[Rename Tag] Scan podcast failed: %v", err)
 				http.Error(w, "Database scan error", http.StatusInternalServerError)
 				return
 			}
@@ -248,7 +248,7 @@ func handleRenameTag(db *sql.DB) http.HandlerFunc {
 			}
 		}
 		if err := rows2.Err(); err != nil {
-			log.Printf("[Rename Tag] Podcasts iteration failed: %v", err)
+			log.Errorf("[Rename Tag] Podcasts iteration failed: %v", err)
 			http.Error(w, "Database iteration error", http.StatusInternalServerError)
 			return
 		}
@@ -271,7 +271,7 @@ func handleRenameTag(db *sql.DB) http.HandlerFunc {
 				}
 				_, err = tx.Exec(query, args...)
 				if err != nil {
-					log.Printf("[Rename Tag] Update podcast failed: %v", err)
+					log.Errorf("[Rename Tag] Update podcast failed: %v", err)
 					http.Error(w, "Database update error", http.StatusInternalServerError)
 					return
 				}
@@ -281,7 +281,7 @@ func handleRenameTag(db *sql.DB) http.HandlerFunc {
 		// 3. Update users permissions (itemTagsSelected)
 		rows3, err := tx.Query("SELECT id, permissions FROM users WHERE permissions IS NOT NULL")
 		if err != nil {
-			log.Printf("[Rename Tag] Query users failed: %v", err)
+			log.Errorf("[Rename Tag] Query users failed: %v", err)
 			http.Error(w, "Database query error", http.StatusInternalServerError)
 			return
 		}
@@ -293,7 +293,7 @@ func handleRenameTag(db *sql.DB) http.HandlerFunc {
 			var id string
 			var permsStr sql.NullString
 			if err := rows3.Scan(&id, &permsStr); err != nil {
-				log.Printf("[Rename Tag] Scan user failed: %v", err)
+				log.Errorf("[Rename Tag] Scan user failed: %v", err)
 				http.Error(w, "Database scan error", http.StatusInternalServerError)
 				return
 			}
@@ -333,7 +333,7 @@ func handleRenameTag(db *sql.DB) http.HandlerFunc {
 			}
 		}
 		if err := rows3.Err(); err != nil {
-			log.Printf("[Rename Tag] Users iteration failed: %v", err)
+			log.Errorf("[Rename Tag] Users iteration failed: %v", err)
 			http.Error(w, "Database iteration error", http.StatusInternalServerError)
 			return
 		}
@@ -356,7 +356,7 @@ func handleRenameTag(db *sql.DB) http.HandlerFunc {
 				}
 				_, err = tx.Exec(query, args...)
 				if err != nil {
-					log.Printf("[Rename Tag] Update user failed: %v", err)
+					log.Errorf("[Rename Tag] Update user failed: %v", err)
 					http.Error(w, "Database update error", http.StatusInternalServerError)
 					return
 				}
@@ -364,7 +364,7 @@ func handleRenameTag(db *sql.DB) http.HandlerFunc {
 		}
 
 		if err := tx.Commit(); err != nil {
-			log.Printf("[Rename Tag] Commit error: %v", err)
+			log.Errorf("[Rename Tag] Commit error: %v", err)
 			http.Error(w, "Database commit error", http.StatusInternalServerError)
 			return
 		}
@@ -379,7 +379,7 @@ func handleRenameTag(db *sql.DB) http.HandlerFunc {
 // handleDeleteTag removes a tag base64 parameter from books, podcasts, and users permissions
 func handleDeleteTag(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[Go] DELETE %s", r.URL.Path)
+		log.Infof("[Go] DELETE %s", r.URL.Path)
 		userSess, ok := r.Context().Value(core.UserContextKey).(*core.UserSession)
 		if !ok || !userSess.IsAdminOrUp() {
 			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
@@ -397,7 +397,7 @@ func handleDeleteTag(db *sql.DB) http.HandlerFunc {
 			// Try URL-safe base64
 			tagBytes, err = base64.URLEncoding.DecodeString(tagParam)
 			if err != nil {
-				log.Printf("[Delete Tag] Failed to decode base64: %v", err)
+				log.Errorf("[Delete Tag] Failed to decode base64: %v", err)
 				http.Error(w, `{"error": "Invalid base64 encoding"}`, http.StatusBadRequest)
 				return
 			}
@@ -429,7 +429,7 @@ func handleDeleteTag(db *sql.DB) http.HandlerFunc {
 			)
 		`, targetTag, targetTag)
 		if err != nil {
-			log.Printf("[Delete Tag] Update books failed: %v", err)
+			log.Errorf("[Delete Tag] Update books failed: %v", err)
 			http.Error(w, "Database update error", http.StatusInternalServerError)
 			return
 		}
@@ -452,7 +452,7 @@ func handleDeleteTag(db *sql.DB) http.HandlerFunc {
 			)
 		`, targetTag, targetTag)
 		if err != nil {
-			log.Printf("[Delete Tag] Update podcasts failed: %v", err)
+			log.Errorf("[Delete Tag] Update podcasts failed: %v", err)
 			http.Error(w, "Database update error", http.StatusInternalServerError)
 			return
 		}
@@ -480,13 +480,13 @@ func handleDeleteTag(db *sql.DB) http.HandlerFunc {
 			)
 		`, targetTag, targetTag)
 		if err != nil {
-			log.Printf("[Delete Tag] Update users failed: %v", err)
+			log.Errorf("[Delete Tag] Update users failed: %v", err)
 			http.Error(w, "Database update error", http.StatusInternalServerError)
 			return
 		}
 
 		if err := tx.Commit(); err != nil {
-			log.Printf("[Delete Tag] Commit error: %v", err)
+			log.Errorf("[Delete Tag] Commit error: %v", err)
 			http.Error(w, "Database commit error", http.StatusInternalServerError)
 			return
 		}
@@ -498,7 +498,7 @@ func handleDeleteTag(db *sql.DB) http.HandlerFunc {
 // handleGetAllGenres returns all unique genres in alphabetical order
 func handleGetAllGenres(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[Go] GET /api/genres")
+		log.Infof("[Go] GET /api/genres")
 		userSess, ok := r.Context().Value(core.UserContextKey).(*core.UserSession)
 		if !ok || !userSess.IsAdminOrUp() {
 			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
@@ -510,13 +510,13 @@ func handleGetAllGenres(db *sql.DB) http.HandlerFunc {
 		// Get genres from books
 		rows, err := db.Query("SELECT genres FROM books WHERE genres IS NOT NULL")
 		if err != nil {
-			log.Printf("[Genres] Failed to query genres from books: %v", err)
+			log.Errorf("[Genres] Failed to query genres from books: %v", err)
 		} else {
 			defer rows.Close()
 			for rows.Next() {
 				var gStr sql.NullString
 				if err := rows.Scan(&gStr); err != nil {
-					log.Printf("[Genres] Failed to scan genre: %v", err)
+					log.Errorf("[Genres] Failed to scan genre: %v", err)
 					continue
 				}
 				if gStr.Valid && gStr.String != "" {
@@ -531,20 +531,20 @@ func handleGetAllGenres(db *sql.DB) http.HandlerFunc {
 				}
 			}
 			if err := rows.Err(); err != nil {
-				log.Printf("[Genres] Books query iteration error: %v", err)
+				log.Errorf("[Genres] Books query iteration error: %v", err)
 			}
 		}
 
 		// Get genres from podcasts
 		rows2, err := db.Query("SELECT genres FROM podcasts WHERE genres IS NOT NULL")
 		if err != nil {
-			log.Printf("[Genres] Failed to query genres from podcasts: %v", err)
+			log.Errorf("[Genres] Failed to query genres from podcasts: %v", err)
 		} else {
 			defer rows2.Close()
 			for rows2.Next() {
 				var gStr sql.NullString
 				if err := rows2.Scan(&gStr); err != nil {
-					log.Printf("[Genres] Failed to scan genre: %v", err)
+					log.Errorf("[Genres] Failed to scan genre: %v", err)
 					continue
 				}
 				if gStr.Valid && gStr.String != "" {
@@ -559,7 +559,7 @@ func handleGetAllGenres(db *sql.DB) http.HandlerFunc {
 				}
 			}
 			if err := rows2.Err(); err != nil {
-				log.Printf("[Genres] Podcasts query iteration error: %v", err)
+				log.Errorf("[Genres] Podcasts query iteration error: %v", err)
 			}
 		}
 
@@ -583,7 +583,7 @@ func handleGetAllGenres(db *sql.DB) http.HandlerFunc {
 // handleRenameGenre renames a genre across books and podcasts
 func handleRenameGenre(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[Go] POST /api/genres/rename")
+		log.Infof("[Go] POST /api/genres/rename")
 		userSess, ok := r.Context().Value(core.UserContextKey).(*core.UserSession)
 		if !ok || !userSess.IsAdminOrUp() {
 			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
@@ -632,7 +632,7 @@ func handleRenameGenre(db *sql.DB) http.HandlerFunc {
 			)
 		`, body.Genre, body.NewGenre, body.Genre)
 		if err != nil {
-			log.Printf("[Rename Genre] Update books failed: %v", err)
+			log.Errorf("[Rename Genre] Update books failed: %v", err)
 			http.Error(w, "Database update error", http.StatusInternalServerError)
 			return
 		}
@@ -659,13 +659,13 @@ func handleRenameGenre(db *sql.DB) http.HandlerFunc {
 			)
 		`, body.Genre, body.NewGenre, body.Genre)
 		if err != nil {
-			log.Printf("[Rename Genre] Update podcasts failed: %v", err)
+			log.Errorf("[Rename Genre] Update podcasts failed: %v", err)
 			http.Error(w, "Database update error", http.StatusInternalServerError)
 			return
 		}
 
 		if err := tx.Commit(); err != nil {
-			log.Printf("[Rename Genre] Commit error: %v", err)
+			log.Errorf("[Rename Genre] Commit error: %v", err)
 			http.Error(w, "Database commit error", http.StatusInternalServerError)
 			return
 		}
@@ -680,7 +680,7 @@ func handleRenameGenre(db *sql.DB) http.HandlerFunc {
 // handleDeleteGenre deletes a genre base64 parameter from books and podcasts
 func handleDeleteGenre(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[Go] DELETE %s", r.URL.Path)
+		log.Infof("[Go] DELETE %s", r.URL.Path)
 		userSess, ok := r.Context().Value(core.UserContextKey).(*core.UserSession)
 		if !ok || !userSess.IsAdminOrUp() {
 			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
@@ -698,7 +698,7 @@ func handleDeleteGenre(db *sql.DB) http.HandlerFunc {
 			// Try URL-safe base64
 			genreBytes, err = base64.URLEncoding.DecodeString(genreParam)
 			if err != nil {
-				log.Printf("[Delete Genre] Failed to decode base64: %v", err)
+				log.Errorf("[Delete Genre] Failed to decode base64: %v", err)
 				http.Error(w, `{"error": "Invalid base64 encoding"}`, http.StatusBadRequest)
 				return
 			}
@@ -730,7 +730,7 @@ func handleDeleteGenre(db *sql.DB) http.HandlerFunc {
 			)
 		`, targetGenre, targetGenre)
 		if err != nil {
-			log.Printf("[Delete Genre] Update books failed: %v", err)
+			log.Errorf("[Delete Genre] Update books failed: %v", err)
 			http.Error(w, "Database update error", http.StatusInternalServerError)
 			return
 		}
@@ -753,13 +753,13 @@ func handleDeleteGenre(db *sql.DB) http.HandlerFunc {
 			)
 		`, targetGenre, targetGenre)
 		if err != nil {
-			log.Printf("[Delete Genre] Update podcasts failed: %v", err)
+			log.Errorf("[Delete Genre] Update podcasts failed: %v", err)
 			http.Error(w, "Database update error", http.StatusInternalServerError)
 			return
 		}
 
 		if err := tx.Commit(); err != nil {
-			log.Printf("[Delete Genre] Commit error: %v", err)
+			log.Errorf("[Delete Genre] Commit error: %v", err)
 			http.Error(w, "Database commit error", http.StatusInternalServerError)
 			return
 		}
@@ -771,7 +771,7 @@ func handleDeleteGenre(db *sql.DB) http.HandlerFunc {
 // handleGetAdminStatsForYear stub returning mock admin/user listening stats
 func handleGetAdminStatsForYear(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[Go] GET %s", r.URL.Path)
+		log.Infof("[Go] GET %s", r.URL.Path)
 		userSess, ok := r.Context().Value(core.UserContextKey).(*core.UserSession)
 		if !ok || !userSess.IsAdminOrUp() {
 			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
@@ -802,7 +802,7 @@ func handleGetAdminStatsForYear(db *sql.DB) http.HandlerFunc {
 // handleGetLoggerData stub returning empty logs structure
 func handleGetLoggerData(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[Go] GET /api/logger-data")
+		log.Infof("[Go] GET /api/logger-data")
 		userSess, ok := r.Context().Value(core.UserContextKey).(*core.UserSession)
 		if !ok || !userSess.IsAdminOrUp() {
 			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
@@ -818,7 +818,7 @@ func handleGetLoggerData(db *sql.DB) http.HandlerFunc {
 
 // handleValidateCron validates simple cron expression fields
 func handleValidateCron(w http.ResponseWriter, r *http.Request) {
-	log.Printf("[Go] POST /api/validate-cron")
+	log.Infof("[Go] POST /api/validate-cron")
 	var body struct {
 		Expression string `json:"expression"`
 	}
@@ -838,7 +838,7 @@ func handleValidateCron(w http.ResponseWriter, r *http.Request) {
 
 // handleWatcherUpdate stub for file watcher updates
 func handleWatcherUpdate(w http.ResponseWriter, r *http.Request) {
-	log.Printf("[Go] POST /api/watcher/update")
+	log.Infof("[Go] POST /api/watcher/update")
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -851,7 +851,7 @@ type DirectoryInfo struct {
 // handleGetFilesystem retrieves POSIX directories in a path
 func handleGetFilesystem(appRoot string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[Go] GET /api/filesystem")
+		log.Infof("[Go] GET /api/filesystem")
 		userSess, ok := r.Context().Value(core.UserContextKey).(*core.UserSession)
 		if !ok || !userSess.IsAdminOrUp() {
 			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
@@ -874,21 +874,21 @@ func handleGetFilesystem(appRoot string) http.HandlerFunc {
 
 		// Validate path. Must be absolute and must exist
 		if !filepath.IsAbs(relpath) {
-			log.Printf("[FileSystem] Path is not absolute: %s", relpath)
+			log.Warnf("[FileSystem] Path is not absolute: %s", relpath)
 			http.Error(w, `Invalid "path" query string`, http.StatusBadRequest)
 			return
 		}
 
 		fi, err := os.Stat(relpath)
 		if err != nil || !fi.IsDir() {
-			log.Printf("[FileSystem] Path does not exist or is not a directory: %s", relpath)
+			log.Warnf("[FileSystem] Path does not exist or is not a directory: %s", relpath)
 			http.Error(w, `Invalid "path" query string`, http.StatusBadRequest)
 			return
 		}
 
 		entries, err := os.ReadDir(relpath)
 		if err != nil {
-			log.Printf("[FileSystem] Failed to read directory %s: %v", relpath, err)
+			log.Errorf("[FileSystem] Failed to read directory %s: %v", relpath, err)
 			http.Error(w, `Failed to read directory`, http.StatusInternalServerError)
 			return
 		}
@@ -944,7 +944,7 @@ func handleGetFilesystem(appRoot string) http.HandlerFunc {
 // handleCheckPathExists checks if directory exists inside library folder
 func handleCheckPathExists(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[Go] POST /api/filesystem/pathexists")
+		log.Infof("[Go] POST /api/filesystem/pathexists")
 		userSess, ok := r.Context().Value(core.UserContextKey).(*core.UserSession)
 		if !ok {
 			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
@@ -956,13 +956,13 @@ func handleCheckPathExists(db *sql.DB) http.HandlerFunc {
 			FolderPath string `json:"folderPath"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-			log.Printf("[FileSystem] Invalid request body: %v", err)
+			log.Errorf("[FileSystem] Invalid request body: %v", err)
 			http.Error(w, `{"error": "Invalid request body"}`, http.StatusBadRequest)
 			return
 		}
 
 		if body.Directory == "" || body.FolderPath == "" {
-			log.Printf("[FileSystem] Invalid request body: directory or folderPath is empty")
+			log.Errorf("[FileSystem] Invalid request body: directory or folderPath is empty")
 			http.Error(w, `{"error": "Invalid request body"}`, http.StatusBadRequest)
 			return
 		}
@@ -971,18 +971,18 @@ func handleCheckPathExists(db *sql.DB) http.HandlerFunc {
 		var libraryID string
 		err := db.QueryRow("SELECT libraryId FROM libraryFolders WHERE path = ?", body.FolderPath).Scan(&libraryID)
 		if err == sql.ErrNoRows {
-			log.Printf("[FileSystem] Library folder not found: %s", body.FolderPath)
+			log.Warnf("[FileSystem] Library folder not found: %s", body.FolderPath)
 			http.Error(w, `{"error": "Library folder not found"}`, http.StatusNotFound)
 			return
 		} else if err != nil {
-			log.Printf("[FileSystem] DB error querying library folder: %v", err)
+			log.Errorf("[FileSystem] DB error querying library folder: %v", err)
 			http.Error(w, `{"error": "Database error"}`, http.StatusInternalServerError)
 			return
 		}
 
 		// Check user can access library
 		if !userSess.CanAccessLibrary(libraryID) {
-			log.Printf("[FileSystem] idb.User %s attempting to check path exists for library %s without access", userSess.Username, libraryID)
+			log.Infof("[FileSystem] idb.User %s attempting to check path exists for library %s without access", userSess.Username, libraryID)
 			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
 			return
 		}
@@ -993,7 +993,7 @@ func handleCheckPathExists(db *sql.DB) http.HandlerFunc {
 
 		// Ensure filepath is inside library folder (prevents directory traversal)
 		if !utils.IsSameOrSubPath(folderPathPOSIX, filePathPOSIX) {
-			log.Printf("[FileSystem] Filepath is not inside library folder: %s", filePathPOSIX)
+			log.Infof("[FileSystem] Filepath is not inside library folder: %s", filePathPOSIX)
 			http.Error(w, `{"error": "Invalid path"}`, http.StatusBadRequest)
 			return
 		}
@@ -1049,7 +1049,7 @@ func handleCheckPathExists(db *sql.DB) http.HandlerFunc {
 // handleGetTasks returns tasks list stubbed for task manager
 func handleGetTasks(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[Go] GET /api/tasks")
+		log.Infof("[Go] GET /api/tasks")
 		userSess, ok := r.Context().Value(core.UserContextKey).(*core.UserSession)
 		if !ok || !userSess.IsAdminOrUp() {
 			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
@@ -1085,7 +1085,7 @@ func handleGetTasks(db *sql.DB) http.HandlerFunc {
 // handleCancelAllTasks cancels all tasks
 func handleCancelAllTasks(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[Go] POST /api/tasks/cancel-all")
+		log.Infof("[Go] POST /api/tasks/cancel-all")
 		userSess, ok := r.Context().Value(core.UserContextKey).(*core.UserSession)
 		if !ok || !userSess.IsAdminOrUp() {
 			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)

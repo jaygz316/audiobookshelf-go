@@ -185,7 +185,7 @@ func handleCreatePodcast(db *sql.DB) http.HandlerFunc {
 		if feedURL != "" {
 			feed, err = globalPodcastManager.FetchFeed(r.Context(), feedURL)
 			if err != nil {
-				log.Printf("[CreatePodcast] FetchFeed failed: %v", err)
+				log.Errorf("[CreatePodcast] FetchFeed failed: %v", err)
 				http.Error(w, fmt.Sprintf(`{"error": "Failed to fetch podcast feed: %s"}`, err.Error()), http.StatusBadRequest)
 				return
 			}
@@ -217,7 +217,7 @@ func handleCreatePodcast(db *sql.DB) http.HandlerFunc {
 		folderName := sanitizeFilename(title)
 		podcastPath := filepath.Join(folderPath, folderName)
 		if err := os.MkdirAll(podcastPath, 0755); err != nil {
-			log.Printf("[CreatePodcast] MkdirAll failed for path %s: %v", podcastPath, err)
+			log.Errorf("[CreatePodcast] MkdirAll failed for path %s: %v", podcastPath, err)
 			http.Error(w, `{"error": "Failed to create podcast folder on disk"}`, http.StatusInternalServerError)
 			return
 		}
@@ -265,7 +265,7 @@ func handleCreatePodcast(db *sql.DB) http.HandlerFunc {
 		query := fmt.Sprintf("INSERT INTO podcasts (%s) VALUES (%s)", strings.Join(colNames, ", "), strings.Join(placeholders, ", "))
 		_, err = tx.Exec(query, args...)
 		if err != nil {
-			log.Printf("[CreatePodcast] Insert podcast failed: %v", err)
+			log.Errorf("[CreatePodcast] Insert podcast failed: %v", err)
 			http.Error(w, `{"error": "Failed to insert podcast"}`, http.StatusInternalServerError)
 			return
 		}
@@ -302,7 +302,7 @@ func handleCreatePodcast(db *sql.DB) http.HandlerFunc {
 		queryLi := fmt.Sprintf("INSERT INTO libraryItems (%s) VALUES (%s)", strings.Join(colNames, ", "), strings.Join(placeholders, ", "))
 		_, err = tx.Exec(queryLi, args...)
 		if err != nil {
-			log.Printf("[CreatePodcast] Insert libraryItem failed: %v", err)
+			log.Errorf("[CreatePodcast] Insert libraryItem failed: %v", err)
 			http.Error(w, `{"error": "Failed to insert library item"}`, http.StatusInternalServerError)
 			return
 		}
@@ -385,7 +385,7 @@ func handleGetPodcastFeed(db *sql.DB) http.HandlerFunc {
 
 		feed, err := globalPodcastManager.FetchFeed(r.Context(), req.RSSFeed)
 		if err != nil {
-			log.Printf("[GetPodcastFeed] FetchFeed failed: %v", err)
+			log.Errorf("[GetPodcastFeed] FetchFeed failed: %v", err)
 			http.Error(w, fmt.Sprintf(`{"error": "Failed to fetch podcast feed: %s"}`, err.Error()), http.StatusBadRequest)
 			return
 		}
@@ -455,7 +455,7 @@ func handleParseOPML(db *sql.DB) http.HandlerFunc {
 
 		var doc opmlDocument
 		if err := xml.Unmarshal([]byte(req.OPMLText), &doc); err != nil {
-			log.Printf("[ParseOPML] Failed to parse XML: %v", err)
+			log.Errorf("[ParseOPML] Failed to parse XML: %v", err)
 			http.Error(w, `{"error": "Failed to parse OPML XML"}`, http.StatusBadRequest)
 			return
 		}
@@ -533,7 +533,7 @@ func handleBulkCreatePodcasts(db *sql.DB) http.HandlerFunc {
 
 				feed, err := globalPodcastManager.FetchFeed(ctx, feedURL)
 				if err != nil {
-					log.Printf("[BulkCreate] FetchFeed failed for %s: %v", feedURL, err)
+					log.Errorf("[BulkCreate] FetchFeed failed for %s: %v", feedURL, err)
 					cancel()
 					continue
 				}
@@ -546,7 +546,7 @@ func handleBulkCreatePodcasts(db *sql.DB) http.HandlerFunc {
 				folderName := sanitizeFilename(title)
 				podcastPath := filepath.Join(folderPath, folderName)
 				if err := os.MkdirAll(podcastPath, 0755); err != nil {
-					log.Printf("[BulkCreate] MkdirAll failed for %s: %v", podcastPath, err)
+					log.Errorf("[BulkCreate] MkdirAll failed for %s: %v", podcastPath, err)
 					cancel()
 					continue
 				}
@@ -712,7 +712,7 @@ func handleCheckNewEpisodes(db *sql.DB, id string) http.HandlerFunc {
 
 		err = globalPodcastManager.SyncFeed(r.Context(), podcastID)
 		if err != nil {
-			log.Printf("[CheckNewEpisodes] SyncFeed failed: %v", err)
+			log.Errorf("[CheckNewEpisodes] SyncFeed failed: %v", err)
 			http.Error(w, fmt.Sprintf(`{"error": "Sync failed: %s"}`, err.Error()), http.StatusInternalServerError)
 			return
 		}
@@ -998,7 +998,7 @@ func handleDownloadEpisodes(db *sql.DB, id string) http.HandlerFunc {
 				}
 
 				destFile := filepath.Join(podcastPath, sanitizeFilename(title)+".mp3")
-				log.Printf("[DownloadEpisode] Downloading %s to %s", enclosureURL, destFile)
+				log.Infof("[DownloadEpisode] Downloading %s to %s", enclosureURL, destFile)
 
 				ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 				err = globalPodcastManager.DownloadEpisode(ctx, enclosureURL, destFile)
@@ -1027,10 +1027,10 @@ func handleDownloadEpisodes(db *sql.DB, id string) http.HandlerFunc {
 						WHERE id = ?
 					`, string(audioFileJSON), epID)
 					if dbErr != nil {
-						log.Printf("[DownloadEpisode] Failed to update episode in DB: %v", dbErr)
+						log.Errorf("[DownloadEpisode] Failed to update episode in DB: %v", dbErr)
 					}
 				} else {
-					log.Printf("[DownloadEpisode] Download failed: %v", err)
+					log.Errorf("[DownloadEpisode] Download failed: %v", err)
 				}
 			}
 		}()
@@ -1149,7 +1149,7 @@ func handleUpdateEpisode(db *sql.DB, id, episodeId string) http.HandlerFunc {
 			query := fmt.Sprintf("UPDATE podcastEpisodes SET %s WHERE id = ? AND podcastId = ?", strings.Join(setParts, ", "))
 			_, err = db.Exec(query, args...)
 			if err != nil {
-				log.Printf("[UpdateEpisode] Update failed: %v", err)
+				log.Errorf("[UpdateEpisode] Update failed: %v", err)
 				http.Error(w, `{"error": "Update failed"}`, http.StatusInternalServerError)
 				return
 			}
@@ -1202,7 +1202,7 @@ func handleDeleteEpisode(db *sql.DB, id, episodeId string) http.HandlerFunc {
 				if meta, ok := af["metadata"].(map[string]interface{}); ok && meta != nil {
 					if path, ok := meta["path"].(string); ok && path != "" {
 						if err := os.Remove(path); err != nil {
-							log.Printf("[DeleteEpisode] Failed to remove file %s: %v", path, err)
+							log.Errorf("[DeleteEpisode] Failed to remove file %s: %v", path, err)
 						}
 					}
 				}
@@ -1216,7 +1216,7 @@ func handleDeleteEpisode(db *sql.DB, id, episodeId string) http.HandlerFunc {
 		}
 
 		if err != nil {
-			log.Printf("[DeleteEpisode] Delete failed: %v", err)
+			log.Errorf("[DeleteEpisode] Delete failed: %v", err)
 			http.Error(w, `{"error": "Delete failed"}`, http.StatusInternalServerError)
 			return
 		}

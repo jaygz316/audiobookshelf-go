@@ -73,7 +73,7 @@ func handleMergeAudioFiles(db *sql.DB) http.HandlerFunc {
 		}
 		itemID := parts[len(parts)-2]
 
-		log.Printf("[Go] POST /api/items/%s/merge", itemID)
+		log.Infof("[Go] POST /api/items/%s/merge", itemID)
 
 		// Fetch mediaId, mediaType, and item details
 		var mediaID, mediaType, itemPath string
@@ -228,9 +228,9 @@ func handleMergeAudioFiles(db *sql.DB) http.HandlerFunc {
 		var stderr bytes.Buffer
 		cmd.Stderr = &stderr
 
-		log.Printf("[Go] Running ffmpeg command: ffmpeg %s", strings.Join(args, " "))
+		log.Infof("[Go] Running ffmpeg command: ffmpeg %s", strings.Join(args, " "))
 		if err := cmd.Run(); err != nil {
-			log.Printf("[Error] FFmpeg merge execution failed: %v, stderr: %s", err, stderr.String())
+			log.Errorf("[Error] FFmpeg merge execution failed: %v, stderr: %s", err, stderr.String())
 			os.Remove(outputPath)
 			http.Error(w, fmt.Sprintf(`{"error": "FFmpeg merge execution failed: %v. Stderr: %s"}`, err, stderr.String()), http.StatusInternalServerError)
 			return
@@ -239,7 +239,7 @@ func handleMergeAudioFiles(db *sql.DB) http.HandlerFunc {
 		// Verify merged file exists and is not empty
 		mergedStat, err := os.Stat(outputPath)
 		if err != nil || mergedStat.Size() < 1024 {
-			log.Printf("[Error] Merged file missing or too small")
+			log.Errorf("[Error] Merged file missing or too small")
 			os.Remove(outputPath)
 			http.Error(w, `{"error": "Merged file missing or too small"}`, http.StatusInternalServerError)
 			return
@@ -248,7 +248,7 @@ func handleMergeAudioFiles(db *sql.DB) http.HandlerFunc {
 		// Delete the original audio files
 		for _, af := range activeFiles {
 			if err := os.Remove(af.Metadata.Path); err != nil {
-				log.Printf("[Warning] Failed to delete original file %s: %v", af.Metadata.Path, err)
+				log.Warnf("[Warning] Failed to delete original file %s: %v", af.Metadata.Path, err)
 			}
 		}
 

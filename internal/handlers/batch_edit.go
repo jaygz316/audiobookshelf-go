@@ -44,7 +44,7 @@ type BatchUpdateItem struct {
 
 func handleBatchUpdateLibraryItems(db *sql.DB, cfg *core.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[Go] POST /api/items/batch/update")
+		log.Infof("[Go] POST /api/items/batch/update")
 
 		userVal := r.Context().Value(core.UserContextKey)
 		if userVal == nil {
@@ -86,7 +86,7 @@ func handleBatchUpdateLibraryItems(db *sql.DB, cfg *core.Config) http.HandlerFun
 			var mediaID, mediaType, libraryID string
 			err = tx.QueryRow("SELECT COALESCE(mediaId, ''), COALESCE(mediaType, ''), COALESCE(libraryId, '') FROM libraryItems WHERE id = ?", item.ID).Scan(&mediaID, &mediaType, &libraryID)
 			if err != nil {
-				log.Printf("[Go] Batch edit: item %s not found", item.ID)
+				log.Warnf("[Go] Batch edit: item %s not found", item.ID)
 				continue
 			}
 
@@ -98,7 +98,7 @@ func handleBatchUpdateLibraryItems(db *sql.DB, cfg *core.Config) http.HandlerFun
 					FROM books WHERE id = ?
 				`, mediaID).Scan(&currentTitle, &currentSubtitle, &currentPublishedYear, &currentPublishedDate, &currentPublisher, &currentDescription, &currentIsbn, &currentAsin, &currentLanguage, &currentExplicitVal, &currentAbridgedVal, &currentNarratorsRaw, &currentTagsRaw, &currentGenresRaw)
 				if err != nil {
-					log.Printf("[Go] Batch edit: book media %s not found: %v", mediaID, err)
+					log.Errorf("[Go] Batch edit: book media %s not found: %v", mediaID, err)
 					continue
 				}
 
@@ -269,7 +269,7 @@ func handleBatchUpdateLibraryItems(db *sql.DB, cfg *core.Config) http.HandlerFun
 					FROM podcasts WHERE id = ?
 				`, mediaID).Scan(&currentTitle, &currentAuthor, &currentDescription, &currentLanguage, &currentExplicitVal, &currentTagsRaw, &currentGenresRaw)
 				if err != nil {
-					log.Printf("[Go] Batch edit: podcast media %s not found: %v", mediaID, err)
+					log.Errorf("[Go] Batch edit: podcast media %s not found: %v", mediaID, err)
 					continue
 				}
 

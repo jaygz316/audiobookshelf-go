@@ -30,7 +30,7 @@ func handleSearchBooks(db *sql.DB) http.HandlerFunc {
 
 		results, err := globalFinder.SearchBooks(r.Context(), provider, queryStr)
 		if err != nil {
-			log.Printf("[Search] SearchBooks failed: %v", err)
+			log.Errorf("[Search] SearchBooks failed: %v", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -49,7 +49,7 @@ func handleSearchPodcasts(db *sql.DB) http.HandlerFunc {
 
 		results, err := globalFinder.SearchPodcasts(r.Context(), "itunes", term)
 		if err != nil {
-			log.Printf("[Search] SearchPodcasts failed: %v", err)
+			log.Errorf("[Search] SearchPodcasts failed: %v", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -109,7 +109,7 @@ func handleSearchAuthors(db *sql.DB) http.HandlerFunc {
 
 		results, err := globalFinder.SearchAuthors(r.Context(), provider, name)
 		if err != nil {
-			log.Printf("[Search] SearchAuthors failed: %v", err)
+			log.Errorf("[Search] SearchAuthors failed: %v", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}

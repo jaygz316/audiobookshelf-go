@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strconv"
 	"time"
 
 	"audiobookshelf/internal/core"
@@ -366,11 +367,37 @@ func InitDB(dbPath string) (*sql.DB, error) {
 		return nil, err
 	}
 
-	// Configure DB Connection Pooling for optimized SQLite WAL concurrency
-	db.SetMaxOpenConns(25)
-	db.SetMaxIdleConns(10)
-	db.SetConnMaxLifetime(time.Hour)
-	db.SetConnMaxIdleTime(30 * time.Minute)
+	// Configure DB Connection Pooling for optimized SQLite WAL concurrency with environment overrides
+	maxOpen := 25
+	maxIdle := 10
+	maxLifetime := time.Hour
+	maxIdleTime := 30 * time.Minute
+
+	if val := os.Getenv("DB_MAX_OPEN_CONNS"); val != "" {
+		if i, err := strconv.Atoi(val); err == nil && i > 0 {
+			maxOpen = i
+		}
+	}
+	if val := os.Getenv("DB_MAX_IDLE_CONNS"); val != "" {
+		if i, err := strconv.Atoi(val); err == nil && i >= 0 {
+			maxIdle = i
+		}
+	}
+	if val := os.Getenv("DB_CONN_MAX_LIFETIME"); val != "" {
+		if d, err := time.ParseDuration(val); err == nil && d > 0 {
+			maxLifetime = d
+		}
+	}
+	if val := os.Getenv("DB_CONN_MAX_IDLE_TIME"); val != "" {
+		if d, err := time.ParseDuration(val); err == nil && d > 0 {
+			maxIdleTime = d
+		}
+	}
+
+	db.SetMaxOpenConns(maxOpen)
+	db.SetMaxIdleConns(maxIdle)
+	db.SetConnMaxLifetime(maxLifetime)
+	db.SetConnMaxIdleTime(maxIdleTime)
 
 	if isNew {
 		if err := bootstrapSchema(db); err != nil {

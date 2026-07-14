@@ -55,7 +55,7 @@ func handleGetApiKeys(db *sql.DB) http.HandlerFunc {
 			LEFT JOIN users u ON a.userId = u.id
 		`)
 		if err != nil {
-			log.Printf("[API Keys] Failed to query API keys: %v", err)
+			log.Errorf("[API Keys] Failed to query API keys: %v", err)
 			http.Error(w, `{"error": "Internal Server Error"}`, http.StatusInternalServerError)
 			return
 		}
@@ -72,7 +72,7 @@ func handleGetApiKeys(db *sql.DB) http.HandlerFunc {
 			var isActiveInt int
 
 			if err := rows.Scan(&id, &name, &userId, &username, &expiresAt, &createdAt, &isActiveInt); err != nil {
-				log.Printf("[API Keys] Failed to scan API key row: %v", err)
+				log.Errorf("[API Keys] Failed to scan API key row: %v", err)
 				http.Error(w, `{"error": "Internal Server Error"}`, http.StatusInternalServerError)
 				return
 			}
@@ -132,7 +132,7 @@ func handlePostApiKey(db *sql.DB) http.HandlerFunc {
 			http.Error(w, `{"error": "User does not exist"}`, http.StatusBadRequest)
 			return
 		} else if err != nil {
-			log.Printf("[API Keys] Failed to query user: %v", err)
+			log.Errorf("[API Keys] Failed to query user: %v", err)
 			http.Error(w, `{"error": "Internal Server Error"}`, http.StatusInternalServerError)
 			return
 		}
@@ -140,7 +140,7 @@ func handlePostApiKey(db *sql.DB) http.HandlerFunc {
 		// Generate a secure random hex API key token (48 hex characters using crypto/rand)
 		tokenBytes := make([]byte, 24)
 		if _, err := rand.Read(tokenBytes); err != nil {
-			log.Printf("[API Keys] Failed to generate secure token: %v", err)
+			log.Errorf("[API Keys] Failed to generate secure token: %v", err)
 			http.Error(w, `{"error": "Internal Server Error"}`, http.StatusInternalServerError)
 			return
 		}
@@ -155,7 +155,7 @@ func handlePostApiKey(db *sql.DB) http.HandlerFunc {
 			VALUES (?, ?, ?, ?, ?, ?)
 		`, token, req.Name, req.UserID, req.ExpiresAt, createdAtStr, isActiveVal)
 		if err != nil {
-			log.Printf("[API Keys] Failed to insert API key: %v", err)
+			log.Errorf("[API Keys] Failed to insert API key: %v", err)
 			http.Error(w, `{"error": "Internal Server Error"}`, http.StatusInternalServerError)
 			return
 		}
@@ -201,7 +201,7 @@ func handleDeleteApiKey(db *sql.DB) http.HandlerFunc {
 
 		_, err := db.Exec("DELETE FROM apiKeys WHERE id = ?", id)
 		if err != nil {
-			log.Printf("[API Keys] Failed to delete API key %s: %v", id, err)
+			log.Errorf("[API Keys] Failed to delete API key %s: %v", id, err)
 			http.Error(w, `{"error": "Internal Server Error"}`, http.StatusInternalServerError)
 			return
 		}
@@ -236,14 +236,14 @@ func handleGetNotifications(db *sql.DB) http.HandlerFunc {
 		var valStr string
 		err := db.QueryRow("SELECT value FROM settings WHERE key = 'notification-settings'").Scan(&valStr)
 		if err != nil && err != sql.ErrNoRows {
-			log.Printf("[Notifications] Failed to query notification settings: %v", err)
+			log.Errorf("[Notifications] Failed to query notification settings: %v", err)
 			http.Error(w, `{"error": "Internal Server Error"}`, http.StatusInternalServerError)
 			return
 		}
 
 		if err == nil {
 			if err := json.Unmarshal([]byte(valStr), &settings); err != nil {
-				log.Printf("[Notifications] Failed to parse settings JSON: %v", err)
+				log.Errorf("[Notifications] Failed to parse settings JSON: %v", err)
 				http.Error(w, `{"error": "Internal Server Error"}`, http.StatusInternalServerError)
 				return
 			}
@@ -299,14 +299,14 @@ func handleUpdateNotifications(db *sql.DB) http.HandlerFunc {
 		var valStr string
 		err := db.QueryRow("SELECT value FROM settings WHERE key = 'notification-settings'").Scan(&valStr)
 		if err != nil && err != sql.ErrNoRows {
-			log.Printf("[Notifications] Failed to load settings: %v", err)
+			log.Errorf("[Notifications] Failed to load settings: %v", err)
 			http.Error(w, `{"error": "Internal Server Error"}`, http.StatusInternalServerError)
 			return
 		}
 
 		if err == nil {
 			if err := json.Unmarshal([]byte(valStr), &currentSettings); err != nil {
-				log.Printf("[Notifications] Failed to unmarshal settings: %v", err)
+				log.Errorf("[Notifications] Failed to unmarshal settings: %v", err)
 				http.Error(w, `{"error": "Internal Server Error"}`, http.StatusInternalServerError)
 				return
 			}
@@ -315,14 +315,14 @@ func handleUpdateNotifications(db *sql.DB) http.HandlerFunc {
 		// Merge payload fields into current settings
 		currentBytes, err := json.Marshal(currentSettings)
 		if err != nil {
-			log.Printf("[Notifications] Failed to marshal current settings: %v", err)
+			log.Errorf("[Notifications] Failed to marshal current settings: %v", err)
 			http.Error(w, `{"error": "Internal Server Error"}`, http.StatusInternalServerError)
 			return
 		}
 
 		var mergedMap map[string]interface{}
 		if err := json.Unmarshal(currentBytes, &mergedMap); err != nil {
-			log.Printf("[Notifications] Failed to unmarshal current settings: %v", err)
+			log.Errorf("[Notifications] Failed to unmarshal current settings: %v", err)
 			http.Error(w, `{"error": "Internal Server Error"}`, http.StatusInternalServerError)
 			return
 		}
@@ -333,14 +333,14 @@ func handleUpdateNotifications(db *sql.DB) http.HandlerFunc {
 
 		mergedBytes, err := json.Marshal(mergedMap)
 		if err != nil {
-			log.Printf("[Notifications] Failed to marshal merged map: %v", err)
+			log.Errorf("[Notifications] Failed to marshal merged map: %v", err)
 			http.Error(w, `{"error": "Invalid request body"}`, http.StatusBadRequest)
 			return
 		}
 
 		var validatedSettings NotificationSettings
 		if err := json.Unmarshal(mergedBytes, &validatedSettings); err != nil {
-			log.Printf("[Notifications] Failed to unmarshal merged settings: %v", err)
+			log.Errorf("[Notifications] Failed to unmarshal merged settings: %v", err)
 			http.Error(w, `{"error": "Invalid request body"}`, http.StatusBadRequest)
 			return
 		}
@@ -382,20 +382,20 @@ func handleUpdateNotifications(db *sql.DB) http.HandlerFunc {
 		// Persist the updated settings map using saveSettings
 		cleanBytes, err := json.Marshal(validatedSettings)
 		if err != nil {
-			log.Printf("[Notifications] Failed to marshal validated settings: %v", err)
+			log.Errorf("[Notifications] Failed to marshal validated settings: %v", err)
 			http.Error(w, `{"error": "Internal Server Error"}`, http.StatusInternalServerError)
 			return
 		}
 
 		var mergedMapToSave map[string]interface{}
 		if err := json.Unmarshal(cleanBytes, &mergedMapToSave); err != nil {
-			log.Printf("[Notifications] Failed to unmarshal clean settings: %v", err)
+			log.Errorf("[Notifications] Failed to unmarshal clean settings: %v", err)
 			http.Error(w, `{"error": "Internal Server Error"}`, http.StatusInternalServerError)
 			return
 		}
 
 		if err := saveSettings(db, "notification-settings", mergedMapToSave); err != nil {
-			log.Printf("[Notifications] Failed to save notification settings: %v", err)
+			log.Errorf("[Notifications] Failed to save notification settings: %v", err)
 			http.Error(w, `{"error": "Internal Server Error"}`, http.StatusInternalServerError)
 			return
 		}
@@ -465,7 +465,7 @@ func handleGetFeeds(db *sql.DB) http.HandlerFunc {
 
 		rows, err := db.QueryContext(ctx, query)
 		if err != nil {
-			log.Printf("[Feeds] Failed to query feeds: %v", err)
+			log.Errorf("[Feeds] Failed to query feeds: %v", err)
 			http.Error(w, fmt.Sprintf(`{"error": "Failed to query feeds: %s"}`, err.Error()), http.StatusInternalServerError)
 			return
 		}
@@ -475,7 +475,7 @@ func handleGetFeeds(db *sql.DB) http.HandlerFunc {
 		for rows.Next() {
 			var f FeedResponse
 			if err := rows.Scan(&f.ID, &f.Type, &f.EntityID, &f.UserID, &f.ServerAddress, &f.CreatedAt, &f.UpdatedAt, &f.Title); err != nil {
-				log.Printf("[Feeds] Failed to scan feed row: %v", err)
+				log.Errorf("[Feeds] Failed to scan feed row: %v", err)
 				continue
 			}
 			f.FeedURL = fmt.Sprintf("%s/feed/%s", hostPrefix, f.ID)
@@ -580,7 +580,7 @@ func handleCreateFeed(db *sql.DB) http.HandlerFunc {
 			VALUES (?, ?, ?, ?, ?, ?, ?)
 		`, feedID, req.Type, req.EntityID, user.ID, hostPrefix, nowStr, nowStr)
 		if err != nil {
-			log.Printf("[Feeds] Failed to insert feed: %v", err)
+			log.Errorf("[Feeds] Failed to insert feed: %v", err)
 			http.Error(w, fmt.Sprintf(`{"error": "Failed to create feed: %s"}`, err.Error()), http.StatusInternalServerError)
 			return
 		}
@@ -645,7 +645,7 @@ func handleDeleteFeed(db *sql.DB) http.HandlerFunc {
 		ctx := r.Context()
 		res, err := db.ExecContext(ctx, "DELETE FROM feeds WHERE id = ?", id)
 		if err != nil {
-			log.Printf("[Feeds] Failed to delete feed: %v", err)
+			log.Errorf("[Feeds] Failed to delete feed: %v", err)
 			http.Error(w, fmt.Sprintf(`{"error": "Failed to delete feed: %s"}`, err.Error()), http.StatusInternalServerError)
 			return
 		}
@@ -712,7 +712,7 @@ func handleGetPlaybackSessions(db *sql.DB) http.HandlerFunc {
 
 		rows, err := db.Query(query, args...)
 		if err != nil {
-			log.Printf("[Playback Sessions] Failed to query playback sessions: %v", err)
+			log.Errorf("[Playback Sessions] Failed to query playback sessions: %v", err)
 			http.Error(w, `{"error": "Internal Server Error"}`, http.StatusInternalServerError)
 			return
 		}
@@ -743,7 +743,7 @@ func handleGetPlaybackSessions(db *sql.DB) http.HandlerFunc {
 				&id, &userId, &username, &mediaItemId, &mediaItemType, &startTime, &updatedAt, &extraDataStr, &title, &author,
 			)
 			if err != nil {
-				log.Printf("[Playback Sessions] Failed to scan row: %v", err)
+				log.Errorf("[Playback Sessions] Failed to scan row: %v", err)
 				http.Error(w, `{"error": "Internal Server Error"}`, http.StatusInternalServerError)
 				return
 			}
@@ -803,7 +803,7 @@ func handleGetPlaybackSessions(db *sql.DB) http.HandlerFunc {
 
 func handleSendDefaultTestNotification(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[Notifications] GET /api/notifications/test")
+		log.Infof("[Notifications] GET /api/notifications/test")
 		userVal := r.Context().Value(core.UserContextKey)
 		if userVal == nil {
 			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
@@ -840,7 +840,7 @@ func handleSendTestNotification(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := trimPathPrefix(r.URL.Path, "/api/notifications/")
 		id = strings.TrimSuffix(id, "/test")
-		log.Printf("[Notifications] GET /api/notifications/%s/test", id)
+		log.Infof("[Notifications] GET /api/notifications/%s/test", id)
 
 		userVal := r.Context().Value(core.UserContextKey)
 		if userVal == nil {
@@ -903,7 +903,7 @@ func handleSendTestNotification(db *sql.DB) http.HandlerFunc {
 				subCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 				defer cancel()
 				if err := notifier.Send(subCtx, payload); err != nil {
-					log.Printf("[Notifications] Test webhook to %s failed: %v", u, err)
+					log.Errorf("[Notifications] Test webhook to %s failed: %v", u, err)
 				}
 			}(urlStr)
 		}
@@ -918,7 +918,7 @@ func handleDeleteNotification(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := trimPathPrefix(r.URL.Path, "/api/notifications/")
 		id = strings.TrimSuffix(id, "/")
-		log.Printf("[Notifications] DELETE /api/notifications/%s", id)
+		log.Infof("[Notifications] DELETE /api/notifications/%s", id)
 
 		userVal := r.Context().Value(core.UserContextKey)
 		if userVal == nil {
@@ -991,7 +991,7 @@ func handleUpdateNotification(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := trimPathPrefix(r.URL.Path, "/api/notifications/")
 		id = strings.TrimSuffix(id, "/")
-		log.Printf("[Notifications] PATCH /api/notifications/%s", id)
+		log.Infof("[Notifications] PATCH /api/notifications/%s", id)
 
 		userVal := r.Context().Value(core.UserContextKey)
 		if userVal == nil {
@@ -1125,7 +1125,7 @@ func handleClosePlaybackSession(db *sql.DB, sessionID string) http.HandlerFunc {
 		// Delete session
 		_, err = db.ExecContext(r.Context(), "DELETE FROM playbackSessions WHERE id = ?", sessionID)
 		if err != nil {
-			log.Printf("[Close Playback Session] Delete failed: %v", err)
+			log.Errorf("[Close Playback Session] Delete failed: %v", err)
 			http.Error(w, `{"error": "Database Error"}`, http.StatusInternalServerError)
 			return
 		}

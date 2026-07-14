@@ -53,6 +53,23 @@ func TestMetricsEndpointAndMiddleware(t *testing.T) {
 		mw.ServeHTTP(w, r)
 	}
 
+	// Test 4xx and 5xx status codes
+	testHandler4xx := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	})
+	mw4xx := MetricsMiddleware(testHandler4xx)
+	r4xx := httptest.NewRequest("GET", "/not-found", nil)
+	w4xx := httptest.NewRecorder()
+	mw4xx.ServeHTTP(w4xx, r4xx)
+
+	testHandler5xx := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	})
+	mw5xx := MetricsMiddleware(testHandler5xx)
+	r5xx := httptest.NewRequest("GET", "/error", nil)
+	w5xx := httptest.NewRecorder()
+	mw5xx.ServeHTTP(w5xx, r5xx)
+
 	// Check metrics handler output again to verify counters incremented
 	rr2 := httptest.NewRecorder()
 	handler.ServeHTTP(rr2, req)
@@ -60,7 +77,16 @@ func TestMetricsEndpointAndMiddleware(t *testing.T) {
 	body2, _ := io.ReadAll(rr2.Body)
 	body2Str := string(body2)
 
-	if !strings.Contains(body2Str, "audiobookshelf_http_requests_total 3") {
-		t.Errorf("Expected total requests to be 3 in metrics output, body was:\n%s", body2Str)
+	if !strings.Contains(body2Str, "audiobookshelf_http_requests_total 5") {
+		t.Errorf("Expected total requests to be 5 in metrics output, body was:\n%s", body2Str)
+	}
+	if !strings.Contains(body2Str, "audiobookshelf_http_requests_by_status{code=\"2xx\"} 3") {
+		t.Errorf("Expected 2xx requests to be 3 in metrics output, body was:\n%s", body2Str)
+	}
+	if !strings.Contains(body2Str, "audiobookshelf_http_requests_by_status{code=\"4xx\"} 1") {
+		t.Errorf("Expected 4xx requests to be 1 in metrics output, body was:\n%s", body2Str)
+	}
+	if !strings.Contains(body2Str, "audiobookshelf_http_requests_by_status{code=\"5xx\"} 1") {
+		t.Errorf("Expected 5xx requests to be 1 in metrics output, body was:\n%s", body2Str)
 	}
 }

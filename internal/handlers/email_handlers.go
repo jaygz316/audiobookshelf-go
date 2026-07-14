@@ -104,7 +104,7 @@ func sanitizePassword(pass string) string {
 // handleGetEmailSettings maps to GET /api/emails/settings
 func handleGetEmailSettings(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[Go] GET /api/emails/settings")
+		log.Infof("[Go] GET /api/emails/settings")
 		userSess := r.Context().Value(core.UserContextKey).(*core.UserSession)
 		if userSess.Type != "root" && userSess.Type != "admin" {
 			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
@@ -128,7 +128,7 @@ func handleGetEmailSettings(db *sql.DB) http.HandlerFunc {
 // handleUpdateEmailSettings maps to PATCH /api/emails/settings
 func handleUpdateEmailSettings(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[Go] PATCH /api/emails/settings")
+		log.Infof("[Go] PATCH /api/emails/settings")
 		userSess := r.Context().Value(core.UserContextKey).(*core.UserSession)
 		if userSess.Type != "root" && userSess.Type != "admin" {
 			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
@@ -172,7 +172,7 @@ func handleUpdateEmailSettings(db *sql.DB) http.HandlerFunc {
 		}
 
 		if err := saveEmailSettings(db, current); err != nil {
-			log.Printf("[Settings] Update failed: %v", err)
+			log.Errorf("[Settings] Update failed: %v", err)
 			http.Error(w, `{"error": "Failed to update settings"}`, http.StatusInternalServerError)
 			return
 		}
@@ -188,7 +188,7 @@ func handleUpdateEmailSettings(db *sql.DB) http.HandlerFunc {
 // handleSendTestEmail maps to POST /api/emails/test
 func handleSendTestEmail(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[Go] POST /api/emails/test")
+		log.Infof("[Go] POST /api/emails/test")
 		userSess := r.Context().Value(core.UserContextKey).(*core.UserSession)
 		if userSess.Type != "root" && userSess.Type != "admin" {
 			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
@@ -236,7 +236,7 @@ func handleSendTestEmail(db *sql.DB) http.HandlerFunc {
 
 		err = sendMail(ctx, req.Host, req.Port, req.Secure, req.RejectUnauthorized, req.User, req.Pass, req.FromAddress, req.TestAddress, subject, body, "", "")
 		if err != nil {
-			log.Printf("[SMTP] Test email failed: %v", err)
+			log.Errorf("[SMTP] Test email failed: %v", err)
 			http.Error(w, fmt.Sprintf(`{"error": "%s"}`, err.Error()), http.StatusInternalServerError)
 			return
 		}
@@ -249,7 +249,7 @@ func handleSendTestEmail(db *sql.DB) http.HandlerFunc {
 // handleUpdateEReaderDevices maps to POST /api/emails/ereader-devices
 func handleUpdateEReaderDevices(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[Go] POST /api/emails/ereader-devices")
+		log.Infof("[Go] POST /api/emails/ereader-devices")
 		userSess := r.Context().Value(core.UserContextKey).(*core.UserSession)
 		if userSess.Type != "root" && userSess.Type != "admin" {
 			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
@@ -272,7 +272,7 @@ func handleUpdateEReaderDevices(db *sql.DB) http.HandlerFunc {
 		current.EreaderDevices = req.EreaderDevices
 
 		if err := saveEmailSettings(db, current); err != nil {
-			log.Printf("[Settings] Update ereader devices failed: %v", err)
+			log.Errorf("[Settings] Update ereader devices failed: %v", err)
 			http.Error(w, `{"error": "Failed to update e-reader devices"}`, http.StatusInternalServerError)
 			return
 		}
@@ -288,7 +288,7 @@ func handleUpdateEReaderDevices(db *sql.DB) http.HandlerFunc {
 // handleSendEBookToDevice maps to POST /api/emails/send-ebook-to-device
 func handleSendEBookToDevice(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[Go] POST /api/emails/send-ebook-to-device")
+		log.Infof("[Go] POST /api/emails/send-ebook-to-device")
 		userVal := r.Context().Value(core.UserContextKey)
 		if userVal == nil {
 			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
@@ -398,7 +398,7 @@ func handleSendEBookToDevice(db *sql.DB) http.HandlerFunc {
 		}
 
 		if _, err := os.Stat(filePath); err != nil {
-			log.Printf("[SMTP] Ebook file not found on disk: %s", filePath)
+			log.Errorf("[SMTP] Ebook file not found on disk: %s", filePath)
 			http.Error(w, `{"error": "E-book file not found on server disk"}`, http.StatusNotFound)
 			return
 		}
@@ -423,7 +423,7 @@ func handleSendEBookToDevice(db *sql.DB) http.HandlerFunc {
 
 		err = sendMail(ctx, settings.Host, settings.Port, settings.Secure, settings.RejectUnauthorized, settings.User, settings.Pass, settings.FromAddress, targetDevice.Email, subject, body, filePath, attachmentName)
 		if err != nil {
-			log.Printf("[SMTP] Failed to send e-book to device: %v", err)
+			log.Errorf("[SMTP] Failed to send e-book to device: %v", err)
 			http.Error(w, fmt.Sprintf(`{"error": "%s"}`, err.Error()), http.StatusInternalServerError)
 			return
 		}
@@ -436,7 +436,7 @@ func handleSendEBookToDevice(db *sql.DB) http.HandlerFunc {
 // handleGetAvailableDevices maps to GET /api/emails/devices
 func handleGetAvailableDevices(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[Go] GET /api/emails/devices")
+		log.Infof("[Go] GET /api/emails/devices")
 		userVal := r.Context().Value(core.UserContextKey)
 		if userVal == nil {
 			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)

@@ -37,7 +37,7 @@ type AuthorExpandedJSON struct {
 // handleGetLibraryAuthors resolves GET /api/libraries/{id}/authors
 func handleGetLibraryAuthors(db *sql.DB, libraryID string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[Go] GET /api/libraries/%s/authors", libraryID)
+		log.Infof("[Go] GET /api/libraries/%s/authors", libraryID)
 
 		sortBy := r.URL.Query().Get("sort")
 		if sortBy == "" {
@@ -58,7 +58,7 @@ func handleGetLibraryAuthors(db *sql.DB, libraryID string) http.HandlerFunc {
 			WHERE libraryId = ?
 		`, libraryID)
 		if err != nil {
-			log.Printf("[Go] Failed to query authors: %v", err)
+			log.Errorf("[Go] Failed to query authors: %v", err)
 			http.Error(w, `{"error": "Failed to query authors"}`, http.StatusInternalServerError)
 			return
 		}
@@ -79,7 +79,7 @@ func handleGetLibraryAuthors(db *sql.DB, libraryID string) http.HandlerFunc {
 					WHERE ba.authorId = ? AND li.libraryId = ?
 				`, id, libraryID).Scan(&numBooks)
 				if scanErr != nil {
-					log.Printf("[Go Warning] Failed to count books for author %s: %v", id, scanErr)
+					log.Warnf("[Go Warning] Failed to count books for author %s: %v", id, scanErr)
 				}
 
 				authors = append(authors, AuthorExpandedJSON{
@@ -94,7 +94,7 @@ func handleGetLibraryAuthors(db *sql.DB, libraryID string) http.HandlerFunc {
 					NumBooks:    numBooks,
 				})
 			} else {
-				log.Printf("[Go Warning] Failed to scan author: %v", err)
+				log.Warnf("[Go Warning] Failed to scan author: %v", err)
 			}
 		}
 
@@ -181,7 +181,7 @@ func parseSequence(s string) float64 {
 // handleGetLibrarySeries resolves GET /api/libraries/{id}/series
 func handleGetLibrarySeries(db *sql.DB, libraryID string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[Go] GET /api/libraries/%s/series", libraryID)
+		log.Infof("[Go] GET /api/libraries/%s/series", libraryID)
 
 		sortBy := r.URL.Query().Get("sort")
 		if sortBy == "" {
@@ -204,7 +204,7 @@ func handleGetLibrarySeries(db *sql.DB, libraryID string) http.HandlerFunc {
 			WHERE libraryId = ?
 		`, libraryID)
 		if err != nil {
-			log.Printf("[Go] Failed to query series: %v", err)
+			log.Errorf("[Go] Failed to query series: %v", err)
 			http.Error(w, `{"error": "Failed to query series"}`, http.StatusInternalServerError)
 			return
 		}
@@ -359,7 +359,7 @@ func handleGetLibrarySeries(db *sql.DB, libraryID string) http.HandlerFunc {
 // handleGetLibrarySeriesByID resolves GET /api/libraries/{id}/series/{seriesId}
 func handleGetLibrarySeriesByID(db *sql.DB, libraryID string, seriesID string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[Go] GET /api/libraries/%s/series/%s", libraryID, seriesID)
+		log.Infof("[Go] GET /api/libraries/%s/series/%s", libraryID, seriesID)
 
 		userVal := r.Context().Value(core.UserContextKey)
 		var userID string
@@ -434,7 +434,7 @@ func handleGetLibrarySeriesByID(db *sql.DB, libraryID string, seriesID string) h
 // handleGetAuthorByID resolves GET /api/authors/{id}
 func handleGetAuthorByID(db *sql.DB, authorID string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[Go] GET /api/authors/%s", authorID)
+		log.Infof("[Go] GET /api/authors/%s", authorID)
 
 		var id, name, lastFirst, createdAtStr, updatedAtStr string
 		var asin, description, imagePath sql.NullString
@@ -523,7 +523,7 @@ func handleGetAuthorByID(db *sql.DB, authorID string) http.HandlerFunc {
 							},
 						})
 					} else {
-						log.Printf("[Go Warning] Failed to scan author item: %v", err)
+						log.Warnf("[Go Warning] Failed to scan author item: %v", err)
 					}
 				}
 			}
@@ -606,7 +606,7 @@ func handleGetAuthorByID(db *sql.DB, authorID string) http.HandlerFunc {
 										},
 									})
 								} else {
-									log.Printf("[Go Warning] Failed to scan author series book: %v", err)
+									log.Warnf("[Go Warning] Failed to scan author series book: %v", err)
 								}
 							}
 							bookRows.Close()
@@ -631,7 +631,7 @@ func handleGetAuthorByID(db *sql.DB, authorID string) http.HandlerFunc {
 // handleGetAuthorImage serves the author image file
 func handleGetAuthorImage(db *sql.DB, metadataPath string, authorID string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[Go] GET /api/authors/%s/image", authorID)
+		log.Infof("[Go] GET /api/authors/%s/image", authorID)
 
 		imagePath, err := idb.GetAuthorImagePath(db, authorID)
 		if err != nil || imagePath == "" {
@@ -647,7 +647,7 @@ func handleGetAuthorImage(db *sql.DB, metadataPath string, authorID string) http
 		}
 
 		if _, err := os.Stat(fullPath); err != nil {
-			log.Printf("[Go] Author image not found: %s", fullPath)
+			log.Warnf("[Go] Author image not found: %s", fullPath)
 			http.NotFound(w, r)
 			return
 		}
@@ -662,7 +662,7 @@ func handleGetAuthorImage(db *sql.DB, metadataPath string, authorID string) http
 // handleDeleteAuthorImage handles DELETE /api/authors/{id}/image
 func handleDeleteAuthorImage(db *sql.DB, cfg *core.Config, authorID string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[Go] DELETE /api/authors/%s/image", authorID)
+		log.Infof("[Go] DELETE /api/authors/%s/image", authorID)
 
 		userVal := r.Context().Value(core.UserContextKey)
 		if userVal == nil {
@@ -706,7 +706,7 @@ func handleDeleteAuthorImage(db *sql.DB, cfg *core.Config, authorID string) http
 // handleMatchAuthor handles POST /api/authors/{id}/match
 func handleMatchAuthor(db *sql.DB, cfg *core.Config, authorID string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[Go] POST /api/authors/%s/match", authorID)
+		log.Infof("[Go] POST /api/authors/%s/match", authorID)
 
 		userVal := r.Context().Value(core.UserContextKey)
 		if userVal == nil {
@@ -747,7 +747,7 @@ func handleMatchAuthor(db *sql.DB, cfg *core.Config, authorID string) http.Handl
 
 		details, err := audnexus.AuthorRequest(r.Context(), payload.ASIN, "")
 		if err != nil {
-			log.Printf("[MatchAuthor] AuthorRequest failed: %v", err)
+			log.Errorf("[MatchAuthor] AuthorRequest failed: %v", err)
 			http.Error(w, fmt.Sprintf("Failed to fetch author details from provider: %v", err), http.StatusInternalServerError)
 			return
 		}
@@ -768,13 +768,13 @@ func handleMatchAuthor(db *sql.DB, cfg *core.Config, authorID string) http.Handl
 					if writeErr := os.WriteFile(destFile, imgBytes, 0644); writeErr == nil {
 						localImagePath = "authors/" + authorID + ".jpg"
 					} else {
-						log.Printf("[MatchAuthor] Warning: failed to write author image file: %v", writeErr)
+						log.Warnf("[MatchAuthor] Warning: failed to write author image file: %v", writeErr)
 					}
 				} else {
-					log.Printf("[MatchAuthor] Warning: failed to download author image: %v", downloadErr)
+					log.Warnf("[MatchAuthor] Warning: failed to download author image: %v", downloadErr)
 				}
 			} else {
-				log.Printf("[MatchAuthor] Warning: failed to create authors metadata dir: %v", err)
+				log.Warnf("[MatchAuthor] Warning: failed to create authors metadata dir: %v", err)
 			}
 		}
 
@@ -864,7 +864,7 @@ func handleMatchAuthor(db *sql.DB, cfg *core.Config, authorID string) http.Handl
 // handleGetLibraryItemByID resolves GET /api/items/{id}
 func handleGetLibraryItemByID(db *sql.DB, itemID string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[Go] GET /api/items/%s", itemID)
+		log.Infof("[Go] GET /api/items/%s", itemID)
 
 		var id, ino, libraryID, folderID, path, relPath, mediaType, mediaID, mtimeStr, ctimeStr, birthtimeStr, createdAtStr, updatedAtStr string
 		var isFileVal, isMissingVal, isInvalidVal int
@@ -1168,7 +1168,7 @@ func handleGetLibraryItemByID(db *sql.DB, itemID string) http.HandlerFunc {
 				}
 				payload["otherVersions"] = otherVersions
 			} else {
-				log.Printf("[Go Warning] Failed to scan book with id %s: %v", mediaID, err)
+				log.Warnf("[Go Warning] Failed to scan book with id %s: %v", mediaID, err)
 			}
 		} else if mediaType == "podcast" {
 			var pTitle, pAuthor, pDescription, pLanguage, pPodcastType, pCoverPath sql.NullString
@@ -1301,7 +1301,7 @@ func handleGetLibraryItemByID(db *sql.DB, itemID string) http.HandlerFunc {
 					},
 				}
 			} else {
-				log.Printf("[Go Warning] Failed to scan podcast with id %s: %v", mediaID, err)
+				log.Warnf("[Go Warning] Failed to scan podcast with id %s: %v", mediaID, err)
 			}
 		}
 
@@ -1313,7 +1313,7 @@ func handleGetLibraryItemByID(db *sql.DB, itemID string) http.HandlerFunc {
 // handleServeEbook serves the EPUB/PDF ebook file
 func handleServeEbook(db *sql.DB, itemID string, fileID string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[Go] GET /api/items/%s/ebook (fileID=%s)", itemID, fileID)
+		log.Infof("[Go] GET /api/items/%s/ebook (fileID=%s)", itemID, fileID)
 
 		var mediaID, mediaType string
 		err := db.QueryRow("SELECT mediaId, mediaType FROM libraryItems WHERE id = ?", itemID).Scan(&mediaID, &mediaType)
@@ -1342,7 +1342,7 @@ func handleServeEbook(db *sql.DB, itemID string, fileID string) http.HandlerFunc
 
 		filePath := ebook.Metadata.Path
 		if _, err := os.Stat(filePath); err != nil {
-			log.Printf("[Go] Ebook file not found: %s", filePath)
+			log.Warnf("[Go] Ebook file not found: %s", filePath)
 			http.NotFound(w, r)
 			return
 		}
@@ -1368,7 +1368,7 @@ func handleServeEbook(db *sql.DB, itemID string, fileID string) http.HandlerFunc
 // handleUpdateLibraryItemByID resolves PATCH /api/items/{id}
 func handleUpdateLibraryItemByID(db *sql.DB, itemID string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[Go] PATCH /api/items/%s", itemID)
+		log.Infof("[Go] PATCH /api/items/%s", itemID)
 
 		userVal := r.Context().Value(core.UserContextKey)
 		if userVal == nil {
@@ -1593,7 +1593,7 @@ func handleUpdateLibraryItemByID(db *sql.DB, itemID string) http.HandlerFunc {
 // handleUpdateAuthor resolves PATCH /api/authors/{id}
 func handleUpdateAuthor(db *sql.DB, authorID string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[Go] PATCH /api/authors/%s", authorID)
+		log.Infof("[Go] PATCH /api/authors/%s", authorID)
 
 		userVal := r.Context().Value(core.UserContextKey)
 		if userVal == nil {
@@ -1742,7 +1742,7 @@ func handleUpdateAuthor(db *sql.DB, authorID string) http.HandlerFunc {
 // handleUpdateSeries resolves PATCH /api/series/{id}
 func handleUpdateSeries(db *sql.DB, seriesID string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[Go] PATCH /api/series/%s", seriesID)
+		log.Infof("[Go] PATCH /api/series/%s", seriesID)
 
 		userVal := r.Context().Value(core.UserContextKey)
 		if userVal == nil {
@@ -1825,7 +1825,7 @@ func handleUpdateSeries(db *sql.DB, seriesID string) http.HandlerFunc {
 // handleAutoNumberSeries resolves POST /api/series/{id}/auto-number
 func handleAutoNumberSeries(db *sql.DB, seriesID string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[Go] POST /api/series/%s/auto-number", seriesID)
+		log.Infof("[Go] POST /api/series/%s/auto-number", seriesID)
 
 		userVal := r.Context().Value(core.UserContextKey)
 		if userVal == nil {
