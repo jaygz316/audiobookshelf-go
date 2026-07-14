@@ -156,4 +156,42 @@ func TestCustomMetadataProvidersEndpoints(t *testing.T) {
 			t.Errorf("Expected custom provider to be deleted, but count is %d", count)
 		}
 	})
+
+	// 5. Verify non-admin is forbidden
+	t.Run("ForbiddenForNonAdmin", func(t *testing.T) {
+		nonAdminSession := &core.UserSession{
+			ID:       "normal-user",
+			Username: "user",
+			Type:     "user",
+			IsActive: true,
+		}
+
+		// GET
+		req := httptest.NewRequest("GET", "/api/custom-metadata-providers", nil)
+		req = req.WithContext(context.WithValue(req.Context(), core.UserContextKey, nonAdminSession))
+		rr := httptest.NewRecorder()
+		handleGetCustomMetadataProviders(db).ServeHTTP(rr, req)
+		if rr.Code != http.StatusForbidden {
+			t.Errorf("Expected GET to return 403 Forbidden, got %d", rr.Code)
+		}
+
+		// POST
+		payload := `{"name":"Forbidden Provider","url":"http://test.com","mediaType":"book"}`
+		req = httptest.NewRequest("POST", "/api/custom-metadata-providers", bytes.NewBufferString(payload))
+		req = req.WithContext(context.WithValue(req.Context(), core.UserContextKey, nonAdminSession))
+		rr = httptest.NewRecorder()
+		handleCreateCustomMetadataProvider(db).ServeHTTP(rr, req)
+		if rr.Code != http.StatusForbidden {
+			t.Errorf("Expected POST to return 403 Forbidden, got %d", rr.Code)
+		}
+
+		// DELETE
+		req = httptest.NewRequest("DELETE", "/api/custom-metadata-providers/xyz", nil)
+		req = req.WithContext(context.WithValue(req.Context(), core.UserContextKey, nonAdminSession))
+		rr = httptest.NewRecorder()
+		handleDeleteCustomMetadataProvider(db).ServeHTTP(rr, req)
+		if rr.Code != http.StatusForbidden {
+			t.Errorf("Expected DELETE to return 403 Forbidden, got %d", rr.Code)
+		}
+	})
 }

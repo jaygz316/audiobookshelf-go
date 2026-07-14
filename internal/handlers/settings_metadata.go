@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"time"
 
+	"audiobookshelf/internal/core"
 	idb "audiobookshelf/internal/db"
 
 	"github.com/google/uuid"
@@ -33,6 +34,11 @@ func handleGetMetadataProviders(db *sql.DB) http.HandlerFunc {
 func handleGetCustomMetadataProviders(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Infof("[Go] GET /api/custom-metadata-providers")
+		userSess, ok := r.Context().Value(core.UserContextKey).(*core.UserSession)
+		if !ok || !userSess.IsAdminOrUp() {
+			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
+			return
+		}
 
 		rows, err := db.Query("SELECT id, name, mediaType, url, authHeaderValue, extraData, createdAt, updatedAt FROM customMetadataProviders")
 		if err != nil {
@@ -81,6 +87,11 @@ func handleGetCustomMetadataProviders(db *sql.DB) http.HandlerFunc {
 func handleCreateCustomMetadataProvider(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Infof("[Go] POST /api/custom-metadata-providers")
+		userSess, ok := r.Context().Value(core.UserContextKey).(*core.UserSession)
+		if !ok || !userSess.IsAdminOrUp() {
+			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
+			return
+		}
 
 		var body struct {
 			Name            string  `json:"name"`
@@ -138,6 +149,11 @@ func handleDeleteCustomMetadataProvider(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := trimPathPrefix(r.URL.Path, "/api/custom-metadata-providers/")
 		log.Infof("[Go] DELETE /api/custom-metadata-providers/%s", id)
+		userSess, ok := r.Context().Value(core.UserContextKey).(*core.UserSession)
+		if !ok || !userSess.IsAdminOrUp() {
+			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
+			return
+		}
 
 		// Delete from customMetadataProviders
 		_, err := db.Exec("DELETE FROM customMetadataProviders WHERE id = ?", id)
