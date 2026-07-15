@@ -2,8 +2,9 @@
 
 import { request, resolvePath } from './api.js';
 import { playItem } from './player.js';
-import { loadItemDetails } from './itemDetails.js';
+import { loadItemDetails, triggerEditItemDetailsModal } from './itemDetails.js';
 import { showToast } from './app.js';
+import { openEbookReader } from './reader.js';
 
 let batchEditMode = false;
 const selectedItems = new Set();
@@ -474,18 +475,43 @@ export function createCard(item, isContinue, libraryId, shelfId = '') {
   const coverUrl = resolvePath(`/api/items/${item.id}/cover?token=${token}&ts=${ts}`);
   const narrator = item.media?.metadata?.narratorName || '';
 
-  const isPlayable = shelfId === 'continue-listening';
+  const userCanUpdate = window.currentUser?.type === 'root' || window.currentUser?.type === 'admin';
+  const hasAudio = item.mediaType === 'podcast' || (item.media && (item.media.numTracks > 0 || item.media.numAudioFiles > 0));
+  const hasEbook = !!(item.media && (item.media.ebookFile || item.media.ebookFormat));
+  
+  const showPlayButton = hasAudio;
+  const showReadButton = !hasAudio && hasEbook;
 
   card.innerHTML = `
     <img class="w-full h-full object-cover" src="${coverUrl}" alt="${escapeHtml(title)}" onerror="this.onerror=null; this.src='assets/images/logo.png'">
     
-    <!-- Hover overlay details -->
-    <div class="absolute inset-0 bg-black/85 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col justify-between p-3 select-none text-left z-30 font-sans">
-      <div class="overflow-y-auto no-scroll">
-        <h4 class="font-semibold text-sm text-white leading-tight mb-1">${escapeHtml(title)}</h4>
-        <p class="text-xs text-black-100">${escapeHtml(author)}</p>
-        ${narrator ? `<p class="text-[10px] text-accent mt-2 italic truncate" title="${escapeHtml(narrator)}">Narrated by: ${escapeHtml(narrator)}</p>` : ''}
+    <!-- Hover overlay -->
+    <div class="absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col justify-between p-3 select-none text-left z-30 font-sans">
+      <div class="overflow-y-auto no-scroll pr-4">
+        <h4 class="font-semibold text-xs md:text-sm text-white leading-tight mb-1 truncate" title="${escapeHtml(title)}">${escapeHtml(title)}</h4>
+        <p class="text-[10px] md:text-xs text-black-100 truncate" title="${escapeHtml(author)}">${escapeHtml(author)}</p>
+        ${narrator ? `<p class="text-[9px] md:text-[10px] text-accent mt-1 italic truncate" title="${escapeHtml(narrator)}">Narrated by: ${escapeHtml(narrator)}</p>` : ''}
       </div>
+
+      <!-- Center play/read button -->
+      <div class="flex-grow flex items-center justify-center pointer-events-auto">
+        ${showPlayButton ? `
+          <button class="w-12 h-12 rounded-full bg-accent text-primary flex items-center justify-center shadow-lg transition-transform hover:scale-110 play-btn focus:outline-none pointer-events-auto animate-fade-in" title="Play Now">
+            <span class="material-symbols text-2.5xl font-bold fill">play_arrow</span>
+          </button>
+        ` : showReadButton ? `
+          <button class="w-12 h-12 rounded-full bg-accent text-primary flex items-center justify-center shadow-lg transition-transform hover:scale-110 read-btn focus:outline-none pointer-events-auto animate-fade-in" title="Read E-Book">
+            <span class="material-symbols text-2.5xl font-bold">auto_stories</span>
+          </button>
+        ` : ''}
+      </div>
+
+      <!-- Top-right Edit button -->
+      ${userCanUpdate ? `
+        <button class="absolute top-2 right-2 cursor-pointer text-white/80 hover:text-yellow-300 hover:scale-110 transition-transform duration-150 edit-btn p-1 pointer-events-auto focus:outline-none" title="Edit Details">
+          <span class="material-symbols text-base">edit</span>
+        </button>
+      ` : ''}
     </div>
 
     <!-- Badges Container -->
@@ -496,15 +522,6 @@ export function createCard(item, isContinue, libraryId, shelfId = '') {
         </div>
       ` : ''}
     </div>
-
-    ${isPlayable ? `
-      <!-- Play button overlay -->
-      <div class="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-40 card-play-btn-overlay">
-        <button class="w-12 h-12 rounded-full bg-accent text-white flex items-center justify-center shadow-lg transition-transform hover:scale-110 play-btn pointer-events-auto animate-fade-in" title="Play Now">
-          <span class="material-symbols text-2xl font-bold">play_arrow</span>
-        </button>
-      </div>
-    ` : ''}
   `;
 
   // Checkmark Badge for Finished items
@@ -577,6 +594,28 @@ export function createCard(item, isContinue, libraryId, shelfId = '') {
       e.preventDefault();
       e.stopPropagation();
       playItem(item.id);
+    });
+  }
+
+  // Read button handler
+  const readBtn = card.querySelector('.read-btn');
+  if (readBtn) {
+    readBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      openEbookReader(item, token);
+    });
+  }
+
+  // Edit button handler
+  const editBtn = card.querySelector('.edit-btn');
+  if (editBtn) {
+    editBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      triggerEditItemDetailsModal(item, libraryId, () => {
+        loadDashboard(libraryId);
+      });
     });
   }
 
