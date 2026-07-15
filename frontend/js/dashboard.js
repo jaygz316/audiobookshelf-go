@@ -338,6 +338,18 @@ async function loadMoreItems(libraryId, filterBy, filterLabel) {
     url += `&desc=1`;
   }
 
+  const bookshelfContainer = document.getElementById('bookshelf');
+  let loader = null;
+  if (bookshelfContainer) {
+    loader = document.createElement('div');
+    loader.id = 'infinite-scroll-loader';
+    loader.className = 'w-full flex justify-center py-6';
+    loader.innerHTML = `
+      <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-accent"></div>
+    `;
+    bookshelfContainer.appendChild(loader);
+  }
+
   try {
     const allItemsPayload = await request('GET', url);
     const results = allItemsPayload.results || [];
@@ -386,6 +398,9 @@ async function loadMoreItems(libraryId, filterBy, filterLabel) {
   } catch (err) {
     console.error('Failed to load more items:', err);
   } finally {
+    if (loader) {
+      loader.remove();
+    }
     isLoadingMore = false;
   }
 }

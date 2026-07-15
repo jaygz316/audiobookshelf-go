@@ -902,7 +902,7 @@ function updatePlaybackControlsUI() {
   }
 }
 
-function seekTo(seconds) {
+export function seekTo(seconds) {
   if (remotePlayer && remotePlayer.isConnected) {
     remotePlayer.currentTime = seconds;
     remotePlayerController.seek();

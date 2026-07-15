@@ -1,5 +1,5 @@
 import { request, resolvePath } from './api.js';
-import { playItem, getCurrentPlayingItem, getCurrentPlaybackTime, addToQueue } from './player.js';
+import { playItem, getCurrentPlayingItem, getCurrentPlaybackTime, addToQueue, seekTo } from './player.js';
 import { openEbookReader } from './reader.js';
 
 let currentUser = null;
@@ -143,8 +143,14 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
         <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
           <!-- Left Column: Cover & Core Actions -->
           <div class="flex flex-col items-center space-y-4">
-            <div class="w-56 h-80 bg-black-500 rounded border border-black-400 overflow-hidden shadow-2xl flex-shrink-0 flex items-center justify-center relative group select-none">
+            <div id="details-cover-container" class="w-56 h-80 bg-black-500 rounded border border-black-400 overflow-hidden shadow-2xl flex-shrink-0 flex items-center justify-center relative group select-none cursor-pointer">
               <img src="${coverUrl}" alt="${escapeHtml(title)}" class="w-full h-full object-cover" onerror="this.onerror=null; this.src='assets/images/logo.png'">
+              ${isAdmin ? `
+                <div class="absolute inset-0 bg-black-950/70 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center transition-opacity duration-200">
+                  <span class="material-symbols text-3xl text-white">edit</span>
+                  <span class="text-xs text-white font-semibold mt-1">Change Cover</span>
+                </div>
+              ` : ''}
             </div>
             
             <!-- Core Play/Read Buttons -->
@@ -445,46 +451,89 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
             ` : ''}
 
             ${mediaType === 'book' && item.media && item.media.tracks && item.media.tracks.length > 0 ? `
-              <div class="space-y-2">
-                <h3 class="font-bold text-sm text-white border-b border-black-400 pb-1">Audio Tracks (${item.media.tracks.length})</h3>
-                <ol class="space-y-1 max-h-64 overflow-y-auto no-scroll border border-black-400/50 rounded-md p-2 bg-primary/20 list-decimal list-inside text-xs">
-                  ${item.media.tracks.map((t, idx) => `
-                    <li class="p-2 hover:bg-black-500/40 rounded transition-colors text-black-50">
-                      <span class="font-medium text-white pl-1">${escapeHtml(t.title)}</span>
-                      <span class="float-right text-[0.7rem] text-black-100">${formatDuration(t.duration)}</span>
-                    </li>
-                  `).join('')}
-                </ol>
-              </div>
-            ` : ''}
-
-            ${mediaType === 'book' && hasAudio ? `
-              <div class="space-y-2">
-                <div class="flex items-center justify-between border-b border-black-400 pb-1">
-                  <h3 class="font-bold text-sm text-white flex items-center space-x-1">
-                    <span class="material-symbols text-sm text-accent">toc</span>
-                    <span>Chapters (${item.media?.chapters?.length || 0})</span>
-                  </h3>
-                  ${isAdmin ? `
-                    <button id="details-edit-chapters-btn" class="text-xs text-accent hover:underline flex items-center space-x-1">
-                      <span class="material-symbols text-sm">edit</span>
-                      <span>Edit Chapters</span>
-                    </button>
-                  ` : ''}
-                </div>
-                ${item.media?.chapters?.length > 0 ? `
+              <details class="group space-y-2 select-none" ${item.media.tracks.length <= 5 ? 'open' : ''}>
+                <summary class="flex items-center justify-between border-b border-black-400 pb-1 cursor-pointer outline-none list-none">
+                  <div class="flex items-center space-x-1">
+                    <span class="material-symbols text-sm text-accent transition-transform group-open:rotate-90">chevron_right</span>
+                    <span class="material-symbols text-sm text-accent">queue_music</span>
+                    <span class="font-bold text-sm text-white font-medium">Audio Tracks (${item.media.tracks.length})</span>
+                  </div>
+                </summary>
+                <div class="pt-2">
                   <ol class="space-y-1 max-h-64 overflow-y-auto no-scroll border border-black-400/50 rounded-md p-2 bg-primary/20 list-decimal list-inside text-xs">
-                    ${item.media.chapters.map((c) => `
-                      <li class="p-2 hover:bg-black-500/40 rounded transition-colors text-black-50 flex justify-between items-center">
-                        <span class="font-medium text-white pl-1">${escapeHtml(c.title)}</span>
-                        <span class="float-right text-[0.7rem] text-black-100">${formatDuration(c.start)} - ${formatDuration(c.end)}</span>
+                    ${item.media.tracks.map((t, idx) => `
+                      <li class="p-2 hover:bg-black-500/40 rounded transition-colors text-black-50">
+                        <span class="font-medium text-white pl-1">${escapeHtml(t.title)}</span>
+                        <span class="float-right text-[0.7rem] text-black-100">${formatDuration(t.duration)}</span>
                       </li>
                     `).join('')}
                   </ol>
-                ` : `
-                  <p class="text-xs text-black-100">No chapters defined. Click "Edit Chapters" to create or lookup chapters.</p>
-                `}
-              </div>
+                </div>
+              </details>
+            ` : ''}
+
+            ${mediaType === 'book' && item.media?.audioFiles && item.media.audioFiles.length > 0 ? `
+              <details class="group space-y-2 select-none mt-4" ${item.media.audioFiles.length <= 5 ? 'open' : ''}>
+                <summary class="flex items-center justify-between border-b border-black-400 pb-1 cursor-pointer outline-none list-none">
+                  <div class="flex items-center space-x-1">
+                    <span class="material-symbols text-sm text-accent transition-transform group-open:rotate-90">chevron_right</span>
+                    <span class="material-symbols text-sm text-accent">audio_file</span>
+                    <span class="font-bold text-sm text-white font-medium">Audio Files (${item.media.audioFiles.length})</span>
+                  </div>
+                </summary>
+                <div class="pt-2">
+                  <ol class="space-y-1 max-h-64 overflow-y-auto no-scroll border border-black-400/50 rounded-md p-2 bg-primary/20 list-decimal list-inside text-xs">
+                    ${item.media.audioFiles.map((af, idx) => {
+                      const filename = af.metadata?.filename || af.filename || `File ${idx + 1}`;
+                      const durationStr = af.duration ? formatDuration(af.duration) : '';
+                      const sizeStr = af.size ? formatBytes(af.size) : '';
+                      return `
+                        <li class="p-2 hover:bg-black-500/40 rounded transition-colors text-black-50 flex justify-between items-center">
+                          <div class="flex flex-col min-w-0 pr-2">
+                            <span class="font-medium text-white pl-1 truncate" title="${escapeHtml(filename)}">${escapeHtml(filename)}</span>
+                            ${sizeStr ? `<span class="text-[10px] text-black-100 pl-1">${sizeStr}</span>` : ''}
+                          </div>
+                          ${durationStr ? `<span class="text-[0.7rem] text-black-100 flex-shrink-0">${durationStr}</span>` : ''}
+                        </li>
+                      `;
+                    }).join('')}
+                  </ol>
+                </div>
+              </details>
+            ` : ''}
+
+            ${mediaType === 'book' && hasAudio ? `
+              <details class="group space-y-2 select-none mt-4" ${item.media?.chapters?.length > 0 && item.media.chapters.length <= 5 ? 'open' : ''}>
+                <summary class="flex items-center justify-between border-b border-black-400 pb-1 cursor-pointer outline-none list-none">
+                  <div class="flex items-center space-x-1">
+                    <span class="material-symbols text-sm text-accent transition-transform group-open:rotate-90">chevron_right</span>
+                    <span class="material-symbols text-sm text-accent">toc</span>
+                    <span class="font-bold text-sm text-white font-medium">Chapters (${item.media?.chapters?.length || 0})</span>
+                  </div>
+                  <div class="flex items-center space-x-2">
+                    ${isAdmin ? `
+                      <button id="details-edit-chapters-btn" class="text-xs text-accent hover:underline flex items-center space-x-1" onclick="event.stopPropagation();">
+                        <span class="material-symbols text-sm">edit</span>
+                        <span>Edit Chapters</span>
+                      </button>
+                    ` : ''}
+                  </div>
+                </summary>
+                <div class="pt-2">
+                  ${item.media?.chapters?.length > 0 ? `
+                    <ol class="space-y-1 max-h-64 overflow-y-auto no-scroll border border-black-400/50 rounded-md p-2 bg-primary/20 list-decimal list-inside text-xs">
+                      ${item.media.chapters.map((c) => `
+                        <li class="p-2 hover:bg-black-500/40 rounded transition-colors text-black-50 flex justify-between items-center cursor-pointer chapter-item-seek" data-start="${c.start}">
+                          <span class="font-medium text-white pl-1">${escapeHtml(c.title)}</span>
+                          <span class="float-right text-[0.7rem] text-black-100">${formatDuration(c.start)} - ${formatDuration(c.end)}</span>
+                        </li>
+                      `).join('')}
+                    </ol>
+                  ` : `
+                    <p class="text-xs text-black-100">No chapters defined. Click "Edit Chapters" to create or lookup chapters.</p>
+                  `}
+                </div>
+              </details>
             ` : ''}
 
             <!-- Bookmarks Section -->
@@ -620,6 +669,58 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
       if (matchCoverBtn) {
         matchCoverBtn.onclick = () => triggerCoverEditorModal(item, libraryId, () => loadItemDetails(itemId, libraryId, backCallback));
       }
+      
+      const coverContainer = document.getElementById('details-cover-container');
+      if (coverContainer) {
+        coverContainer.onclick = () => triggerCoverEditorModal(item, libraryId, () => loadItemDetails(itemId, libraryId, backCallback));
+        
+        coverContainer.ondragover = (e) => {
+          e.preventDefault();
+          coverContainer.classList.add('border-accent');
+        };
+
+        coverContainer.ondragleave = () => {
+          coverContainer.classList.remove('border-accent');
+        };
+
+        coverContainer.ondrop = async (e) => {
+          e.preventDefault();
+          coverContainer.classList.remove('border-accent');
+          const file = e.dataTransfer.files[0];
+          if (file && file.type.startsWith('image/')) {
+            const formData = new FormData();
+            formData.append('cover', file, 'cover.jpg');
+
+            try {
+              const overlay = coverContainer.querySelector('div');
+              if (overlay) {
+                overlay.innerHTML = `
+                  <span class="animate-spin rounded-full h-8 w-8 border-b-2 border-accent mb-2"></span>
+                  <span class="text-xs text-white">Uploading...</span>
+                `;
+                overlay.style.opacity = 1;
+              }
+
+              const response = await fetch(resolvePath(`/api/items/${item.id}/cover`), {
+                method: 'POST',
+                headers: {
+                  'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
+                },
+                body: formData
+              });
+
+              if (!response.ok) {
+                throw new Error(await response.text());
+              }
+
+              loadItemDetails(itemId, libraryId, backCallback);
+            } catch (err) {
+              alert('Failed to upload cover: ' + err.message);
+              loadItemDetails(itemId, libraryId, backCallback);
+            }
+          }
+        };
+      }
       const embedMetadataBtn = document.getElementById('details-embed-metadata-btn');
       if (embedMetadataBtn) {
         embedMetadataBtn.onclick = async () => {
@@ -667,6 +768,19 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
     }
 
     if (hasAudio) {
+      // Wire up chapter seeking on click
+      container.querySelectorAll('.chapter-item-seek').forEach(li => {
+        li.onclick = () => {
+          const start = parseFloat(li.dataset.start);
+          const currentPlaying = getCurrentPlayingItem();
+          if (currentPlaying && currentPlaying.id === item.id) {
+            seekTo(start);
+          } else {
+            playItem(item, start);
+          }
+        };
+      });
+
       const playActionBtn = document.getElementById('details-play-action-btn');
       if (playActionBtn) {
         playActionBtn.onclick = async () => {
