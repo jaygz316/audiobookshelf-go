@@ -140,13 +140,22 @@ async function applyStatusToLoginScreen(status) {
       localForm.classList.add('hidden');
     }
 
+    const customMessageEl = document.getElementById('login-custom-message');
+    if (customMessageEl && status.authFormData && status.authFormData.authLoginCustomMessage) {
+      customMessageEl.innerHTML = status.authFormData.authLoginCustomMessage;
+      customMessageEl.classList.remove('hidden');
+    } else if (customMessageEl) {
+      customMessageEl.classList.add('hidden');
+      customMessageEl.innerHTML = '';
+    }
+
     if (methods.includes('openid')) {
       oidcBtn.classList.remove('hidden');
       divider.classList.remove('hidden');
 
       const oidcBtnText = document.getElementById('oidc-btn-text');
-      if (oidcBtnText && status.authFormData && status.authFormData.authLoginCustomMessage) {
-        oidcBtnText.textContent = status.authFormData.authLoginCustomMessage;
+      if (oidcBtnText && status.authFormData && status.authFormData.authOpenIDButtonText) {
+        oidcBtnText.textContent = status.authFormData.authOpenIDButtonText;
       } else if (oidcBtnText) {
         oidcBtnText.textContent = 'Sign in with OpenId';
       }
