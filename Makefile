@@ -1,28 +1,27 @@
-.PHONY: all build test vet fmt fmt-check docker-build clean
+.PHONY: all build test vet fmt fmt-check docker-build docker-push clean
 
 all: build
 
 build:
-	go build -o audiobookshelf-go .
+	go run run.go build
 
 test:
-	go test -v ./...
+	go run run.go test
 
 vet:
-	go vet ./...
+	go run run.go vet
 
 fmt:
-	go fmt ./...
+	go run run.go fmt
 
 fmt-check:
-	@if [ -n "$$(gofmt -l .)" ]; then \
-		echo "Go files are not formatted. Please run 'make fmt'."; \
-		gofmt -l .; \
-		exit 1; \
-	fi
+	go run run.go fmt-check
 
 docker-build:
-	docker build -t jaygz/audiobookshelf-go:latest .
+	go run run.go docker-build
+
+docker-push:
+	go run run.go docker-push
 
 clean:
-	rm -f audiobookshelf-go
+	go run run.go clean

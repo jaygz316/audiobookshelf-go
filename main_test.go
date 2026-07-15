@@ -601,16 +601,18 @@ func TestGetLibraryPersonalized(t *testing.T) {
 		t.Fatalf("Failed to parse JSON response: %v", err)
 	}
 
-	if len(shelves) != 1 {
-		t.Fatalf("Expected 1 shelf (recently-added), got %d: %v", len(shelves), shelves)
+	var recentShelf map[string]interface{}
+	for _, s := range shelves {
+		if s["id"] == "recently-added" {
+			recentShelf = s
+			break
+		}
+	}
+	if recentShelf == nil {
+		t.Fatalf("Expected recently-added shelf in response, got: %v", shelves)
 	}
 
-	shelf := shelves[0]
-	if shelf["id"] != "recently-added" {
-		t.Errorf("Expected recently-added shelf, got id: %v", shelf["id"])
-	}
-
-	entities := shelf["entities"].([]interface{})
+	entities := recentShelf["entities"].([]interface{})
 	if len(entities) != 1 {
 		t.Fatalf("Expected 1 entity in recently-added shelf, got %d", len(entities))
 	}

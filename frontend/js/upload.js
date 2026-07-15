@@ -94,11 +94,13 @@ function appendFilesToQueue(files) {
 }
 
 function formatBytes(bytes) {
+  if (bytes === undefined || bytes === null || isNaN(bytes) || bytes < 0) return '0 Bytes';
   if (bytes === 0) return '0 Bytes';
   const k = 1024;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  const sizeUnit = sizes[Math.min(i, sizes.length - 1)];
+  return parseFloat((bytes / Math.pow(k, Math.min(i, sizes.length - 1))).toFixed(2)) + ' ' + sizeUnit;
 }
 
 function updateQueueUI() {
@@ -316,19 +318,32 @@ function renderModal(libraryId, libraryName, folders) {
     }
   };
   
-  dropZone.ondragover = (e) => {
+  let dragCounter = 0;
+  uploadModal.ondragenter = (e) => {
     e.preventDefault();
-    dropZone.classList.add('border-accent', 'bg-accent/5');
+    dragCounter++;
+    if (dragCounter === 1) {
+      dropZone.classList.add('dragover');
+    }
+  };
+
+  uploadModal.ondragover = (e) => {
+    e.preventDefault();
   };
   
-  dropZone.ondragleave = (e) => {
+  uploadModal.ondragleave = (e) => {
     e.preventDefault();
-    dropZone.classList.remove('border-accent', 'bg-accent/5');
+    dragCounter--;
+    if (dragCounter <= 0) {
+      dragCounter = 0;
+      dropZone.classList.remove('dragover');
+    }
   };
   
-  dropZone.ondrop = async (e) => {
+  uploadModal.ondrop = async (e) => {
     e.preventDefault();
-    dropZone.classList.remove('border-accent', 'bg-accent/5');
+    dragCounter = 0;
+    dropZone.classList.remove('dragover');
     
     const items = e.dataTransfer.items;
     if (!items) return;
@@ -356,6 +371,7 @@ function renderModal(libraryId, libraryName, folders) {
       }
     }
   };
+
 
   // Upload Trigger
   uploadStartBtn.onclick = () => {
@@ -413,7 +429,7 @@ function startMultipartUpload(libraryId) {
       
       <!-- Progress Bar Wrapper -->
       <div class="w-full bg-black-500 rounded-full h-2.5 overflow-hidden">
-        <div id="upload-progress-bar" class="bg-accent h-2.5 rounded-full transition-all duration-100" style="width: 0%"></div>
+        <div id="upload-progress-bar" class="bg-accent progress-bar-animated h-2.5 rounded-full transition-all duration-100" style="width: 0%"></div>
       </div>
       
       <!-- Upload statistics -->
@@ -477,8 +493,20 @@ function startMultipartUpload(libraryId) {
       const elapsed = (Date.now() - startTime) / 1000; // seconds
       if (elapsed > 0.5) {
         const speed = e.loaded / elapsed;
-        const eta = (e.total - e.loaded) / speed;
-        statusText.textContent = `Uploading at ${formatBytes(speed)}/s | ETA: ${Math.round(eta)}s`;
+        let etaText = 'Calculating...';
+        if (speed > 0) {
+          const eta = (e.total - e.loaded) / speed;
+          if (isFinite(eta) && eta >= 0) {
+            const minutes = Math.floor(eta / 60);
+            const seconds = Math.round(eta % 60);
+            if (minutes > 0) {
+              etaText = `${minutes}m ${seconds}s`;
+            } else {
+              etaText = `${seconds}s`;
+            }
+          }
+        }
+        statusText.textContent = `Uploading at ${formatBytes(speed)}/s | ETA: ${etaText}`;
       } else {
         statusText.textContent = `Uploading...`;
       }

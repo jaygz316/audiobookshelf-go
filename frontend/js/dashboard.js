@@ -40,7 +40,7 @@ function saveVisibleColumns(columns) {
   localStorage.setItem('list-view-columns', JSON.stringify(columns));
 }
 
-export async function loadDashboard(libraryId, filterBy = '', filterLabel = '') {
+export async function loadDashboard(libraryId, isHomeOnly = false, filterBy = '', filterLabel = '') {
   const bookshelfContainer = document.getElementById('bookshelf');
   if (!bookshelfContainer) return;
 
@@ -55,6 +55,7 @@ export async function loadDashboard(libraryId, filterBy = '', filterLabel = '') 
 
   // Set up scroll/pagination listener
   bookshelfContainer.onscroll = () => {
+    if (isHomeOnly) return;
     if (isLoadingMore || !hasMore) return;
     const threshold = 300; // px from bottom
     if (bookshelfContainer.scrollHeight - bookshelfContainer.scrollTop - bookshelfContainer.clientHeight < threshold) {
@@ -81,6 +82,26 @@ export async function loadDashboard(libraryId, filterBy = '', filterLabel = '') 
     
     // 2. Fetch personalized shelves
     const shelves = await request('GET', `/api/libraries/${libraryId}/personalized`);
+
+    if (isHomeOnly) {
+      bookshelfContainer.innerHTML = '';
+      if (shelves.length === 0) {
+        bookshelfContainer.innerHTML = `
+          <div class="flex flex-col items-center justify-center h-48 text-black-100">
+            <span class="material-symbols text-4xl mb-2">library_books</span>
+            <p class="text-sm font-medium">No personalized shelves found. Head to the Library tab to browse all content!</p>
+          </div>
+        `;
+        return;
+      }
+      shelves.forEach(shelf => {
+        if (shelf.entities && shelf.entities.length > 0) {
+          const section = createShelfSection(shelf.id, shelf.label, shelf.entities, libraryId);
+          bookshelfContainer.appendChild(section);
+        }
+      });
+      return;
+    }
     
     const filterSelect = document.getElementById('filter-select');
     const sortSelect = document.getElementById('sort-select');
@@ -138,14 +159,13 @@ export async function loadDashboard(libraryId, filterBy = '', filterLabel = '') 
       }
     }
 
-    const noItems = shelves.length === 0 && (!allItemsPayload.results || allItemsPayload.results.length === 0);
-    const noFilteredItems = (filterBy || searchTerm) && (!allItemsPayload.results || allItemsPayload.results.length === 0);
+    const noItems = !allItemsPayload.results || allItemsPayload.results.length === 0;
 
-    if (noItems || noFilteredItems) {
+    if (noItems) {
       bookshelfContainer.innerHTML = `
         <div class="flex flex-col items-center justify-center h-48 text-black-100">
           <span class="material-symbols text-4xl mb-2">library_books</span>
-          <p class="text-sm font-medium">${(filterBy || searchTerm) ? 'No matching items found' : 'No items found in this library'}</p>
+          <p class="text-sm font-medium">${(activeFilter || searchTerm) ? 'No matching items found' : 'No items found in this library'}</p>
         </div>
       `;
       return;
@@ -278,16 +298,6 @@ export async function loadDashboard(libraryId, filterBy = '', filterLabel = '') 
         dropdownMenu.onclick = (e) => e.stopPropagation();
       }
     } else {
-      // Render personalized shelves only if not filtering/searching
-      if (!filterBy && !searchTerm) {
-        shelves.forEach(shelf => {
-          if (shelf.entities && shelf.entities.length > 0) {
-            const section = createShelfSection(shelf.id, shelf.label, shelf.entities, libraryId);
-            bookshelfContainer.appendChild(section);
-          }
-        });
-      }
-
       // Render "All Books" / "All Podcasts" shelf
       if (allItemsPayload.results && allItemsPayload.results.length > 0) {
         const allLabel = filterLabel || (lib.mediaType === 'podcast' ? 'All Podcasts' : 'All Books');
@@ -468,7 +478,7 @@ function createShelfGridSection(shelfId, label, entities, libraryId) {
 }
 export function createCard(item, isContinue, libraryId, shelfId = '') {
   const card = document.createElement('div');
-  card.className = 'w-28e h-40e mr-8e relative cursor-pointer select-none box-shadow-book rounded-sm overflow-hidden flex-shrink-0 transition-transform hover:scale-105 group';
+  card.className = 'bookshelf-card w-28e h-40e mr-8e relative cursor-pointer select-none box-shadow-book rounded-sm overflow-hidden flex-shrink-0 transition-transform hover:scale-105 group';
   
   let title = '';
   let author = '';
@@ -705,13 +715,13 @@ export function initBatchEditHandlers(libraryId) {
     if (batchEditMode) {
       if (spanIcon) spanIcon.textContent = 'close';
       if (textNode) textNode.textContent = 'Cancel';
-      document.querySelectorAll('.bookshelfRow .group').forEach(el => {
+      document.querySelectorAll('.bookshelf-card').forEach(el => {
         el.classList.add('hover:ring-2', 'hover:ring-accent/50');
       });
     } else {
       if (spanIcon) spanIcon.textContent = 'checklist';
       if (textNode) textNode.textContent = 'Batch Edit';
-      document.querySelectorAll('.bookshelfRow .group').forEach(el => {
+      document.querySelectorAll('.bookshelf-card').forEach(el => {
         el.classList.remove('hover:ring-2', 'hover:ring-accent/50', 'ring-4', 'ring-accent', 'scale-105');
       });
     }
@@ -727,7 +737,7 @@ export function initBatchEditHandlers(libraryId) {
       const textNode = toggleBtn.querySelector('#batch-edit-toggle-text') || toggleBtn.childNodes[1];
       if (spanIcon) spanIcon.textContent = 'checklist';
       if (textNode) textNode.textContent = 'Batch Edit';
-      document.querySelectorAll('.bookshelfRow .group').forEach(el => {
+      document.querySelectorAll('.bookshelf-card').forEach(el => {
         el.classList.remove('hover:ring-2', 'hover:ring-accent/50', 'ring-4', 'ring-accent', 'scale-105');
       });
     };

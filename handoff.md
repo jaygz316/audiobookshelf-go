@@ -1,28 +1,25 @@
 # Handoff: Audiobookshelf Go Port — UX Audit
 
 ## Current Screen Under Audit
-- **Screen**: Priority 11 — Stats Page
+- **Screen**: Priority 2 — Home / Dashboard (Regression Pass)
 - **Status**: ✅ Complete
 
 ## What Was Fixed This Run
-- **Heatmap Calendar Dimensions**: Adjusted the outer relative calendar border container's height to `156px` and shifted the inner calendar column grid container's top margin to `mt-8` (`32px`), giving the translated month labels a clean `17px` padding to prevent squishing and overflow.
-- **Robust SQLite Timestamps**: Refactored recent sessions list, session pagination table, and general date formatting inside the stats page to use a UTC-safe helper `parseSQLiteTime()`. This avoids parser failures with default timezone formatting on systems without standard SQLite date parsing.
-- **UTC-Native Streak and Charts**: Native UTC calculations for the 7-day line chart data list, streak tracking, and monthly Listening chart ranges to maintain correct day offsets regardless of client machine's local time offsets.
-- **Upload Reload Dispatch**: Added CustomEvent `'library-changed'` trigger in `upload.js` upon multipart upload success and modal close to reload active bookshelves dynamically.
-- **Reader Scope Cleanup**: Moved ebook reader `clickOutsideSettings` and `clickOutsideTts` listeners to parent function scope to prevent reference errors during overlay cleanup.
-
-## Remaining Issues on This Screen
-- None.
+- **Bookshelf Grid & Card Selector**:
+  - Added the `bookshelf-card` class to all library cards dynamically generated via `createCard` inside [dashboard.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/dashboard.js) to allow reliable global CSS rules mapping.
+- **Batch Edit Selectors**:
+  - Identified and resolved a selector bug in `initBatchEditHandlers` inside [dashboard.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/dashboard.js) where toggling batch-edit mode only queried `.bookshelfRow .group` cards.
+  - Refactored this to select `.bookshelf-card` elements globally, enabling batch editing hover ring animations and selection state changes to function correctly on the bottom grid shelf ("All Books") and all other list/grid elements.
+- **Shelf Sizing Controls & Hover States**:
+  - Integrated the `cursor-pointer` utility class on the decrease (`-`) and increase (`+`) size control buttons in [index.html](file:///home/jay/projects/audiobookshelf-go/frontend/index.html) to guarantee a premium user cursor styling interaction.
+- **Systems & Tests Cleanliness**:
+  - Updated `runVet` within the Go task runner [run.go](file:///home/jay/projects/audiobookshelf-go/run.go) to separately target native Go packages and compile/vet the WebAssembly package (`./frontend/go`) using its correct `GOOS=js GOARCH=wasm` build constraints.
+  - Re-compiled, vetted, and validated all integrations, resulting in a 100% green test suite status.
 
 ## Next Screen in Queue
-- **Priority 12 — Upload Page**: (Inspect styling, progress bar indicator visual details, and drag-and-drop boundary visual feedback).
+- **Regression Pass**: Priority 3 — Library / Items Grid (auditing sorting options, search filters, list/grid toggle states, and item detail pages).
 
 ## Buttons/Controls Verified Working This Run
-- **My Stats**, **Library Stats**, and **Server Stats** tabs.
-- **Listening Session Table paginators** (Previous/Next buttons, page status counters).
-- **Library Selector dropdown** on Library Stats tab.
-- **Heatmap calendar hover tooltips** and block highlighting.
-- **Ebook Reader Settings** popover toggles and outside click handler.
-
-## Buttons/Controls Known Broken
-- None.
+- **Shelf Size Dec/Inc buttons** (proper hover styling, cursor, and style variable propagation).
+- **Batch Edit mode** (highlights cards across both horizontal rows and the bottom grid shelf correctly).
+- **Go builder task runner tasks (`build`, `test`, `vet`, `fmt-check`)**.

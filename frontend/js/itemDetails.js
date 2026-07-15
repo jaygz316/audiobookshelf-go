@@ -1854,6 +1854,7 @@ function triggerAddToPlaylistModal(item, libraryId) {
  */
 export function triggerEditItemDetailsModal(item, libraryId, onSaveSuccess) {
   const mediaType = item.mediaType || 'book';
+  let metadata = {};
   let title = '';
   let subtitle = '';
   let authors = [];
@@ -1873,7 +1874,7 @@ export function triggerEditItemDetailsModal(item, libraryId, onSaveSuccess) {
   let genres = [];
 
   if (item.media) {
-    const metadata = item.media.metadata || {};
+    metadata = item.media.metadata || {};
     title = metadata.title || item.title || '';
     subtitle = metadata.subtitle || '';
     

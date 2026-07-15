@@ -74,3 +74,7 @@ export async function request(method, path, body = null, options = {}) {
   }
   return response.text();
 }
+
+window.apiRequest = request;
+window.resolvePath = resolvePath;
+
