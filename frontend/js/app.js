@@ -1169,43 +1169,44 @@ function bootstrapApp(payload) {
       };
     }
 
-    const canUpload = user.type === 'root' || user.type === 'admin' || (user.permissions && user.permissions.upload);
-    const headerUploadBtn = document.getElementById('header-upload-btn');
-    if (headerUploadBtn) {
-      if (canUpload) {
-        headerUploadBtn.classList.remove('hidden');
-        headerUploadBtn.onclick = () => {
-          const libId = getActiveLibraryId();
-          if (!libId) {
-            showToast('No active library selected to upload to', 'warning');
-            return;
-          }
-          import('./upload.js').then(module => {
-            module.openUploadModal(libId);
-          });
-        };
-      } else {
-        headerUploadBtn.classList.add('hidden');
-      }
-    }
+  }
 
-    const uploadBtn = document.getElementById('upload-btn');
-    if (uploadBtn) {
-      if (canUpload) {
-        uploadBtn.classList.remove('hidden');
-        uploadBtn.onclick = () => {
-          const libId = getActiveLibraryId();
-          if (!libId) {
-            showToast('No active library selected to upload to', 'warning');
-            return;
-          }
-          import('./upload.js').then(module => {
-            module.openUploadModal(libId);
-          });
-        };
-      } else {
-        uploadBtn.classList.add('hidden');
-      }
+  const canUpload = user.type === 'root' || user.type === 'admin' || (user.permissions && user.permissions.upload);
+  const headerUploadBtn = document.getElementById('header-upload-btn');
+  if (headerUploadBtn) {
+    if (canUpload) {
+      headerUploadBtn.classList.remove('hidden');
+      headerUploadBtn.onclick = () => {
+        const libId = getActiveLibraryId();
+        if (!libId) {
+          showToast('No active library selected to upload to', 'warning');
+          return;
+        }
+        import('./upload.js').then(module => {
+          module.openUploadModal(libId);
+        });
+      };
+    } else {
+      headerUploadBtn.classList.add('hidden');
+    }
+  }
+
+  const uploadBtn = document.getElementById('upload-btn');
+  if (uploadBtn) {
+    if (canUpload) {
+      uploadBtn.classList.remove('hidden');
+      uploadBtn.onclick = () => {
+        const libId = getActiveLibraryId();
+        if (!libId) {
+          showToast('No active library selected to upload to', 'warning');
+          return;
+        }
+        import('./upload.js').then(module => {
+          module.openUploadModal(libId);
+        });
+      };
+    } else {
+      uploadBtn.classList.add('hidden');
     }
   }
 
