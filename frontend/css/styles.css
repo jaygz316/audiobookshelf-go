@@ -5713,6 +5713,26 @@ input:checked + .abs-slider:before {
   border-left: 4px solid var(--color-black-400) !important;
 }
 
+/* Mobile Search Overlay styling */
+@media (max-width: 767px) {
+  #global-search-container.mobile-active {
+    display: flex !important;
+    position: absolute !important;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    margin: 0 !important;
+    background-color: var(--color-primary, #111111);
+    z-index: 100;
+    padding: 0 1rem;
+    align-items: center;
+  }
+  #global-search-container.mobile-active > div {
+    width: 100%;
+  }
+}
+
 
 
 

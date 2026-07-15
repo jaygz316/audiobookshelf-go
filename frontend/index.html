@@ -273,18 +273,25 @@
           </button>
         </div>
 
-        <!-- Mock Search bar -->
-        <div class="flex-grow max-w-md mx-6 hidden md:block">
-          <div class="relative">
-            <span class="material-symbols absolute left-3 top-2 text-black-100">search</span>
-            <input type="text" id="global-search-input" placeholder="Search.." class="w-full bg-black-500 text-white placeholder-black-100 pl-10 pr-4 py-1.5 rounded text-sm border border-black-300 focus:outline-none focus:border-accent">
+        <!-- Search bar -->
+        <div id="global-search-container" class="flex-grow max-w-md mx-6 hidden md:block relative text-sm">
+          <div class="flex items-center bg-black-500 rounded border border-black-300 px-3 py-1.5 focus-within:border-accent">
+            <span class="material-symbols text-black-100 pr-2 select-none">search</span>
+            <input type="text" id="global-search-input" placeholder="Search.." class="bg-transparent w-full text-white placeholder-black-100 focus:outline-none" autocomplete="off">
+            <span id="global-search-clear-btn" class="material-symbols text-black-100 cursor-pointer pl-2 hover:text-white hidden select-none">close</span>
+          </div>
+          <!-- Dropdown menu -->
+          <div id="global-search-dropdown" class="absolute left-0 right-0 mt-1 bg-primary border border-black-300 rounded shadow-lg overflow-y-auto max-h-[calc(100vh-75px)] z-50 hidden">
+            <ul id="global-search-results-list" class="py-1">
+              <!-- Results dynamically populated -->
+            </ul>
           </div>
         </div>
 
         <!-- Actions & Profile -->
         <div class="flex items-center space-x-2 md:space-x-3">
           <!-- Search icon for mobile -->
-          <button class="md:hidden p-2 hover:bg-black-500 rounded-full text-black-50 hover:text-white flex items-center justify-center" aria-label="Search">
+          <button id="mobile-search-btn" class="md:hidden p-2 hover:bg-black-500 rounded-full text-black-50 hover:text-white flex items-center justify-center" aria-label="Search">
             <span class="material-symbols text-xl">search</span>
           </button>
 
