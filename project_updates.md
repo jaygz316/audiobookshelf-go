@@ -30,5 +30,5 @@
 *This log is updated by developers/agents whenever an API, design pattern, or library is deprecated or updated.*
 
 ### 2026-07-14
-- **Established Project Updates Tracker**: Created `project_updates.md` and integrated it into the startup check of `CLAUDE.md`, `scheduled_prompt.md`, and `ux_scheduled_prompt.md`.
+- **Established Project Updates Tracker**: Created `project_updates.md` and integrated it into the startup check of `AGENTS.md`, `scheduled_prompt.md`, and `ux_scheduled_prompt.md`.
 - **Sidebar & Siderail Navigation Styling**: Switched navigation styling to exactly match the original client's layout (`bg-bg` and custom icons). Removed custom template overrides in favor of native CSS styles.
