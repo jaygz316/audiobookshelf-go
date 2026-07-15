@@ -485,6 +485,9 @@ function renderPlaylistItemsRows(playlist, itemsDetails, libraryId) {
       </div>
 
       <div class="flex items-center space-x-3 ml-4 flex-shrink-0">
+        <button class="play-track-btn text-accent hover:opacity-80 p-1" title="Play starting from this track">
+          <span class="material-symbols text-lg">play_arrow</span>
+        </button>
         <button class="remove-btn text-error hover:text-red-400 p-1" title="Remove from playlist">
           <span class="material-symbols text-lg">close</span>
         </button>
@@ -498,6 +501,11 @@ function renderPlaylistItemsRows(playlist, itemsDetails, libraryId) {
       } else {
         loadItemDetails(item.id, libraryId, () => loadPlaylistDetails(playlist.id, libraryId));
       }
+    };
+
+    li.querySelector('.play-track-btn').onclick = async (e) => {
+      e.stopPropagation();
+      await playItems(itemsDetails, index);
     };
 
     // Attach HTML5 drag and drop events

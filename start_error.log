@@ -1,0 +1,5 @@
+{"time":"2026-07-15T04:50:16.91037294-05:00","level":"INFO","msg":"=== Starting Go Gateway ==="}
+{"time":"2026-07-15T04:50:16.910432626-05:00","level":"INFO","msg":"Options: CONFIG_PATH=/home/jay/projects/audiobookshelf-go/config, METADATA_PATH=/home/jay/projects/audiobookshelf-go/metadata, PORT=3333, HOST=, SOURCE=debian, LEGACY_URL=http://localhost:3334, ROUTER_BASE_PATH=/"}
+{"time":"2026-07-15T04:50:16.911891446-05:00","level":"INFO","msg":"Successfully connected to SQLite database: /home/jay/projects/audiobookshelf-go/config/absdatabase.sqlite"}
+{"time":"2026-07-15T04:50:16.911921603-05:00","level":"INFO","msg":"[Backup Scheduler] Started background scheduler"}
+{"time":"2026-07-15T04:50:16.914043999-05:00","level":"INFO","msg":"Go Gateway listening on http://:3333"}
