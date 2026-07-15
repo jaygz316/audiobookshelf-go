@@ -5928,3 +5928,15 @@ summary {
   display: flex !important;
 }
 
+/* Ensure library grid items scale with the shelf sizing control slider */
+.library-grid .bookshelf-card {
+  width: var(--bookshelf-card-width, 120px) !important;
+  height: var(--bookshelf-card-height, 180px) !important;
+}
+
+.library-grid > .group {
+  width: 100% !important;
+  max-width: calc(var(--bookshelf-card-width, 120px) + 2rem) !important;
+}
+
+

@@ -120,9 +120,7 @@ async function renderAuthorsView(container, libraryId) {
     }
 
     const grid = document.createElement('div');
-    grid.style.display = 'grid';
-    grid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(var(--bookshelf-card-width, 120px), 1fr))';
-    grid.style.gap = '1.5rem';
+    grid.className = 'library-grid';
 
     authors.forEach(author => {
       const card = createAuthorCard(author);

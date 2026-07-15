@@ -1965,7 +1965,7 @@ function navigateTo(path, pushState = true) {
   const styleSwitcher = document.getElementById('style-switcher');
 
   const showControls = (relPath === '/library');
-  const showBookCount = (relPath === '/library');
+  const showBookCount = (relPath === '/library' || relPath === '/series' || relPath === '/authors' || relPath === '/collections' || relPath === '/playlists' || relPath === '/narrators');
   const showShelfSize = (relPath === '/' || relPath === '/library' || relPath === '/series' || relPath === '/authors' || relPath === '/collections' || relPath === '/playlists' || relPath === '/narrators');
   
   const bookCount = document.getElementById('book-count');

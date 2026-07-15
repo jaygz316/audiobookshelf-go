@@ -80,6 +80,8 @@ func toTitle(s string) string {
 
 // getWithRetry retries GET requests if status is 429 Rate Limited.
 func getWithRetry(ctx context.Context, client *safeurl.WrappedClient, urlStr string) (*http.Response, error) {
+	const maxRetries = 3
+	retries := 0
 	for {
 		req, err := http.NewRequestWithContext(ctx, "GET", urlStr, nil)
 		if err != nil {
@@ -94,6 +96,11 @@ func getWithRetry(ctx context.Context, client *safeurl.WrappedClient, urlStr str
 		}
 
 		if resp.StatusCode == 429 {
+			if retries >= maxRetries {
+				return resp, nil
+			}
+			retries++
+
 			retryAfter := 5
 			if h := resp.Header.Get("Retry-After"); h != "" {
 				if sec, err := strconv.Atoi(h); err == nil {

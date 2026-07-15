@@ -1,25 +1,13 @@
-# Handoff: Audiobookshelf Go Port — UX Audit
+# Handoff: Audiobookshelf Go Port
 
-## Current Screen Under Audit
-- **Screen**: Priority 2 — Home / Dashboard (Regression Pass)
-- **Status**: ✅ Complete
+## Targeted Task & Accomplishments
+- **Target Task**: Series details page and cover art stacking visuals audit & authors list regression pass.
+- **Accomplishments**:
+  - Audited the Series Details view and cover art stacking CSS styles (`.series-detail-cover-stack`), verifying that layout, absolute image scaling, rotation, fanning hover animations, and margins mirror the original interface.
+  - Audited `/authors` list view and discovered that the grid used manually defined inline styles rather than the standard `.library-grid` class.
+  - Refactored `renderAuthorsView` in `frontend/js/authors.js` to use `library-grid` class, improving code reuse and ensuring the authors grid is styled consistently (including padding, spacing, alignment, and column width scaling).
+  - Validated that the card components inside the authors grid (`createAuthorCard`) correctly resize with the library shelf-sizing control slider.
+  - Built the Go WebAssembly frontend and backend binaries and ran the complete test suite successfully.
 
-## What Was Fixed This Run
-- **Bookshelf Grid & Card Selector**:
-  - Added the `bookshelf-card` class to all library cards dynamically generated via `createCard` inside [dashboard.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/dashboard.js) to allow reliable global CSS rules mapping.
-- **Batch Edit Selectors**:
-  - Identified and resolved a selector bug in `initBatchEditHandlers` inside [dashboard.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/dashboard.js) where toggling batch-edit mode only queried `.bookshelfRow .group` cards.
-  - Refactored this to select `.bookshelf-card` elements globally, enabling batch editing hover ring animations and selection state changes to function correctly on the bottom grid shelf ("All Books") and all other list/grid elements.
-- **Shelf Sizing Controls & Hover States**:
-  - Integrated the `cursor-pointer` utility class on the decrease (`-`) and increase (`+`) size control buttons in [index.html](file:///home/jay/projects/audiobookshelf-go/frontend/index.html) to guarantee a premium user cursor styling interaction.
-- **Systems & Tests Cleanliness**:
-  - Updated `runVet` within the Go task runner [run.go](file:///home/jay/projects/audiobookshelf-go/run.go) to separately target native Go packages and compile/vet the WebAssembly package (`./frontend/go`) using its correct `GOOS=js GOARCH=wasm` build constraints.
-  - Re-compiled, vetted, and validated all integrations, resulting in a 100% green test suite status.
-
-## Next Screen in Queue
-- **Regression Pass**: Priority 3 — Library / Items Grid (auditing sorting options, search filters, list/grid toggle states, and item detail pages).
-
-## Buttons/Controls Verified Working This Run
-- **Shelf Size Dec/Inc buttons** (proper hover styling, cursor, and style variable propagation).
-- **Batch Edit mode** (highlights cards across both horizontal rows and the bottom grid shelf correctly).
-- **Go builder task runner tasks (`build`, `test`, `vet`, `fmt-check`)**.
+## Next Steps
+- Continue with Priority 5 UI/UX regression pass or other pending visual audits.

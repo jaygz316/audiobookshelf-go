@@ -197,10 +197,10 @@ export async function loadDashboard(libraryId, isHomeOnly = false, filterBy = ''
       
       let headerHtml = `<tr class="border-b border-black-600/50 text-black-100 font-semibold uppercase tracking-wider">`;
       
-      const colDetails = {
+       const colDetails = {
         cover: `<th class="p-3 w-16">Cover</th>`,
         title: `<th class="p-3">Title</th>`,
-        author: `<th class="p-3">Author</th>`,
+        author: `<th class="p-3">${lib.mediaType === 'podcast' ? 'Publisher' : 'Author'}</th>`,
         narrator: `<th class="p-3">Narrator</th>`,
         series: `<th class="p-3">Series</th>`,
         duration: `<th class="p-3 font-mono">Duration</th>`,
@@ -260,10 +260,11 @@ export async function loadDashboard(libraryId, isHomeOnly = false, filterBy = ''
             container.innerHTML = ALL_COLUMNS.map(col => {
               const isChecked = visibleCols.includes(col.key);
               const isMandatory = col.key === 'title' || col.key === 'action';
+              const colLabel = (col.key === 'author' && lib.mediaType === 'podcast') ? 'Publisher' : col.label;
               return `
                 <label class="flex items-center space-x-2 text-xs cursor-pointer select-none py-0.5">
                   <input type="checkbox" data-col="${col.key}" ${isChecked ? 'checked' : ''} ${isMandatory ? 'disabled' : ''} class="col-checkbox rounded border-black-400 bg-black-600 text-accent focus:ring-accent w-3.5 h-3.5">
-                  <span class="${isMandatory ? 'text-black-300 font-medium' : 'text-black-100'}">${col.label}</span>
+                  <span class="${isMandatory ? 'text-black-300 font-medium' : 'text-black-100'}">${colLabel}</span>
                 </label>
               `;
             }).join('');
@@ -478,7 +479,7 @@ function createShelfGridSection(shelfId, label, entities, libraryId) {
 }
 export function createCard(item, isContinue, libraryId, shelfId = '') {
   const card = document.createElement('div');
-  card.className = 'bookshelf-card w-28e h-40e mr-8e relative cursor-pointer select-none box-shadow-book rounded-sm overflow-hidden flex-shrink-0 transition-transform hover:scale-105 group';
+  card.className = 'bookshelf-card w-28e h-40e relative cursor-pointer select-none box-shadow-book rounded-sm overflow-hidden flex-shrink-0 transition-transform hover:scale-105 group';
   
   let title = '';
   let author = '';
