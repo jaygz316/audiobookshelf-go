@@ -592,6 +592,39 @@ export async function loadSeriesDetails(seriesId) {
     const progress = series.progress || {};
     const totalBooks = items.length;
     const finishedCount = progress.libraryItemIdsFinished?.length || 0;
+
+    let coversHtml = '';
+    const token = localStorage.getItem('token');
+    if (items.length > 0) {
+      if (items.length === 1) {
+        const ts = items[0].updatedAt || items[0].addedAt || Date.now();
+        const coverUrl = resolvePath(`/api/items/${items[0].id}/cover?token=${token}&ts=${ts}`);
+        coversHtml = `<img src="${coverUrl}" class="series-cover-front" onerror="this.onerror=null; this.src='assets/images/logo.png'">`;
+      } else if (items.length === 2) {
+        const ts0 = items[0].updatedAt || items[0].addedAt || Date.now();
+        const ts1 = items[1].updatedAt || items[1].addedAt || Date.now();
+        const cover0 = resolvePath(`/api/items/${items[0].id}/cover?token=${token}&ts=${ts0}`);
+        const cover1 = resolvePath(`/api/items/${items[1].id}/cover?token=${token}&ts=${ts1}`);
+        coversHtml = `
+          <img src="${cover1}" class="series-cover-back-two" onerror="this.onerror=null; this.src='assets/images/logo.png'">
+          <img src="${cover0}" class="series-cover-front" onerror="this.onerror=null; this.src='assets/images/logo.png'">
+        `;
+      } else {
+        const ts0 = items[0].updatedAt || items[0].addedAt || Date.now();
+        const ts1 = items[1].updatedAt || items[1].addedAt || Date.now();
+        const ts2 = items[2].updatedAt || items[2].addedAt || Date.now();
+        const cover0 = resolvePath(`/api/items/${items[0].id}/cover?token=${token}&ts=${ts0}`);
+        const cover1 = resolvePath(`/api/items/${items[1].id}/cover?token=${token}&ts=${ts1}`);
+        const cover2 = resolvePath(`/api/items/${items[2].id}/cover?token=${token}&ts=${ts2}`);
+        coversHtml = `
+          <img src="${cover2}" class="series-cover-back" onerror="this.onerror=null; this.src='assets/images/logo.png'">
+          <img src="${cover1}" class="series-cover-middle" onerror="this.onerror=null; this.src='assets/images/logo.png'">
+          <img src="${cover0}" class="series-cover-front" onerror="this.onerror=null; this.src='assets/images/logo.png'">
+        `;
+      }
+    } else {
+      coversHtml = `<span class="material-symbols text-5xl text-black-300">layers</span>`;
+    }
     
     let html = `
       <div class="p-6 max-w-6xl mx-auto space-y-6 text-left">
@@ -602,37 +635,43 @@ export async function loadSeriesDetails(seriesId) {
           </button>
         </div>
         <!-- Series Info Header -->
-        <div class="bg-black-600 p-6 rounded-lg border border-black-400 space-y-4">
-          <div class="flex flex-col md:flex-row md:items-center gap-3 justify-between">
-            <div class="flex items-center space-x-3">
-              <span class="material-symbols text-3xl text-accent">layers</span>
-              <h2 class="text-3xl font-bold text-white">${escapeHtml(name)}</h2>
-              ${window.currentUser?.type === 'root' || window.currentUser?.type === 'admin' ? `
-                <div class="flex items-center space-x-2">
-                  <button id="edit-series-btn" class="px-3 py-1 bg-accent/20 text-accent hover:bg-accent/30 border border-accent/40 rounded text-xs font-semibold self-center transition-colors">
-                    Edit
-                  </button>
-                  <button id="auto-number-series-btn" class="px-3 py-1 bg-accent/20 text-accent hover:bg-accent/30 border border-accent/40 rounded text-xs font-semibold self-center transition-colors flex items-center space-x-1">
-                    <span class="material-symbols text-[13px]">format_list_numbered</span>
-                    <span>Auto-Number</span>
-                  </button>
+        <div class="flex flex-col md:flex-row gap-6 bg-black-600 p-6 rounded-lg border border-black-400">
+          <div class="series-detail-cover-stack mx-auto md:mx-0 flex-shrink-0">
+            ${coversHtml}
+          </div>
+          <div class="flex-grow flex flex-col justify-between text-center md:text-left space-y-4">
+            <div>
+              <div class="flex flex-col md:flex-row md:items-center gap-3 justify-between">
+                <div class="flex flex-col md:flex-row md:items-center gap-3">
+                  <h2 class="text-3xl font-bold text-white">${escapeHtml(name)}</h2>
+                  ${window.currentUser?.type === 'root' || window.currentUser?.type === 'admin' ? `
+                    <div class="flex items-center justify-center md:justify-start space-x-2">
+                      <button id="edit-series-btn" class="px-3 py-1 bg-accent/20 text-accent hover:bg-accent/30 border border-accent/40 rounded text-xs font-semibold self-center transition-colors">
+                        Edit
+                      </button>
+                      <button id="auto-number-series-btn" class="px-3 py-1 bg-accent/20 text-accent hover:bg-accent/30 border border-accent/40 rounded text-xs font-semibold self-center transition-colors flex items-center space-x-1">
+                        <span class="material-symbols text-[13px]">format_list_numbered</span>
+                        <span>Auto-Number</span>
+                      </button>
+                    </div>
+                  ` : ''}
                 </div>
-              ` : ''}
-            </div>
-            
-            <!-- Progress stats -->
-            <div class="text-sm bg-primary/60 px-4 py-2 rounded-md border border-black-400 flex items-center space-x-3">
-              <span class="font-medium text-black-50">${totalBooks} book${totalBooks !== 1 ? 's' : ''}</span>
-              <span class="text-black-300">|</span>
-              <span class="font-medium text-accent">${finishedCount} completed</span>
+                
+                <!-- Progress stats -->
+                <div class="text-sm bg-primary/60 px-4 py-2 rounded-md border border-black-400 flex items-center justify-center space-x-3 mx-auto md:mx-0">
+                  <span class="font-medium text-black-50">${totalBooks} book${totalBooks !== 1 ? 's' : ''}</span>
+                  <span class="text-black-300">|</span>
+                  <span class="font-medium text-accent">${finishedCount} completed</span>
+                </div>
+              </div>
+
+              ${description ? `
+                <div class="text-sm text-black-50 leading-relaxed max-w-3xl border-t border-black-400/40 pt-3 mt-3 text-left">
+                  ${escapeHtml(description)}
+                </div>
+              ` : `<p class="text-sm text-black-200 italic border-t border-black-400/40 pt-3 mt-3 text-left">No description available.</p>`}
             </div>
           </div>
-
-          ${description ? `
-            <div class="text-sm text-black-50 leading-relaxed max-w-3xl border-t border-black-400/40 pt-3">
-              ${escapeHtml(description)}
-            </div>
-          ` : `<p class="text-sm text-black-200 italic border-t border-black-400/40 pt-3">No description available.</p>`}
         </div>
 
         <!-- Books List -->
@@ -651,6 +690,7 @@ export async function loadSeriesDetails(seriesId) {
     `;
 
     container.innerHTML = html;
+
 
     const backBtn = container.querySelector('#back-series-btn');
     if (backBtn) {

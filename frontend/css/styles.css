@@ -5733,6 +5733,81 @@ input:checked + .abs-slider:before {
   }
 }
 
+/* Series Detail Stack Cascading/Fanned Cards */
+.series-detail-cover-stack {
+  position: relative;
+  width: 150px;
+  height: 225px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.series-detail-cover-stack img {
+  position: absolute;
+  object-fit: cover;
+  border-radius: 6px;
+  transition: transform 0.3s ease, opacity 0.3s ease, box-shadow 0.3s ease;
+}
+.series-detail-cover-stack .series-cover-front {
+  width: 90%;
+  height: 90%;
+  z-index: 20;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.5), 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+.group:hover .series-detail-cover-stack .series-cover-front,
+.series-detail-cover-stack:hover .series-cover-front {
+  transform: scale(1.05);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.6), 0 4px 8px rgba(0, 0, 0, 0.4);
+}
+.series-detail-cover-stack .series-cover-middle {
+  width: 86%;
+  height: 86%;
+  z-index: 15;
+  opacity: 0.85;
+  transform: translate(15px, 8px) rotate(8deg);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+}
+.group:hover .series-detail-cover-stack .series-cover-middle,
+.series-detail-cover-stack:hover .series-cover-middle {
+  transform: translate(22px, 10px) rotate(12deg);
+  opacity: 0.95;
+}
+.series-detail-cover-stack .series-cover-back {
+  width: 82%;
+  height: 82%;
+  z-index: 10;
+  opacity: 0.65;
+  transform: translate(-20px, 10px) rotate(-12deg);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+.group:hover .series-detail-cover-stack .series-cover-back,
+.series-detail-cover-stack:hover .series-cover-back {
+  transform: translate(-30px, 12px) rotate(-16deg);
+  opacity: 0.8;
+}
+.series-detail-cover-stack .series-cover-back-two {
+  width: 88%;
+  height: 88%;
+  z-index: 10;
+  opacity: 0.8;
+  transform: translate(-12px, 6px) rotate(-6deg);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+}
+.group:hover .series-detail-cover-stack .series-cover-back-two,
+.series-detail-cover-stack:hover .series-cover-back-two {
+  transform: translate(-20px, 8px) rotate(-10deg);
+  opacity: 0.9;
+}
+
+summary::-webkit-details-marker {
+  display: none !important;
+}
+summary {
+  list-style: none !important;
+}
+
+
 
 
 

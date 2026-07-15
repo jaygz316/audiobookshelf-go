@@ -950,15 +950,27 @@ function setupEventHandlers() {
           const isMissingActive = cat.key === 'missing' && currentActiveFilter === 'missing';
           const highlightClass = (isActiveCat || isMissingActive) ? 'text-accent font-medium' : '';
 
+          // Display count for categories if count is > 0
+          const countBadge = (cat.count !== undefined && cat.count > 0) 
+            ? ` <span class="text-black-200 text-[10px] font-normal">(${cat.count})</span>` 
+            : '';
+
           menuHtml += `
             <button class="filter-cat-row-btn w-full text-left px-3 py-1.5 text-xs text-black-50 hover:bg-black-500 hover:text-white flex items-center justify-between transition-colors focus:outline-none ${highlightClass}" data-cat="${cat.key}">
-              <span>${cat.label}</span>
+              <span>${cat.label}${countBadge}</span>
               <span class="material-symbols text-[14px] text-black-200">chevron_right</span>
             </button>
           `;
         });
 
         filterMenu.innerHTML = menuHtml;
+
+        // Auto-close submenu when entering any elements that are not category rows
+        filterMenu.querySelectorAll(':scope > *:not(.filter-cat-row-btn)').forEach(el => {
+          el.addEventListener('mouseenter', () => {
+            closeSubmenu();
+          });
+        });
 
         filterMenu.querySelectorAll('.filter-cat-row-btn').forEach(btn => {
           const cat = btn.getAttribute('data-cat');

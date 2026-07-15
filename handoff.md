@@ -1,22 +1,25 @@
 # Handoff: Audiobookshelf Go Port — UX Audit
 
 ## Current Screen Under Audit
-- **Screen**: Priority 4 — Sidebar Navigation
+- **Screen**: Priority 6 — Series View
 - **Status**: ✅ Complete
 
 ## What Was Fixed This Run
-- **Sidebar Dynamic Version & Source Loading**: Updated `auth.js` to cache the server status payload globally on `window.serverStatus`, and updated `bootstrapApp` in `app.js` to dynamically set `#sidebar-version` and `#sidebar-source` text based on this status and authorization response.
-- **Sidebar Footer Navigation Links**: Added click event listeners to `#sidebar-help-btn` (routes to `https://www.audiobookshelf.org/docs` in a new tab) and `#sidebar-version` (routes to `https://github.com/advplyr/audiobookshelf/releases` in a new tab).
+- **Fanned Cover Stack for Series detail view**: Designed and implemented a larger, fanned cover stack for the Series Details page (matching the Author Details page format and original client design style).
+- **Auto-Numbering click wire-up**: Integrated the auto-numbering endpoint call on the details page with user-friendly loading state and success feedback.
+- **Series view controls and detail navigation verification**: Verified series page grid representation, books count, and detail navigation routing logic.
 
 ## Remaining Issues on This Screen
 - None.
 
 ## Next Screen in Queue
-- **Priority 5 — Library Grid/List View**: Audit results header item counts, sort/filter control population, and pagination controls.
+- **Priority 7 — Item Detail Page (Book/Podcast)**: Auditing and implementing cover art uploading/editing, comprehensive metadata display, action buttons (play, mark finished, edit, delete), chapter list click-to-seek, audio files details, and metadata matching provider popup.
 
 ## Buttons/Controls Verified Working This Run
-- **Help Button in Sidebar Footer**: Successfully opens Audiobookshelf documentation page in a new tab.
-- **Version Link in Sidebar Footer**: Successfully opens original releases page on GitHub in a new tab.
+- **Edit Series button**: Successfully launches the edit modal and calls the metadata patch endpoint.
+- **Auto-Number Series button**: Confirms action, indicates loading progress, and updates series sequences chronologically using the `/api/series/{id}/auto-number` endpoint.
+- **Back to Series button**: Seamlessly navigates back to `/series` layout.
 
 ## Buttons/Controls Known Broken
 - None.
+
