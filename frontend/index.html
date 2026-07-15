@@ -677,18 +677,20 @@
     </div>
 
     <!-- Sticky Bottom Player Bar -->
+    <!-- Sticky Bottom Player Bar -->
     <div id="player-bar" class="hidden h-20 bg-primary border-t border-black-600/50 flex items-center justify-between px-6 z-50 select-none">
       <!-- Left section: Metadata -->
-      <div class="flex items-center space-x-3 w-1/4 min-w-[200px]">
-        <img id="player-cover" src="assets/images/logo.png" alt="Cover" class="w-12 h-12 rounded object-cover">
-        <div class="truncate">
+      <div id="player-meta-container" class="flex items-center space-x-3 w-auto md:w-1/4 md:min-w-[200px] cursor-pointer hover:bg-black-600/30 rounded p-1 transition-colors min-w-0 flex-grow md:flex-grow-0">
+        <img id="player-cover" src="assets/images/logo.png" alt="Cover" class="w-12 h-12 rounded object-cover flex-shrink-0">
+        <div class="truncate min-w-0 pr-1 flex-grow">
           <div id="player-title" class="text-sm font-semibold text-white truncate">No item playing</div>
           <div id="player-author" class="text-xs text-black-50 truncate">Unknown author</div>
         </div>
+        <span class="material-symbols text-lg text-black-100 md:hidden flex-shrink-0">keyboard_double_arrow_up</span>
       </div>
 
       <!-- Center section: Controls and Timeline -->
-      <div class="flex flex-col items-center flex-grow max-w-xl px-4">
+      <div class="hidden md:flex flex-col items-center flex-grow max-w-xl px-4">
         <!-- Buttons -->
         <div class="flex items-center space-x-4 mb-1">
           <button id="player-prev-chapter" class="p-1.5 hover:bg-black-500 rounded text-black-50 hover:text-white hidden" title="Previous Chapter">
@@ -723,7 +725,6 @@
             <span class="material-symbols text-lg">queue_music</span>
             <span id="player-queue-badge" class="absolute -top-1 -right-1 bg-accent text-primary text-[9px] font-bold rounded-full w-4 h-4 flex items-center justify-center hidden"></span>
           </button>
-
         </div>
         <!-- Timeline -->
         <div class="flex items-center w-full space-x-2 text-xs text-black-50">
@@ -741,9 +742,14 @@
       </div>
 
       <!-- Right section: Speed, Volume, Close -->
-      <div class="flex items-center justify-end space-x-4 w-1/4 min-w-[220px]">
-        <!-- Speed Select -->
-        <div class="relative">
+      <div class="flex items-center justify-end space-x-3 w-auto md:w-1/4 md:min-w-[220px] flex-shrink-0">
+        <!-- Play/pause for mobile -->
+        <button id="player-play-pause-mobile" class="md:hidden p-2 bg-accent hover:opacity-90 rounded-full text-primary flex items-center justify-center" title="Play/Pause">
+          <span id="player-play-pause-icon-mobile" class="material-symbols text-lg font-bold">play_arrow</span>
+        </button>
+
+        <!-- Speed Select (desktop only) -->
+        <div class="relative hidden md:block">
           <select id="player-speed" class="bg-black-500 border border-black-300 rounded text-xs text-white px-2 py-1 focus:outline-none cursor-pointer">
             <option value="0.5">0.5x</option>
             <option value="0.75">0.75x</option>
@@ -755,16 +761,16 @@
           </select>
         </div>
 
-        <!-- Volume -->
-        <div class="flex items-center space-x-1.5">
+        <!-- Volume (desktop only) -->
+        <div class="hidden md:flex items-center space-x-1.5">
           <button id="player-volume-btn" class="p-1 hover:bg-black-500 rounded text-black-50 hover:text-white">
             <span id="player-volume-icon" class="material-symbols text-lg">volume_up</span>
           </button>
           <input id="player-volume-slider" type="range" min="0" max="100" value="100" class="w-16 accent-accent bg-black-500 h-1 rounded-lg cursor-pointer">
         </div>
 
-        <!-- Chromecast button -->
-        <google-cast-launcher id="player-cast-btn" class="w-7 h-7 text-black-50 hover:text-white cursor-pointer self-center flex items-center justify-center"></google-cast-launcher>
+        <!-- Chromecast button (desktop only) -->
+        <google-cast-launcher id="player-cast-btn" class="hidden md:flex w-7 h-7 text-black-50 hover:text-white cursor-pointer self-center items-center justify-center"></google-cast-launcher>
 
         <!-- Close button -->
         <button id="player-close" class="p-1.5 hover:bg-black-500 rounded text-black-50 hover:text-white" title="Close Player">
