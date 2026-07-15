@@ -73,9 +73,15 @@ function setupEventHandlers() {
       const usernameInput = document.getElementById('username');
       const passwordInput = document.getElementById('password');
       const loginError = document.getElementById('login-error');
+      const submitBtn = document.getElementById('login-submit-btn');
 
       loginError.classList.add('hidden');
       loginError.textContent = '';
+
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Checking...';
+      }
 
       try {
         const credentials = {
@@ -94,6 +100,11 @@ function setupEventHandlers() {
         console.error('Login failed:', err);
         loginError.textContent = err.message || 'Invalid username or password';
         loginError.classList.remove('hidden');
+      } finally {
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Submit';
+        }
       }
     };
   }

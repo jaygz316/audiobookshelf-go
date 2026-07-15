@@ -25,7 +25,7 @@ export async function initAuth() {
 
   // If server is not initialized, show setup screen
   if (status && !status.isInit) {
-    showSetupScreen();
+    showSetupScreen(status);
     return null;
   }
 
@@ -47,10 +47,17 @@ export async function initAuth() {
   }
 }
 
-export function showSetupScreen() {
+export function showSetupScreen(status) {
   document.getElementById('setup-screen').classList.remove('hidden');
   document.getElementById('login-screen').classList.add('hidden');
   document.getElementById('app-container').classList.add('hidden');
+
+  if (status) {
+    const configPathEl = document.getElementById('setup-config-path');
+    const metadataPathEl = document.getElementById('setup-metadata-path');
+    if (configPathEl) configPathEl.value = status.ConfigPath || '';
+    if (metadataPathEl) metadataPathEl.value = status.MetadataPath || '';
+  }
 
   const form = document.getElementById('setup-form');
   const errEl = document.getElementById('setup-error');
@@ -78,7 +85,7 @@ export function showSetupScreen() {
     }
 
     btn.disabled = true;
-    btn.textContent = 'Creating account...';
+    btn.textContent = 'Initializing...';
 
     try {
       await request('POST', '/init', { newRoot: { username, password } });
@@ -99,7 +106,7 @@ export function showSetupScreen() {
       errEl.textContent = err.message || 'Failed to create account. Please try again.';
       errEl.classList.remove('hidden');
       btn.disabled = false;
-      btn.textContent = 'Create Root Account';
+      btn.textContent = 'Submit';
     }
   };
 }
