@@ -66,7 +66,7 @@ export async function openEbookReader(item, token) {
   overlay.style.zIndex = '1000';
   overlay.innerHTML = `
     <!-- Header Bar -->
-    <div class="h-16 bg-primary border-b border-black-600/50 flex items-center justify-between px-6 z-50 flex-shrink-0">
+    <div id="reader-header" class="h-16 border-b border-black-600/50 flex items-center justify-between px-6 z-50 flex-shrink-0">
       <div class="flex items-center space-x-3 truncate mr-4">
         <button id="reader-close-btn" class="flex items-center space-x-1.5 text-sm text-black-50 hover:text-white transition-colors focus:outline-none">
           <span class="material-symbols text-xl">arrow_back</span>
@@ -227,7 +227,7 @@ export async function openEbookReader(item, token) {
 
     <!-- Highlight Modal -->
     <div id="reader-highlight-modal" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center z-70">
-      <div class="bg-primary border border-black-400 rounded-lg shadow-2xl p-4 w-96 max-w-[90vw] text-white space-y-4">
+      <div id="reader-highlight-modal-content" class="border border-black-400 rounded-lg shadow-2xl p-4 w-96 max-w-[90vw] space-y-4">
         <h4 class="text-sm font-bold border-b border-black-600/50 pb-2">Add Highlight / Bookmark</h4>
         
         <div class="space-y-1">
@@ -324,6 +324,60 @@ export async function openEbookReader(item, token) {
 
   document.body.appendChild(overlay);
 
+  const styleEl = document.createElement('style');
+  styleEl.textContent = `
+    #built-in-reader-overlay {
+      background-color: var(--reader-bg) !important;
+      color: var(--reader-fg) !important;
+    }
+    #built-in-reader-overlay #reader-header,
+    #built-in-reader-overlay #reader-footer {
+      background-color: var(--reader-header-bg) !important;
+      border-color: var(--reader-border) !important;
+      color: var(--reader-fg) !important;
+    }
+    #built-in-reader-overlay #reader-toc-drawer {
+      background-color: var(--reader-header-bg) !important;
+      border-color: var(--reader-border) !important;
+      color: var(--reader-fg) !important;
+    }
+    #built-in-reader-overlay #reader-settings-popover,
+    #built-in-reader-overlay #reader-tts-popover,
+    #built-in-reader-overlay #reader-highlight-modal-content {
+      background-color: var(--reader-header-bg) !important;
+      border-color: var(--reader-border) !important;
+      color: var(--reader-fg) !important;
+    }
+    #built-in-reader-overlay select,
+    #built-in-reader-overlay textarea,
+    #built-in-reader-overlay input {
+      background-color: var(--reader-input-bg) !important;
+      color: var(--reader-fg) !important;
+      border-color: var(--reader-border) !important;
+    }
+    #built-in-reader-overlay .text-black-50,
+    #built-in-reader-overlay .text-black-100,
+    #built-in-reader-overlay .text-black-200 {
+      color: var(--reader-text-muted) !important;
+    }
+    #built-in-reader-overlay button:hover:not(:disabled) {
+      background-color: var(--reader-border) !important;
+    }
+    #built-in-reader-overlay .border-black-400,
+    #built-in-reader-overlay .border-black-400\\/30,
+    #built-in-reader-overlay .border-black-600,
+    #built-in-reader-overlay .border-black-600\\/50 {
+      border-color: var(--reader-border) !important;
+    }
+    #built-in-reader-overlay .bg-black-600 {
+      background-color: var(--reader-input-bg) !important;
+    }
+    #built-in-reader-overlay .bg-[#121212] {
+      background-color: var(--reader-bg) !important;
+    }
+  `;
+  overlay.appendChild(styleEl);
+
   // Set Title / Author / Format
   document.getElementById('reader-book-title').textContent = title;
   document.getElementById('reader-book-author').textContent = author;
@@ -355,6 +409,9 @@ export async function openEbookReader(item, token) {
   let isTtsPlaying = false;
   let ttsRate = 1.0;
   let selectedVoiceName = "";
+
+  let clickOutsideSettings = null;
+  let clickOutsideTts = null;
 
   const activeBtnClass = "bg-accent text-primary font-bold shadow";
   const inactiveBtnClass = "text-black-100 hover:text-white hover:bg-black-500 bg-black-600";
@@ -401,8 +458,12 @@ export async function openEbookReader(item, token) {
     document.removeEventListener('keyup', keyListener);
     window.removeEventListener('resize', handleResize);
     document.removeEventListener('click', clickOutsideTOC);
-    document.removeEventListener('click', clickOutsideSettings);
-    document.removeEventListener('click', clickOutsideTts);
+    if (clickOutsideSettings) {
+      document.removeEventListener('click', clickOutsideSettings);
+    }
+    if (clickOutsideTts) {
+      document.removeEventListener('click', clickOutsideTts);
+    }
 
     // Remove overlay
     overlay.remove();
@@ -1244,6 +1305,44 @@ export async function openEbookReader(item, token) {
           }
           if (cBody) cBody.style.backgroundColor = '#121212';
         }
+
+        let bg, fg, border, headerBg, textMuted, inputBg;
+        if (theme === 'light') {
+          bg = '#ffffff';
+          fg = '#111827';
+          border = '#e5e7eb';
+          headerBg = '#f3f4f6';
+          textMuted = '#4b5563';
+          inputBg = '#f9fafb';
+        } else if (theme === 'sepia') {
+          bg = '#f4ecd8';
+          fg = '#5b4636';
+          border = '#e6dcbd';
+          headerBg = '#eae0c9';
+          textMuted = '#705b4a';
+          inputBg = '#fcf8ee';
+        } else if (theme === 'warm') {
+          bg = '#fbf0e3';
+          fg = '#5c4033';
+          border = '#eddccb';
+          headerBg = '#f5e6d3';
+          textMuted = '#785b4c';
+          inputBg = '#fffaf4';
+        } else {
+          bg = '#1a1a1a';
+          fg = '#e0e0e0';
+          border = '#2d2d2d';
+          headerBg = '#121212';
+          textMuted = '#9ca3af';
+          inputBg = '#262626';
+        }
+
+        overlay.style.setProperty('--reader-bg', bg);
+        overlay.style.setProperty('--reader-fg', fg);
+        overlay.style.setProperty('--reader-border', border);
+        overlay.style.setProperty('--reader-header-bg', headerBg);
+        overlay.style.setProperty('--reader-text-muted', textMuted);
+        overlay.style.setProperty('--reader-input-bg', inputBg);
         
         if (rendition) {
           rendition.themes.register("light", getThemeRules("light", currentFont, currentLineHeight, currentMargin));
@@ -1284,7 +1383,7 @@ export async function openEbookReader(item, token) {
       }
 
       // Close settings when clicking outside
-      const clickOutsideSettings = (e) => {
+      clickOutsideSettings = (e) => {
         if (settingsPopover && !settingsPopover.contains(e.target) && e.target !== settingsBtn && !settingsBtn.contains(e.target)) {
           settingsPopover.classList.add('hidden');
         }
@@ -1508,7 +1607,7 @@ export async function openEbookReader(item, token) {
         };
       }
 
-      const clickOutsideTts = (e) => {
+      clickOutsideTts = (e) => {
         if (ttsPopover && !ttsPopover.contains(e.target) && e.target !== ttsBtn && !ttsBtn.contains(e.target)) {
           ttsPopover.classList.add('hidden');
         }

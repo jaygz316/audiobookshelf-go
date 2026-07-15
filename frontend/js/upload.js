@@ -512,6 +512,7 @@ function startMultipartUpload(libraryId) {
 
       footerContainer.querySelector('#upload-success-close-btn').onclick = () => {
         closeModalGlobal();
+        window.dispatchEvent(new CustomEvent('library-changed', { detail: { libraryId } }));
       };
 
     } else {
