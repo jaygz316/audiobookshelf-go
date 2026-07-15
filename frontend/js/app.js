@@ -229,7 +229,7 @@ function setupEventHandlers() {
 
   // Global dropdown closer
   window.closeAllDropdowns = (exceptMenu = null) => {
-    const ids = ['library-dropdown-menu', 'user-dropdown', 'filter-dropdown-menu', 'sort-dropdown-menu'];
+    const ids = ['library-dropdown-menu', 'user-dropdown', 'filter-dropdown-menu', 'sort-dropdown-menu', 'header-notification-dropdown'];
     ids.forEach(id => {
       const m = document.getElementById(id);
       if (m && m !== exceptMenu) {
@@ -1189,12 +1189,29 @@ function bootstrapApp(payload) {
     };
   }
 
+  // Initialize tasks notification/activity widget
+  initNotificationWidget(user);
+
   // Setup Admin / Root only features
   if (user.type === 'root' || user.type === 'admin') {
     const settingsBtn = document.getElementById('user-menu-settings-btn');
     const adminBtn = document.getElementById('user-menu-admin-btn');
-    if (settingsBtn) settingsBtn.classList.remove('hidden');
-    if (adminBtn) adminBtn.classList.remove('hidden');
+    if (settingsBtn) {
+      settingsBtn.classList.remove('hidden');
+      settingsBtn.onclick = (e) => {
+        e.preventDefault();
+        window.closeAllDropdowns();
+        navigateTo('/settings');
+      };
+    }
+    if (adminBtn) {
+      adminBtn.classList.remove('hidden');
+      adminBtn.onclick = (e) => {
+        e.preventDefault();
+        window.closeAllDropdowns();
+        navigateTo('/settings#users');
+      };
+    }
 
     const headerSettingsBtn = document.getElementById('header-settings-btn');
     if (headerSettingsBtn) {
@@ -2181,5 +2198,206 @@ window.addEventListener('drop', async (e) => {
     }
   }
 });
+
+function initNotificationWidget(user) {
+  const widget = document.getElementById('header-notification-widget');
+  const btn = document.getElementById('header-notification-btn');
+  const dropdown = document.getElementById('header-notification-dropdown');
+  const list = document.getElementById('header-notification-list');
+  const icon = document.getElementById('header-notification-icon');
+  const badge = document.getElementById('header-notification-badge');
+  const badgePing = document.getElementById('header-notification-badge-ping');
+
+  if (!widget || !btn || !dropdown || !list || !icon || !badge || !badgePing) return;
+
+  const isAdminOrUp = user.type === 'root' || user.type === 'admin';
+  if (!isAdminOrUp) {
+    widget.classList.add('hidden');
+    return;
+  }
+
+  let isOpen = false;
+  let pollInterval = null;
+  const tasksSeen = new Set();
+
+  dropdown.closeDropdown = () => {
+    if (!isOpen) return;
+    isOpen = false;
+    dropdown.classList.add('hidden');
+  };
+
+  btn.onclick = (e) => {
+    e.stopPropagation();
+    window.closeAllDropdowns(dropdown);
+    if (isOpen) {
+      dropdown.closeDropdown();
+    } else {
+      isOpen = true;
+      dropdown.classList.remove('hidden');
+      
+      // Mark all current tasks as seen when opening menu
+      const items = list.querySelectorAll('[data-task-id]');
+      items.forEach(el => {
+        const tid = el.getAttribute('data-task-id');
+        if (tid) tasksSeen.add(tid);
+      });
+      badge.classList.add('hidden');
+      badgePing.classList.add('hidden');
+      
+      fetchTasks();
+    }
+  };
+
+  dropdown.onclick = (e) => {
+    e.stopPropagation();
+  };
+
+  async function fetchTasks() {
+    try {
+      const data = await request('GET', '/api/tasks');
+      const tasks = data.tasks || [];
+      renderTasks(tasks);
+    } catch (err) {
+      console.warn('Failed to fetch tasks:', err);
+    }
+  }
+
+  // Escape HTML helper
+  const escapeHtml = (str) => {
+    if (!str) return '';
+    return str
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  };
+
+  function renderTasks(tasks) {
+    if (tasks.length === 0) {
+      widget.classList.add('hidden');
+      dropdown.classList.add('hidden');
+      isOpen = false;
+      return;
+    }
+
+    widget.classList.remove('hidden');
+
+    // Check if any tasks are running (status is pending or downloading)
+    const hasRunningTasks = tasks.some(t => t.status === 'downloading' || t.status === 'pending');
+    if (hasRunningTasks) {
+      icon.textContent = 'sync';
+      icon.classList.add('animate-spin');
+    } else {
+      icon.textContent = 'notifications';
+      icon.classList.remove('animate-spin');
+    }
+
+    // Unseen success indicator for finished/failed tasks that user has not clicked to see yet
+    if (!isOpen) {
+      const hasUnseenFinished = tasks.some(t => 
+        (t.status === 'finished' || t.status === 'failed') && !tasksSeen.has(t.id)
+      );
+      if (hasUnseenFinished) {
+        badge.classList.remove('hidden');
+        badgePing.classList.remove('hidden');
+      } else {
+        badge.classList.add('hidden');
+        badgePing.classList.add('hidden');
+      }
+    }
+
+    list.innerHTML = '';
+    tasks.forEach(task => {
+      // Add to seen if menu is open
+      if (isOpen) {
+        tasksSeen.add(task.id);
+      }
+
+      const li = document.createElement('li');
+      li.setAttribute('data-task-id', task.id);
+      li.className = 'px-3 py-2.5 border-b border-black-400 last:border-b-0 flex items-center justify-between text-xs text-white bg-black-500/30 rounded';
+
+      const isTaskFinished = task.status === 'finished';
+      const isTaskFailed = task.status === 'failed';
+      const isTaskActive = task.status === 'downloading' || task.status === 'pending';
+
+      let statusIconHtml = '';
+      if (isTaskActive) {
+        statusIconHtml = `<span class="material-symbols text-base animate-spin text-accent mr-2.5 mt-0.5">sync</span>`;
+      } else if (isTaskFinished) {
+        statusIconHtml = `<span class="material-symbols text-base text-green-500 mr-2.5 mt-0.5">done</span>`;
+      } else if (isTaskFailed) {
+        statusIconHtml = `<span class="material-symbols text-base text-red-500 mr-2.5 mt-0.5">error</span>`;
+      } else {
+        statusIconHtml = `<span class="material-symbols text-base text-gray-400 mr-2.5 mt-0.5">cloud_download</span>`;
+      }
+
+      // Format progress and speed/bytes info
+      let progressHtml = '';
+      if (isTaskActive && typeof task.progress === 'number') {
+        progressHtml = `
+          <div class="w-full bg-black/40 h-1.5 rounded-full mt-2 overflow-hidden">
+            <div class="bg-accent h-full transition-all duration-300" style="width: ${task.progress}%"></div>
+          </div>
+          <div class="flex justify-between text-[10px] text-gray-400 mt-1">
+            <span>${task.progress}%</span>
+            <span>${task.speed || ''}</span>
+          </div>
+        `;
+      }
+
+      const description = task.description || `Downloading: ${task.episodeTitle || 'episode'}`;
+      const failedMsg = isTaskFailed && task.error ? `<p class="text-red-400 text-[10px] mt-1 font-mono">${escapeHtml(task.error)}</p>` : '';
+
+      li.innerHTML = `
+        <div class="flex items-start grow min-w-0 mr-3">
+          ${statusIconHtml}
+          <div class="grow min-w-0">
+            <p class="font-semibold truncate text-white text-[12px]">${escapeHtml(task.episodeTitle || 'Podcast Episode')}</p>
+            <p class="text-gray-300 truncate text-[11px] mt-0.5">${escapeHtml(task.podcastTitle || description)}</p>
+            ${failedMsg}
+            ${progressHtml}
+          </div>
+        </div>
+        ${(isTaskActive) ? `
+          <button class="bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 px-2 py-1 rounded text-[10px] transition-colors flex-shrink-0 cursor-pointer" data-cancel-id="${task.id}">
+            Cancel
+          </button>
+        ` : ''}
+      `;
+
+      // Wire cancel button
+      const cancelBtn = li.querySelector(`[data-cancel-id="${task.id}"]`);
+      if (cancelBtn) {
+        cancelBtn.onclick = async (e) => {
+          e.stopPropagation();
+          cancelBtn.disabled = true;
+          cancelBtn.textContent = 'Canceling...';
+          try {
+            await request('POST', `/api/tasks/${task.id}/cancel`);
+            showToast('Task cancel requested', 'success');
+            fetchTasks();
+          } catch (err) {
+            showToast('Failed to cancel task: ' + err.message, 'error');
+            cancelBtn.disabled = false;
+            cancelBtn.textContent = 'Cancel';
+          }
+        };
+      }
+
+      list.appendChild(li);
+    });
+  }
+
+  // Start polling
+  fetchTasks();
+  pollInterval = setInterval(fetchTasks, 10000);
+
+  // Clean up on user logout or unload
+  window.addEventListener('beforeunload', () => {
+    if (pollInterval) clearInterval(pollInterval);
+  });
+}
 
 

@@ -68,4 +68,11 @@
 - **Upload Permissions & Button Decoupling**: Decoupled the header upload and global upload button configurations from the admin-only check in `frontend/js/app.js` to correctly honor granular user upload permissions.
 - **Playlist Track Playback & Queue Optimization**: Added a track-level play button (`play-track-btn`) inside each playlist track item's action container, allowing starting playlist playback from that specific track, and corrected `playItems` queue slicing logic in `player.js` to populate the `playbackQueue` with subsequent tracks, preventing out-of-order repeats.
 - **Mobile Responsive Navigation Menu**: Added a mobile menu hamburger button in the header and configured the Left Navigation Sidebar with an ID and stateful toggling logic (including auto-close on navigation selection, click-outside dismissal, and resize-to-desktop styling reset) in `frontend/js/app.js` to ensure visual and navigation parity for mobile screen layout.
-
+- **Header Bar Audit & Notification Tasks Widget**:
+  - Implemented the notifications bell/spinner tasks widget in the header bar matching `widgets-notification-widget.vue`. It queries `/api/tasks` periodically (every 10 seconds), showing a spinning icon when tasks are running, or a standard bell icon when idle, along with an unseen success badge (green dot with ping animation) for unseen completed/failed tasks.
+  - Wired settings/administration links in the user dropdown. "Settings" routes to `/settings` and "Administration" routes to `/settings#users`.
+  - Registered `'header-notification-dropdown'` in the global `closeAllDropdowns` list.
+- **Library Modal & Directory Picker fixes (Priority 5)**:
+  - Updated `openFolderPicker` template in `settings.js` to use defined Tailwind classes (`border-black-300`, `bg-black-500`, `divide-black-400`).
+  - Fixed a bug in the directory picker where navigation (double-click/up button) permanently disabled the "Select Folder" button, allowing selection of the currently viewed directory.
+  - Enhanced backend update handlers (`HandleUpdateLibrary` in `library_handlers.go` and `UpdateLibrary` in `db_queries.go`) to validate, resolve, and update modified folder paths for existing libraries instead of silently ignoring edits on existing rows.

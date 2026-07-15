@@ -967,27 +967,25 @@ func HandleUpdateLibrary(db *sql.DB, libraryID string) http.HandlerFunc {
 
 		if payload.Folders != nil {
 			for i, f := range payload.Folders {
-				if f.ID == "" {
-					fpath := f.FullPath
-					if fpath == "" {
-						fpath = f.Path
-					}
-					if fpath == "" {
-						http.Error(w, `{"error": "Folder path is required"}`, http.StatusBadRequest)
-						return
-					}
-					absPath, err := filepath.Abs(fpath)
-					if err != nil {
-						absPath = fpath
-					}
-					absPath = filepath.ToSlash(absPath)
-					if err := os.MkdirAll(absPath, 0755); err != nil {
-						log.Errorf("Failed to create folder directory %s: %v", absPath, err)
-						http.Error(w, fmt.Sprintf(`{"error": "Invalid folder directory %s"}`, absPath), http.StatusBadRequest)
-						return
-					}
-					payload.Folders[i].Path = absPath
+				fpath := f.FullPath
+				if fpath == "" {
+					fpath = f.Path
 				}
+				if fpath == "" {
+					http.Error(w, `{"error": "Folder path is required"}`, http.StatusBadRequest)
+					return
+				}
+				absPath, err := filepath.Abs(fpath)
+				if err != nil {
+					absPath = fpath
+				}
+				absPath = filepath.ToSlash(absPath)
+				if err := os.MkdirAll(absPath, 0755); err != nil {
+					log.Errorf("Failed to create folder directory %s: %v", absPath, err)
+					http.Error(w, fmt.Sprintf(`{"error": "Invalid folder directory %s"}`, absPath), http.StatusBadRequest)
+					return
+				}
+				payload.Folders[i].Path = absPath
 			}
 		}
 
