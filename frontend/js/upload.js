@@ -520,10 +520,10 @@ function renderPodcastModal(libraryId, libraryName, folders) {
             <span class="text-[11px] font-bold text-white uppercase tracking-wider">Auto-download episodes</span>
             <span class="text-[9px] text-black-100 font-medium leading-tight">Automatically download new episodes</span>
           </div>
-          <label class="relative inline-flex items-center cursor-pointer flex-shrink-0">
-            <input type="checkbox" id="podcast-auto-download" class="sr-only peer" checked>
-            <div class="w-8 h-4 bg-black-400 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-accent"></div>
-          </label>
+          <span class="abs-switch">
+            <input type="checkbox" id="podcast-auto-download" checked>
+            <span class="abs-slider"></span>
+          </span>
         </div>
       </div>
 
@@ -669,7 +669,7 @@ function renderPodcastModal(libraryId, libraryName, folders) {
       const hasFeed = !!item.feedUrl;
 
       card.innerHTML = `
-        <img src="${item.coverUrl || './images/cover_placeholder.png'}" onerror="this.src='./images/cover_placeholder.png'" class="w-12 h-12 rounded object-cover flex-shrink-0 bg-black-600 border border-black-400/30">
+        <img src="${item.coverUrl || 'assets/images/book_placeholder.jpg'}" onerror="this.onerror=null; this.src='assets/images/book_placeholder.jpg'" class="w-12 h-12 rounded object-cover flex-shrink-0 bg-black-600 border border-black-400/30">
         <div class="flex-grow min-w-0 pr-2">
           <h4 class="font-semibold text-xs text-white truncate" title="${escapeHtml(item.title)}">${escapeHtml(item.title)}</h4>
           <p class="text-[10px] text-black-100 truncate">${escapeHtml(authorText || 'Unknown Artist')}</p>

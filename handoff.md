@@ -1,28 +1,18 @@
 # Handoff: Audiobookshelf Go Port — UX Audit
 
 ## Current Screen Under Audit
-- **Screen**: Series View (Priority 6)
-- **Status**: ✅ Complete
+- **Screen**: Top Appbar / Header (Priority 3)
+- **Status**: ✅ Complete (Passed)
 
-## What Was Fixed This Run
-- **Fanned Stack Sizing & Parity**: Standardized `.series-cover-stack` dimensions to use CSS variables `--bookshelf-card-width` and `--bookshelf-card-height`, allowing the series cards to scale dynamically alongside book/podcast items in the library view.
-- **Dynamic Series Grid**: Updated the series listing container to use the responsive `.library-grid` class, aligning series columns dynamically according to the shelf size control slider.
-- **Shelf Sizing Control Visibility**: Updated `frontend/js/app.js` to ensure the shelf size control slider is shown on both `/series` and `/authors` views while hiding other book-specific filters/presets.
-- **Series Progress Overlays**: Implemented reading progress overlays for series cards in `frontend/js/authors.js`. Queries `progressCache` or the backend API for all items in the series, calculating the overall series completion progress percentage and rendering progress bar indicators matching original Audiobookshelf UX standards.
-- **Breadcrumb Navigation**: Added functional "Back to Series" and "Back to Authors" navigation controls to Series Details and Author Details views to ensure fluid user navigation pathing.
+## What Was Fixed/Verified This Run
+- **Logo & Brand**: Switched brand logo to gold/brown SVG (`assets/images/icon.svg`) and wrapped brand logo and title in link elements routing to Home (`/`).
+- **Library Switcher**: Upgraded library switcher button to collapse to icon-only on mobile and use original's `bg-black/20 text-gray-400 border-white/10` style, updating the active library's icon dynamically. Dropdown options styled with `text-gray-400 hover:text-white hover:bg-black-400`.
+- **Search Bar**: Upgraded input layout and height (`h-8`), positioned clear icon button absolutely, and updated its symbol dynamically (close/search) based on input text.
+- **Top Bar Actions**: Applied original's button styling (hover:bg-black/10 transition-colors, text-2xl icons, equalizers, settings, upload) and wired click events to route to settings, stats, and trigger upload modals.
+- **User Profile Menu**: Styled user card button (`bg-fg border-gray-500 rounded-sm hover:bg-bg/40`) to hide username on mobile, showing only the person icon (`&#xe7fd;`).
 
-## Remaining Issues on This Screen
+## Remaining Issues
 - None.
 
-## Next Screen in Queue
-- **Audio Player (Priority 8)**: Player bar (bottom) controls including play/pause, skip forward/back, seek bar, volume slider, playback speed, chapter list, sleep timer, queue/playlist selector, Chromecast/casting, and close button.
-
-## Buttons/Controls Verified Working This Run
-- **Shelf Sizing Slider**: Dynamically adjusts size of stacked series covers on `/series` page.
-- **Back to Series Button**: Successfully routes details view back to series grid.
-- **Back to Authors Button**: Successfully routes author details back to authors listing.
-- **Series Progress Bar**: Accurately computes and draws progress on fanned cards.
-- **E2E and Handlers tests**: Built and verified clean Go baseline.
-
-## Buttons/Controls Known Broken
-- None.
+## Next Step
+- Proceed with the visual/functional audits of other screens as per the audit queue (e.g., Login screen Priority 1, or subsequent priority components).

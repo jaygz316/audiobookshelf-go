@@ -62,6 +62,8 @@ func handleGetLibraryAuthors(db *sql.DB, libraryID string) http.HandlerFunc {
 		pageVal := r.URL.Query().Get("page")
 		page, _ := strconv.Atoi(pageVal)
 
+		search := strings.ToLower(r.URL.Query().Get("search"))
+
 		// Query all authors for this library
 		rows, err := db.Query(`
 			SELECT id, name, lastFirst, asin, description, imagePath, createdAt, updatedAt
@@ -81,6 +83,10 @@ func handleGetLibraryAuthors(db *sql.DB, libraryID string) http.HandlerFunc {
 			var lastFirst, asin, description, imagePath sql.NullString
 			var createdAtStr, updatedAtStr string
 			if err := rows.Scan(&id, &name, &lastFirst, &asin, &description, &imagePath, &createdAtStr, &updatedAtStr); err == nil {
+				if search != "" && !strings.Contains(strings.ToLower(name), search) {
+					continue
+				}
+
 				// Count distinct books associated with author in this library
 				var numBooks int
 				scanErr := db.QueryRow(`
