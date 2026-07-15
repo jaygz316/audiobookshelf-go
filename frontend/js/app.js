@@ -113,7 +113,7 @@ export async function updateSidebarVisibility() {
   });
 
   if (sidebarStats) {
-    if (isBook && isAdmin) {
+    if (isBook || isPodcast) {
       sidebarStats.classList.remove('hidden');
     } else {
       sidebarStats.classList.add('hidden');
@@ -411,6 +411,23 @@ function setupEventHandlers() {
       navigateTo(path);
     });
   });
+
+  // Sidebar Footer Buttons Click Handler
+  const sidebarHelpBtn = document.getElementById('sidebar-help-btn');
+  if (sidebarHelpBtn) {
+    sidebarHelpBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      window.open('https://www.audiobookshelf.org/docs', '_blank');
+    });
+  }
+
+  const sidebarVersionBtn = document.getElementById('sidebar-version');
+  if (sidebarVersionBtn) {
+    sidebarVersionBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      window.open('https://github.com/advplyr/audiobookshelf/releases', '_blank');
+    });
+  }
 
   // Global Listeners for Modular Events
   window.addEventListener('auth-unauthorized', () => {
@@ -1144,6 +1161,16 @@ function setupEventHandlers() {
 }
 
 function bootstrapApp(payload) {
+  // Populate Sidebar Version & Source
+  const sidebarVersion = document.getElementById('sidebar-version');
+  const sidebarSource = document.getElementById('sidebar-source');
+  if (sidebarVersion && window.serverStatus) {
+    sidebarVersion.textContent = window.serverStatus.serverVersion || 'v2.35.1';
+  }
+  if (sidebarSource && payload) {
+    sidebarSource.textContent = payload.Source || 'debian';
+  }
+
   // Apply initial theme and custom CSS from login/authorization payload if available
   if (payload && payload.serverSettings) {
     window.serverSettings = payload.serverSettings;

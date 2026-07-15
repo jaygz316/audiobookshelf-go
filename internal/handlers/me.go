@@ -1055,7 +1055,11 @@ func handleMeUpdateBookmark(db *sql.DB) http.HandlerFunc {
 		found := false
 		var updated Bookmark
 		for i, b := range bookmarks {
-			if b.LibraryItemID == libraryItemID && b.Time == body.Time {
+			diff := b.Time - body.Time
+			if diff < 0 {
+				diff = -diff
+			}
+			if b.LibraryItemID == libraryItemID && diff < 0.001 {
 				bookmarks[i].Title = body.Title
 				bookmarks[i].Note = body.Note
 				bookmarks[i].Color = body.Color
@@ -1136,7 +1140,11 @@ func handleMeRemoveBookmark(db *sql.DB) http.HandlerFunc {
 		newBookmarks := []Bookmark{}
 		found := false
 		for _, b := range bookmarks {
-			if b.LibraryItemID == libraryItemID && b.Time == timeVal {
+			diff := b.Time - timeVal
+			if diff < 0 {
+				diff = -diff
+			}
+			if b.LibraryItemID == libraryItemID && diff < 0.001 {
 				found = true
 			} else {
 				newBookmarks = append(newBookmarks, b)

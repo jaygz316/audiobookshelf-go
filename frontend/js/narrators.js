@@ -160,9 +160,10 @@ function createNarratorCard(narrator) {
   `;
 
   card.onclick = () => {
+    const encodedName = btoa(unescape(encodeURIComponent(narrator.name)));
     window.dispatchEvent(new CustomEvent('navigate-to-dashboard', {
       detail: {
-        filterBy: `narrators.${narrator.name}`,
+        filterBy: `narrators.${encodedName}`,
         filterLabel: `Narrator: ${narrator.name}`
       }
     }));

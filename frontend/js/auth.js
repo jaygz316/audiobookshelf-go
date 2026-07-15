@@ -19,6 +19,7 @@ export async function initAuth() {
   let status = null;
   try {
     status = await request('GET', '/status');
+    window.serverStatus = status;
   } catch (err) {
     console.error('Failed to fetch /status:', err);
   }

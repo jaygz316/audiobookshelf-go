@@ -291,7 +291,7 @@ export async function playItem(item, startTime = 0) {
     // Restore saved playback speed or default speed
     let speedToUse = globalDefaultSpeed;
     if (rememberSpeedPerBook) {
-      const storedSpeed = localStorage.getItem(`abs-speed-book-${item.id}`);
+      const storedSpeed = localStorage.getItem(`abs-speed-book-${itemObj.id}`);
       if (storedSpeed) {
         speedToUse = parseFloat(storedSpeed);
       }
@@ -323,14 +323,14 @@ export async function playItem(item, startTime = 0) {
 
     
     // Set metadata on UI
-    updateMetadataUI(item);
+    updateMetadataUI(itemObj);
     
     if (remotePlayer && remotePlayer.isConnected) {
       if (audio) {
         audio.pause();
         audio.src = '';
       }
-      castPlayItem(item, startTime, clientPlaylistUri);
+      castPlayItem(itemObj, startTime, clientPlaylistUri);
     } else {
       // Check HLS support
       const isNativeHlsSupported = audio.canPlayType('application/vnd.apple.mpegurl') || 
