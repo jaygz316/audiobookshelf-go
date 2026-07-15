@@ -1,25 +1,24 @@
 # Handoff: Audiobookshelf Go Port — UX Audit
 
 ## Current Screen Under Audit
-- **Screen**: Upload Page (Priority 12)
+- **Screen**: E-book Reader Page (Priority 13)
 - **Status**: ✅ Complete (Passed)
 
 ## What Was Fixed This Run
-- **Upload Permission Enforcement**: Verified and enforced correct client-side button hiding (`header-upload-btn` and `upload-btn`) and event listener binding for drag & drop file uploads based on whether the logged-in user has the `upload` permission or is an admin/root user.
-- **Support for >100 Files Directory Upload**: Fixed a directory traversal batching limitation where dropping/selecting folders with more than 100 files would only process the first 100 entries. Wrapped `dirReader.readEntries` in a loop inside `getFilesFromEntry` in both `upload.js` and `app.js`.
-- **Wired up Clear All Button**: Enabled dynamic conditional display of the `Clear All` queue button in the upload modal by toggling the `hidden` class in `updateQueueUI()`.
+- **Typography Scale Restoration**: Fixed typography scale persistence on reader initialization so that when a user adjusts font scale and refreshes the reader view, the correct `currentFontSize` configuration is selected and set on the EPUB rendition instance.
+- **Bookmark Deletion Annotation Type**: Fixed bookmark deletion highlight removal logic by passing `"highlight"` as the specific annotation type parameter to `rendition.annotations.remove` instead of mapping custom color CSS classes.
+- **Page Number Display Support**: Integrated layout tracking support in the reader footer by querying `book.locations.locationFromCfi` indices and updating `pageInfo.textContent` to show `"Page X of Y"` pagination indices.
 
 ## Remaining Issues on This Screen
 - None.
 
 ## Next Screen in Queue
-- **Visual Auditing**: All 12 key UX parity screens listed in the original project priorities (Dashboard, Bookshelf, Details, Player, Series, Authors, Narrators, Collections, Playlists, Onboarding, Settings, Stats, and Uploads) have been verified and ported to complete functional/visual parity. Suggesting a final verification pass or user feedback review.
+- **Regression Pass**: All 13 screens in the audit queue (Login, Onboarding, Home, Header, Sidebar, Library Grid, Series, Detail Page, Player, Settings, Stats, Upload, Reader) have been audited and achieved complete visual/functional parity. Suggesting a final regression pass across all views or user verification review.
 
 ## Controls Verified Working This Run
-- **Upload Modal Triggers**: Upload buttons properly hide or show according to user permission configurations.
-- **Drag & Drop Zone**: Captures files and nested directories properly, including large folders (>100 files).
-- **Clear All Button**: Correctly clears the upload queue and updates the summary details.
-- **Go Backend Multi-part Parser**: Receives uploaded files, prevents directory traversal, and maps files to target library folders.
+- **Reader Initialization**: Correctly initializes theme, flow, layout, and scaling.
+- **Bookmark Creation & Removal**: Creating a bookmark highlights selected text, and deleting it successfully cleans it from database progress sync and rendition annotations.
+- **Page Navigation and Pagination**: Navigating pages correctly recalculates location progress percentage and updates page text.
 
 ## Controls Known Broken
 - None.
