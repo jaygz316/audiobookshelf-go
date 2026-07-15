@@ -1057,7 +1057,7 @@ function setupEventHandlers() {
       if (!relPath.startsWith('/')) {
         relPath = '/' + relPath;
       }
-      const showControls = (relPath === '/' || relPath === '/library');
+      const showControls = (relPath === '/' || relPath === '/library' || relPath === '/series' || relPath === '/authors');
       if (showControls && newStyle !== 'list') {
         shelfSizeCtrl.classList.remove('hidden');
       } else {
@@ -1705,6 +1705,7 @@ function navigateTo(path, pushState = true) {
   const styleSwitcher = document.getElementById('style-switcher');
 
   const showControls = (relPath === '/' || relPath === '/library');
+  const showShelfSize = (relPath === '/' || relPath === '/library' || relPath === '/series' || relPath === '/authors');
   
   const globalSearchInput = document.getElementById('global-search-input');
   const globalSearchClearBtn = document.getElementById('global-search-clear-btn');
@@ -1729,7 +1730,7 @@ function navigateTo(path, pushState = true) {
   }
   if (shelfSizeControl) {
     const currentStyle = localStorage.getItem('library-style') || 'shelf';
-    if (showControls && currentStyle !== 'list') shelfSizeControl.classList.remove('hidden');
+    if (showShelfSize && currentStyle !== 'list') shelfSizeControl.classList.remove('hidden');
     else shelfSizeControl.classList.add('hidden');
   }
   if (styleSwitcher) {

@@ -131,6 +131,10 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
                 <span class="material-symbols text-sm">edit</span>
                 <span>Edit Details</span>
               </button>
+              <button id="details-delete-item-btn" class="bg-black-500 hover:bg-red-950 border border-black-300 text-error hover:text-white font-semibold px-3 py-1.5 rounded text-xs flex items-center space-x-1 transition-colors">
+                <span class="material-symbols text-sm">delete</span>
+                <span>Delete</span>
+              </button>
             </div>
           ` : ''}
         </div>
@@ -166,6 +170,20 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
                   <span>Send to Device</span>
                 </button>
               ` : ''}
+
+              <!-- Playlist Button -->
+              <button id="details-playlist-action-btn" class="w-full bg-black-500 hover:bg-black-400 border border-black-300 text-white font-semibold py-2 px-4 rounded-md transition-all flex items-center justify-center space-x-2 text-xs shadow hover:scale-[1.02] duration-200 mt-2">
+                <span class="material-symbols text-sm">playlist_add</span>
+                <span>Add to Playlist</span>
+              </button>
+
+              <!-- Download Button -->
+              ${(user && user.permissions?.download) || isAdmin ? `
+                <button id="details-download-action-btn" class="w-full bg-black-500 hover:bg-black-400 border border-black-300 text-white font-semibold py-2 px-4 rounded-md transition-all flex items-center justify-center space-x-2 text-xs shadow hover:scale-[1.02] duration-200 mt-2">
+                  <span class="material-symbols text-sm">download</span>
+                  <span>Download</span>
+                </button>
+              ` : ''}
               
               ${isAdmin ? `
                 <button id="details-match-cover-btn" class="w-full bg-black-500 hover:bg-black-400 border border-black-300 text-white font-semibold py-2 px-4 rounded-md transition-all flex items-center justify-center space-x-2 text-xs shadow hover:scale-[1.02] duration-200">
@@ -187,6 +205,36 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
                   <span>Share Link</span>
                 </button>
               ` : ''}
+            </div>
+
+            <!-- Progress Section -->
+            <div id="details-progress-section" class="w-full max-w-xs border border-black-400/50 bg-primary/20 rounded-md p-3.5 space-y-3 text-xs text-left hidden">
+              <div class="flex items-center justify-between border-b border-black-500 pb-2">
+                <span class="font-bold text-white uppercase tracking-wider">Your Progress</span>
+                <span id="progress-status-badge" class="px-2 py-0.5 rounded text-[0.65rem] font-bold uppercase tracking-wide bg-black-500 text-black-100">Not Started</span>
+              </div>
+              <div class="space-y-2">
+                <!-- Progress Bar -->
+                <div class="w-full bg-black-600 rounded-full h-2 overflow-hidden relative">
+                  <div id="progress-bar-fill" class="h-full bg-accent" style="width: 0%;"></div>
+                </div>
+                
+                <div class="flex justify-between items-center text-[10px] text-black-100 font-semibold">
+                  <span id="progress-time-listened">00:00:00</span>
+                  <span id="progress-percent">0%</span>
+                  <span id="progress-time-remaining">00:00:00 left</span>
+                </div>
+
+                <div class="flex space-x-2 pt-2">
+                  <button id="progress-toggle-finished-btn" class="flex-grow bg-black-500 hover:bg-black-400 border border-black-300 text-white font-semibold py-1.5 px-3 rounded text-[10px] flex items-center justify-center space-x-1 transition-all">
+                    <span class="material-symbols text-xs">check_circle</span>
+                    <span id="progress-toggle-finished-text">Mark Finished</span>
+                  </button>
+                  <button id="progress-reset-btn" class="bg-black-500 hover:bg-black-400 border border-black-300 text-error font-semibold py-1.5 px-2 rounded text-[10px] flex items-center justify-center transition-all" title="Reset Progress">
+                    <span class="material-symbols text-xs">restart_alt</span>
+                  </button>
+                </div>
+              </div>
             </div>
 
             <!-- RSS Feed Status & Management Section -->
@@ -974,6 +1022,209 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
     
     updateRssSection();
 
+    // 1. Hook playlist button
+    const playlistActionBtn = document.getElementById('details-playlist-action-btn');
+    if (playlistActionBtn) {
+      playlistActionBtn.onclick = () => {
+        triggerAddToPlaylistModal(item, libraryId);
+      };
+    }
+
+    // 2. Hook download button
+    const downloadActionBtn = document.getElementById('details-download-action-btn');
+    if (downloadActionBtn) {
+      downloadActionBtn.onclick = () => {
+        const token = localStorage.getItem('token');
+        const url = resolvePath(`/api/items/${item.id}/download?token=${token}`);
+        window.open(url, '_blank');
+      };
+    }
+
+    // 3. Hook delete item button (admins only)
+    if (isAdmin) {
+      const deleteItemBtn = document.getElementById('details-delete-item-btn');
+      if (deleteItemBtn) {
+        deleteItemBtn.onclick = async () => {
+          if (!confirm(`Are you sure you want to delete the library item "${title}"? This will permanently delete the item and its media progress.`)) {
+            return;
+          }
+          try {
+            await request('DELETE', `/api/items/${item.id}`);
+            alert('Library item deleted successfully.');
+            backCallback();
+          } catch (err) {
+            alert('Failed to delete library item: ' + err.message);
+          }
+        };
+      }
+    }
+
+    // 4. Fetch and render progress details
+    if (hasAudio || hasEbook) {
+      request('GET', `/api/me/progress/${item.id}`)
+        .then(progressObj => {
+          if (progressObj) {
+            const progressSection = document.getElementById('details-progress-section');
+            if (progressSection) {
+              progressSection.classList.remove('hidden');
+              
+              // Update badge
+              const badge = document.getElementById('progress-status-badge');
+              if (progressObj.isFinished) {
+                badge.className = 'px-2 py-0.5 rounded text-[0.65rem] font-bold uppercase tracking-wide bg-success text-white';
+                badge.textContent = 'Finished';
+              } else if (progressObj.progress > 0) {
+                badge.className = 'px-2 py-0.5 rounded text-[0.65rem] font-bold uppercase tracking-wide bg-yellow-500 text-white';
+                badge.textContent = 'In Progress';
+              } else {
+                badge.className = 'px-2 py-0.5 rounded text-[0.65rem] font-bold uppercase tracking-wide bg-black-500 text-black-100';
+                badge.textContent = 'Not Started';
+              }
+
+              // Update progress bar
+              const percent = progressObj.progress ? Math.round(progressObj.progress * 100) : 0;
+              const fill = document.getElementById('progress-bar-fill');
+              if (fill) {
+                fill.style.width = `${percent}%`;
+                if (progressObj.isFinished) {
+                  fill.className = 'h-full bg-success';
+                } else {
+                  fill.className = 'h-full bg-accent';
+                }
+              }
+
+              // Update percentage text
+              const percentText = document.getElementById('progress-percent');
+              if (percentText) percentText.textContent = `${percent}%`;
+
+              // Duration formatting helper
+              const duration = progressObj.duration || item.media?.duration || 0;
+              const currentTime = progressObj.currentTime || 0;
+
+              const timeListened = document.getElementById('progress-time-listened');
+              if (timeListened) timeListened.textContent = formatDuration(currentTime);
+
+              const timeRemaining = document.getElementById('progress-time-remaining');
+              if (timeRemaining) {
+                const remaining = duration - currentTime;
+                timeRemaining.textContent = remaining > 0 ? `${formatDuration(remaining)} left` : '00:00:00 left';
+              }
+
+              // Update buttons
+              const toggleBtnText = document.getElementById('progress-toggle-finished-text');
+              const toggleBtnIcon = document.querySelector('#progress-toggle-finished-btn span');
+              if (toggleBtnText && toggleBtnIcon) {
+                if (progressObj.isFinished) {
+                  toggleBtnText.textContent = 'Mark Unfinished';
+                  toggleBtnIcon.textContent = 'history';
+                } else {
+                  toggleBtnText.textContent = 'Mark Finished';
+                  toggleBtnIcon.textContent = 'check_circle';
+                }
+              }
+
+              // Wire up progress buttons
+              const toggleBtn = document.getElementById('progress-toggle-finished-btn');
+              if (toggleBtn) {
+                toggleBtn.onclick = async () => {
+                  try {
+                    const isFinished = !progressObj.isFinished;
+                    const durationVal = duration;
+                    const currentTimeVal = isFinished ? durationVal : 0;
+                    
+                    await request('PATCH', `/api/me/progress/${item.id}`, {
+                      isFinished,
+                      currentTime: currentTimeVal,
+                      duration: durationVal
+                    });
+                    
+                    // Reload item details to reflect changes
+                    loadItemDetails(itemId, libraryId, backCallback);
+                  } catch (err) {
+                    alert('Failed to update progress: ' + err.message);
+                  }
+                };
+              }
+
+              const resetBtn = document.getElementById('progress-reset-btn');
+              if (resetBtn) {
+                resetBtn.onclick = async () => {
+                  if (!confirm('Are you sure you want to reset your listening progress?')) return;
+                  try {
+                    await request('DELETE', `/api/me/progress/${item.id}`);
+                    loadItemDetails(itemId, libraryId, backCallback);
+                  } catch (err) {
+                    alert('Failed to reset progress: ' + err.message);
+                  }
+                };
+              }
+            }
+          } else {
+            // No progress object exists yet, but we should still show the "Not Started" state if it has audio or ebook
+            const progressSection = document.getElementById('details-progress-section');
+            if (progressSection) {
+              progressSection.classList.remove('hidden');
+              
+              const badge = document.getElementById('progress-status-badge');
+              if (badge) {
+                badge.className = 'px-2 py-0.5 rounded text-[0.65rem] font-bold uppercase tracking-wide bg-black-500 text-black-100';
+                badge.textContent = 'Not Started';
+              }
+
+              const fill = document.getElementById('progress-bar-fill');
+              if (fill) {
+                fill.style.width = '0%';
+                fill.className = 'h-full bg-accent';
+              }
+
+              const percentText = document.getElementById('progress-percent');
+              if (percentText) percentText.textContent = '0%';
+
+              const timeListened = document.getElementById('progress-time-listened');
+              if (timeListened) timeListened.textContent = '00:00:00';
+
+              const timeRemaining = document.getElementById('progress-time-remaining');
+              if (timeRemaining) {
+                const duration = item.media?.duration || 0;
+                timeRemaining.textContent = duration > 0 ? `${formatDuration(duration)} left` : '00:00:00 left';
+              }
+
+              const toggleBtnText = document.getElementById('progress-toggle-finished-text');
+              const toggleBtnIcon = document.querySelector('#progress-toggle-finished-btn span');
+              if (toggleBtnText && toggleBtnIcon) {
+                toggleBtnText.textContent = 'Mark Finished';
+                toggleBtnIcon.textContent = 'check_circle';
+              }
+
+              const toggleBtn = document.getElementById('progress-toggle-finished-btn');
+              if (toggleBtn) {
+                toggleBtn.onclick = async () => {
+                  try {
+                    const durationVal = item.media?.duration || 0;
+                    await request('PATCH', `/api/me/progress/${item.id}`, {
+                      isFinished: true,
+                      currentTime: durationVal,
+                      duration: durationVal
+                    });
+                    loadItemDetails(itemId, libraryId, backCallback);
+                  } catch (err) {
+                    alert('Failed to update progress: ' + err.message);
+                  }
+                };
+              }
+
+              const resetBtn = document.getElementById('progress-reset-btn');
+              if (resetBtn) {
+                resetBtn.classList.add('hidden');
+              }
+            }
+          }
+        })
+        .catch(err => {
+          console.warn('Failed to load media progress details:', err);
+        });
+    }
+
   } catch (err) {
     console.error('Failed to load item details:', err);
     container.innerHTML = `
@@ -987,6 +1238,112 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
     if (errBackBtn) errBackBtn.onclick = backCallback;
   }
 }
+
+/**
+ * Triggers a beautiful Modal to add an item to an existing or new playlist.
+ */
+function triggerAddToPlaylistModal(item, libraryId) {
+  request('GET', `/api/libraries/${libraryId}/playlists`)
+    .then(res => {
+      const playlists = res.results || [];
+      const modal = document.createElement('div');
+      modal.className = 'fixed inset-0 bg-black-900/80 z-50 flex items-center justify-center p-4';
+      
+      const playlistOptions = playlists.map(p => `
+        <option value="${p.id}">${escapeHtml(p.name)}</option>
+      `).join('');
+      
+      modal.innerHTML = `
+        <div class="bg-primary border border-black-300 w-full max-w-sm p-6 rounded-md shadow-lg space-y-4 text-left">
+          <h3 class="text-lg font-bold border-b border-black-400 pb-2 text-white flex items-center space-x-1.5">
+            <span class="material-symbols text-accent">playlist_add</span>
+            <span>Add to Playlist</span>
+          </h3>
+          
+          <div class="space-y-4">
+            <!-- Add to Existing -->
+            <div>
+              <label class="block text-xs font-semibold text-black-100 uppercase tracking-wider mb-1">Choose Playlist</label>
+              ${playlists.length === 0 ? `
+                <p class="text-xs text-black-50 italic">No playlists created yet.</p>
+              ` : `
+                <select id="add-to-existing-select" class="w-full bg-black-500 text-white px-3 py-1.5 rounded border border-black-300 focus:outline-none focus:border-accent text-sm">
+                  <option value="" disabled selected>-- Select a Playlist --</option>
+                  ${playlistOptions}
+                </select>
+              `}
+            </div>
+
+            <div class="relative flex py-1 items-center">
+              <div class="flex-grow border-t border-black-500"></div>
+              <span class="flex-shrink mx-4 text-black-100 text-[10px] uppercase font-bold">Or</span>
+              <div class="flex-grow border-t border-black-500"></div>
+            </div>
+
+            <!-- Create New -->
+            <div>
+              <label class="block text-xs font-semibold text-black-100 uppercase tracking-wider mb-1">New Playlist</label>
+              <input type="text" id="add-to-new-playlist-name" placeholder="Playlist Name" class="w-full bg-black-500 text-white px-3 py-1.5 rounded border border-black-300 focus:outline-none focus:border-accent text-sm">
+            </div>
+          </div>
+
+          <div class="flex justify-end space-x-3 pt-2">
+            <button id="add-playlist-close-btn" class="bg-black-400 hover:bg-black-300 text-white px-4 py-2 rounded text-xs">Cancel</button>
+            <button id="add-playlist-save-btn" class="bg-accent hover:opacity-90 text-primary font-bold px-4 py-2 rounded text-xs">Add</button>
+          </div>
+        </div>
+      `;
+
+      document.body.appendChild(modal);
+
+      const closeModal = () => modal.remove();
+      modal.querySelector('#add-playlist-close-btn').onclick = closeModal;
+
+      modal.querySelector('#add-playlist-save-btn').onclick = async () => {
+        const select = modal.querySelector('#add-to-existing-select');
+        const playlistId = select ? select.value : '';
+        const newNameInput = modal.querySelector('#add-to-new-playlist-name');
+        const newName = newNameInput ? newNameInput.value.trim() : '';
+
+        if (!playlistId && !newName) {
+          alert('Please select an existing playlist or enter a name for a new one.');
+          return;
+        }
+
+        try {
+          if (newName) {
+            // Create a new playlist with the item
+            await request('POST', '/api/playlists', {
+              name: newName,
+              items: [item.id]
+            });
+            alert(`Created playlist "${newName}" and added this item.`);
+          } else {
+            // Add to existing playlist
+            const playlist = await request('GET', `/api/playlists/${playlistId}`);
+            const items = playlist.itemIds || [];
+            if (items.includes(item.id)) {
+              alert('Item is already in this playlist.');
+              closeModal();
+              return;
+            }
+            items.push(item.id);
+            await request('PATCH', `/api/playlists/${playlistId}`, {
+              items
+            });
+            alert('Item added to playlist successfully.');
+          }
+          closeModal();
+        } catch (err) {
+          alert('Failed to update playlist: ' + err.message);
+        }
+      };
+    })
+    .catch(err => {
+      alert('Failed to load playlists: ' + err.message);
+    });
+}
+
 
 /**
  * Triggers a beautiful Modal to edit the item details.
