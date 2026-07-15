@@ -64,3 +64,5 @@
   - Fixed typography scale persistence on reader initialization so that when a user adjusts font scale and refreshes the reader view, the correct `currentFontSize` configuration is selected and set on the EPUB rendition instance.
   - Fixed bookmark deletion highlight removal logic by passing `"highlight"` as the specific annotation type parameter to `rendition.annotations.remove` instead of mapping custom color CSS classes.
   - Integrated layout tracking support in the reader footer by querying `book.locations.locationFromCfi` indices and updating `pageInfo.textContent` to show `"Page X of Y"` pagination indices.
+- **Login & Initial Setup Screen Audit**: Added a `login-custom-message` banner to support server-provided custom messages, updated `frontend/js/auth.js` to toggle visibility/content based on status response data, and prioritized the server-provided `authOpenIDButtonText` property for OIDC button text.
+- **Upload Permissions & Button Decoupling**: Decoupled the header upload and global upload button configurations from the admin-only check in `frontend/js/app.js` to correctly honor granular user upload permissions.
