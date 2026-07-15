@@ -8,6 +8,12 @@ import { showToast } from './app.js';
 let batchEditMode = false;
 const selectedItems = new Set();
 
+let currentLibraryId = null;
+let currentPage = 0;
+let isLoadingMore = false;
+let hasMore = true;
+const progressCache = new Map();
+
 const ALL_COLUMNS = [
   { key: 'cover', label: 'Cover', default: true },
   { key: 'title', label: 'Title', default: true },
@@ -36,6 +42,24 @@ function saveVisibleColumns(columns) {
 export async function loadDashboard(libraryId, filterBy = '', filterLabel = '') {
   const bookshelfContainer = document.getElementById('bookshelf');
   if (!bookshelfContainer) return;
+
+  currentLibraryId = libraryId;
+  currentPage = 0;
+  isLoadingMore = false;
+  hasMore = true;
+  progressCache.clear();
+
+  // Reset scroll position
+  bookshelfContainer.scrollTop = 0;
+
+  // Set up scroll/pagination listener
+  bookshelfContainer.onscroll = () => {
+    if (isLoadingMore || !hasMore) return;
+    const threshold = 300; // px from bottom
+    if (bookshelfContainer.scrollHeight - bookshelfContainer.scrollTop - bookshelfContainer.clientHeight < threshold) {
+      loadMoreItems(libraryId, filterBy, filterLabel);
+    }
+  };
 
   const opmlBtn = document.getElementById('opml-btn');
   if (opmlBtn) opmlBtn.classList.add('hidden');
@@ -84,6 +108,10 @@ export async function loadDashboard(libraryId, filterBy = '', filterLabel = '') 
       url += `&desc=1`;
     }
     const allItemsPayload = await request('GET', url);
+    
+    if (!allItemsPayload.results || allItemsPayload.results.length < limit) {
+      hasMore = false;
+    }
     
     bookshelfContainer.innerHTML = '';
 
@@ -280,6 +308,87 @@ export async function loadDashboard(libraryId, filterBy = '', filterLabel = '') 
   }
 }
 
+async function loadMoreItems(libraryId, filterBy, filterLabel) {
+  if (isLoadingMore || !hasMore) return;
+  isLoadingMore = true;
+  currentPage++;
+
+  const activeStyle = localStorage.getItem('library-style') || 'shelf';
+  
+  const searchInput = document.getElementById('global-search-input');
+  const searchTerm = searchInput ? searchInput.value.trim() : '';
+
+  let activeFilter = filterBy || localStorage.getItem('library-filterBy') || '';
+  let activeSort = localStorage.getItem('library-sortBy') || 'media.metadata.title';
+  let activeSortDesc = localStorage.getItem('library-sortDesc') === 'true';
+
+  const limit = (activeFilter || searchTerm) ? 100 : 40;
+  let url = `/api/libraries/${libraryId}/items?limit=${limit}&page=${currentPage}&minified=1`;
+  if (activeFilter) {
+    url += `&filter=${encodeURIComponent(activeFilter)}`;
+  }
+  if (searchTerm) {
+    url += `&search=${encodeURIComponent(searchTerm)}`;
+  }
+  if (activeSort) {
+    url += `&sort=${encodeURIComponent(activeSort)}`;
+  }
+  if (activeSortDesc) {
+    url += `&desc=1`;
+  }
+
+  try {
+    const allItemsPayload = await request('GET', url);
+    const results = allItemsPayload.results || [];
+    
+    if (results.length === 0) {
+      hasMore = false;
+      return;
+    }
+
+    if (activeStyle === 'grid') {
+      const gridContainer = document.querySelector('.library-grid');
+      if (gridContainer) {
+        results.forEach(item => {
+          const card = createCard(item, false, libraryId);
+          card.classList.remove('w-28e', 'h-40e', 'mr-8e');
+          card.classList.add('w-full');
+          card.style.width = 'var(--bookshelf-card-width)';
+          card.style.height = 'var(--bookshelf-card-height)';
+          gridContainer.appendChild(card);
+        });
+      }
+    } else if (activeStyle === 'list') {
+      const tbody = document.querySelector('#bookshelf tbody');
+      if (tbody) {
+        const visibleCols = getVisibleColumns();
+        results.forEach(item => {
+          const tr = createListRow(item, libraryId, visibleCols);
+          tbody.appendChild(tr);
+        });
+      }
+    } else {
+      // shelf view: append to "All Books" section grid
+      const gridDiv = document.querySelector('.library-shelf-grid');
+      if (gridDiv) {
+        results.forEach(item => {
+          const card = createCard(item, false, libraryId);
+          card.classList.remove('w-28e', 'h-40e', 'mr-8e');
+          gridDiv.appendChild(card);
+        });
+      }
+    }
+
+    if (results.length < limit) {
+      hasMore = false;
+    }
+  } catch (err) {
+    console.error('Failed to load more items:', err);
+  } finally {
+    isLoadingMore = false;
+  }
+}
+
 function createShelfSection(shelfId, label, entities, libraryId) {
   const shelfWrapper = document.createElement('div');
   shelfWrapper.className = 'relative w-full';
@@ -341,7 +450,6 @@ function createShelfGridSection(shelfId, label, entities, libraryId) {
   shelfWrapper.appendChild(gridDiv);
   return shelfWrapper;
 }
-
 export function createCard(item, isContinue, libraryId, shelfId = '') {
   const card = document.createElement('div');
   card.className = 'w-28e h-40e mr-8e relative cursor-pointer select-none box-shadow-book rounded-sm overflow-hidden flex-shrink-0 transition-transform hover:scale-105 group';
@@ -380,6 +488,15 @@ export function createCard(item, isContinue, libraryId, shelfId = '') {
       </div>
     </div>
 
+    <!-- Badges Container -->
+    <div class="absolute top-2 left-2 flex flex-col space-y-1 select-none pointer-events-none z-20">
+      ${item.media?.ebookFile ? `
+        <div class="bg-black/70 text-white rounded p-1 flex items-center justify-center shadow" title="E-Book">
+          <span class="material-symbols text-[14px]">menu_book</span>
+        </div>
+      ` : ''}
+    </div>
+
     ${isPlayable ? `
       <!-- Play button overlay -->
       <div class="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-40 card-play-btn-overlay">
@@ -390,40 +507,65 @@ export function createCard(item, isContinue, libraryId, shelfId = '') {
     ` : ''}
   `;
 
-  if (isContinue) {
-    const progBarContainer = document.createElement('div');
-    progBarContainer.className = 'absolute bottom-0 left-0 right-0 h-1.5 bg-black/40 box-shadow-progressbar rounded-b-sm overflow-hidden z-50 hidden';
-    const progBarFill = document.createElement('div');
-    progBarFill.className = 'h-full bg-accent';
-    progBarFill.style.width = '0%';
-    progBarContainer.appendChild(progBarFill);
-    card.appendChild(progBarContainer);
+  // Checkmark Badge for Finished items
+  const checkBadge = document.createElement('div');
+  checkBadge.className = 'absolute top-2 right-2 z-20 bg-black/70 text-green-400 rounded-full w-6 h-6 flex items-center justify-center shadow hidden select-none pointer-events-none';
+  checkBadge.innerHTML = '<span class="material-symbols text-base font-bold">check</span>';
+  card.appendChild(checkBadge);
 
-    // Fetch progress asynchronously
-    request('GET', `/api/me/progress/${item.id}`)
-      .then(progressObj => {
-        if (progressObj && progressObj.progress !== undefined) {
-          const percent = Math.min(Math.max(progressObj.progress * 100, 0), 100);
-          progBarFill.style.width = `${percent}%`;
-          progBarContainer.classList.remove('hidden');
-          
-          const overlayDiv = card.querySelector('.group-hover\\:opacity-100');
-          if (overlayDiv) {
-            const container = overlayDiv.querySelector('div');
-            if (container) {
-              const progressText = document.createElement('p');
-              progressText.className = 'text-xs text-accent mt-2';
-              progressText.textContent = `${Math.round(percent)}% completed`;
-              container.appendChild(progressText);
-            }
+  // Progress Bar Container
+  const progBarContainer = document.createElement('div');
+  progBarContainer.className = 'absolute bottom-0 left-0 right-0 h-1.5 bg-black/40 box-shadow-progressbar rounded-b-sm overflow-hidden z-20 hidden select-none pointer-events-none';
+  const progBarFill = document.createElement('div');
+  progBarFill.className = 'h-full bg-accent';
+  progBarFill.style.width = '0%';
+  progBarContainer.appendChild(progBarFill);
+  card.appendChild(progBarContainer);
+
+  const cacheKey = item.id;
+  const applyProgress = (progressObj) => {
+    if (progressObj && progressObj.progress !== undefined) {
+      if (progressObj.isFinished) {
+        checkBadge.classList.remove('hidden');
+        progBarContainer.classList.add('hidden');
+      } else if (progressObj.progress > 0 && progressObj.progress < 1) {
+        const percent = progressObj.progress * 100;
+        progBarFill.style.width = `${percent}%`;
+        progBarContainer.classList.remove('hidden');
+        checkBadge.classList.add('hidden');
+        
+        const overlayDiv = card.querySelector('.group-hover\\:opacity-100');
+        if (overlayDiv) {
+          const container = overlayDiv.querySelector('div');
+          if (container) {
+            const existingText = container.querySelector('.progress-text-overlay');
+            if (existingText) existingText.remove();
+            
+            const progressText = document.createElement('p');
+            progressText.className = 'text-xs text-accent mt-2 progress-text-overlay';
+            progressText.textContent = `${Math.round(percent)}% completed`;
+            container.appendChild(progressText);
           }
         }
+      } else {
+        progBarContainer.classList.add('hidden');
+        checkBadge.classList.add('hidden');
+      }
+    }
+  };
+
+  if (progressCache.has(cacheKey)) {
+    applyProgress(progressCache.get(cacheKey));
+  } else {
+    request('GET', `/api/me/progress/${item.id}`)
+      .then(progressObj => {
+        progressCache.set(cacheKey, progressObj);
+        applyProgress(progressObj);
       })
       .catch(err => {
         console.warn(`Failed to fetch progress for item ${item.id}:`, err);
       });
   }
-
   if (batchEditMode && selectedItems.has(item.id)) {
     card.classList.add('ring-4', 'ring-accent', 'scale-105');
   }
@@ -814,17 +956,19 @@ function createListRow(item, libraryId, visibleCols = ['cover', 'title', 'author
         rowHtml += `<td class="p-3 text-black-100 font-mono">${year}</td>`;
         break;
       case 'progress':
-        const progressId = `progress-${item.id}-${Math.random().toString(36).substr(2, 9)}`;
-        rowHtml += `
-          <td class="p-3 text-black-100 font-mono" id="${progressId}">
-            <span class="text-black-300">...</span>
-          </td>
-        `;
-        setTimeout(() => {
-          const progressTd = document.getElementById(progressId);
-          if (!progressTd) return;
-          request('GET', `/api/me/progress/${item.id}`)
-            .then(progressObj => {
+        {
+          const progressId = `progress-${item.id}-${Math.random().toString(36).substr(2, 9)}`;
+          rowHtml += `
+            <td class="p-3 text-black-100 font-mono" id="${progressId}">
+              <span class="text-black-300">...</span>
+            </td>
+          `;
+          setTimeout(() => {
+            const progressTd = document.getElementById(progressId);
+            if (!progressTd) return;
+            
+            const cacheKey = item.id;
+            const renderProgress = (progressObj) => {
               if (progressObj && progressObj.progress !== undefined) {
                 if (progressObj.isFinished) {
                   progressTd.innerHTML = '<span class="text-green-500 font-semibold">Completed</span>';
@@ -837,11 +981,22 @@ function createListRow(item, libraryId, visibleCols = ['cover', 'title', 'author
               } else {
                 progressTd.innerHTML = '<span class="text-black-200">Not Started</span>';
               }
-            })
-            .catch(() => {
-              progressTd.innerHTML = '<span class="text-black-200">Not Started</span>';
-            });
-        }, 0);
+            };
+
+            if (progressCache.has(cacheKey)) {
+              renderProgress(progressCache.get(cacheKey));
+            } else {
+              request('GET', `/api/me/progress/${item.id}`)
+                .then(progressObj => {
+                  progressCache.set(cacheKey, progressObj);
+                  renderProgress(progressObj);
+                })
+                .catch(() => {
+                  progressTd.innerHTML = '<span class="text-black-200">Not Started</span>';
+                });
+            }
+          }, 0);
+        }
         break;
       case 'action':
         rowHtml += `
