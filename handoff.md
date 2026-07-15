@@ -1,27 +1,25 @@
 # Handoff: Audiobookshelf Go Port — UX Audit
 
 ## Current Screen Under Audit
-- **Screen**: Header Bar (Priority 3)
+- **Screen**: Sidebar Navigation (Priority 4)
 - **Status**: ✅ Complete
 
 ## What Was Fixed This Run
-- **Search Integration**: Fully wired search input field to backend GET `/api/libraries/:id/search` endpoint. Handled dropdown rendering of Books, Podcasts, Episodes, Authors, Series, Tags, Genres, and Narrators. Wired click actions to correctly navigate to their detail views or filter the library view.
-- **Keyboard Controls & Cleanup**: Added ArrowDown/ArrowUp/Enter/Escape navigation inside the search dropdown, search clearing capability, and responsive layout for mobile views with a top-bar search overlay toggle.
-- **Chromecast Visibility**: Linked Chromecast cast icon button visibility in header and player dynamically to `chromecastEnabled` user settings.
+- **Visual & Parity Styles**: Switched Left Navigation Sidebar container background to `bg-bg` and added `style="min-width: 80px;"` to align with the original client's layout.
+- **Link Components**: Standardized active background to `bg-primary/80` and text color to `text-white`. Set inactive links to use `bg-bg/60` and `text-white/80` with hover backgrounds as `hover:bg-primary` and borders as `border-b border-primary/70`.
+- **Text & Icons**: Removed `font-medium` classes from link label paragraphs and set font-size to `0.9rem` (or `1rem` for Issues link) to match original Vue client styling. Configured Series, Collections, and Playlists icons to use the exact `text-2.5xl` class.
+- **Footer Section**: Configured version and source footer to render inline using gray scale, monospace, italic, and underline styling classes identical to the original Vue SideRail footer.
+- **JS Highlighting Helpers**: Updated `highlightSidebarLink` and general deselect functions in `frontend/js/app.js` to correctly toggle the updated text-color (`text-white` vs `text-white/80`) and background (`bg-primary/80` vs `bg-bg/60` and `hover:bg-primary`) styling classes.
 
 ## Remaining Issues on This Screen
 - None.
 
 ## Next Screen in Queue
-- **Sidebar Navigation (Priority 4)** (Nav items: Home, Library, Series, Collections, Playlists, Authors, Narrators, Stats — exact icons, spacing, active/hover highlight states; routing, collapse/expand, footer).
+- **Library Grid/List View (Priority 5)** (Results header, item count, filter dropdown, sort controls, Card rendering, cover image, title, author/narrator, progress bar overlays, badges, pagination/infinite scroll, sort toggle).
 
 ## Buttons/Controls Verified Working This Run
-- **Global Search Input**: Text search triggers API request and updates results dropdown.
-- **Search Dropdown Clickable Items**: Clicking navigate to corresponding pages (/item/:id, /author/:id, /series/:id, or triggers library filtering).
-- **Search Clear Button (Close Insignia)**: Clears input, hides dropdown, and reloads active library items.
-- **Keyboard Navigation (Arrows/Enter/Esc)**: Selects and activates options in search dropdown.
-- **User Settings & Administration Dropdown links**: Navigates user to /settings page.
-- **Mobile Search button**: Opens mobile search overlay.
+- **Sidebar Links (Home, Library, etc.)**: Navigates user to correct pages, with proper highlight toggling.
+- **Footer elements**: Version and environment tag displaying correctly.
 
 ## Buttons/Controls Known Broken
 - None.
