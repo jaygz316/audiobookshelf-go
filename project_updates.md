@@ -60,7 +60,7 @@
   - Enabled dynamic conditional display of `header-upload-btn` and `upload-btn` (and associated dragover/drop upload listeners) matching user upload permission (`user.permissions.upload`).
   - Fixed standard directory batch recursion limitation in `webkitGetAsEntry` drop/drag upload parsing (`getFilesFromEntry` in `upload.js` and `app.js`) to support folders containing over 100 files by looping through `dirReader.readEntries()`.
   - Unhidden the "Clear All" queue button in the upload modal when files are added to the queue, and wired up its dynamic visibility state in `updateQueueUI()`.
-
-
-
-
+- **E-book Reader UX Fixes (Priority 13)**:
+  - Fixed typography scale persistence on reader initialization so that when a user adjusts font scale and refreshes the reader view, the correct `currentFontSize` configuration is selected and set on the EPUB rendition instance.
+  - Fixed bookmark deletion highlight removal logic by passing `"highlight"` as the specific annotation type parameter to `rendition.annotations.remove` instead of mapping custom color CSS classes.
+  - Integrated layout tracking support in the reader footer by querying `book.locations.locationFromCfi` indices and updating `pageInfo.textContent` to show `"Page X of Y"` pagination indices.
