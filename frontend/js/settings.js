@@ -633,11 +633,27 @@ async function renderAuthSettingsTab() {
               <input type="password" id="oidc-client-secret" value="${escapeHtml(auth.authOpenIDClientSecret || '')}" placeholder="••••••••" class="w-full bg-black-500 text-white px-3 py-2 rounded border border-black-300 focus:outline-none focus:border-accent">
             </div>
             <div>
+              <label class="block text-xs text-black-100 mb-1">Match Existing Users By</label>
+              <select id="oidc-match-existing-by" class="w-full bg-black-500 text-white px-3 py-2 rounded border border-black-300 focus:outline-none focus:border-accent">
+                <option value="" ${!auth.authOpenIDMatchExistingBy ? 'selected' : ''}>Do Not Match</option>
+                <option value="email" ${auth.authOpenIDMatchExistingBy === 'email' ? 'selected' : ''}>Email</option>
+                <option value="username" ${auth.authOpenIDMatchExistingBy === 'username' ? 'selected' : ''}>Username</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs text-black-100 mb-1">Group Claim</label>
+              <input type="text" id="oidc-group-claim" value="${escapeHtml(auth.authOpenIDGroupClaim || '')}" placeholder="e.g. groups" class="w-full bg-black-500 text-white px-3 py-2 rounded border border-black-300 focus:outline-none focus:border-accent">
+            </div>
+            <div>
+              <label class="block text-xs text-black-100 mb-1">Advanced Permissions Claim</label>
+              <input type="text" id="oidc-advanced-perms-claim" value="${escapeHtml(auth.authOpenIDAdvancedPermsClaim || '')}" placeholder="e.g. permissions" class="w-full bg-black-500 text-white px-3 py-2 rounded border border-black-300 focus:outline-none focus:border-accent">
+            </div>
+            <div>
               <label class="block text-xs text-black-100 mb-1">Custom Login Message</label>
               <input type="text" id="oidc-custom-message" value="${escapeHtml(auth.authLoginCustomMessage || '')}" placeholder="Optional custom message on login screen" class="w-full bg-black-500 text-white px-3 py-2 rounded border border-black-300 focus:outline-none focus:border-accent">
             </div>
-            <div>
-              <label class="block text-xs text-black-100 mb-1">Mobile Redirect URI</label>
+            <div class="md:col-span-2">
+              <label class="block text-xs text-black-100 mb-1">Mobile Redirect URIs</label>
               <input type="text" id="oidc-mobile-redirect" value="${escapeHtml((auth.authOpenIDMobileRedirectURIs || []).join(', '))}" class="w-full bg-black-500 text-white px-3 py-2 rounded border border-black-300 focus:outline-none focus:border-accent">
             </div>
           </div>
@@ -656,6 +672,13 @@ async function renderAuthSettingsTab() {
                 <span class="abs-slider"></span>
               </span>
               <span>Auto-Register New Users</span>
+            </label>
+            <label class="flex items-center space-x-3 cursor-pointer">
+              <span class="abs-switch">
+                <input type="checkbox" id="oidc-subfolder-redirects" ${auth.authOpenIDSubfolderForRedirectURLs ? 'checked' : ''}>
+                <span class="abs-slider"></span>
+              </span>
+              <span>Use subfolder for redirect URLs</span>
             </label>
           </div>
         </div>
@@ -694,7 +717,11 @@ async function renderAuthSettingsTab() {
           authOpenIDClientID: document.getElementById('oidc-client-id').value,
           authLoginCustomMessage: document.getElementById('oidc-custom-message').value,
           authOpenIDAutoLaunch: document.getElementById('oidc-autolaunch').checked,
-          authOpenIDAutoRegister: document.getElementById('oidc-autoregister').checked
+          authOpenIDAutoRegister: document.getElementById('oidc-autoregister').checked,
+          authOpenIDMatchExistingBy: document.getElementById('oidc-match-existing-by').value,
+          authOpenIDGroupClaim: document.getElementById('oidc-group-claim').value,
+          authOpenIDAdvancedPermsClaim: document.getElementById('oidc-advanced-perms-claim').value,
+          authOpenIDSubfolderForRedirectURLs: document.getElementById('oidc-subfolder-redirects').checked
         };
 
         const secretVal = document.getElementById('oidc-client-secret').value;

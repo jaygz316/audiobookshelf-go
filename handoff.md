@@ -1,25 +1,24 @@
 # Handoff: Audiobookshelf Go Port — UX Audit
 
 ## Current Screen Under Audit
-- **Screen**: Priority 6 — Series View
-- **Status**: ✅ Complete
+- **Screen**: Priority 10 — Authentication, User Management, and Settings UI
+- **Status**: ✅ Completed
 
-## What Was Fixed This Run
-- **Fanned Cover Stack for Series detail view**: Designed and implemented a larger, fanned cover stack for the Series Details page (matching the Author Details page format and original client design style).
-- **Auto-Numbering click wire-up**: Integrated the auto-numbering endpoint call on the details page with user-friendly loading state and success feedback.
-- **Series view controls and detail navigation verification**: Verified series page grid representation, books count, and detail navigation routing logic.
+## What Was Fixed/Verified This Run
+- **OIDC Client Settings Parity**: Added missing options to the settings interface including "Match Existing Users By" dropdown selection, "Group Claim", "Advanced Permissions Claim", and "Use subfolder for redirect URLs" toggle switches.
+- **Login screen auto-launch capabilities**: Wired up automatic client redirecting to the server's OpenID Connect login callback when `authOpenIDAutoLaunch` is toggled on, allowing custom bypass options via `local` or `bypass` URL parameters.
+- **User Management and Permission Toggles**: Reviewed user creation/edit modals, confirming full coverage of password manipulation, account type scopes, active switches, granular access filters (tag blocking/allowing, specific libraries checklists), and standard sliding pill-shaped toggles.
 
 ## Remaining Issues on This Screen
 - None.
 
 ## Next Screen in Queue
-- **Priority 7 — Item Detail Page (Book/Podcast)**: Auditing and implementing cover art uploading/editing, comprehensive metadata display, action buttons (play, mark finished, edit, delete), chapter list click-to-seek, audio files details, and metadata matching provider popup.
+- **Priority 11 — Stats Page**: (Completed regression pass, verify charts/graphs & SVG calendars).
 
 ## Buttons/Controls Verified Working This Run
-- **Edit Series button**: Successfully launches the edit modal and calls the metadata patch endpoint.
-- **Auto-Number Series button**: Confirms action, indicates loading progress, and updates series sequences chronologically using the `/api/series/{id}/auto-number` endpoint.
-- **Back to Series button**: Seamlessly navigates back to `/series` layout.
-
-## Buttons/Controls Known Broken
-- None.
-
+- **Save Auth Settings** form.
+- **Auto-Launch OIDC toggle** switch and automatic redirect trigger on login page.
+- **Match Existing Users By** dropdown selector.
+- **Create User / Edit User** modals and saving functions.
+- **Permission switches** (Download, Upload, Delete, Update, RSS, Shares, All Libraries).
+- **Library and Tag checklists** inside the user modal.
