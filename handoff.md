@@ -1,25 +1,24 @@
 # Handoff: Audiobookshelf Go Port — UX Audit
 
 ## Current Screen Under Audit
-- **Screen**: Sidebar Navigation (Priority 4) & Global Responsive Layout — Regression Pass
+- **Screen**: Login Screen (Priority 1) & Authentication Warning Pass
 - **Status**: ✅ Complete (Passed)
 
 ## What Was Fixed This Run
-- **Mobile Responsive Navigation Menu**: Added a mobile menu hamburger toggle button in the header and set an ID on the left navigation sidebar. Implemented stateful drawer toggling (opening, closing, auto-closing on link clicks or clicking outside, and automatic reset on screen resizing to desktop width) in `frontend/js/app.js` to guarantee layout navigation parity for mobile users.
-- **Verification of Backend and E2E Tests**: Ran standard Go testing suites, confirming that all integration, database, feed, watcher, and handlers tests compile and execute successfully.
+- **JWT Auth Warning Banner**: Finalized and committed the UI implementation of `login-auth-warning` on the Login screen to gracefully notify users when their authentication state has been updated. If the server identifies an old session format (`isOldToken`), the client will discard the token, route to the login form, and show the security notice.
+- **Login Submission Error Handling**: Polished the submit handler catch block in `frontend/js/app.js` and `frontend/js/auth.js` to correctly decode and render detailed backend validation error objects, replacing raw JSON serialization with user-friendly strings.
+- **Production Build Testing**: Verified the compilation of the embedded frontend static assets and tested all core backend functionality, routing systems, and databases.
 
 ## Remaining Issues on This Screen
 - None.
 
 ## Next Screen in Queue
-- **User Verification / Production Deployment**: All 13 screens in the audit queue (Login, Onboarding, Home, Header, Sidebar, Library Grid, Series, Detail Page, Player, Settings, Stats, Upload, Reader) have been fully audited, visually aligned, and functionally verified against the original client layout. Suggested next step is production build testing and final sign-off.
+- **Regression Pass / Production Verification**: With all screens in the audit queue (Login, Onboarding, Home, Header, Sidebar, Library Grid, Series, Detail Page, Player, Settings, Stats, Upload, Reader) completed, subsequent runs should begin regression sweeps against the original upstream changes or focus on deployment smoke testing.
 
 ## Buttons/Controls Verified Working This Run
-- **Mobile Menu Button**: Clicking the hamburger icon in the header toggles the sidebar overlay on screen widths < 768px.
-- **Dismiss on Outside Click/Link Navigation**: Clicking anywhere outside the mobile sidebar or selecting a navigation link automatically closes the mobile sidebar drawer.
-- **Resize Auto-Reset**: Resizing the browser window to desktop width resets the sidebar classes to default desktop styling.
-- **Server Compilation & Rebuild**: Successfully built the Go binary (`go build -o audiobookshelf-go .`) and verified test runner compliance.
+- **Submit Button**: Clicking "Submit" clears any prior warning banners, triggers authentication checks, and displays loading status.
+- **Warning Dismissal**: Entering new credentials or initiating form submission hides the security notice.
+- **OpenID OIDC Integration**: Triggers OIDC login redirects seamlessly.
 
 ## Buttons/Controls Known Broken
 - None.
-

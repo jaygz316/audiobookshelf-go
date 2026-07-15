@@ -1737,7 +1737,7 @@ function triggerAddToPlaylistModal(item, libraryId) {
 /**
  * Triggers a beautiful Modal to edit the item details.
  */
-function triggerEditItemDetailsModal(item, libraryId, onSaveSuccess) {
+export function triggerEditItemDetailsModal(item, libraryId, onSaveSuccess) {
   const mediaType = item.mediaType || 'book';
   let title = '';
   let subtitle = '';
