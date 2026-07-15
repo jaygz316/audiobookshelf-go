@@ -1357,6 +1357,7 @@ function renderUsersListRows(users, currentUser) {
     let typeDisplay = u.type || 'user';
     if (typeDisplay === 'root') typeDisplay = 'Root Admin';
     else if (typeDisplay === 'admin') typeDisplay = 'Admin';
+    else if (typeDisplay === 'guest') typeDisplay = 'Guest';
     else typeDisplay = 'User';
 
     const canDelete = u.type !== 'root' && u.id !== currentUser.id;
@@ -1468,6 +1469,7 @@ async function triggerUserModal(user = null, currentUser, onSaveSuccess) {
             <select id="user-type" class="w-full bg-black-500 text-white px-3 py-1.5 rounded border border-black-300 focus:outline-none focus:border-accent text-sm" ${isEdit && user.type === 'root' ? 'disabled' : ''}>
               <option value="user" ${isEdit && user.type === 'user' ? 'selected' : ''}>Regular User</option>
               <option value="admin" ${isEdit && user.type === 'admin' ? 'selected' : ''}>Admin</option>
+              <option value="guest" ${isEdit && user.type === 'guest' ? 'selected' : ''}>Guest</option>
               ${isEdit && user.type === 'root' ? '<option value="root" selected>Root Admin</option>' : ''}
             </select>
           </div>
