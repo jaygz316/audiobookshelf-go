@@ -46,6 +46,8 @@
   - Allowed the shelf size control slider to be visible on `/series` and `/authors` list pages.
   - Added seamless Back to Series and Back to Authors navigation links.
   - Implemented real-time reading progress cache querying for series cards, displaying an overall progress bar matching Vue.js frontend standards.
+  - Fixed dynamic card scaling on library grid view and fanned series stack sizing constraint by updating CSS rules in `styles.css` to respond to the sizing slider.
+  - Removed redundant `mr-8e` class from the default card class list in `dashboard.js` to prevent uneven spacing in grid and flex layout containers.
 - **Audio Player UI Parity & Chapter Controls**:
   - Implemented Previous/Next Chapter navigation and queue item transitions matching original Vue component behavior.
   - Added a chapters list modal (`player-chapters-dialog`) triggered by `player-chapters-btn` displaying start times and durations, with auto-scroll to the active chapter.
@@ -108,6 +110,8 @@
   - Corrected checks in [dashboard.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/dashboard.js) to query `activeFilter` instead of the function parameter `filterBy`. This fixes rendering errors where personalized shelves were incorrectly shown when a filter was set via `localStorage` on page reload.
   - Fixed `TestGetLibraryPersonalized` in [main_test.go](file:///home/jay/projects/audiobookshelf-go/main_test.go) to dynamically search for the `recently-added` shelf inside the personalized shelves payload rather than assuming it's the only shelf, ensuring robustness as shelves like `Discover` are added.
   - Enabled the shelf card size control widget to be visible on the Home/Dashboard view (`/` path) in [app.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/app.js).
+  - Dynamically labeled the "Author" column as "Publisher" for podcast libraries in both list view table headers and list view column customization options in [dashboard.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/dashboard.js).
+
 
 
 

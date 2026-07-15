@@ -722,6 +722,31 @@ func TestBoundaryCases(t *testing.T) {
 		}
 	})
 
+	t.Run("getWithRetry 429 exceeds maxRetries", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(mockHTTPHandler))
+		defer server.Close()
+
+		// Force five 429 requests, which is greater than maxRetries (3)
+		transport := &mockTransport{
+			TargetURL:  server.URL,
+			ForceRetry: 5,
+		}
+		setupTestClient(t, transport)
+
+		resp, err := getWithRetry(context.Background(), safeHTTPClient, "https://api.audnex.us/books/B01N22S8W8")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusTooManyRequests {
+			t.Errorf("expected 429 Too Many Requests, got %d", resp.StatusCode)
+		}
+		// Expect 3 retries (total 4 attempts made, resulting in 3 retries stored in mockTransport)
+		if transport.retryCount != 4 {
+			t.Errorf("expected 4 attempts/retries recorded by transport, got %d", transport.retryCount)
+		}
+	})
+
 	t.Run("network timeout / context cancellation", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(mockHTTPHandler))
 		defer server.Close()
