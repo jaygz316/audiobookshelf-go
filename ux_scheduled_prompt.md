@@ -110,8 +110,9 @@ Work through screens in this **strict priority order**. Each run should focus on
 ### Phase 0: Context Recovery (≤2 minutes)
 
 ```bash
-# 0.1 — Read handoff
+# 0.1 — Read handoff & project updates
 cat handoff.md 2>/dev/null || echo "No handoff — starting fresh."
+cat project_updates.md 2>/dev/null || echo "No project updates file — starting fresh."
 
 # 0.2 — Repo state
 git status
@@ -206,7 +207,11 @@ Overwrite `handoff.md`:
 - [List of any buttons that don't work yet, with the reason (missing API, wrong handler, etc.)]
 ```
 
-### Phase 5.1 — Output Summary
+### Phase 5.1 — Update `project_updates.md` (If Applicable)
+
+If this run deprecated any components, endpoints, libraries, or architectural patterns, or shifted project direction (e.g. "no longer using X"), you MUST document it immediately in `project_updates.md` at the project root to prevent subsequent runs from using stale information.
+
+### Phase 5.2 — Output Summary
 
 Print:
 ```

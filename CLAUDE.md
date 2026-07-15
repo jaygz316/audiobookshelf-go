@@ -1,6 +1,12 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Claude Code (claude.ai/code) and other agentic coding assistants when working with code in this repository.
+
+## Crucial: Stale Prevention (Read First)
+
+Before writing any code or proposing modifications, **always read `project_updates.md`** at the root of the repository. This file contains the latest list of deprecated libraries, APIs no longer in use, and active architectural rules. 
+
+If your task deprecates any feature, pattern, or library, or changes project direction (e.g. "no longer using X"), you **must** update `project_updates.md` immediately before concluding your work.
 
 ## Project Overview
 
