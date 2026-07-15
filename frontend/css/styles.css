@@ -5585,8 +5585,8 @@ input:checked + .abs-slider:before {
 /* Series Stack Cascading/Fanned Cards */
 .series-cover-stack {
   position: relative;
-  width: 7rem;
-  height: 10rem;
+  width: var(--bookshelf-card-width, 120px) !important;
+  height: var(--bookshelf-card-height, 180px) !important;
   margin-bottom: 0.75rem;
   display: flex;
   align-items: center;

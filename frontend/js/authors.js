@@ -4,7 +4,7 @@
 import { request, resolvePath } from './api.js';
 import { getActiveLibraryId } from './library.js';
 import { showToast } from './app.js';
-import { createCard } from './dashboard.js';
+import { createCard, progressCache } from './dashboard.js';
 
 /**
  * Load and render the Authors listing view for the given library.
@@ -109,7 +109,7 @@ export async function loadSeries(libraryId) {
     container.innerHTML = '';
 
     const grid = document.createElement('div');
-    grid.className = 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 p-6';
+    grid.className = 'library-grid';
 
     seriesList.forEach(series => {
       const card = createSeriesCard(series);
@@ -211,6 +211,10 @@ function createSeriesCard(series) {
           ${numBooks}
         </div>
         ${imagesHtml}
+        <!-- Progress bar container -->
+        <div class="series-progress-bar-container absolute bottom-[5%] left-[5%] right-[5%] h-1.5 bg-black/40 rounded-b shadow z-30 hidden select-none pointer-events-none">
+          <div class="series-progress-bar-fill h-full bg-yellow-400" style="width: 0%;"></div>
+        </div>
       </div>
     `;
   } else {
@@ -238,6 +242,58 @@ function createSeriesCard(series) {
       }
     }));
   };
+
+  // Fetch progress for all books in this series asynchronously and render series progress bar
+  if (series.books && series.books.length > 0) {
+    const progressPromises = series.books.map(b => {
+      if (progressCache.has(b.id)) {
+        return Promise.resolve(progressCache.get(b.id));
+      } else {
+        return request('GET', `/api/me/progress/${b.id}`)
+          .then(progressObj => {
+            progressCache.set(b.id, progressObj);
+            return progressObj;
+          })
+          .catch(() => null);
+      }
+    });
+
+    Promise.all(progressPromises).then(progressList => {
+      const validProgressList = progressList.filter(p => !!p);
+      if (validProgressList.length > 0) {
+        let progressPercent = 0;
+        let finishedCount = 0;
+
+        series.books.forEach(b => {
+          const progressObj = progressCache.get(b.id);
+          if (progressObj) {
+            progressPercent += progressObj.isFinished ? 1 : (progressObj.progress || 0);
+            if (progressObj.isFinished) {
+              finishedCount++;
+            }
+          }
+        });
+
+        const totalBooks = series.books.length;
+        const overallPercent = progressPercent / totalBooks;
+        const isSeriesFinished = finishedCount === totalBooks;
+
+        if (overallPercent > 0) {
+          const container = card.querySelector('.series-progress-bar-container');
+          const fill = card.querySelector('.series-progress-bar-fill');
+          if (container && fill) {
+            fill.style.width = `${overallPercent * 100}%`;
+            if (isSeriesFinished) {
+              fill.className = 'series-progress-bar-fill h-full bg-success';
+            } else {
+              fill.className = 'series-progress-bar-fill h-full bg-yellow-400';
+            }
+            container.classList.remove('hidden');
+          }
+        }
+      }
+    });
+  }
 
   return card;
 }
@@ -277,7 +333,13 @@ export async function loadAuthorDetails(authorId) {
     const imageUrl = resolvePath(`/api/authors/${author.id}/image?token=${token}`);
 
     let html = `
-      <div class="p-6 max-w-6xl mx-auto space-y-8 text-left">
+      <div class="p-6 max-w-6xl mx-auto space-y-6 text-left">
+        <div class="flex items-center space-x-2">
+          <button id="back-authors-btn" class="flex items-center space-x-1.5 text-sm text-black-50 hover:text-white transition-colors">
+            <span class="material-symbols">arrow_back</span>
+            <span>Back to Authors</span>
+          </button>
+        </div>
         <!-- Author Info Header -->
         <div class="flex flex-col md:flex-row gap-6 bg-black-600 p-6 rounded-lg border border-black-400">
           <div class="w-32 h-32 md:w-40 md:h-40 rounded-full overflow-hidden bg-black-400 flex items-center justify-center flex-shrink-0 mx-auto md:mx-0">
@@ -314,6 +376,13 @@ export async function loadAuthorDetails(authorId) {
     `;
 
     container.innerHTML = html;
+
+    const backBtn = container.querySelector('#back-authors-btn');
+    if (backBtn) {
+      backBtn.onclick = () => {
+        navigateTo('/authors');
+      };
+    }
 
     const detailImg = document.getElementById('author-detail-img');
     if (detailImg) {
@@ -450,7 +519,13 @@ export async function loadSeriesDetails(seriesId) {
     const finishedCount = progress.libraryItemIdsFinished?.length || 0;
     
     let html = `
-      <div class="p-6 max-w-6xl mx-auto space-y-8 text-left">
+      <div class="p-6 max-w-6xl mx-auto space-y-6 text-left">
+        <div class="flex items-center space-x-2">
+          <button id="back-series-btn" class="flex items-center space-x-1.5 text-sm text-black-50 hover:text-white transition-colors">
+            <span class="material-symbols">arrow_back</span>
+            <span>Back to Series</span>
+          </button>
+        </div>
         <!-- Series Info Header -->
         <div class="bg-black-600 p-6 rounded-lg border border-black-400 space-y-4">
           <div class="flex flex-col md:flex-row md:items-center gap-3 justify-between">
@@ -501,6 +576,13 @@ export async function loadSeriesDetails(seriesId) {
     `;
 
     container.innerHTML = html;
+
+    const backBtn = container.querySelector('#back-series-btn');
+    if (backBtn) {
+      backBtn.onclick = () => {
+        navigateTo('/series');
+      };
+    }
 
     const matrixContainer = container.querySelector('#series-matrix-container');
     if (matrixContainer && items.length > 0) {

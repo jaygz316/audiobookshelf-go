@@ -959,3 +959,94 @@ func TestHandleAutoNumberSeries(t *testing.T) {
 		t.Errorf("Expected book4 sequence to be '3', got %q", seq4)
 	}
 }
+
+func TestDeleteLibraryItem(t *testing.T) {
+	db := setupTestDBShared(t)
+	defer db.Close()
+
+	// Create playlistMediaItems table
+	_, err := db.Exec(`CREATE TABLE IF NOT EXISTS playlistMediaItems (id TEXT PRIMARY KEY, mediaItemId TEXT, mediaItemType TEXT, "order" INTEGER, createdAt TEXT, playlistId TEXT)`)
+	if err != nil {
+		t.Fatalf("Failed to create playlistMediaItems: %v", err)
+	}
+
+	// 1. Insert test library, book, and libraryItem
+	_, err = db.Exec(`INSERT INTO libraries (id, name, displayOrder, icon, mediaType, provider, settings, createdAt, updatedAt) VALUES ('lib1', 'Audiobooks', 1, 'book', 'book', 'local', '{}', '2026-06-08 12:00:00.000', '2026-06-08 12:00:00.000')`)
+	if err != nil {
+		t.Fatalf("Failed to insert library: %v", err)
+	}
+
+	_, err = db.Exec(`INSERT INTO books (id, title, duration, coverPath, narrators, audioFiles, ebookFile, chapters, tags, genres) VALUES 
+		('book1', 'Old Title', 3600, '', '[]', '[]', 'null', '[]', '[]', '[]')`)
+	if err != nil {
+		t.Fatalf("Failed to insert book: %v", err)
+	}
+
+	_, err = db.Exec(`INSERT INTO libraryItems (
+		id, ino, libraryId, libraryFolderId, path, relPath, isFile, 
+		mtime, ctime, birthtime, createdAt, updatedAt, 
+		isMissing, isInvalid, mediaType, mediaId, size,
+		authorNamesFirstLast, authorNamesLastFirst, title, titleIgnorePrefix
+	) VALUES (
+		'item1', 'inode-item', 'lib1', 'folder1', '/path1', 'rel1', 1, 
+		'2026-06-08 12:00:00.000', '2026-06-08 12:00:00.000', '2026-06-08 12:00:00.000', '2026-06-08 12:00:00.000', '2026-06-08 12:00:00.000', 
+		0, 0, 'book', 'book1', 5000,
+		'Old Author', 'Author, Old', 'Old Title', 'Old Title'
+	)`)
+	if err != nil {
+		t.Fatalf("Failed to insert libraryItem: %v", err)
+	}
+
+	_, err = db.Exec(`INSERT INTO playlistMediaItems (id, mediaItemId, mediaItemType, "order", createdAt, playlistId) VALUES ('pmi1', 'item1', 'book', 1, '2026-06-08 12:00:00.000', 'p1')`)
+	if err != nil {
+		t.Fatalf("Failed to insert playlistMediaItem: %v", err)
+	}
+
+	_, err = db.Exec(`INSERT INTO mediaProgresses (id, userId, mediaItemId, isFinished, currentTime, updatedAt) VALUES ('progress1', 'user1', 'item1', 0, 1800, '2026-06-08 12:00:00.000')`)
+	if err != nil {
+		t.Fatalf("Failed to insert mediaProgress: %v", err)
+	}
+
+	// 2. Make delete request
+	handler := handleDeleteLibraryItemByID(db, "item1")
+	req := httptest.NewRequest("DELETE", "/api/items/item1", nil)
+
+	user := &core.UserSession{
+		ID:                 "user1",
+		Username:           "admin",
+		Type:               "admin",
+		IsActive:           true,
+		CanDelete:          true,
+		AccessAllLibraries: true,
+	}
+	req = req.WithContext(context.WithValue(req.Context(), core.UserContextKey, user))
+
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("Expected status 200, got %d. Body: %s", rr.Code, rr.Body.String())
+	}
+
+	// 3. Verify deletions in DB
+	var count int
+	db.QueryRow("SELECT COUNT(*) FROM libraryItems WHERE id = 'item1'").Scan(&count)
+	if count != 0 {
+		t.Errorf("Expected libraryItem to be deleted, got count %d", count)
+	}
+
+	db.QueryRow("SELECT COUNT(*) FROM playlistMediaItems WHERE mediaItemId = 'item1'").Scan(&count)
+	if count != 0 {
+		t.Errorf("Expected playlistMediaItem to be deleted, got count %d", count)
+	}
+
+	db.QueryRow("SELECT COUNT(*) FROM mediaProgresses WHERE mediaItemId = 'item1'").Scan(&count)
+	if count != 0 {
+		t.Errorf("Expected mediaProgress to be deleted, got count %d", count)
+	}
+
+	db.QueryRow("SELECT COUNT(*) FROM books WHERE id = 'book1'").Scan(&count)
+	if count != 0 {
+		t.Errorf("Expected book to be cleaned up, got count %d", count)
+	}
+}

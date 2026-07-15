@@ -1347,6 +1347,9 @@ func HandleItemsDispatch(db *sql.DB, cfg *core.Config) http.HandlerFunc {
 			} else if r.Method == http.MethodPatch {
 				AuthMiddlewareWrapper(db, http.HandlerFunc(handleUpdateLibraryItemByID(db, itemID))).ServeHTTP(w, r)
 				return
+			} else if r.Method == http.MethodDelete {
+				AuthMiddlewareWrapper(db, http.HandlerFunc(handleDeleteLibraryItemByID(db, itemID))).ServeHTTP(w, r)
+				return
 			}
 		} else if len(parts) == 2 && parts[1] == "waveform" {
 			itemID := parts[0]

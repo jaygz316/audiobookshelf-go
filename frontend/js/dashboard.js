@@ -12,7 +12,7 @@ let currentLibraryId = null;
 let currentPage = 0;
 let isLoadingMore = false;
 let hasMore = true;
-const progressCache = new Map();
+export const progressCache = new Map();
 
 const ALL_COLUMNS = [
   { key: 'cover', label: 'Cover', default: true },
