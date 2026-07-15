@@ -352,73 +352,104 @@
     <div class="flex flex-1 min-h-0 w-full overflow-hidden">
       
       <!-- Left Navigation Sidebar (Side Rail) -->
-      <aside role="toolbar" aria-orientation="vertical" class="w-20 bg-primary h-full border-r border-black-600/50 flex flex-col justify-between select-none z-40 box-shadow-side">
+      <aside role="toolbar" aria-orientation="vertical" class="w-20 bg-bg h-full border-r border-black-600/50 hidden md:flex flex-col justify-between select-none z-40 box-shadow-side" style="min-width: 80px;">
         <nav id="siderail-buttons-container" class="w-full flex flex-col overflow-y-auto overflow-x-hidden">
           
           <!-- Home Link (Active by default) -->
-          <a href="#" class="w-full h-20 flex flex-col items-center justify-center text-accent border-b border-black-600/50 cursor-pointer relative bg-primary/80">
+          <a id="sidebar-home" href="#" class="w-full h-20 flex flex-col items-center justify-center text-white border-b border-primary/70 hover:bg-primary cursor-pointer relative bg-primary/80">
             <span class="material-symbols text-2xl">home</span>
-            <p class="pt-1.5 text-center leading-4 text-[0.8rem] font-medium">Home</p>
+            <p class="pt-1.5 text-center leading-4 text-[0.9rem]">Home</p>
             <div class="active-indicator h-full w-0.5 bg-yellow-400 absolute top-0 left-0"></div>
           </a>
 
           <!-- Library Link -->
-          <a href="#" class="w-full h-20 flex flex-col items-center justify-center text-black-50 border-b border-black-600/50 hover:bg-black-500 cursor-pointer relative">
-            <span class="material-symbols text-2xl">local_library</span>
-            <p class="pt-1.5 text-center leading-4 text-[0.8rem] font-medium">Library</p>
+          <a id="sidebar-library" href="#" class="w-full h-20 flex flex-col items-center justify-center text-white/80 border-b border-primary/70 hover:bg-primary cursor-pointer relative bg-bg/60">
+            <span class="material-symbols text-2xl">import_contacts</span>
+            <p class="pt-1.5 text-center leading-4 text-[0.9rem]">Library</p>
+            <div class="active-indicator h-full w-0.5 bg-yellow-400 absolute top-0 left-0 hidden"></div>
+          </a>
+
+          <!-- Podcast Latest Link -->
+          <a id="sidebar-latest" href="#" class="w-full h-20 flex flex-col items-center justify-center text-white/80 border-b border-primary/70 hover:bg-primary cursor-pointer relative bg-bg/60 hidden">
+            <span class="material-symbols text-2xl">&#xe241;</span>
+            <p class="pt-1 text-center leading-4 text-[0.9rem]">Latest</p>
             <div class="active-indicator h-full w-0.5 bg-yellow-400 absolute top-0 left-0 hidden"></div>
           </a>
 
           <!-- Series Link -->
-          <a href="#" class="w-full h-20 flex flex-col items-center justify-center text-black-50 border-b border-black-600/50 hover:bg-black-500 cursor-pointer relative">
-            <span class="material-symbols text-2xl">layers</span>
-            <p class="pt-1.5 text-center leading-4 text-[0.8rem] font-medium">Series</p>
+          <a id="sidebar-series" href="#" class="w-full h-20 flex flex-col items-center justify-center text-white/80 border-b border-primary/70 hover:bg-primary cursor-pointer relative bg-bg/60 hidden">
+            <span class="material-symbols text-2.5xl">view_column</span>
+            <p class="pt-1 text-center leading-4 text-[0.9rem]">Series</p>
             <div class="active-indicator h-full w-0.5 bg-yellow-400 absolute top-0 left-0 hidden"></div>
           </a>
 
           <!-- Collections Link -->
-          <a href="#" class="w-full h-20 flex flex-col items-center justify-center text-black-50 border-b border-black-600/50 hover:bg-black-500 cursor-pointer relative">
-            <span class="material-symbols text-2xl">collections_bookmark</span>
-            <p class="pt-1.5 text-center leading-4 text-[0.8rem] font-medium">Collections</p>
+          <a id="sidebar-collections" href="#" class="w-full h-20 flex flex-col items-center justify-center text-white/80 border-b border-primary/70 hover:bg-primary cursor-pointer relative bg-bg/60 hidden">
+            <span class="material-symbols text-2.5xl">&#xe431;</span>
+            <p class="pt-1 text-center leading-4 text-[0.9rem]">Collections</p>
             <div class="active-indicator h-full w-0.5 bg-yellow-400 absolute top-0 left-0 hidden"></div>
           </a>
 
           <!-- Playlists Link -->
-          <a href="#" class="w-full h-20 flex flex-col items-center justify-center text-black-50 border-b border-black-600/50 hover:bg-black-500 cursor-pointer relative">
-            <span class="material-symbols text-2xl">playlist_play</span>
-            <p class="pt-1.5 text-center leading-4 text-[0.8rem] font-medium">Playlists</p>
+          <a id="sidebar-playlists" href="#" class="w-full h-20 flex flex-col items-center justify-center text-white/80 border-b border-primary/70 hover:bg-primary cursor-pointer relative bg-bg/60 hidden">
+            <span class="material-symbols text-2.5xl">&#xe03d;</span>
+            <p class="pt-1 text-center leading-4 text-[0.9rem]">Playlists</p>
             <div class="active-indicator h-full w-0.5 bg-yellow-400 absolute top-0 left-0 hidden"></div>
           </a>
 
           <!-- Authors Link -->
-          <a href="#" class="w-full h-20 flex flex-col items-center justify-center text-black-50 border-b border-black-600/50 hover:bg-black-500 cursor-pointer relative">
-            <span class="material-symbols text-2xl">person</span>
-            <p class="pt-1.5 text-center leading-4 text-[0.8rem] font-medium">Authors</p>
+          <a id="sidebar-authors" href="#" class="w-full h-20 flex flex-col items-center justify-center text-white/80 border-b border-primary/70 hover:bg-primary cursor-pointer relative bg-bg/60 hidden">
+            <span class="material-symbols text-2xl">groups</span>
+            <p class="pt-1 text-center leading-4 text-[0.9rem]">Authors</p>
             <div class="active-indicator h-full w-0.5 bg-yellow-400 absolute top-0 left-0 hidden"></div>
           </a>
 
           <!-- Narrators Link -->
-          <a href="#" class="w-full h-20 flex flex-col items-center justify-center text-black-50 border-b border-black-600/50 hover:bg-black-500 cursor-pointer relative">
-            <span class="material-symbols text-2xl">record_voice_over</span>
-            <p class="pt-1.5 text-center leading-4 text-[0.8rem] font-medium">Narrators</p>
+          <a id="sidebar-narrators" href="#" class="w-full h-20 flex flex-col items-center justify-center text-white/80 border-b border-primary/70 hover:bg-primary cursor-pointer relative bg-bg/60 hidden">
+            <span class="material-symbols text-2xl">&#xe91f;</span>
+            <p class="pt-1 text-center leading-4 text-[0.9rem]">Narrators</p>
             <div class="active-indicator h-full w-0.5 bg-yellow-400 absolute top-0 left-0 hidden"></div>
           </a>
 
           <!-- Stats Link -->
-          <a href="#" class="w-full h-20 flex flex-col items-center justify-center text-black-50 border-b border-black-600/50 hover:bg-black-500 cursor-pointer relative">
-            <span class="material-symbols text-2xl">bar_chart</span>
-            <p class="pt-1.5 text-center leading-4 text-[0.8rem] font-medium">Stats</p>
+          <a id="sidebar-stats" href="#" class="w-full h-20 flex flex-col items-center justify-center text-white/80 border-b border-primary/70 hover:bg-primary cursor-pointer relative bg-bg/60 hidden">
+            <span class="material-symbols text-2xl">&#xf190;</span>
+            <p class="pt-1 text-center leading-4 text-[0.9rem]">Stats</p>
             <div class="active-indicator h-full w-0.5 bg-yellow-400 absolute top-0 left-0 hidden"></div>
+          </a>
+
+          <!-- Podcast Add Link -->
+          <a id="sidebar-add" href="#" class="w-full h-20 flex flex-col items-center justify-center text-white/80 border-b border-primary/70 hover:bg-primary cursor-pointer relative bg-bg/60 hidden">
+            <span class="abs-icons icon-podcast text-xl"></span>
+            <p class="pt-1.5 text-center leading-4 text-[0.9rem]">Add</p>
+            <div class="active-indicator h-full w-0.5 bg-yellow-400 absolute top-0 left-0 hidden"></div>
+          </a>
+
+          <!-- Podcast Download Queue Link -->
+          <a id="sidebar-download-queue" href="#" class="w-full h-20 flex flex-col items-center justify-center text-white/80 border-b border-primary/70 hover:bg-primary cursor-pointer relative bg-bg/60 hidden">
+            <span class="material-symbols text-2xl">&#xf090;</span>
+            <p class="pt-1.5 text-center leading-4 text-[0.9rem]">Download Queue</p>
+            <div class="active-indicator h-full w-0.5 bg-yellow-400 absolute top-0 left-0 hidden"></div>
+          </a>
+
+          <!-- Issues Link -->
+          <a id="sidebar-issues" href="#" class="w-full h-20 flex flex-col items-center justify-center text-white/80 border-b border-primary/70 hover:bg-error/40 cursor-pointer relative bg-error/20 hidden">
+            <span class="material-symbols text-2xl">warning</span>
+            <p class="pt-1.5 text-center leading-4 text-[1rem]">Issues</p>
+            <div class="active-indicator h-full w-0.5 bg-yellow-400 absolute top-0 left-0 hidden"></div>
+            <div class="absolute top-1 right-1 w-4 h-4 rounded-full bg-white/30 flex items-center justify-center">
+              <p class="issues-badge-text text-[9px] font-mono pb-0.5">0</p>
+            </div>
           </a>
 
         </nav>
         
         <!-- Bottom Utility Icon & Footer -->
-        <div class="w-full flex flex-col items-center justify-center border-t border-black-600/50 pt-3 pb-4 select-none">
-          <span class="material-symbols text-xl text-black-50 hover:text-white cursor-pointer mb-2" title="Help">help_outline</span>
-          <div class="text-[9px] font-mono tracking-tighter text-black-100 flex flex-col items-center">
-            <span>v2.35.1</span>
-            <span class="bg-black-600/40 px-1 py-0.2 rounded mt-0.5 uppercase text-[7px] text-accent">docker</span>
+        <div class="w-full flex flex-col items-center justify-center border-t border-primary/70 pt-3 pb-4 select-none bg-bg">
+          <span id="sidebar-help-btn" class="material-symbols text-xl text-white/80 hover:text-white cursor-pointer mb-2" title="Help">help_outline</span>
+          <div class="text-xxs font-mono text-gray-400 flex flex-col items-center leading-3">
+            <span id="sidebar-version" class="underline cursor-pointer text-gray-300 hover:text-white mb-0.5">v2.35.1</span>
+            <span id="sidebar-source" class="text-[10px] text-gray-400 italic">docker</span>
           </div>
         </div>
       </aside>

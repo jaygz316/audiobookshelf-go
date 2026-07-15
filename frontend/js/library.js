@@ -37,6 +37,11 @@ export function getLibrariesList() {
   return libraries;
 }
 
+export function getActiveLibrary() {
+  const activeId = getActiveLibraryId();
+  return libraries.find(lib => lib.id === activeId);
+}
+
 function setActiveLibrary(libraryId) {
   activeLibraryId = libraryId;
   localStorage.setItem('activeLibraryId', libraryId);

@@ -1,7 +1,7 @@
 // js/app.js
 
 import { initAuth, showAppContainer, logout } from './auth.js';
-import { initLibrary, getActiveLibraryId } from './library.js';
+import { initLibrary, getActiveLibraryId, getActiveLibrary } from './library.js';
 import { loadDashboard } from './dashboard.js';
 import { request, resolvePath, ROUTER_BASE_PATH } from './api.js';
 import { connectSocket, disconnectSocket, onEvent } from './socket.js';
@@ -14,6 +14,7 @@ import { loadNarrators } from './narrators.js';
 import { loadStats } from './stats.js';
 import { initPublicShare } from './publicShare.js';
 import { initSearchPresets } from './presets.js';
+import { loadPodcastLatestView, loadPodcastAddView, loadPodcastDownloadQueueView } from './podcasts.js';
 
 function initApp() {
   setupEventHandlers();
@@ -51,18 +52,112 @@ function highlightSidebarLink(pageName) {
     if (!p) return;
     const name = p.textContent.trim();
     if (name === pageName) {
-      link.classList.remove('hover:bg-black-500', 'text-black-50');
-      link.classList.add('bg-primary/80', 'text-accent');
+      link.classList.remove('hover:bg-primary', 'text-white/80', 'bg-bg/60');
+      link.classList.add('bg-primary/80', 'text-white');
       const activeBar = link.querySelector('.active-indicator');
       if (activeBar) activeBar.classList.remove('hidden');
     } else {
-      link.classList.remove('bg-primary/80', 'text-accent');
-      link.classList.add('hover:bg-black-500', 'text-black-50');
+      link.classList.remove('bg-primary/80', 'text-white');
+      link.classList.add('hover:bg-primary', 'text-white/80', 'bg-bg/60');
       const activeBar = link.querySelector('.active-indicator');
       if (activeBar) activeBar.classList.add('hidden');
     }
   });
 }
+
+export async function updateSidebarVisibility() {
+  const lib = getActiveLibrary();
+  const user = window.currentUser || {};
+  const isAdmin = user.type === 'admin' || user.type === 'root';
+
+  // Toggle book specific links
+  const bookLinks = [
+    document.getElementById('sidebar-series'),
+    document.getElementById('sidebar-collections'),
+    document.getElementById('sidebar-playlists'),
+    document.getElementById('sidebar-authors'),
+    document.getElementById('sidebar-narrators')
+  ];
+  
+  // Toggle podcast specific links
+  const podcastLinks = [
+    document.getElementById('sidebar-latest')
+  ];
+
+  const sidebarStats = document.getElementById('sidebar-stats');
+  const sidebarAdd = document.getElementById('sidebar-add');
+  const sidebarDownloadQueue = document.getElementById('sidebar-download-queue');
+  const sidebarIssues = document.getElementById('sidebar-issues');
+
+  const isBook = lib && (lib.mediaType === 'book' || lib.icon === 'audiobooks');
+  const isPodcast = lib && (lib.mediaType === 'podcast' || lib.icon === 'podcasts');
+
+  bookLinks.forEach(link => {
+    if (link) {
+      if (isBook) {
+        link.classList.remove('hidden');
+      } else {
+        link.classList.add('hidden');
+      }
+    }
+  });
+
+  podcastLinks.forEach(link => {
+    if (link) {
+      if (isPodcast) {
+        link.classList.remove('hidden');
+      } else {
+        link.classList.add('hidden');
+      }
+    }
+  });
+
+  if (sidebarStats) {
+    if (isBook && isAdmin) {
+      sidebarStats.classList.remove('hidden');
+    } else {
+      sidebarStats.classList.add('hidden');
+    }
+  }
+
+  if (sidebarAdd) {
+    if (isPodcast && isAdmin) {
+      sidebarAdd.classList.remove('hidden');
+    } else {
+      sidebarAdd.classList.add('hidden');
+    }
+  }
+
+  if (sidebarDownloadQueue) {
+    if (isPodcast && isAdmin) {
+      sidebarDownloadQueue.classList.remove('hidden');
+    } else {
+      sidebarDownloadQueue.classList.add('hidden');
+    }
+  }
+
+  // Update issues count and badge
+  if (lib) {
+    try {
+      const data = await request('GET', `/api/libraries/${lib.id}/filterdata`);
+      if (data && data.numIssues > 0) {
+        if (sidebarIssues) {
+          sidebarIssues.classList.remove('hidden');
+          const badgeText = sidebarIssues.querySelector('.issues-badge-text');
+          if (badgeText) badgeText.textContent = data.numIssues;
+        }
+      } else {
+        if (sidebarIssues) sidebarIssues.classList.add('hidden');
+      }
+    } catch (err) {
+      console.warn('Failed to load filterdata for issues:', err);
+      if (sidebarIssues) sidebarIssues.classList.add('hidden');
+    }
+  } else {
+    if (sidebarIssues) sidebarIssues.classList.add('hidden');
+  }
+}
+window.updateSidebarVisibility = updateSidebarVisibility;
 
 function setupEventHandlers() {
   // Credentials Form Submission
@@ -269,7 +364,9 @@ function setupEventHandlers() {
     link.addEventListener('click', (e) => {
       e.preventDefault();
       
-      const pageName = link.querySelector('p').textContent.trim();
+      const pEl = link.querySelector('p');
+      if (!pEl) return;
+      const pageName = pEl.textContent.trim();
       let path = '/';
       if (pageName === 'Playlists') path = '/playlists';
       else if (pageName === 'Collections') path = '/collections';
@@ -277,6 +374,19 @@ function setupEventHandlers() {
       else if (pageName === 'Series') path = '/series';
       else if (pageName === 'Narrators') path = '/narrators';
       else if (pageName === 'Stats') path = '/stats';
+      else if (pageName === 'Latest') path = '/podcast/latest';
+      else if (pageName === 'Add') path = '/podcast/add';
+      else if (pageName === 'Download Queue') path = '/podcast/download-queue';
+      else if (pageName === 'Issues') {
+        localStorage.setItem('library-filterBy', 'missing');
+        window.dispatchEvent(new CustomEvent('navigate-to-dashboard', {
+          detail: {
+            filterBy: 'missing',
+            filterLabel: 'Issues'
+          }
+        }));
+        return;
+      }
 
       navigateTo(path);
     });
@@ -291,6 +401,8 @@ function setupEventHandlers() {
   window.addEventListener('library-changed', (e) => {
     const libraryId = e.detail.libraryId;
     if (!libraryId) return;
+    
+    updateSidebarVisibility();
     
     // Reload the current active page content without changing URL path
     let relPath = window.location.pathname;
@@ -311,6 +423,12 @@ function setupEventHandlers() {
       loadSeries(libraryId);
     } else if (relPath === '/narrators') {
       loadNarrators(libraryId);
+    } else if (relPath === '/podcast/latest') {
+      loadPodcastLatestView(libraryId);
+    } else if (relPath === '/podcast/add') {
+      loadPodcastAddView(libraryId);
+    } else if (relPath === '/podcast/download-queue') {
+      loadPodcastDownloadQueueView(libraryId);
     } else if (relPath.startsWith('/playlist/')) {
       const playlistId = relPath.substring('/playlist/'.length);
       loadPlaylistDetails(playlistId, libraryId);
@@ -344,7 +462,11 @@ function setupEventHandlers() {
 
     window.history.pushState(null, '', resolvePath('/'));
 
-    highlightSidebarLink('Home');
+    if (filterLabel === 'Issues') {
+      highlightSidebarLink('Issues');
+    } else {
+      highlightSidebarLink('Home');
+    }
 
     const viewTitle = document.getElementById('view-title');
     if (viewTitle) {
@@ -1544,6 +1666,9 @@ function bootstrapApp(payload) {
     });
   }
 
+  // Update sidebar item visibility on initial load
+  updateSidebarVisibility();
+
   // Route to the current URL path on bootstrap
   navigateTo(window.location.pathname, false);
 }
@@ -1626,9 +1751,14 @@ function navigateTo(path, pushState = true) {
   const activeLibId = getActiveLibraryId();
 
   if (relPath === '/' || relPath === '/library') {
-    highlightSidebarLink('Home');
+    const isMissing = localStorage.getItem('library-filterBy') === 'missing';
+    if (isMissing) {
+      highlightSidebarLink('Issues');
+    } else {
+      highlightSidebarLink('Home');
+    }
     const viewTitle = document.getElementById('view-title');
-    if (viewTitle) viewTitle.textContent = 'Home';
+    if (viewTitle) viewTitle.textContent = isMissing ? 'Issues' : 'Home';
     if (activeLibId) loadDashboard(activeLibId);
   } else if (relPath === '/playlists') {
     highlightSidebarLink('Playlists');
@@ -1660,11 +1790,26 @@ function navigateTo(path, pushState = true) {
     const viewTitle = document.getElementById('view-title');
     if (viewTitle) viewTitle.textContent = 'Stats';
     loadStats();
+  } else if (relPath === '/podcast/latest') {
+    highlightSidebarLink('Latest');
+    const viewTitle = document.getElementById('view-title');
+    if (viewTitle) viewTitle.textContent = 'Latest Episodes';
+    if (activeLibId) loadPodcastLatestView(activeLibId);
+  } else if (relPath === '/podcast/add') {
+    highlightSidebarLink('Add');
+    const viewTitle = document.getElementById('view-title');
+    if (viewTitle) viewTitle.textContent = 'Add Podcast';
+    if (activeLibId) loadPodcastAddView(activeLibId);
+  } else if (relPath === '/podcast/download-queue') {
+    highlightSidebarLink('Download Queue');
+    const viewTitle = document.getElementById('view-title');
+    if (viewTitle) viewTitle.textContent = 'Download Queue';
+    if (activeLibId) loadPodcastDownloadQueueView(activeLibId);
   } else if (relPath === '/settings') {
     // Deselect sidebar highlights
     document.querySelectorAll('#siderail-buttons-container a').forEach(l => {
-      l.classList.remove('bg-primary/80', 'text-accent');
-      l.classList.add('hover:bg-black-500', 'text-black-50');
+      l.classList.remove('bg-primary/80', 'text-white');
+      l.classList.add('hover:bg-primary', 'text-white/80', 'bg-bg/60');
       const activeBar = l.querySelector('.active-indicator');
       if (activeBar) activeBar.classList.add('hidden');
     });
