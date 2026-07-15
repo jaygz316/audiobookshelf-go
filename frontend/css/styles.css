@@ -5438,6 +5438,12 @@ google-cast-launcher {
   margin-right: 2rem !important;
   overflow: visible !important;
   position: relative;
+  transition: transform 0.2s ease !important;
+}
+
+.bookshelfRow .bookshelf-card:hover,
+.bookshelfRow .group:hover {
+  transform: translateY(-6px) !important;
 }
 
 .bookshelfRow .bookshelf-card img,
@@ -5448,14 +5454,13 @@ google-cast-launcher {
   border-radius: 4px;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5), 0 2px 4px rgba(0, 0, 0, 0.4);
   -webkit-box-reflect: below 4px linear-gradient(transparent, transparent 65%, rgba(0, 0, 0, 0.2));
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition: box-shadow 0.2s ease;
 }
 
 /* Card hover effect adjustments */
 .bookshelfRow .bookshelf-card:hover img,
 .bookshelfRow .group:hover img {
-  transform: translateY(-4px);
-  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.6), 0 4px 8px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.65), 0 4px 10px rgba(0, 0, 0, 0.45);
 }
 
 /* Keep hover details matching card dimensions */
@@ -5549,6 +5554,11 @@ input:checked + .abs-slider:before {
   width: var(--bookshelf-card-width) !important;
   height: var(--bookshelf-card-height) !important;
   overflow: visible !important;
+  transition: transform 0.2s ease !important;
+}
+
+.library-shelf-grid > .group:hover {
+  transform: translateY(-6px) !important;
 }
 
 .library-shelf-grid > .group img {
@@ -5558,12 +5568,11 @@ input:checked + .abs-slider:before {
   border-radius: 4px;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5), 0 2px 4px rgba(0, 0, 0, 0.4);
   -webkit-box-reflect: below 4px linear-gradient(transparent, transparent 65%, rgba(0, 0, 0, 0.2));
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition: box-shadow 0.2s ease;
 }
 
 .library-shelf-grid > .group:hover img {
-  transform: translateY(-4px);
-  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.6), 0 4px 8px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.65), 0 4px 10px rgba(0, 0, 0, 0.45);
 }
 
 .library-shelf-grid > .group .absolute.inset-0 {
