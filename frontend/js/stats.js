@@ -2,6 +2,19 @@
 import { request } from './api.js';
 import { getActiveLibraryId, getLibrariesList, getActiveLibrary } from './library.js';
 
+// Helper to parse SQLite time strings reliably in UTC
+function parseSQLiteTime(s) {
+  if (!s) return null;
+  let normalized = s.trim();
+  if (!normalized.endsWith('Z') && !normalized.includes('+') && !normalized.includes('-')) {
+    normalized += 'Z';
+  }
+  normalized = normalized.replace(' ', 'T').replace(/\s+/g, '');
+  const parsed = new Date(normalized);
+  if (!isNaN(parsed.getTime())) return parsed;
+  return new Date(s);
+}
+
 export async function loadStats() {
   const opmlBtn = document.getElementById('opml-btn');
   if (opmlBtn) opmlBtn.classList.add('hidden');
@@ -117,16 +130,23 @@ export async function loadStats() {
       const itemsList = Object.entries(stats.items || {}).map(([id, item]) => ({ id, ...item }));
       const uniqueItemsCount = itemsList.length;
 
-      // Calculate last 7 days of listening (for the line chart)
+      // Calculate last 7 days of listening in UTC (for the line chart)
       const last7DaysOfListening = [];
       const today = new Date();
+      const todayUTC = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
+
       for (let i = 6; i >= 0; i--) {
-        const d = new Date();
-        d.setDate(today.getDate() - i);
-        const dateStr = d.toISOString().split('T')[0];
+        const d = new Date(todayUTC);
+        d.setUTCDate(todayUTC.getUTCDate() - i);
+        
+        const year = d.getUTCFullYear();
+        const month = String(d.getUTCMonth() + 1).padStart(2, '0');
+        const day = String(d.getUTCDate()).padStart(2, '0');
+        const dateStr = `${year}-${month}-${day}`;
+        
         const seconds = stats.days ? (stats.days[dateStr] || 0) : 0;
         const minutes = Math.round(seconds / 60);
-        const dayLabel = d.toLocaleDateString(undefined, { weekday: 'short' });
+        const dayLabel = d.toLocaleDateString(undefined, { weekday: 'short', timeZone: 'UTC' });
         last7DaysOfListening.push({ dateStr, minutesListening: minutes, label: dayLabel });
       }
 
@@ -166,15 +186,20 @@ export async function loadStats() {
       const totalMinutesListeningThisWeek = last7DaysOfListening.reduce((acc, d) => acc + d.minutesListening, 0);
       const averageMinutesPerDay = Math.round(totalMinutesListeningThisWeek / 7);
 
-      // Days in a row streak calculation
+      // Days in a row streak calculation (UTC-native)
       let daysInARow = 0;
       const daysMap = stats.days || {};
+      const todayStr = todayUTC.toISOString().split('T')[0];
       while (true) {
-        const d = new Date();
-        d.setDate(today.getDate() - daysInARow - 1);
-        const datestr = d.toISOString().split('T')[0];
+        const d = new Date(todayUTC);
+        d.setUTCDate(todayUTC.getUTCDate() - daysInARow - 1);
+        
+        const year = d.getUTCFullYear();
+        const month = String(d.getUTCMonth() + 1).padStart(2, '0');
+        const day = String(d.getUTCDate()).padStart(2, '0');
+        const datestr = `${year}-${month}-${day}`;
+
         if (!daysMap[datestr] || daysMap[datestr] === 0) {
-          const todayStr = today.toISOString().split('T')[0];
           if (daysMap[todayStr]) {
             daysInARow++;
           }
@@ -184,13 +209,13 @@ export async function loadStats() {
         if (daysInARow > 9999) break;
       }
 
-      // Heatmap calendar variables
+      // Heatmap calendar variables in UTC
       const numDaysInTheLastYear = 365;
-      const dayOfWeekToday = today.getDay();
+      const dayOfWeekToday = todayUTC.getUTCDay();
       const weeksToShow = 52;
       const daysToShow = weeksToShow * 7 + dayOfWeekToday;
-      const firstDay = new Date();
-      firstDay.setDate(today.getDate() - numDaysInTheLastYear);
+      const firstDay = new Date(todayUTC);
+      firstDay.setUTCDate(todayUTC.getUTCDate() - numDaysInTheLastYear);
 
       const dates = [];
       let daysListenedInTheLastYear = 0;
@@ -199,8 +224,12 @@ export async function loadStats() {
 
       for (let i = 0; i <= numDaysInTheLastYear; i++) {
         const dateObj = new Date(firstDay);
-        dateObj.setDate(firstDay.getDate() + i);
-        const dateString = dateObj.toISOString().split('T')[0];
+        dateObj.setUTCDate(firstDay.getUTCDate() + i);
+        
+        const year = dateObj.getUTCFullYear();
+        const month = String(dateObj.getUTCMonth() + 1).padStart(2, '0');
+        const day = String(dateObj.getUTCDate()).padStart(2, '0');
+        const dateString = `${year}-${month}-${day}`;
 
         if (daysMap[dateString] > 0) {
           daysListenedInTheLastYear++;
@@ -213,10 +242,10 @@ export async function loadStats() {
 
         const value = daysMap[dateString] || 0;
         const datePretty = dateObj.toLocaleDateString(undefined, {
-          month: 'short', day: 'numeric', year: 'numeric'
+          month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC'
         });
-        const monthString = dateObj.toLocaleDateString(undefined, { month: 'short' });
-        const dayOfMonth = dateObj.getDate();
+        const monthString = dateObj.toLocaleDateString(undefined, { month: 'short', timeZone: 'UTC' });
+        const dayOfMonth = dateObj.getUTCDate();
 
         const item = {
           col: Math.floor(visibleDayIndex / 7),
@@ -248,12 +277,17 @@ export async function loadStats() {
           bgColor = bgColors[bgIndex] || bgColors[4];
         }
 
-        const mins = Math.round(block.value / 60);
+        let tooltipText = '';
+        if (block.value > 0) {
+          tooltipText = `${formatDuration(block.value)} listening on ${block.datePretty}`;
+        } else {
+          tooltipText = `No listening sessions on ${block.datePretty}`;
+        }
 
         return `
           <div class="group absolute h-2.5 w-2.5 rounded-xs cursor-pointer hover:scale-125 transition-transform duration-100 z-10" style="transform:translate(${block.col * 13}px,${block.row * 13}px); background-color:${bgColor}; outline:1px solid ${outlineColor}; outline-offset:-1px;">
             <div class="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 z-50 opacity-0 group-hover:opacity-100 bg-black-700 text-white text-[10px] px-2 py-1 rounded shadow whitespace-nowrap transition-opacity duration-150">
-              ${mins} min${mins === 1 ? '' : 's'} listening on ${block.datePretty}
+              ${tooltipText}
             </div>
           </div>
         `;
@@ -275,7 +309,7 @@ export async function loadStats() {
       }
 
       const monthLabelsHtml = monthLabels.map(ml => `
-        <div style="transform: translate(${ml.col * 13}px, -15px); line-height: 10px; font-size: 10px; position: absolute;" class="text-black-300 font-semibold">${ml.label}</div>
+        <div style="transform: translate(${ml.col * 13}px, -15px); line-height: 10px; font-size: 10px; position: absolute;" class="text-black-100 font-semibold">${ml.label}</div>
       `).join('');
 
       viewContentHtml = `
@@ -340,7 +374,7 @@ export async function loadStats() {
             <div class="relative w-[384px] h-[288px] my-4">
               <!-- Y Axis Grid and Labels -->
               ${yAxisLabels.map((lbl, idx) => {
-                const y = (288 - chartContentMarginBottom) - (200 * (idx / 6));
+                const y = (288 - chartContentMarginBottom) - (200 * ((6 - idx) / 6));
                 return `
                   <div class="absolute right-[360px] text-xs font-semibold text-black-100 pr-2" style="top: ${y - 8}px;">${lbl}</div>
                   <div class="absolute left-[34px] right-0 h-px bg-white/10" style="top: ${y}px; width: 330px;"></div>
@@ -350,10 +384,10 @@ export async function loadStats() {
               <!-- The SVGs -->
               <svg width="384" height="288" class="absolute inset-0 overflow-visible pointer-events-none">
                 <!-- SVG path line -->
-                <path d="${pathD}" fill="none" stroke="#eab308" stroke-width="2"></path>
+                <path d="${pathD}" fill="none" stroke="#facc15" stroke-width="2"></path>
               </svg>
-
-              <!-- Points and Tooltips -->
+ 
+               <!-- Points and Tooltips -->
               ${points.map((p, idx) => `
                 <div class="absolute group cursor-pointer z-20" style="left: ${p.x - 4}px; top: ${p.y - 4}px; width: 8px; height: 8px;">
                   <div class="h-2 w-2 bg-yellow-400 hover:bg-yellow-300 rounded-full transform duration-150 transition-transform hover:scale-125"></div>
@@ -363,8 +397,8 @@ export async function loadStats() {
                   </div>
                 </div>
               `).join('')}
-
-              <!-- Day Labels -->
+ 
+               <!-- Day Labels -->
               ${last7DaysOfListening.map((d, idx) => {
                 const x = chartContentMarginLeft + daySpacing * idx;
                 return `
@@ -372,8 +406,8 @@ export async function loadStats() {
                 `;
               }).join('')}
             </div>
-
-            <!-- Chart summary row -->
+ 
+             <!-- Chart summary row -->
             <div class="flex justify-between w-full pt-10 border-t border-black-400 mt-6">
               <div class="text-center flex-1">
                 <p class="text-xs text-black-100 font-semibold">This Week</p>
@@ -397,8 +431,8 @@ export async function loadStats() {
               </div>
             </div>
           </div>
-
-          <!-- Recent sessions -->
+ 
+           <!-- Recent sessions -->
           <div class="bg-primary border border-black-400 p-6 rounded-lg shadow-md flex flex-col justify-between">
             <h3 class="text-lg font-semibold mb-4 flex items-center space-x-2">
               <span class="material-symbols text-accent text-xl">history</span>
@@ -411,14 +445,14 @@ export async function loadStats() {
             </div>
           </div>
         </div>
-
-        <!-- Heatmap Calendar -->
+ 
+         <!-- Heatmap Calendar -->
         <div class="bg-primary border border-black-400 p-6 rounded-lg shadow-md w-full overflow-x-auto">
           <div id="heatmap" class="min-w-[750px]">
-            <div class="mx-auto select-none" style="height: 190px; width: 741px; position: relative;">
+            <div class="mx-auto select-none" style="height: 206px; width: 741px; position: relative;">
               <p class="mb-4 px-1 text-sm text-black-100 font-semibold">${daysListenedInTheLastYear} days listened in the last year</p>
-              <div class="border border-white/10 rounded-sm py-4 w-full" style="background-color: #1a1a1a; height: 140px; position: relative;">
-                <div style="width: 689px; height: 91px;" class="ml-12 mt-4 absolute">
+              <div class="border border-white/10 rounded-sm py-4 w-full" style="background-color: #1a1a1a; height: 156px; position: relative;">
+                <div style="width: 689px; height: 91px;" class="ml-12 mt-8 absolute">
                   <!-- Day Labels -->
                   <div style="transform: translate(-25px, 13px); line-height: 10px; font-size: 10px; position: absolute;" class="text-black-100 font-semibold">Mon</div>
                   <div style="transform: translate(-25px, 39px); line-height: 10px; font-size: 10px; position: absolute;" class="text-black-100 font-semibold">Wed</div>
@@ -462,8 +496,8 @@ export async function loadStats() {
             listContainer.innerHTML = sessions.map(sess => {
               let dateStr = 'Unknown';
               if (sess.updatedAt) {
-                const dateObj = new Date(sess.updatedAt.replace(' ', 'T'));
-                if (!isNaN(dateObj)) {
+                const dateObj = parseSQLiteTime(sess.updatedAt);
+                if (dateObj && !isNaN(dateObj)) {
                   dateStr = dateObj.toLocaleDateString(undefined, {
                     month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
                   });
@@ -703,10 +737,17 @@ export async function loadStats() {
       const maxMonthVal = Math.max(...monthsList.map(m => m[1]), 1);
 
       const dailyList = [];
+      const today = new Date();
+      const todayUTC = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
       for (let i = 13; i >= 0; i--) {
-        const d = new Date();
-        d.setDate(d.getDate() - i);
-        const dateStr = d.toISOString().split('T')[0];
+        const d = new Date(todayUTC);
+        d.setUTCDate(todayUTC.getUTCDate() - i);
+        
+        const year = d.getUTCFullYear();
+        const month = String(d.getUTCMonth() + 1).padStart(2, '0');
+        const day = String(d.getUTCDate()).padStart(2, '0');
+        const dateStr = `${year}-${month}-${day}`;
+
         const val = stats.days ? (stats.days[dateStr] || 0) : 0;
         dailyList.push({ dateStr, val });
       }
@@ -789,8 +830,8 @@ export async function loadStats() {
                 ${dailyList.map(({ dateStr, val }) => {
                   const pct = Math.max((val / maxDailyVal) * 100, 3);
                   const formatted = formatDuration(val);
-                  const dObj = new Date(dateStr + 'T00:00:00');
-                  const label = dObj.toLocaleDateString(undefined, { month: 'numeric', day: 'numeric' });
+                  const dObj = new Date(dateStr + 'T00:00:00Z');
+                  const label = dObj.toLocaleDateString(undefined, { month: 'numeric', day: 'numeric', timeZone: 'UTC' });
                   return `
                     <div class="flex flex-col items-center flex-1 group">
                       <div class="relative w-full flex justify-center h-36 items-end">
@@ -853,8 +894,8 @@ export async function loadStats() {
                   ` : monthsList.map(([monthStr, val]) => {
                     const pct = Math.max((val / maxMonthVal) * 100, 3);
                     const formatted = formatDuration(val);
-                    const date = new Date(monthStr + '-02');
-                    const formattedMonth = isNaN(date.getTime()) ? monthStr : date.toLocaleDateString(undefined, { month: 'short', year: '2-digit' });
+                    const date = new Date(monthStr + '-02T00:00:00Z');
+                    const formattedMonth = isNaN(date.getTime()) ? monthStr : date.toLocaleDateString(undefined, { month: 'short', year: '2-digit', timeZone: 'UTC' });
                     return `
                       <div class="flex flex-col items-center flex-1 group">
                         <div class="relative w-full flex justify-center h-36 items-end">
@@ -1028,8 +1069,8 @@ export async function loadStats() {
           tableBody.innerHTML = sessions.map(sess => {
             let dateStr = 'Unknown';
             if (sess.updatedAt) {
-              const dateObj = new Date(sess.updatedAt.replace(' ', 'T'));
-              if (!isNaN(dateObj)) {
+              const dateObj = parseSQLiteTime(sess.updatedAt);
+              if (dateObj && !isNaN(dateObj)) {
                 dateStr = dateObj.toLocaleDateString(undefined, {
                   year: 'numeric', month: 'short', day: 'numeric',
                   hour: '2-digit', minute: '2-digit'
