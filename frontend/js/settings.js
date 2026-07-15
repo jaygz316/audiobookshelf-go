@@ -1724,11 +1724,12 @@ async function renderApiKeysTab() {
   container.innerHTML = `<div class="animate-spin rounded-full h-8 w-8 border-b-2 border-accent mx-auto"></div>`;
 
   try {
-    const [apiKeysResp, users] = await Promise.all([
+    const [apiKeysResp, usersResp] = await Promise.all([
       request('GET', '/api/api-keys'),
       request('GET', '/api/users')
     ]);
     const apiKeys = apiKeysResp.apiKeys || [];
+    const users = usersResp.users || [];
 
     container.innerHTML = `
       <div class="space-y-4">
@@ -1960,10 +1961,11 @@ async function renderListeningSessionsTab() {
   container.innerHTML = `<div class="animate-spin rounded-full h-8 w-8 border-b-2 border-accent mx-auto"></div>`;
 
   try {
-    const [users, sessionsResp] = await Promise.all([
+    const [usersResp, sessionsResp] = await Promise.all([
       request('GET', '/api/users'),
       request('GET', '/api/playback-sessions')
     ]);
+    const users = usersResp.users || [];
     currentSessions = sessionsResp.sessions || [];
     selectedUserIdFilter = '';
 
@@ -2688,7 +2690,8 @@ export async function renderEmailsTab() {
     const devices = settings.ereaderDevices || [];
 
     // Fetch all users to display names in the user selector modal
-    const users = await request('GET', '/api/users');
+    const usersResp = await request('GET', '/api/users');
+    const users = usersResp.users || [];
 
     container.innerHTML = `
       <form id="email-settings-form" class="space-y-6 bg-primary border border-black-300 p-6 rounded-md">
@@ -3150,7 +3153,8 @@ async function renderLoginSessionsTab() {
   container.innerHTML = `<div class="animate-spin rounded-full h-8 w-8 border-b-2 border-accent mx-auto"></div>`;
 
   try {
-    const users = await request('GET', '/api/users');
+    const usersResp = await request('GET', '/api/users');
+    const users = usersResp.users || [];
     const curUserId = window.currentUser ? window.currentUser.id : '';
 
     container.innerHTML = `
@@ -3626,18 +3630,18 @@ function showLibraryModal(lib) {
       </div>
 
       <!-- Main columns flex layout -->
-      <div class="flex flex-grow min-h-0 border border-black-350 bg-black-600 rounded overflow-hidden text-sm h-[260px]">
+      <div class="flex flex-grow min-h-0 border border-black-300 bg-black-600 rounded overflow-hidden text-sm h-[260px]">
         <!-- Directories list (left column) -->
-        <div class="w-1/2 border-r border-black-350 flex flex-col h-full">
-          <div class="bg-black-700/50 px-3 py-1.5 text-xs text-black-50 font-semibold border-b border-black-350">Folders</div>
-          <div id="picker-dirs-list" class="flex-grow overflow-y-auto p-1 divide-y divide-black-500/20">
+        <div class="w-1/2 border-r border-black-300 flex flex-col h-full">
+          <div class="bg-black-500 px-3 py-1.5 text-xs text-black-50 font-semibold border-b border-black-300">Folders</div>
+          <div id="picker-dirs-list" class="flex-grow overflow-y-auto p-1 divide-y divide-black-400/20">
             <!-- Dynamically populated -->
           </div>
         </div>
         <!-- Subdirectories list (right column) -->
         <div class="w-1/2 flex flex-col h-full">
-          <div class="bg-black-700/50 px-3 py-1.5 text-xs text-black-50 font-semibold border-b border-black-350">Subfolders</div>
-          <div id="picker-subdirs-list" class="flex-grow overflow-y-auto p-1 divide-y divide-black-500/20">
+          <div class="bg-black-500 px-3 py-1.5 text-xs text-black-50 font-semibold border-b border-black-300">Subfolders</div>
+          <div id="picker-subdirs-list" class="flex-grow overflow-y-auto p-1 divide-y divide-black-400/20">
             <!-- Dynamically populated -->
           </div>
         </div>
@@ -3703,6 +3707,9 @@ function showLibraryModal(lib) {
         directories = data.directories || [];
         renderDirs();
         updatePathDisplay();
+        
+        selectBtn.disabled = false;
+        selectBtn.classList.remove('opacity-50');
       } catch (err) {
         if (path !== '/') {
           currentPath = '/';

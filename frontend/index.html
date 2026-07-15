@@ -314,6 +314,20 @@
           <!-- Cast Button -->
           <google-cast-launcher id="header-cast-btn" class="w-9 h-9 text-black-50 hover:text-white cursor-pointer flex items-center justify-center rounded-full hover:bg-black-500/50" title="Cast..."></google-cast-launcher>
 
+          <!-- Notification Widget (Bell/Spinner for active tasks) -->
+          <div id="header-notification-widget" class="relative hidden flex items-center">
+            <button id="header-notification-btn" class="w-8 h-8 flex items-center justify-center mx-1 text-gray-400 hover:text-gray-200 transition-colors focus:outline-none hover:bg-black/10 rounded-sm cursor-pointer" title="Tasks">
+              <span id="header-notification-icon" class="material-symbols text-2xl font-normal">notifications</span>
+            </button>
+            <div id="header-notification-badge" class="w-2 h-2 rounded-full bg-success pointer-events-none absolute top-1 right-1.5 hidden"></div>
+            <div id="header-notification-badge-ping" class="w-2 h-2 rounded-full bg-success/50 pointer-events-none absolute top-1 right-1.5 animate-ping hidden"></div>
+            <div id="header-notification-dropdown" class="absolute right-0 mt-2 w-72 sm:w-80 bg-primary border border-black-300 rounded shadow-lg hidden py-2 z-50 top-full">
+              <ul id="header-notification-list" class="max-h-80 overflow-y-auto px-2 space-y-1.5 focus:outline-none">
+                <!-- Dynamically populated -->
+              </ul>
+            </div>
+          </div>
+
           <!-- Server Activity Button -->
           <button id="header-activity-btn" class="w-8 h-8 flex items-center justify-center mx-1 text-gray-400 hover:text-gray-200 transition-colors focus:outline-none hover:bg-black/10 rounded-sm" title="Server Activity">
             <span class="material-symbols text-2xl font-normal">&#xe01d;</span>

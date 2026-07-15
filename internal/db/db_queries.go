@@ -1878,6 +1878,15 @@ func UpdateLibrary(db *sql.DB, libraryID string, payload *UpdateLibraryPayload) 
 		for _, folder := range payload.Folders {
 			if folder.ID != "" && existingFolders[folder.ID] != "" {
 				inputFolderIDs[folder.ID] = true
+				if existingFolders[folder.ID] != folder.Path {
+					_, err = tx.Exec(`
+						UPDATE libraryFolders SET path = ?, updatedAt = ?
+						WHERE id = ?`,
+						folder.Path, nowStr, folder.ID)
+					if err != nil {
+						return nil, err
+					}
+				}
 			} else {
 				folderID := uuid.New().String()
 				_, err = tx.Exec(`
