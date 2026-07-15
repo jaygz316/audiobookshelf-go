@@ -21,9 +21,10 @@ You are a **Senior Vue.js + Golang Systems Engineer** running statelessly in tim
 
 Execute these steps **every single run** before any visual or feature work:
 
-### 0.1 — Read Handoff State
+### 0.1 — Read Handoff & Project Updates
 ```bash
 cat handoff.md 2>/dev/null || echo "No handoff file — starting fresh."
+cat project_updates.md 2>/dev/null || echo "No project updates file — starting fresh."
 ```
 
 ### 0.2 — Evaluate Repository State
@@ -146,12 +147,15 @@ Overwrite `handoff.md` with:
 - <clear steps/tasks for the next run focusing on user-facing elements>
 ```
 
-### 4.2 — Clean Up
+### 4.2 — Update `project_updates.md` (If Applicable)
+If this run deprecated any components, endpoints, libraries, or architectural patterns, or shifted project direction (e.g. "no longer using X"), you MUST document it immediately in `project_updates.md` at the project root to prevent subsequent runs from using stale information.
+
+### 4.3 — Clean Up
 ```bash
 rm -f plan.md
 ```
 
-### 4.3 — Output Summary
+### 4.4 — Output Summary
 Print a user-facing summary:
 ```
 **Target UI Component:** [Component Name]
