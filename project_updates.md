@@ -76,3 +76,11 @@
   - Updated `openFolderPicker` template in `settings.js` to use defined Tailwind classes (`border-black-300`, `bg-black-500`, `divide-black-400`).
   - Fixed a bug in the directory picker where navigation (double-click/up button) permanently disabled the "Select Folder" button, allowing selection of the currently viewed directory.
   - Enhanced backend update handlers (`HandleUpdateLibrary` in `library_handlers.go` and `UpdateLibrary` in `db_queries.go`) to validate, resolve, and update modified folder paths for existing libraries instead of silently ignoring edits on existing rows.
+  - **EPUB Iframe Style Injection & Render Hooks**: Implemented `applyIframeStyles()` inside `reader.js` to dynamically inject universal selector CSS rules (`*` color, background-color, line-height) into the EPUB rendition iframe contents upon theme selection and loading. Registered a listener for the rendition's `rendered` event hook to automatically style new chapters/sections as they load.
+  - **Safe Floating-Point Comparisons for Bookmarks**: Replaced direct float64 equivalence checks (`==`) in `internal/handlers/me.go` bookmark update/delete handlers with a safe tolerance diff check (`diff < 0.001`), preventing deletion failures due to floating-point parsing precision mismatch.
+- **Audio Player & Dashboard Parameter Resolution**: Fixed a critical parameter type mismatch bug in `playItem` where playing items from the dashboard passed a string ID rather than an object. Updated `playItem` to consistently use the resolved `itemObj` metadata object for speed retrieval, metadata updating, and Cast playback.
+- **Sidebar Footer & Dynamic Version Info**:
+  - Dynamically load the server version (`sidebar-version`) and environment source (`sidebar-source`) from `/status` and authorization response payloads, removing hardcoded indicators.
+  - Wired up the help button (`sidebar-help-btn`) and version link (`sidebar-version`) in the footer to open the official documentation and original releases page in a new window/tab.
+
+

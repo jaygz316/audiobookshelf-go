@@ -917,6 +917,45 @@ export async function openEbookReader(item, token) {
         };
       };
 
+      const applyIframeStyles = () => {
+        if (!rendition) return;
+        let bg, fg;
+        if (currentTheme === 'light') {
+          bg = '#ffffff';
+          fg = '#000000';
+        } else if (currentTheme === 'sepia') {
+          bg = '#f4ecd8';
+          fg = '#5b4636';
+        } else if (currentTheme === 'warm') {
+          bg = '#fbf0e3';
+          fg = '#5c4033';
+        } else {
+          bg = '#1a1a1a';
+          fg = '#e0e0e0';
+        }
+        
+        const lineSpacing = parseFloat(currentLineHeight);
+        
+        const rules = {
+          '*': {
+            'color': `${fg} !important`,
+            'background-color': `${bg} !important`,
+            'line-height': `${lineSpacing} !important`
+          },
+          'a': {
+            'color': `${fg} !important`
+          }
+        };
+        
+        try {
+          rendition.getContents().forEach((c) => {
+            c.addStylesheetRules(rules);
+          });
+        } catch (e) {
+          console.warn("Failed to apply stylesheet rules to iframe contents:", e);
+        }
+      };
+
       const renderExistingHighlights = () => {
         if (!rendition) return;
         const curUser = window.currentUser || {};
@@ -1009,6 +1048,10 @@ export async function openEbookReader(item, token) {
           contents.document.addEventListener("wheel", handleWheel, { passive: false });
         });
 
+        rendition.on("rendered", () => {
+          applyIframeStyles();
+        });
+
         // Relocated event
         rendition.on("relocated", (location) => {
           const cfi = location.start.cfi;
@@ -1081,6 +1124,7 @@ export async function openEbookReader(item, token) {
         if (currentFlow === 'paginated') {
           rendition.spread(currentLayout);
         }
+        applyIframeStyles();
         rendition.resize();
         
         updateSettingsUIActiveStates();
@@ -1207,6 +1251,7 @@ export async function openEbookReader(item, token) {
           rendition.themes.register("warm", getThemeRules("warm", currentFont, currentLineHeight, currentMargin));
           rendition.themes.register("dark", getThemeRules("dark", currentFont, currentLineHeight, currentMargin));
           rendition.themes.select(theme);
+          applyIframeStyles();
         }
         
         document.querySelectorAll('[data-theme]').forEach(btn => {

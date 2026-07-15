@@ -596,9 +596,10 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
     container.querySelectorAll('.narrator-link').forEach(link => {
       link.onclick = (e) => {
         e.preventDefault();
+        const encodedName = btoa(unescape(encodeURIComponent(link.dataset.name)));
         window.dispatchEvent(new CustomEvent('navigate-to-dashboard', {
           detail: {
-            filterBy: `narrators.${link.dataset.name}`,
+            filterBy: `narrators.${encodedName}`,
             filterLabel: `Narrator: ${link.dataset.name}`
           }
         }));
