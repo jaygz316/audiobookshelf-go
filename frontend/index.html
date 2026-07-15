@@ -76,6 +76,12 @@
         <p class="text-2xl font-semibold text-center text-white mb-4">Login</p>
         <div class="w-full h-px bg-white/10 my-4"></div>
         
+        <!-- New JWT Auth System Warning Message -->
+        <div id="login-auth-warning" class="w-full mb-4 bg-warning/10 border border-warning/60 text-warning text-sm rounded p-3 hidden flex-col items-center text-center">
+          <p>Authentication has been improved for security. All users are required to re-login.</p>
+          <a href="https://github.com/advplyr/audiobookshelf/discussions/4460" target="_blank" class="underline mt-1 text-xs text-white hover:text-accent font-semibold hidden" id="login-auth-warning-more-info">More Info</a>
+        </div>
+
         <!-- Custom Login Message Banner -->
         <div id="login-custom-message" class="w-full mb-4 text-center text-sm text-gray-300 border border-white/10 rounded p-3 bg-primary/20 hidden"></div>
 

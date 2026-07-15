@@ -37,6 +37,31 @@ export async function initAuth() {
 
   try {
     const payload = await request('POST', '/api/authorize');
+    if (payload && payload.user && payload.user.isOldToken) {
+      console.warn('User has old token. Forcing re-login.');
+      localStorage.removeItem('token');
+      showLoginScreen(status);
+      
+      const usernameInput = document.getElementById('username');
+      if (usernameInput) usernameInput.value = payload.user.username || '';
+      
+      const authWarning = document.getElementById('login-auth-warning');
+      if (authWarning) {
+        authWarning.classList.remove('hidden');
+        authWarning.classList.add('flex');
+        
+        const moreInfoLink = document.getElementById('login-auth-warning-more-info');
+        if (moreInfoLink) {
+          const userType = payload.user.type;
+          if (userType === 'admin' || userType === 'root') {
+            moreInfoLink.classList.remove('hidden');
+          } else {
+            moreInfoLink.classList.add('hidden');
+          }
+        }
+      }
+      return null;
+    }
     showAppContainer();
     return payload;
   } catch (err) {
@@ -103,7 +128,14 @@ export function showSetupScreen(status) {
       // Trigger app initialization
       window.dispatchEvent(new CustomEvent('abs:authed', { detail: loginPayload }));
     } catch (err) {
-      errEl.textContent = err.message || 'Failed to create account. Please try again.';
+      let errorMsg = err.message;
+      try {
+        const parsed = JSON.parse(err.message);
+        if (parsed && parsed.error) {
+          errorMsg = parsed.error;
+        }
+      } catch (_) {}
+      errEl.textContent = errorMsg || 'Failed to create account. Please try again.';
       errEl.classList.remove('hidden');
       btn.disabled = false;
       btn.textContent = 'Submit';
@@ -115,6 +147,13 @@ export function showLoginScreen(status) {
   document.getElementById('login-screen').classList.remove('hidden');
   document.getElementById('setup-screen').classList.add('hidden');
   document.getElementById('app-container').classList.add('hidden');
+  
+  const authWarning = document.getElementById('login-auth-warning');
+  if (authWarning) {
+    authWarning.classList.add('hidden');
+    authWarning.classList.remove('flex');
+  }
+  
   applyStatusToLoginScreen(status);
 }
 
