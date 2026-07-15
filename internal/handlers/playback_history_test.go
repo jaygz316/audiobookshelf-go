@@ -56,6 +56,13 @@ func TestListeningStatsAndHistory(t *testing.T) {
 		t.Fatalf("Failed to seed playbackSession 2: %v", err)
 	}
 
+	// Seed mediaProgresses for user-normal
+	_, err = db.Exec(`INSERT INTO mediaProgresses (id, userId, mediaItemId, isFinished, currentTime, updatedAt) 
+		VALUES ('prog-1', 'user-normal', 'book-1', 1, 120.0, ?)`, todayStr)
+	if err != nil {
+		t.Fatalf("Failed to seed mediaProgresses: %v", err)
+	}
+
 	normalSession := &core.UserSession{ID: "user-normal", Username: "normaluser", Type: "user", IsActive: true}
 	otherSession := &core.UserSession{ID: "user-other", Username: "otheruser", Type: "user", IsActive: true}
 	rootSession := &core.UserSession{ID: "user-root", Username: "rootuser", Type: "root", IsActive: true}
@@ -86,6 +93,12 @@ func TestListeningStatsAndHistory(t *testing.T) {
 		}
 		if len(stats.RecentSessions) != 2 {
 			t.Errorf("Expected 2 recent sessions, got %d", len(stats.RecentSessions))
+		}
+		if stats.ItemsFinished != 1 {
+			t.Errorf("Expected ItemsFinished 1, got %d", stats.ItemsFinished)
+		}
+		if stats.DaysListened != 2 {
+			t.Errorf("Expected DaysListened 2, got %d", stats.DaysListened)
 		}
 	})
 
@@ -167,6 +180,13 @@ func TestListeningStatsAndHistory(t *testing.T) {
 		// TopUsers should contain normaluser with 180.0
 		if stats.TopUsers["normaluser"] != 180.0 {
 			t.Errorf("Expected top user normaluser 180.0, got %v", stats.TopUsers)
+		}
+
+		if stats.ItemsFinished != 1 {
+			t.Errorf("Expected ItemsFinished 1, got %d", stats.ItemsFinished)
+		}
+		if stats.DaysListened != 2 {
+			t.Errorf("Expected DaysListened 2, got %d", stats.DaysListened)
 		}
 	})
 }

@@ -45,6 +45,8 @@ type ListeningStatsResponse struct {
 	TopAuthors     map[string]float64            `json:"topAuthors"`
 	TopGenres      map[string]float64            `json:"topGenres"`
 	RecentSessions []PlaybackSessionResponse     `json:"recentSessions"`
+	ItemsFinished  int                           `json:"itemsFinished"`
+	DaysListened   int                           `json:"daysListened"`
 }
 
 type ServerListeningStatsResponse struct {
@@ -57,6 +59,8 @@ type ServerListeningStatsResponse struct {
 	TopGenres      map[string]float64            `json:"topGenres"`
 	TopUsers       map[string]float64            `json:"topUsers"`
 	RecentSessions []PlaybackSessionResponse     `json:"recentSessions"`
+	ItemsFinished  int                           `json:"itemsFinished"`
+	DaysListened   int                           `json:"daysListened"`
 }
 
 func getListeningStatsInternal(dbConn *sql.DB, targetUserID string, isServer bool) (totalTime float64, todayTime float64, daysMap map[string]float64, dayOfWeekMap map[string]float64, itemsMap map[string]ListeningStatsItem, authorsMap map[string]float64, genresMap map[string]float64, topUsersMap map[string]float64, recentSessions []PlaybackSessionResponse, err error) {
@@ -249,6 +253,11 @@ func getUserListeningStats(dbConn *sql.DB, targetUserID string) (ListeningStatsR
 	if err != nil {
 		return ListeningStatsResponse{}, err
 	}
+	var itemsFinished int
+	err = dbConn.QueryRow("SELECT COUNT(*) FROM mediaProgresses WHERE userId = ? AND isFinished = 1", targetUserID).Scan(&itemsFinished)
+	if err != nil {
+		log.Errorf("failed to count finished items for user: %v", err)
+	}
 	return ListeningStatsResponse{
 		TotalTime:      totalTime,
 		Today:          todayTime,
@@ -258,6 +267,8 @@ func getUserListeningStats(dbConn *sql.DB, targetUserID string) (ListeningStatsR
 		TopAuthors:     authorsMap,
 		TopGenres:      genresMap,
 		RecentSessions: recentSessions,
+		ItemsFinished:  itemsFinished,
+		DaysListened:   len(daysMap),
 	}, nil
 }
 
@@ -265,6 +276,11 @@ func getServerListeningStats(dbConn *sql.DB) (ServerListeningStatsResponse, erro
 	totalTime, todayTime, daysMap, dayOfWeekMap, itemsMap, authorsMap, genresMap, topUsersMap, recentSessions, err := getListeningStatsInternal(dbConn, "", true)
 	if err != nil {
 		return ServerListeningStatsResponse{}, err
+	}
+	var itemsFinished int
+	err = dbConn.QueryRow("SELECT COUNT(*) FROM mediaProgresses WHERE isFinished = 1").Scan(&itemsFinished)
+	if err != nil {
+		log.Errorf("failed to count finished items for server: %v", err)
 	}
 	return ServerListeningStatsResponse{
 		TotalTime:      totalTime,
@@ -276,6 +292,8 @@ func getServerListeningStats(dbConn *sql.DB) (ServerListeningStatsResponse, erro
 		TopGenres:      genresMap,
 		TopUsers:       topUsersMap,
 		RecentSessions: recentSessions,
+		ItemsFinished:  itemsFinished,
+		DaysListened:   len(daysMap),
 	}, nil
 }
 

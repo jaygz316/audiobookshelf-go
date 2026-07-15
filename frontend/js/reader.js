@@ -1030,6 +1030,13 @@ export async function openEbookReader(item, token) {
           if (pageInfo) {
             if (location.start.displayed && location.start.displayed.page && location.start.displayed.total) {
               pageInfo.textContent = `Page ${location.start.displayed.page} of ${location.start.displayed.total}`;
+            } else if (book.locations && book.locations.total > 0) {
+              const locIndex = book.locations.locationFromCfi(cfi);
+              if (locIndex !== -1 && locIndex !== undefined && locIndex !== null) {
+                pageInfo.textContent = `Page ${locIndex + 1} of ${book.locations.total}`;
+              } else {
+                pageInfo.textContent = '';
+              }
             } else {
               pageInfo.textContent = '';
             }
@@ -1069,6 +1076,7 @@ export async function openEbookReader(item, token) {
         rendition.themes.register("dark", getThemeRules("dark", currentFont, currentLineHeight, currentMargin));
         
         rendition.themes.select(currentTheme);
+        rendition.themes.fontSize(`${currentFontSize}%`);
         
         if (currentFlow === 'paginated') {
           rendition.spread(currentLayout);
@@ -1714,11 +1722,7 @@ export async function openEbookReader(item, token) {
                 
                 const bm = bms.find(b => b.time === timeVal);
                 if (bm && bm.cfi && rendition) {
-                  let hlClass = "epubjs-hl-yellow";
-                  if (bm.color === '#8bc34a') hlClass = "epubjs-hl-green";
-                  else if (bm.color === '#f48fb1') hlClass = "epubjs-hl-pink";
-                  else if (bm.color === '#29b6f6') hlClass = "epubjs-hl-blue";
-                  rendition.annotations.remove(bm.cfi, hlClass);
+                  rendition.annotations.remove(bm.cfi, "highlight");
                 }
 
                 await refreshBookmarksTab();
@@ -1785,6 +1789,14 @@ export async function openEbookReader(item, token) {
           const progressBarFill = document.getElementById('reader-progress-bar-fill');
           if (progressPercentText) progressPercentText.textContent = `Progress: ${pctDisplay}%`;
           if (progressBarFill) progressBarFill.style.width = `${pctDisplay}%`;
+          
+          const pageInfo = document.getElementById('epub-page-info');
+          if (pageInfo) {
+            const locIndex = book.locations.locationFromCfi(cfi);
+            if (locIndex !== -1 && locIndex !== undefined && locIndex !== null) {
+              pageInfo.textContent = `Page ${locIndex + 1} of ${book.locations.total}`;
+            }
+          }
         }
       });
 

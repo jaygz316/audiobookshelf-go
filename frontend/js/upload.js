@@ -71,8 +71,17 @@ function updateQueueUI() {
   const queueContainer = uploadModal.querySelector('#upload-queue-container');
   const queueSummary = uploadModal.querySelector('#upload-queue-summary');
   const uploadBtn = uploadModal.querySelector('#upload-start-btn');
+  const clearBtn = uploadModal.querySelector('#clear-queue-btn');
 
   if (!queueContainer || !queueSummary) return;
+
+  if (clearBtn) {
+    if (fileQueue.length > 0) {
+      clearBtn.classList.remove('hidden');
+    } else {
+      clearBtn.classList.add('hidden');
+    }
+  }
 
   if (fileQueue.length === 0) {
     queueContainer.innerHTML = `
@@ -317,15 +326,25 @@ function renderModal(libraryId, libraryName, folders) {
   updateQueueUI();
 }
 
+async function readAllDirectoryEntries(dirReader) {
+  let allEntries = [];
+  while (true) {
+    const entries = await new Promise((resolve, reject) => {
+      dirReader.readEntries(resolve, reject);
+    });
+    if (entries.length === 0) break;
+    allEntries.push(...entries);
+  }
+  return allEntries;
+}
+
 async function getFilesFromEntry(entry, path = '') {
   if (entry.isFile) {
     const file = await new Promise((resolve, reject) => entry.file(resolve, reject));
     return [{ file, path: path + file.name }];
   } else if (entry.isDirectory) {
     const dirReader = entry.createReader();
-    const entries = await new Promise((resolve, reject) => {
-      dirReader.readEntries(resolve, reject);
-    });
+    const entries = await readAllDirectoryEntries(dirReader);
     const filePromises = entries.map(childEntry => 
       getFilesFromEntry(childEntry, path + entry.name + '/')
     );
