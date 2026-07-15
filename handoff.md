@@ -15,9 +15,9 @@
 ## Next Screen in Queue
 - **Regression Pass / User Verification**: All 13 screens in the audit queue (Login, Onboarding, Home, Header, Sidebar, Library Grid, Series, Detail Page, Player, Settings, Stats, Upload, Reader) have been audited and achieved complete visual/functional parity. Suggesting a final regression pass across all views or user verification review.
 
-## Controls Verified Working This Run
+## Buttons/Controls Verified Working This Run
 - **Play Playlist starting from X**: Play button on track rows starts sequential playback at that track and populates the remaining queue.
 - **Server Compilation & Rebuild**: Port 3333 is open, responding with `200 OK`.
 
-## Controls Known Broken
+## Buttons/Controls Known Broken
 - None.
