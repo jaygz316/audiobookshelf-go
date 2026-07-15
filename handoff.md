@@ -1,24 +1,28 @@
 # Handoff: Audiobookshelf Go Port — UX Audit
 
 ## Current Screen Under Audit
-- **Screen**: Priority 10 — Authentication, User Management, and Settings UI
-- **Status**: ✅ Completed
+- **Screen**: Priority 11 — Stats Page
+- **Status**: ✅ Complete
 
-## What Was Fixed/Verified This Run
-- **OIDC Client Settings Parity**: Added missing options to the settings interface including "Match Existing Users By" dropdown selection, "Group Claim", "Advanced Permissions Claim", and "Use subfolder for redirect URLs" toggle switches.
-- **Login screen auto-launch capabilities**: Wired up automatic client redirecting to the server's OpenID Connect login callback when `authOpenIDAutoLaunch` is toggled on, allowing custom bypass options via `local` or `bypass` URL parameters.
-- **User Management and Permission Toggles**: Reviewed user creation/edit modals, confirming full coverage of password manipulation, account type scopes, active switches, granular access filters (tag blocking/allowing, specific libraries checklists), and standard sliding pill-shaped toggles.
+## What Was Fixed This Run
+- **Heatmap Calendar Dimensions**: Adjusted the outer relative calendar border container's height to `156px` and shifted the inner calendar column grid container's top margin to `mt-8` (`32px`), giving the translated month labels a clean `17px` padding to prevent squishing and overflow.
+- **Robust SQLite Timestamps**: Refactored recent sessions list, session pagination table, and general date formatting inside the stats page to use a UTC-safe helper `parseSQLiteTime()`. This avoids parser failures with default timezone formatting on systems without standard SQLite date parsing.
+- **UTC-Native Streak and Charts**: Native UTC calculations for the 7-day line chart data list, streak tracking, and monthly Listening chart ranges to maintain correct day offsets regardless of client machine's local time offsets.
+- **Upload Reload Dispatch**: Added CustomEvent `'library-changed'` trigger in `upload.js` upon multipart upload success and modal close to reload active bookshelves dynamically.
+- **Reader Scope Cleanup**: Moved ebook reader `clickOutsideSettings` and `clickOutsideTts` listeners to parent function scope to prevent reference errors during overlay cleanup.
 
 ## Remaining Issues on This Screen
 - None.
 
 ## Next Screen in Queue
-- **Priority 11 — Stats Page**: (Completed regression pass, verify charts/graphs & SVG calendars).
+- **Priority 12 — Upload Page**: (Inspect styling, progress bar indicator visual details, and drag-and-drop boundary visual feedback).
 
 ## Buttons/Controls Verified Working This Run
-- **Save Auth Settings** form.
-- **Auto-Launch OIDC toggle** switch and automatic redirect trigger on login page.
-- **Match Existing Users By** dropdown selector.
-- **Create User / Edit User** modals and saving functions.
-- **Permission switches** (Download, Upload, Delete, Update, RSS, Shares, All Libraries).
-- **Library and Tag checklists** inside the user modal.
+- **My Stats**, **Library Stats**, and **Server Stats** tabs.
+- **Listening Session Table paginators** (Previous/Next buttons, page status counters).
+- **Library Selector dropdown** on Library Stats tab.
+- **Heatmap calendar hover tooltips** and block highlighting.
+- **Ebook Reader Settings** popover toggles and outside click handler.
+
+## Buttons/Controls Known Broken
+- None.
