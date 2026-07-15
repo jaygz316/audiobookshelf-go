@@ -1,31 +1,27 @@
 # Handoff: Audiobookshelf Go Port — UX Audit
 
 ## Current Screen Under Audit
-- **Screen**: Home / Dashboard (Priority 2)
+- **Screen**: Header Bar (Priority 3)
 - **Status**: ✅ Complete
 
 ## What Was Fixed This Run
-- **Visuals**:
-  - Moved the card hover translation styles (`transform: translateY(-6px)`) from `img` to the card `.group` container itself in both `.bookshelfRow` and `.library-shelf-grid`. This ensures that the hover overlay details, progress bar, and play buttons translate up together.
-  - Deepened image drop shadows on hover (`box-shadow: 0 12px 24px rgba(0, 0, 0, 0.65), 0 4px 10px rgba(0, 0, 0, 0.45)`).
-  - Ensured progress bars on continue listening cards are set to `z-50` so they remain visible on hover instead of being covered by detail overlays.
-- **Functional & Interactions**:
-  - Added a Play button overlay (`.card-play-btn-overlay`) in the center of cards specifically for the "Continue Listening" row.
-  - Wired the card play button to call `playItem(item.id)` to trigger immediate audio playback, with event propagation stopped to prevent details page navigation.
-  - Kept card-click to navigate to item details as default behavior for non-play interactions.
+- **Search Integration**: Fully wired search input field to backend GET `/api/libraries/:id/search` endpoint. Handled dropdown rendering of Books, Podcasts, Episodes, Authors, Series, Tags, Genres, and Narrators. Wired click actions to correctly navigate to their detail views or filter the library view.
+- **Keyboard Controls & Cleanup**: Added ArrowDown/ArrowUp/Enter/Escape navigation inside the search dropdown, search clearing capability, and responsive layout for mobile views with a top-bar search overlay toggle.
+- **Chromecast Visibility**: Linked Chromecast cast icon button visibility in header and player dynamically to `chromecastEnabled` user settings.
 
 ## Remaining Issues on This Screen
-- None. Bookshelf, reflection, sizing slider, play button overlays, and grid toggle parity are complete.
+- None.
 
 ## Next Screen in Queue
-- **Header Bar (Priority 3)** (Logo & brand, library switcher dropdown, search, icon buttons, user badge).
+- **Sidebar Navigation (Priority 4)** (Nav items: Home, Library, Series, Collections, Playlists, Authors, Narrators, Stats — exact icons, spacing, active/hover highlight states; routing, collapse/expand, footer).
 
 ## Buttons/Controls Verified Working This Run
-- **Shelf Sizing Controls (+ / -)**: Adjusts card size dynamically between 80px and 240px and persists in localStorage.
-- **Bookshelf / Grid / List View Toggle**: Changes dashboard layout style and updates visible components.
-- **Continue Listening Play Button**: Instantly triggers playback session and plays item.
-- **Card Click Navigation**: Navigates to item detail view.
-- **Customize Columns Dropdown (List View)**: Selects, persists, and dynamically renders visible columns.
+- **Global Search Input**: Text search triggers API request and updates results dropdown.
+- **Search Dropdown Clickable Items**: Clicking navigate to corresponding pages (/item/:id, /author/:id, /series/:id, or triggers library filtering).
+- **Search Clear Button (Close Insignia)**: Clears input, hides dropdown, and reloads active library items.
+- **Keyboard Navigation (Arrows/Enter/Esc)**: Selects and activates options in search dropdown.
+- **User Settings & Administration Dropdown links**: Navigates user to /settings page.
+- **Mobile Search button**: Opens mobile search overlay.
 
 ## Buttons/Controls Known Broken
 - None.
