@@ -1062,14 +1062,381 @@ function bootstrapApp(payload) {
     }
   }
 
-  // Set up global search input listener
+  // Set up global search input listener and dropdown menu handling
   const globalSearchInput = document.getElementById('global-search-input');
+  const globalSearchClearBtn = document.getElementById('global-search-clear-btn');
+  const globalSearchDropdown = document.getElementById('global-search-dropdown');
+  const globalSearchResultsList = document.getElementById('global-search-results-list');
+  const globalSearchContainer = document.getElementById('global-search-container');
+  const mobileSearchBtn = document.getElementById('mobile-search-btn');
+
   if (globalSearchInput) {
     let searchDebounceTimeout = null;
-    globalSearchInput.oninput = (e) => {
-      clearTimeout(searchDebounceTimeout);
-      searchDebounceTimeout = setTimeout(() => {
+    let lastQuery = '';
+    let activeSearchResultIndex = -1;
+
+    const getSelectableItems = () => {
+      if (!globalSearchResultsList) return [];
+      return globalSearchResultsList.querySelectorAll('li[data-type]');
+    };
+
+    const clearSearchResultHighlight = (items) => {
+      items.forEach(item => {
+        item.classList.remove('bg-black-300', 'text-white');
+        item.classList.add('hover:bg-black-400', 'text-gray-50');
+      });
+    };
+
+    const highlightSearchResult = (items, index) => {
+      clearSearchResultHighlight(items);
+      if (index >= 0 && index < items.length) {
+        const item = items[index];
+        item.classList.remove('hover:bg-black-400', 'text-gray-50');
+        item.classList.add('bg-black-300', 'text-white');
+        item.scrollIntoView({ block: 'nearest' });
+      }
+    };
+
+    const hideSearchDropdown = () => {
+      if (globalSearchDropdown) {
+        globalSearchDropdown.classList.add('hidden');
+      }
+    };
+
+    const showSearchDropdown = () => {
+      if (globalSearchDropdown) {
+        globalSearchDropdown.classList.remove('hidden');
+      }
+    };
+
+    const updateSearchClearBtnVisibility = () => {
+      if (!globalSearchClearBtn) return;
+      const isMobileActive = globalSearchContainer && globalSearchContainer.classList.contains('mobile-active');
+      if (globalSearchInput.value.length > 0 || isMobileActive) {
+        globalSearchClearBtn.classList.remove('hidden');
+      } else {
+        globalSearchClearBtn.classList.add('hidden');
+      }
+    };
+
+    if (mobileSearchBtn && globalSearchContainer) {
+      mobileSearchBtn.onclick = (e) => {
+        e.stopPropagation();
+        globalSearchContainer.classList.add('mobile-active');
+        globalSearchInput.focus();
+        updateSearchClearBtnVisibility();
+      };
+    }
+
+    // Close dropdown on click outside
+    document.addEventListener('click', (e) => {
+      const container = document.getElementById('global-search-container');
+      const mobBtn = document.getElementById('mobile-search-btn');
+      if (container && !container.contains(e.target) && (!mobBtn || !mobBtn.contains(e.target))) {
+        hideSearchDropdown();
+        if (container.classList.contains('mobile-active')) {
+          container.classList.remove('mobile-active');
+          updateSearchClearBtnVisibility();
+        }
+      }
+    });
+
+    // Handle clearing the search
+    if (globalSearchClearBtn) {
+      globalSearchClearBtn.onclick = () => {
+        if (globalSearchInput.value === '') {
+          if (globalSearchContainer && globalSearchContainer.classList.contains('mobile-active')) {
+            globalSearchContainer.classList.remove('mobile-active');
+            hideSearchDropdown();
+            updateSearchClearBtnVisibility();
+            return;
+          }
+        }
+        globalSearchInput.value = '';
+        updateSearchClearBtnVisibility();
+        hideSearchDropdown();
+        lastQuery = '';
+        activeSearchResultIndex = -1;
         const activeLibId = getActiveLibraryId();
+        if (activeLibId && (window.location.pathname === '/' || window.location.pathname === '/library')) {
+          loadDashboard(activeLibId);
+        }
+        globalSearchInput.focus();
+      };
+    }
+
+    // Function to escape HTML
+    const escapeHtml = (str) => {
+      if (!str) return '';
+      return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    };
+
+    // Render search results
+    const renderSearchResults = (data, query) => {
+      if (!globalSearchResultsList) return;
+      globalSearchResultsList.innerHTML = '';
+      activeSearchResultIndex = -1;
+
+      let totalResults = 0;
+      const token = localStorage.getItem('token');
+
+      // Helper to add results section
+      const appendSection = (title, items, renderFunc) => {
+        if (!items || items.length === 0) return;
+        totalResults += items.length;
+
+        const headerLi = document.createElement('li');
+        headerLi.className = 'px-3 py-1 text-xs font-semibold text-gray-400 uppercase tracking-wider select-none bg-black-700/50';
+        headerLi.textContent = title;
+        globalSearchResultsList.appendChild(headerLi);
+
+        items.forEach(item => {
+          const li = document.createElement('li');
+          li.className = 'px-3 py-2 hover:bg-black-400 cursor-pointer flex items-center text-gray-50 border-b border-black-600/30';
+          renderFunc(li, item);
+          globalSearchResultsList.appendChild(li);
+        });
+      };
+
+      // 1. Books
+      appendSection('Books', data.book, (li, b) => {
+        const item = b.libraryItem || {};
+        const media = item.media || {};
+        const title = media.metadata?.title || item.title || 'Untitled';
+        const subtitle = media.metadata?.subtitle || '';
+        const authorName = media.metadata?.authorName || 'Unknown';
+        const ts = item.updatedAt || item.addedAt || Date.now();
+        const coverUrl = resolvePath(`/api/items/${item.id}/cover?token=${token}&ts=${ts}`);
+
+        li.setAttribute('data-type', 'item');
+        li.setAttribute('data-id', item.id);
+        li.innerHTML = `
+          <img src="${coverUrl}" class="w-8 h-12 object-cover rounded-sm mr-3 bg-black-700" onerror="this.onerror=null; this.src='assets/images/logo.png'">
+          <div class="grow min-w-0">
+            <p class="truncate text-sm font-medium text-white">${escapeHtml(title)}</p>
+            ${subtitle ? `<p class="truncate text-xs text-gray-300">${escapeHtml(subtitle)}</p>` : ''}
+            <p class="truncate text-xs text-gray-400">${escapeHtml(authorName)}</p>
+          </div>
+        `;
+      });
+
+      // 2. Podcasts
+      appendSection('Podcasts', data.podcast, (li, p) => {
+        const item = p.libraryItem || {};
+        const media = item.media || {};
+        const title = media.metadata?.title || item.title || 'Untitled';
+        const authorName = media.metadata?.author || 'Unknown';
+        const ts = item.updatedAt || item.addedAt || Date.now();
+        const coverUrl = resolvePath(`/api/items/${item.id}/cover?token=${token}&ts=${ts}`);
+
+        li.setAttribute('data-type', 'item');
+        li.setAttribute('data-id', item.id);
+        li.innerHTML = `
+          <img src="${coverUrl}" class="w-8 h-12 object-cover rounded-sm mr-3 bg-black-700" onerror="this.onerror=null; this.src='assets/images/logo.png'">
+          <div class="grow min-w-0">
+            <p class="truncate text-sm font-medium text-white">${escapeHtml(title)}</p>
+            <p class="truncate text-xs text-gray-400">${escapeHtml(authorName)}</p>
+          </div>
+        `;
+      });
+
+      // 3. Episodes
+      appendSection('Episodes', data.episodes, (li, ep) => {
+        const item = ep.libraryItem || {};
+        const media = item.media || {};
+        const episodeTitle = ep.title || 'No Title';
+        const podcastTitle = media.metadata?.title || 'No Title';
+        const ts = item.updatedAt || item.addedAt || Date.now();
+        const coverUrl = resolvePath(`/api/items/${item.id}/cover?token=${token}&ts=${ts}`);
+
+        li.setAttribute('data-type', 'item');
+        li.setAttribute('data-id', item.id);
+        li.innerHTML = `
+          <img src="${coverUrl}" class="w-8 h-12 object-cover rounded-sm mr-3 bg-black-700" onerror="this.onerror=null; this.src='assets/images/logo.png'">
+          <div class="grow min-w-0">
+            <p class="truncate text-sm font-medium text-white">${escapeHtml(episodeTitle)}</p>
+            <p class="truncate text-xs text-gray-400">${escapeHtml(podcastTitle)}</p>
+          </div>
+        `;
+      });
+
+      // 4. Authors
+      appendSection('Authors', data.authors, (li, auth) => {
+        const authorInitials = auth.name ? auth.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : '';
+        const authorImageUrl = resolvePath(`/api/authors/${auth.id}/image?token=${token}`);
+
+        li.setAttribute('data-type', 'author');
+        li.setAttribute('data-id', auth.id);
+        li.innerHTML = `
+          <img src="${authorImageUrl}" class="w-8 h-8 rounded-full object-cover mr-3 bg-black-700" onerror="this.onerror=null; this.style.display='none'; this.nextElementSibling.style.display='flex';">
+          <div class="w-8 h-8 rounded-full bg-accent text-primary font-bold text-xs flex items-center justify-center mr-3 select-none hidden">${escapeHtml(authorInitials)}</div>
+          <div class="grow min-w-0">
+            <p class="truncate text-sm font-medium text-white">${escapeHtml(auth.name)}</p>
+            <p class="truncate text-xs text-gray-400">${auth.numBooks} ${auth.numBooks === 1 ? 'Book' : 'Books'}</p>
+          </div>
+        `;
+      });
+
+      // 5. Series
+      appendSection('Series', data.series, (li, ser) => {
+        li.setAttribute('data-type', 'series');
+        li.setAttribute('data-id', ser.id);
+        li.innerHTML = `
+          <div class="w-8 h-8 flex items-center justify-center mr-3 bg-black-600 rounded-sm select-none">
+            <span class="material-symbols text-xl text-gray-200">layers</span>
+          </div>
+          <div class="grow min-w-0">
+            <p class="truncate text-sm font-medium text-white">${escapeHtml(ser.name)}</p>
+          </div>
+        `;
+      });
+
+      // 6. Narrators
+      appendSection('Narrators', data.narrators, (li, narr) => {
+        li.setAttribute('data-type', 'narrator');
+        li.setAttribute('data-val', narr.name);
+        li.innerHTML = `
+          <div class="w-8 h-8 flex items-center justify-center mr-3 select-none">
+            <span class="material-symbols text-xl text-gray-200">record_voice_over</span>
+          </div>
+          <div class="grow min-w-0">
+            <p class="truncate text-sm font-medium text-white">${escapeHtml(narr.name)}</p>
+            <p class="truncate text-xs text-gray-400">${narr.numBooks} ${narr.numBooks === 1 ? 'Book' : 'Books'}</p>
+          </div>
+        `;
+      });
+
+      // 7. Tags
+      appendSection('Tags', data.tags, (li, tag) => {
+        li.setAttribute('data-type', 'tag');
+        li.setAttribute('data-val', tag.name);
+        li.innerHTML = `
+          <div class="w-8 h-8 flex items-center justify-center mr-3 select-none">
+            <span class="material-symbols text-xl text-gray-200">local_offer</span>
+          </div>
+          <div class="grow min-w-0">
+            <p class="truncate text-sm font-medium text-white">${escapeHtml(tag.name)}</p>
+            <p class="truncate text-xs text-gray-400">${tag.numItems} ${tag.numItems === 1 ? 'Item' : 'Items'}</p>
+          </div>
+        `;
+      });
+
+      // 8. Genres
+      appendSection('Genres', data.genres, (li, gen) => {
+        li.setAttribute('data-type', 'genre');
+        li.setAttribute('data-val', gen.name);
+        li.innerHTML = `
+          <div class="w-8 h-8 flex items-center justify-center mr-3 select-none">
+            <span class="material-symbols text-xl text-gray-200">category</span>
+          </div>
+          <div class="grow min-w-0">
+            <p class="truncate text-sm font-medium text-white">${escapeHtml(gen.name)}</p>
+            <p class="truncate text-xs text-gray-400">${gen.numItems} ${gen.numItems === 1 ? 'Item' : 'Items'}</p>
+          </div>
+        `;
+      });
+
+      if (totalResults === 0) {
+        globalSearchResultsList.innerHTML = `<li class="text-center py-4 text-gray-400 select-none">No results found</li>`;
+      }
+
+      // Wire up clicks on items
+      globalSearchResultsList.querySelectorAll('li[data-type]').forEach(el => {
+        el.onclick = (e) => {
+          e.stopPropagation();
+          const type = el.getAttribute('data-type');
+          hideSearchDropdown();
+
+          if (type === 'item') {
+            const id = el.getAttribute('data-id');
+            navigateTo(`/item/${id}`);
+          } else if (type === 'author') {
+            const id = el.getAttribute('data-id');
+            navigateTo(`/author/${id}`);
+          } else if (type === 'series') {
+            const id = el.getAttribute('data-id');
+            navigateTo(`/series/${id}`);
+          } else if (type === 'tag') {
+            const val = el.getAttribute('data-val');
+            const encoded = btoa(unescape(encodeURIComponent(val)));
+            localStorage.setItem('library-filterBy', 'tags.' + encoded);
+            const labelEl = document.getElementById('filter-selected-label');
+            if (labelEl) labelEl.textContent = 'Tag: ' + val;
+            navigateTo('/');
+          } else if (type === 'genre') {
+            const val = el.getAttribute('data-val');
+            const encoded = btoa(unescape(encodeURIComponent(val)));
+            localStorage.setItem('library-filterBy', 'genres.' + encoded);
+            const labelEl = document.getElementById('filter-selected-label');
+            if (labelEl) labelEl.textContent = 'Genre: ' + val;
+            navigateTo('/');
+          } else if (type === 'narrator') {
+            const val = el.getAttribute('data-val');
+            const encoded = btoa(unescape(encodeURIComponent(val)));
+            localStorage.setItem('library-filterBy', 'narrators.' + encoded);
+            const labelEl = document.getElementById('filter-selected-label');
+            if (labelEl) labelEl.textContent = 'Narrator: ' + val;
+            navigateTo('/');
+          }
+        };
+      });
+    };
+
+    globalSearchInput.onfocus = () => {
+      const query = globalSearchInput.value.trim();
+      if (query) {
+        showSearchDropdown();
+      }
+    };
+
+    globalSearchInput.oninput = (e) => {
+      const query = globalSearchInput.value.trim();
+      
+      if (!query) {
+        updateSearchClearBtnVisibility();
+        hideSearchDropdown();
+        lastQuery = '';
+        const activeLibId = getActiveLibraryId();
+        if (activeLibId && (window.location.pathname === '/' || window.location.pathname === '/library')) {
+          loadDashboard(activeLibId);
+        }
+        return;
+      }
+
+      updateSearchClearBtnVisibility();
+      showSearchDropdown();
+
+      if (globalSearchResultsList) {
+        // Show spinner
+        globalSearchResultsList.innerHTML = `<li class="text-center py-4 text-gray-400 select-none"><span class="material-symbols animate-spin">sync</span></li>`;
+      }
+
+      clearTimeout(searchDebounceTimeout);
+      searchDebounceTimeout = setTimeout(async () => {
+        if (query !== globalSearchInput.value.trim()) return;
+        lastQuery = query;
+
+        const activeLibId = getActiveLibraryId();
+        if (!activeLibId) return;
+
+        try {
+          const response = await request('GET', `/api/libraries/${activeLibId}/search?q=${encodeURIComponent(query)}&limit=3`);
+          if (query === globalSearchInput.value.trim()) {
+            renderSearchResults(response, query);
+          }
+        } catch (err) {
+          console.error('Search error:', err);
+          if (query === globalSearchInput.value.trim()) {
+            globalSearchResultsList.innerHTML = `<li class="text-center py-4 text-error select-none">Error loading results</li>`;
+          }
+        }
+
+        // Keep real-time dashboard filtering in sync if currently on dashboard
         let relPath = window.location.pathname;
         if (typeof ROUTER_BASE_PATH !== 'undefined' && ROUTER_BASE_PATH && relPath.startsWith(ROUTER_BASE_PATH)) {
           relPath = relPath.substring(ROUTER_BASE_PATH.length);
@@ -1078,13 +1445,53 @@ function bootstrapApp(payload) {
           relPath = '/' + relPath;
         }
         const isDashboard = (relPath === '/' || relPath === '/library');
-        if (!isDashboard) {
-          // Redirect to dashboard (home) which will pick up the search term from globalSearchInput
-          navigateTo('/');
-        } else if (activeLibId) {
+        if (isDashboard) {
           loadDashboard(activeLibId);
         }
       }, 300);
+    };
+
+    // Keyboard support (Arrow keys, ENTER, ESCAPE)
+    globalSearchInput.onkeydown = (e) => {
+      const items = getSelectableItems();
+      
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        if (items.length === 0) return;
+        activeSearchResultIndex = (activeSearchResultIndex + 1) % items.length;
+        highlightSearchResult(items, activeSearchResultIndex);
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (items.length === 0) return;
+        activeSearchResultIndex = (activeSearchResultIndex - 1 + items.length) % items.length;
+        highlightSearchResult(items, activeSearchResultIndex);
+      } else if (e.key === 'Enter') {
+        if (activeSearchResultIndex >= 0 && activeSearchResultIndex < items.length) {
+          e.preventDefault();
+          items[activeSearchResultIndex].click();
+        } else {
+          e.preventDefault();
+          hideSearchDropdown();
+          const activeLibId = getActiveLibraryId();
+          let relPath = window.location.pathname;
+          if (typeof ROUTER_BASE_PATH !== 'undefined' && ROUTER_BASE_PATH && relPath.startsWith(ROUTER_BASE_PATH)) {
+            relPath = relPath.substring(ROUTER_BASE_PATH.length);
+          }
+          if (!relPath.startsWith('/')) {
+            relPath = '/' + relPath;
+          }
+          const isDashboard = (relPath === '/' || relPath === '/library');
+          if (!isDashboard) {
+            navigateTo('/');
+          } else if (activeLibId) {
+            loadDashboard(activeLibId);
+          }
+        }
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        hideSearchDropdown();
+        globalSearchInput.blur();
+      }
     };
   }
 
@@ -1175,8 +1582,12 @@ function navigateTo(path, pushState = true) {
   const showControls = (relPath === '/' || relPath === '/library');
   
   const globalSearchInput = document.getElementById('global-search-input');
-  if (!showControls && globalSearchInput) {
-    globalSearchInput.value = '';
+  const globalSearchClearBtn = document.getElementById('global-search-clear-btn');
+  const globalSearchDropdown = document.getElementById('global-search-dropdown');
+  if (!showControls) {
+    if (globalSearchInput) globalSearchInput.value = '';
+    if (globalSearchClearBtn) globalSearchClearBtn.classList.add('hidden');
+    if (globalSearchDropdown) globalSearchDropdown.classList.add('hidden');
   }
   
   if (filterBtn) {

@@ -3701,6 +3701,26 @@ export function applyServerThemeAndCss(settings) {
   } else if (styleEl) {
     styleEl.remove();
   }
+
+  // Chromecast visibility control
+  const headerCastBtn = document.getElementById('header-cast-btn');
+  const playerCastBtn = document.getElementById('player-cast-btn');
+  const chromecastEnabled = settings.chromecastEnabled !== false;
+
+  if (headerCastBtn) {
+    if (chromecastEnabled) {
+      headerCastBtn.classList.remove('hidden');
+    } else {
+      headerCastBtn.classList.add('hidden');
+    }
+  }
+  if (playerCastBtn) {
+    if (chromecastEnabled) {
+      playerCastBtn.classList.remove('hidden');
+    } else {
+      playerCastBtn.classList.add('hidden');
+    }
+  }
 }
 
 let tasksPollInterval = null;

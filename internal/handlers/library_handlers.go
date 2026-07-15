@@ -15,6 +15,8 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -1609,6 +1611,401 @@ func handleUploadCover(db *sql.DB, cfg *core.Config, itemID string) http.Handler
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"success":   true,
 			"coverPath": destPath,
+		})
+	}
+}
+
+// HandleSearchLibrary handles GET /api/libraries/{libraryID}/search
+func HandleSearchLibrary(db *sql.DB, libraryID string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		log.Infof("[Go] GET /api/libraries/%s/search", libraryID)
+
+		userVal := r.Context().Value(core.UserContextKey)
+		if userVal == nil {
+			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
+			return
+		}
+		user := userVal.(*core.UserSession)
+		if !user.CanAccessLibrary(libraryID) {
+			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
+			return
+		}
+
+		q := r.URL.Query().Get("q")
+		if q == "" {
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"book":      []interface{}{},
+				"podcast":   []interface{}{},
+				"episodes":  []interface{}{},
+				"authors":   []interface{}{},
+				"series":    []interface{}{},
+				"tags":      []interface{}{},
+				"genres":    []interface{}{},
+				"narrators": []interface{}{},
+			})
+			return
+		}
+
+		limitVal := r.URL.Query().Get("limit")
+		limit := 3
+		if limitVal != "" {
+			if l, err := strconv.Atoi(limitVal); err == nil && l > 0 {
+				limit = l
+			}
+		}
+
+		// 1. Books (MediaType: "book")
+		var bookResults []map[string]interface{} = []map[string]interface{}{}
+		optsBooks := idb.GetFilteredLibraryItemsOptions{
+			LibraryID: libraryID,
+			User:      user,
+			Search:    q,
+			Limit:     limit,
+			MediaType: "book",
+		}
+		bookItems, _, err := idb.GetFilteredLibraryItems(db, optsBooks)
+		if err == nil {
+			for _, item := range bookItems {
+				bookResults = append(bookResults, map[string]interface{}{
+					"libraryItem": item,
+				})
+			}
+		}
+
+		// 2. Podcasts (MediaType: "podcast")
+		var podcastResults []map[string]interface{} = []map[string]interface{}{}
+		optsPodcasts := idb.GetFilteredLibraryItemsOptions{
+			LibraryID: libraryID,
+			User:      user,
+			Search:    q,
+			Limit:     limit,
+			MediaType: "podcast",
+		}
+		podcastItems, _, err := idb.GetFilteredLibraryItems(db, optsPodcasts)
+		if err == nil {
+			for _, item := range podcastItems {
+				podcastResults = append(podcastResults, map[string]interface{}{
+					"libraryItem": item,
+				})
+			}
+		}
+
+		// 3. Episodes (matching in podcastEpisodes table)
+		var episodeResults []map[string]interface{} = []map[string]interface{}{}
+		searchTerm := "%" + q + "%"
+		epRows, err := db.Query(`
+			SELECT pe.id, pe.title, pe.audioFile, pe.pubDate, pe.description, pe.season, pe.episode, pe.episodeType, pe.enclosureURL, pe.publishedAt, pe.podcastId, li.id
+			FROM podcastEpisodes pe
+			JOIN libraryItems li ON li.mediaId = pe.podcastId AND li.mediaType = 'podcast'
+			WHERE li.libraryId = ? AND (pe.title LIKE ? OR pe.description LIKE ?)
+			LIMIT ?
+		`, libraryID, searchTerm, searchTerm, limit)
+		if err == nil {
+			defer epRows.Close()
+			for epRows.Next() {
+				var epID, epTitle, epPodcastID, liID string
+				var epAudioFile, epPubDate, epDesc, epSeason, epEpisode, epEpType, epEncURL, epPubAt sql.NullString
+				if err := epRows.Scan(&epID, &epTitle, &epAudioFile, &epPubDate, &epDesc, &epSeason, &epEpisode, &epEpType, &epEncURL, &epPubAt, &epPodcastID, &liID); err == nil {
+					if minItem, err := idb.GetLibraryItemMinifiedByID(db, liID); err == nil {
+						epMap := map[string]interface{}{
+							"id":        epID,
+							"title":     epTitle,
+							"audioFile": utils.NullIfEmpty(epAudioFile.String),
+						}
+						if epPubDate.Valid {
+							epMap["pubDate"] = epPubDate.String
+						}
+						if epDesc.Valid {
+							epMap["description"] = epDesc.String
+						}
+						if epSeason.Valid {
+							epMap["season"] = epSeason.String
+						}
+						if epEpisode.Valid {
+							epMap["episode"] = epEpisode.String
+						}
+						if epEpType.Valid {
+							epMap["episodeType"] = epEpType.String
+						}
+						if epEncURL.Valid {
+							epMap["enclosureURL"] = epEncURL.String
+						}
+						if epPubAt.Valid {
+							epMap["publishedAt"] = epPubAt.String
+						}
+
+						minItemBytes, _ := json.Marshal(minItem)
+						var minItemMap map[string]interface{}
+						if json.Unmarshal(minItemBytes, &minItemMap) == nil {
+							minItemMap["recentEpisode"] = epMap
+							episodeResults = append(episodeResults, map[string]interface{}{
+								"libraryItem": minItemMap,
+							})
+						}
+					}
+				}
+			}
+		}
+
+		// 4. Authors
+		var authorResults []AuthorExpandedJSON = []AuthorExpandedJSON{}
+		authRows, err := db.Query(`
+			SELECT id, name, lastFirst, asin, description, imagePath, createdAt, updatedAt
+			FROM authors
+			WHERE libraryId = ? AND (name LIKE ? OR lastFirst LIKE ?)
+			LIMIT ?
+		`, libraryID, searchTerm, searchTerm, limit)
+		if err == nil {
+			defer authRows.Close()
+			for authRows.Next() {
+				var id, name string
+				var lastFirst, asin, description, imagePath sql.NullString
+				var createdAtStr, updatedAtStr string
+				if err := authRows.Scan(&id, &name, &lastFirst, &asin, &description, &imagePath, &createdAtStr, &updatedAtStr); err == nil {
+					var numBooks int
+					_ = db.QueryRow(`
+						SELECT COUNT(DISTINCT ba.bookId)
+						FROM bookAuthors ba
+						JOIN libraryItems li ON li.mediaId = ba.bookId AND li.mediaType = 'book'
+						WHERE ba.authorId = ? AND li.libraryId = ?
+					`, id, libraryID).Scan(&numBooks)
+
+					authorResults = append(authorResults, AuthorExpandedJSON{
+						ID:          id,
+						Name:        name,
+						LastFirst:   lastFirst.String,
+						Asin:        asin.String,
+						Description: description.String,
+						ImagePath:   imagePath.String,
+						AddedAt:     idb.ParseEpochMillis(createdAtStr),
+						UpdatedAt:   idb.ParseEpochMillis(updatedAtStr),
+						NumBooks:    numBooks,
+					})
+				}
+			}
+		}
+
+		// 5. Series
+		var seriesResults []map[string]interface{} = []map[string]interface{}{}
+		seriesRows, err := db.Query(`
+			SELECT id, name, nameIgnorePrefix, description, createdAt, updatedAt
+			FROM series
+			WHERE libraryId = ? AND name LIKE ?
+			LIMIT ?
+		`, libraryID, searchTerm, limit)
+		if err == nil {
+			defer seriesRows.Close()
+			for seriesRows.Next() {
+				var id, name string
+				var nameIgnorePrefix, description sql.NullString
+				var createdAtStr, updatedAtStr string
+				if err := seriesRows.Scan(&id, &name, &nameIgnorePrefix, &description, &createdAtStr, &updatedAtStr); err == nil {
+					bookRows, err := db.Query(`
+						SELECT li.id, b.coverPath, bs.sequence, li.updatedAt, li.createdAt, b.duration, b.title, b.titleIgnorePrefix
+						FROM bookSeries bs
+						JOIN libraryItems li ON li.mediaId = bs.bookId AND li.mediaType = 'book'
+						JOIN books b ON b.id = li.mediaId
+						WHERE bs.seriesId = ? AND li.libraryId = ?
+					`, id, libraryID)
+
+					books := []BookSequenceMinified{}
+					if err == nil {
+						for bookRows.Next() {
+							var bLID, bUpdatedAtStr, bCreatedAtStr, bTitle string
+							var bCoverPath, bSequence, bTitleIgnorePrefix sql.NullString
+							var bDuration float64
+							if err := bookRows.Scan(&bLID, &bCoverPath, &bSequence, &bUpdatedAtStr, &bCreatedAtStr, &bDuration, &bTitle, &bTitleIgnorePrefix); err == nil {
+								books = append(books, BookSequenceMinified{
+									ID:        bLID,
+									MediaType: "book",
+									UpdatedAt: idb.ParseEpochMillis(bUpdatedAtStr),
+									AddedAt:   idb.ParseEpochMillis(bCreatedAtStr),
+									Sequence:  bSequence.String,
+									Media: map[string]interface{}{
+										"coverPath": utils.NullIfEmpty(bCoverPath.String),
+										"metadata": map[string]interface{}{
+											"title":             bTitle,
+											"titleIgnorePrefix": bTitleIgnorePrefix.String,
+										},
+									},
+								})
+							}
+						}
+						bookRows.Close()
+					}
+
+					seriesResults = append(seriesResults, map[string]interface{}{
+						"series": map[string]interface{}{
+							"id":               id,
+							"name":             name,
+							"nameIgnorePrefix": nameIgnorePrefix.String,
+							"description":      description.String,
+							"addedAt":          idb.ParseEpochMillis(createdAtStr),
+							"updatedAt":        idb.ParseEpochMillis(updatedAtStr),
+						},
+						"books": books,
+					})
+				}
+			}
+		}
+
+		// 6. Tags, Genres, Narrators
+		tagsMap := make(map[string]int)
+		genresMap := make(map[string]int)
+		narratorsMap := make(map[string]int)
+
+		rowsBooks, err := db.Query(`
+			SELECT b.tags, b.genres, b.narrators
+			FROM books b
+			JOIN libraryItems li ON li.mediaId = b.id AND li.mediaType = 'book'
+			WHERE li.libraryId = ?
+		`, libraryID)
+		if err == nil {
+			defer rowsBooks.Close()
+			for rowsBooks.Next() {
+				var tagsStr, genresStr, narrStr sql.NullString
+				if err := rowsBooks.Scan(&tagsStr, &genresStr, &narrStr); err == nil {
+					if tagsStr.Valid && tagsStr.String != "" {
+						var arr []string
+						if json.Unmarshal([]byte(tagsStr.String), &arr) == nil {
+							for _, v := range arr {
+								if v != "" {
+									tagsMap[v]++
+								}
+							}
+						}
+					}
+					if genresStr.Valid && genresStr.String != "" {
+						var arr []string
+						if json.Unmarshal([]byte(genresStr.String), &arr) == nil {
+							for _, v := range arr {
+								if v != "" {
+									genresMap[v]++
+								}
+							}
+						}
+					}
+					if narrStr.Valid && narrStr.String != "" {
+						var arr []string
+						if json.Unmarshal([]byte(narrStr.String), &arr) == nil {
+							for _, v := range arr {
+								if v != "" {
+									narratorsMap[v]++
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+
+		rowsPodcasts, err := db.Query(`
+			SELECT p.tags, p.genres
+			FROM podcasts p
+			JOIN libraryItems li ON li.mediaId = p.id AND li.mediaType = 'podcast'
+			WHERE li.libraryId = ?
+		`, libraryID)
+		if err == nil {
+			defer rowsPodcasts.Close()
+			for rowsPodcasts.Next() {
+				var tagsStr, genresStr sql.NullString
+				if err := rowsPodcasts.Scan(&tagsStr, &genresStr); err == nil {
+					if tagsStr.Valid && tagsStr.String != "" {
+						var arr []string
+						if json.Unmarshal([]byte(tagsStr.String), &arr) == nil {
+							for _, v := range arr {
+								if v != "" {
+									tagsMap[v]++
+								}
+							}
+						}
+					}
+					if genresStr.Valid && genresStr.String != "" {
+						var arr []string
+						if json.Unmarshal([]byte(genresStr.String), &arr) == nil {
+							for _, v := range arr {
+								if v != "" {
+									genresMap[v]++
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+
+		type TagResult struct {
+			Name     string `json:"name"`
+			NumItems int    `json:"numItems"`
+		}
+		var matchedTags []TagResult
+		qLower := strings.ToLower(q)
+		for name, count := range tagsMap {
+			if strings.Contains(strings.ToLower(name), qLower) {
+				matchedTags = append(matchedTags, TagResult{Name: name, NumItems: count})
+			}
+		}
+		sort.Slice(matchedTags, func(i, j int) bool {
+			if matchedTags[i].NumItems == matchedTags[j].NumItems {
+				return strings.ToLower(matchedTags[i].Name) < strings.ToLower(matchedTags[j].Name)
+			}
+			return matchedTags[i].NumItems > matchedTags[j].NumItems
+		})
+		if len(matchedTags) > limit {
+			matchedTags = matchedTags[:limit]
+		}
+
+		type GenreResult struct {
+			Name     string `json:"name"`
+			NumItems int    `json:"numItems"`
+		}
+		var matchedGenres []GenreResult
+		for name, count := range genresMap {
+			if strings.Contains(strings.ToLower(name), qLower) {
+				matchedGenres = append(matchedGenres, GenreResult{Name: name, NumItems: count})
+			}
+		}
+		sort.Slice(matchedGenres, func(i, j int) bool {
+			if matchedGenres[i].NumItems == matchedGenres[j].NumItems {
+				return strings.ToLower(matchedGenres[i].Name) < strings.ToLower(matchedGenres[j].Name)
+			}
+			return matchedGenres[i].NumItems > matchedGenres[j].NumItems
+		})
+		if len(matchedGenres) > limit {
+			matchedGenres = matchedGenres[:limit]
+		}
+
+		type NarratorResult struct {
+			Name     string `json:"name"`
+			NumBooks int    `json:"numBooks"`
+		}
+		var matchedNarrators []NarratorResult
+		for name, count := range narratorsMap {
+			if strings.Contains(strings.ToLower(name), qLower) {
+				matchedNarrators = append(matchedNarrators, NarratorResult{Name: name, NumBooks: count})
+			}
+		}
+		sort.Slice(matchedNarrators, func(i, j int) bool {
+			if matchedNarrators[i].NumBooks == matchedNarrators[j].NumBooks {
+				return strings.ToLower(matchedNarrators[i].Name) < strings.ToLower(matchedNarrators[j].Name)
+			}
+			return matchedNarrators[i].NumBooks > matchedNarrators[j].NumBooks
+		})
+		if len(matchedNarrators) > limit {
+			matchedNarrators = matchedNarrators[:limit]
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"book":      bookResults,
+			"podcast":   podcastResults,
+			"episodes":  episodeResults,
+			"authors":   authorResults,
+			"series":    seriesResults,
+			"tags":      matchedTags,
+			"genres":    matchedGenres,
+			"narrators": matchedNarrators,
 		})
 	}
 }
