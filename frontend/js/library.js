@@ -48,8 +48,20 @@ function setActiveLibrary(libraryId) {
   
   const selectedLib = libraries.find(lib => lib.id === libraryId);
   const selectedNameEl = document.getElementById('library-dropdown-selected-name');
-  if (selectedNameEl && selectedLib) {
-    selectedNameEl.textContent = selectedLib.name;
+  const selectedIconEl = document.getElementById('library-dropdown-icon');
+  if (selectedLib) {
+    if (selectedNameEl) {
+      selectedNameEl.textContent = selectedLib.name;
+    }
+    if (selectedIconEl) {
+      let iconName = 'local_library';
+      if (selectedLib.icon === 'audiobooks' || selectedLib.mediaType === 'book') {
+        iconName = 'local_library';
+      } else if (selectedLib.icon === 'podcasts' || selectedLib.mediaType === 'podcast') {
+        iconName = 'podcasts';
+      }
+      selectedIconEl.textContent = iconName;
+    }
   }
 
   // Dispatch global event for dashboard to update
@@ -85,7 +97,7 @@ function setupDropdown() {
   dropdownMenu.innerHTML = '';
   libraries.forEach(lib => {
     const item = document.createElement('button');
-    item.className = 'w-full text-left flex items-center space-x-2 px-4 py-2 text-sm text-black-50 hover:bg-black-400 hover:text-white transition-colors focus:outline-none';
+    item.className = 'w-full text-left flex items-center px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-black-400 transition-colors focus:outline-none cursor-pointer';
     item.type = 'button';
     
     // Choose icon based on mediaType or icon property
@@ -97,7 +109,7 @@ function setupDropdown() {
     }
     
     item.innerHTML = `
-      <span class="material-symbols text-lg">${iconName}</span>
+      <span class="material-symbols text-lg mr-2">${iconName}</span>
       <span>${escapeHtml(lib.name)}</span>
     `;
 

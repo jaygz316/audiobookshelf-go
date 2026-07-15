@@ -496,6 +496,22 @@ function setupEventHandlers() {
   if (settingsBtn) settingsBtn.onclick = handleSettingsClick;
   if (adminBtn) adminBtn.onclick = handleSettingsClick;
 
+  // Header Logo & Title navigation clicks
+  const logoLink = document.getElementById('header-logo-link');
+  const titleLink = document.getElementById('header-title-link');
+  if (logoLink) {
+    logoLink.onclick = (e) => {
+      e.preventDefault();
+      navigateTo('/');
+    };
+  }
+  if (titleLink) {
+    titleLink.onclick = (e) => {
+      e.preventDefault();
+      navigateTo('/');
+    };
+  }
+
   window.addEventListener('popstate', () => {
     navigateTo(window.location.pathname, false);
   });
@@ -1057,7 +1073,7 @@ function setupEventHandlers() {
       if (!relPath.startsWith('/')) {
         relPath = '/' + relPath;
       }
-      const showControls = (relPath === '/' || relPath === '/library' || relPath === '/series' || relPath === '/authors');
+      const showControls = (relPath === '/' || relPath === '/library' || relPath === '/series' || relPath === '/authors' || relPath === '/collections' || relPath === '/playlists' || relPath === '/narrators');
       if (showControls && newStyle !== 'list') {
         shelfSizeCtrl.classList.remove('hidden');
       } else {
@@ -1232,12 +1248,13 @@ function bootstrapApp(payload) {
     };
 
     const updateSearchClearBtnVisibility = () => {
-      if (!globalSearchClearBtn) return;
-      const isMobileActive = globalSearchContainer && globalSearchContainer.classList.contains('mobile-active');
-      if (globalSearchInput.value.length > 0 || isMobileActive) {
-        globalSearchClearBtn.classList.remove('hidden');
-      } else {
-        globalSearchClearBtn.classList.add('hidden');
+      const symbolEl = document.getElementById('global-search-icon-symbol');
+      if (symbolEl) {
+        if (globalSearchInput.value.length > 0) {
+          symbolEl.textContent = 'close';
+        } else {
+          symbolEl.textContent = 'search';
+        }
       }
     };
 
@@ -1705,7 +1722,7 @@ function navigateTo(path, pushState = true) {
   const styleSwitcher = document.getElementById('style-switcher');
 
   const showControls = (relPath === '/' || relPath === '/library');
-  const showShelfSize = (relPath === '/' || relPath === '/library' || relPath === '/series' || relPath === '/authors');
+  const showShelfSize = (relPath === '/' || relPath === '/library' || relPath === '/series' || relPath === '/authors' || relPath === '/collections' || relPath === '/playlists' || relPath === '/narrators');
   
   const globalSearchInput = document.getElementById('global-search-input');
   const globalSearchClearBtn = document.getElementById('global-search-clear-btn');
@@ -1760,7 +1777,11 @@ function navigateTo(path, pushState = true) {
     }
     const viewTitle = document.getElementById('view-title');
     if (viewTitle) viewTitle.textContent = isMissing ? 'Issues' : 'Home';
-    if (activeLibId) loadDashboard(activeLibId);
+    if (activeLibId) {
+      loadDashboard(activeLibId);
+    } else {
+      showNoLibrariesWelcome();
+    }
   } else if (relPath === '/playlists') {
     highlightSidebarLink('Playlists');
     const viewTitle = document.getElementById('view-title');
@@ -1894,6 +1915,46 @@ export function showToast(message, type = 'info') {
       toast.remove();
     }, 300);
   }, 4000);
+}
+
+function showNoLibrariesWelcome() {
+  const viewTitle = document.getElementById('view-title');
+  if (viewTitle) viewTitle.textContent = 'Welcome';
+
+  const bookCount = document.getElementById('book-count');
+  if (bookCount) bookCount.textContent = '0 Books';
+
+  const bookshelfContainer = document.getElementById('bookshelf');
+  if (bookshelfContainer) {
+    bookshelfContainer.innerHTML = `
+      <div class="flex flex-col items-center justify-center text-center p-8 mt-12 space-y-6 max-w-lg mx-auto bg-primary border border-black-300 rounded-lg shadow-xl">
+        <img src="assets/images/icon.svg" alt="Audiobookshelf" class="w-20 h-20 mb-2">
+        <h2 class="text-2xl font-bold text-white">Welcome to Audiobookshelf!</h2>
+        <p class="text-gray-300 text-sm leading-relaxed">
+          Create a library to store your audiobooks and podcasts. You can configure directories to scan for files and customize your listening experience.
+        </p>
+        <button type="button" id="btn-welcome-add-library" class="bg-accent hover:opacity-90 text-primary font-bold px-6 py-2.5 rounded-md transition duration-150 flex items-center space-x-2 text-sm shadow-md cursor-pointer">
+          <span class="material-symbols text-lg">add</span>
+          <span>Add Your First Library</span>
+        </button>
+      </div>
+    `;
+    
+    const welcomeAddBtn = document.getElementById('btn-welcome-add-library');
+    if (welcomeAddBtn) {
+      welcomeAddBtn.onclick = () => {
+        window.location.hash = 'libraries';
+        navigateTo('/settings');
+        // Wait a tiny bit and click the Add Library button in settings
+        setTimeout(() => {
+          const createBtn = document.getElementById('btn-create-library');
+          if (createBtn) {
+            createBtn.click();
+          }
+        }, 300);
+      };
+    }
+  }
 }
 
 function isDashboardActive() {

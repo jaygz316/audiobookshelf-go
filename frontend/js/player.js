@@ -35,6 +35,8 @@ let gainNode = null;
 let volumeBoostLevel = 1.0; // multiplier: 1.0 = no boost, 1.5, 2.0, 2.5, 3.0
 let rememberSpeedPerBook = true;
 let globalDefaultSpeed = 1.0;
+let playerSkipBackSeconds = 10;
+let playerSkipForwardSeconds = 10;
 
 
 
@@ -238,7 +240,13 @@ function initVolumeBoost() {
   }
 }
 
-
+export async function playItems(items, startIndex = 0) {
+  if (!items || items.length === 0) return;
+  playbackQueue = [...items];
+  const itemToPlay = playbackQueue.splice(startIndex, 1)[0];
+  updateQueueUI();
+  await playItem(itemToPlay);
+}
 
 export async function playItem(item, startTime = 0) {
   initAudio();
@@ -261,7 +269,10 @@ export async function playItem(item, startTime = 0) {
   
   try {
     // 1. Create playback session
-    const playResponse = await request('POST', `/api/items/${itemObj.id}/play`, { startTime });
+    const playUrl = itemObj.episodeId 
+      ? `/api/items/${itemObj.id}/play/${itemObj.episodeId}` 
+      : `/api/items/${itemObj.id}/play`;
+    const playResponse = await request('POST', playUrl, { startTime });
     const sessionId = playResponse.id;
     let clientPlaylistUri = playResponse.clientPlaylistUri;
     const token = localStorage.getItem('token');
@@ -428,7 +439,10 @@ async function reportProgress(isFinished = false) {
   };
   
   try {
-    await request('PATCH', `/api/me/progress/${currentItem.id}`, payload);
+    const progressUrl = currentItem.episodeId 
+      ? `/api/me/progress/${currentItem.id}/${currentItem.episodeId}` 
+      : `/api/me/progress/${currentItem.id}`;
+    await request('PATCH', progressUrl, payload);
   } catch (err) {
     console.warn('Failed to save playback progress:', err);
   }
@@ -460,15 +474,36 @@ function setupUIEventListeners() {
     };
   }
   
+  const prevChapterBtn = document.getElementById('player-prev-chapter');
+  if (prevChapterBtn) {
+    prevChapterBtn.onclick = () => {
+      const currentSecs = remotePlayer && remotePlayer.isConnected ? remotePlayer.currentTime : (audio ? audio.currentTime : 0);
+      const chapters = currentItem?.media?.chapters || [];
+      const activeChapter = chapters.find(c => currentSecs >= c.start && currentSecs < c.end);
+      const activeChapterIndex = chapters.indexOf(activeChapter);
+      
+      if (activeChapterIndex === -1 || activeChapterIndex === 0) {
+        seekTo(0);
+      } else {
+        const timeInCurrentChapter = currentSecs - activeChapter.start;
+        if (timeInCurrentChapter <= 3 && chapters[activeChapterIndex - 1]) {
+          seekTo(chapters[activeChapterIndex - 1].start);
+        } else {
+          seekTo(activeChapter.start);
+        }
+      }
+    };
+  }
+
   if (seekBackBtn) {
     seekBackBtn.onclick = () => {
       if (remotePlayer && remotePlayer.isConnected) {
-        const newTime = Math.max(remotePlayer.currentTime - 10, 0);
+        const newTime = Math.max(remotePlayer.currentTime - playerSkipBackSeconds, 0);
         remotePlayer.currentTime = newTime;
         remotePlayerController.seek();
       } else {
         if (!audio) return;
-        audio.currentTime = Math.max(audio.currentTime - 10, 0);
+        audio.currentTime = Math.max(audio.currentTime - playerSkipBackSeconds, 0);
       }
     };
   }
@@ -476,12 +511,29 @@ function setupUIEventListeners() {
   if (seekForwardBtn) {
     seekForwardBtn.onclick = () => {
       if (remotePlayer && remotePlayer.isConnected) {
-        const newTime = Math.min(remotePlayer.currentTime + 10, remotePlayer.duration || 0);
+        const newTime = Math.min(remotePlayer.currentTime + playerSkipForwardSeconds, remotePlayer.duration || 0);
         remotePlayer.currentTime = newTime;
         remotePlayerController.seek();
       } else {
         if (!audio) return;
-        audio.currentTime = Math.min(audio.currentTime + 10, audio.duration || 0);
+        audio.currentTime = Math.min(audio.currentTime + playerSkipForwardSeconds, audio.duration || 0);
+      }
+    };
+  }
+
+  const nextBtn = document.getElementById('player-next');
+  if (nextBtn) {
+    nextBtn.onclick = () => {
+      const chapters = currentItem?.media?.chapters || [];
+      const currentSecs = remotePlayer && remotePlayer.isConnected ? remotePlayer.currentTime : (audio ? audio.currentTime : 0);
+      const activeChapter = chapters.find(c => currentSecs >= c.start && currentSecs < c.end);
+      const activeChapterIndex = chapters.indexOf(activeChapter);
+      
+      if (activeChapterIndex !== -1 && activeChapterIndex < chapters.length - 1) {
+        const nextChapter = chapters[activeChapterIndex + 1];
+        seekTo(nextChapter.start);
+      } else if (playbackQueue.length > 0) {
+        playNextInQueue();
       }
     };
   }
@@ -529,7 +581,13 @@ function setupUIEventListeners() {
       if (duration > 0) {
         const hoverTime = pct * duration;
         if (tooltip) {
-          tooltip.textContent = formatTime(hoverTime);
+          const chapters = currentItem?.media?.chapters || [];
+          const activeChap = chapters.find(c => hoverTime >= c.start && hoverTime < c.end);
+          if (activeChap) {
+            tooltip.textContent = `${activeChap.title || 'Untitled'} (${formatTime(hoverTime)})`;
+          } else {
+            tooltip.textContent = formatTime(hoverTime);
+          }
           tooltip.style.left = `${pct * 100}%`;
         }
       }
@@ -643,6 +701,13 @@ function setupUIEventListeners() {
     };
   }
 
+  const chaptersBtn = document.getElementById('player-chapters-btn');
+  if (chaptersBtn) {
+    chaptersBtn.onclick = () => {
+      triggerChaptersModal();
+    };
+  }
+
   const queueBtn = document.getElementById('player-queue-btn');
   if (queueBtn) {
     queueBtn.onclick = () => {
@@ -695,6 +760,21 @@ function updateTimelineUI() {
     timeline.value = duration > 0 ? Math.round((elapsed / duration) * 100) : 0;
   }
   drawWaveform();
+
+  const chapterInfo = document.getElementById('player-chapter-info');
+  if (chapterInfo) {
+    const chapters = currentItem?.media?.chapters || [];
+    const activeChapter = chapters.find(c => elapsed >= c.start && elapsed < c.end);
+    if (activeChapter) {
+      const activeChapterIndex = chapters.indexOf(activeChapter);
+      chapterInfo.textContent = `Chapter ${activeChapterIndex + 1} of ${chapters.length}: ${activeChapter.title || 'Untitled'}`;
+      chapterInfo.classList.remove('hidden');
+    } else {
+      chapterInfo.classList.add('hidden');
+    }
+  }
+
+  updatePlaybackControlsUI();
 }
 
 function updatePlayPauseButton(isPlaying) {
@@ -745,6 +825,19 @@ function updateMetadataUI(item) {
     const ts = item.updatedAt || item.addedAt || Date.now();
     coverEl.src = resolvePath(`/api/items/${item.id}/cover?token=${token}&ts=${ts}`);
   }
+
+  const chaptersBtn = document.getElementById('player-chapters-btn');
+  const chapters = item.media?.chapters || [];
+  if (chaptersBtn) {
+    if (chapters.length > 0) {
+      chaptersBtn.classList.remove('hidden');
+    } else {
+      chaptersBtn.classList.add('hidden');
+    }
+  }
+
+  updatePlaybackControlsUI();
+  updateSkipButtonsUI();
 }
 
 async function onPlaybackEnded() {
@@ -760,6 +853,151 @@ async function onPlaybackEnded() {
     playItem(nextItem, 0);
   } else {
     destroyPlayer();
+  }
+}
+
+function updateSkipButtonsUI() {
+  const seekBackBtn = document.getElementById('player-seek-back');
+  const seekForwardBtn = document.getElementById('player-seek-forward');
+  if (seekBackBtn) {
+    seekBackBtn.title = `Seek Back ${playerSkipBackSeconds}s`;
+    const icon = seekBackBtn.querySelector('.material-symbols');
+    if (icon) {
+      if ([5, 10, 15, 30, 45, 60].includes(playerSkipBackSeconds)) {
+        icon.textContent = `replay_${playerSkipBackSeconds}`;
+      } else {
+        icon.textContent = 'replay';
+      }
+    }
+  }
+  if (seekForwardBtn) {
+    seekForwardBtn.title = `Seek Forward ${playerSkipForwardSeconds}s`;
+    const icon = seekForwardBtn.querySelector('.material-symbols');
+    if (icon) {
+      if ([5, 10, 15, 30, 45, 60].includes(playerSkipForwardSeconds)) {
+        icon.textContent = `forward_${playerSkipForwardSeconds}`;
+      } else {
+        icon.textContent = 'forward_media';
+      }
+    }
+  }
+}
+
+function updatePlaybackControlsUI() {
+  const prevChapterBtn = document.getElementById('player-prev-chapter');
+  const nextBtn = document.getElementById('player-next');
+  if (!prevChapterBtn || !nextBtn) return;
+
+  const chapters = currentItem?.media?.chapters || [];
+  
+  if (chapters.length > 0) {
+    prevChapterBtn.classList.remove('hidden');
+    nextBtn.classList.remove('hidden');
+  } else if (playbackQueue.length > 0) {
+    prevChapterBtn.classList.add('hidden');
+    nextBtn.classList.remove('hidden');
+  } else {
+    prevChapterBtn.classList.add('hidden');
+    nextBtn.classList.add('hidden');
+  }
+}
+
+function seekTo(seconds) {
+  if (remotePlayer && remotePlayer.isConnected) {
+    remotePlayer.currentTime = seconds;
+    remotePlayerController.seek();
+  } else {
+    if (!audio) return;
+    audio.currentTime = seconds;
+  }
+  updateTimelineUI();
+}
+
+function triggerChaptersModal() {
+  if (!currentItem || !currentItem.media || !currentItem.media.chapters) return;
+  const chapters = currentItem.media.chapters;
+  if (chapters.length === 0) return;
+
+  const currentSecs = remotePlayer && remotePlayer.isConnected ? remotePlayer.currentTime : (audio ? audio.currentTime : 0);
+  const activeChapter = chapters.find(c => currentSecs >= c.start && currentSecs < c.end);
+
+  const dialog = document.createElement('dialog');
+  dialog.id = 'player-chapters-dialog';
+  dialog.setAttribute('closedby', 'any');
+  dialog.className = 'bg-primary border border-black-400 rounded-lg max-w-md w-full p-6 shadow-2xl space-y-4 focus:outline-none select-none text-white backdrop:bg-black-900/80 backdrop:backdrop-blur-sm open:flex open:flex-col open:items-stretch max-h-[80vh]';
+
+  let chaptersListHtml = '';
+  chapters.forEach((chapter, index) => {
+    const isActive = activeChapter === chapter;
+    const duration = chapter.end - chapter.start;
+    chaptersListHtml += `
+      <div class="chapter-item flex items-center justify-between p-2.5 rounded cursor-pointer transition-colors ${isActive ? 'bg-black-400 border border-accent/30 text-accent font-semibold' : 'hover:bg-black-500 text-black-50 hover:text-white'}" data-start="${chapter.start}">
+        <div class="flex items-center space-x-2.5 overflow-hidden">
+          <span class="text-[10px] text-black-100 min-w-[20px] text-right">${index + 1}</span>
+          <span class="text-xs truncate">${chapter.title || `Chapter ${index + 1}`}</span>
+        </div>
+        <div class="flex items-center space-x-3 flex-shrink-0 text-[10px] text-black-100">
+          <span>${formatTime(chapter.start)}</span>
+          <span class="w-12 text-right">(${formatTime(duration)})</span>
+        </div>
+      </div>
+    `;
+  });
+
+  dialog.innerHTML = `
+    <div class="flex items-center justify-between border-b border-black-500 pb-3 flex-shrink-0">
+      <h3 class="text-sm font-bold text-white uppercase tracking-wider flex items-center space-x-1.5">
+        <span class="material-symbols text-base text-accent">format_list_bulleted</span>
+        <span>Chapters</span>
+      </h3>
+      <button id="close-chapters-modal" class="text-black-100 hover:text-white transition-colors">
+        <span class="material-symbols text-lg">close</span>
+      </button>
+    </div>
+
+    <div class="overflow-y-auto flex-grow pr-1 space-y-1 custom-scrollbar max-h-[50vh]">
+      ${chaptersListHtml}
+    </div>
+  `;
+
+  document.body.appendChild(dialog);
+
+  const closeModal = () => {
+    dialog.close();
+    dialog.remove();
+  };
+
+  if (!('closedBy' in HTMLDialogElement.prototype)) {
+    dialog.addEventListener('click', (event) => {
+      if (event.target !== dialog) return;
+      const rect = dialog.getBoundingClientRect();
+      const isDialogContent = (
+        rect.top <= event.clientY &&
+        event.clientY <= rect.top + rect.height &&
+        rect.left <= event.clientX &&
+        event.clientX <= rect.left + rect.width
+      );
+      if (isDialogContent) return;
+      closeModal();
+    });
+  }
+
+  dialog.querySelector('#close-chapters-modal').onclick = closeModal;
+
+  dialog.querySelectorAll('.chapter-item').forEach(item => {
+    item.onclick = () => {
+      const startTime = parseFloat(item.dataset.start);
+      seekTo(startTime);
+      closeModal();
+    };
+  });
+
+  dialog.showModal();
+
+  // Scroll active chapter into view
+  const activeEl = dialog.querySelector('.bg-black-400');
+  if (activeEl) {
+    activeEl.scrollIntoView({ block: 'nearest', behavior: 'auto' });
   }
 }
 
@@ -1524,6 +1762,38 @@ function triggerPlayerSettingsModal() {
           </select>
         </div>
       </div>
+
+      <hr class="border-black-500">
+
+      <!-- Skip Durations -->
+      <div class="space-y-3">
+        <label class="text-[0.65rem] uppercase font-bold text-black-100 tracking-wider block">Skip Durations</label>
+        
+        <div class="grid grid-cols-2 gap-3">
+          <div class="space-y-1">
+            <label for="skip-back-select" class="text-xs text-white font-medium block">Jump Backward</label>
+            <select id="skip-back-select" class="w-full bg-black-500 text-white px-3 py-2 rounded border border-black-300 focus:outline-none focus:border-accent text-xs cursor-pointer">
+              <option value="5">5s</option>
+              <option value="10">10s</option>
+              <option value="15">15s</option>
+              <option value="30">30s</option>
+              <option value="45">45s</option>
+              <option value="60">60s</option>
+            </select>
+          </div>
+          <div class="space-y-1">
+            <label for="skip-forward-select" class="text-xs text-white font-medium block">Jump Forward</label>
+            <select id="skip-forward-select" class="w-full bg-black-500 text-white px-3 py-2 rounded border border-black-300 focus:outline-none focus:border-accent text-xs cursor-pointer">
+              <option value="5">5s</option>
+              <option value="10">10s</option>
+              <option value="15">15s</option>
+              <option value="30">30s</option>
+              <option value="45">45s</option>
+              <option value="60">60s</option>
+            </select>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div class="flex items-center justify-end space-x-3 pt-3 border-t border-black-500">
@@ -1542,10 +1812,14 @@ function triggerPlayerSettingsModal() {
   const defaultSelect = dialog.querySelector('#speed-default-select');
   const boostSlider = dialog.querySelector('#volume-boost-slider');
   const boostValSpan = dialog.querySelector('#volume-boost-value');
+  const skipBackSelect = dialog.querySelector('#skip-back-select');
+  const skipForwardSelect = dialog.querySelector('#skip-forward-select');
 
   rememberInput.checked = rememberSpeedPerBook;
   defaultSelect.value = globalDefaultSpeed.toString();
   boostSlider.value = volumeBoostLevel;
+  skipBackSelect.value = playerSkipBackSeconds.toString();
+  skipForwardSelect.value = playerSkipForwardSeconds.toString();
 
   const updateBoostLabel = (val) => {
     const v = parseFloat(val);
@@ -1589,10 +1863,14 @@ function triggerPlayerSettingsModal() {
     rememberSpeedPerBook = rememberInput.checked;
     globalDefaultSpeed = parseFloat(defaultSelect.value) || 1.0;
     volumeBoostLevel = parseFloat(boostSlider.value) || 1.0;
+    playerSkipBackSeconds = parseInt(skipBackSelect.value, 10) || 10;
+    playerSkipForwardSeconds = parseInt(skipForwardSelect.value, 10) || 10;
 
     localStorage.setItem('abs-speed-remember-per-book', rememberSpeedPerBook.toString());
     localStorage.setItem('abs-speed-global', globalDefaultSpeed.toString());
     localStorage.setItem('abs-volume-boost', volumeBoostLevel.toString());
+    localStorage.setItem('abs-player-skip-back', playerSkipBackSeconds.toString());
+    localStorage.setItem('abs-player-skip-forward', playerSkipForwardSeconds.toString());
 
     if (audio) {
       let speedToUse = globalDefaultSpeed;
@@ -1615,6 +1893,7 @@ function triggerPlayerSettingsModal() {
       initVolumeBoost();
     }
 
+    updateSkipButtonsUI();
     closeModal();
   };
 
@@ -1898,6 +2177,16 @@ function triggerQueueModal() {
   const boostVal = localStorage.getItem('abs-volume-boost');
   if (boostVal) {
     volumeBoostLevel = parseFloat(boostVal) || 1.0;
+  }
+
+  const skipBackVal = localStorage.getItem('abs-player-skip-back');
+  if (skipBackVal) {
+    playerSkipBackSeconds = parseInt(skipBackVal, 10) || 10;
+  }
+
+  const skipForwardVal = localStorage.getItem('abs-player-skip-forward');
+  if (skipForwardVal) {
+    playerSkipForwardSeconds = parseInt(skipForwardVal, 10) || 10;
   }
 })();
 

@@ -6,9 +6,13 @@ import { getActiveLibraryId } from './library.js';
 import { showToast } from './app.js';
 import { createCard, progressCache } from './dashboard.js';
 
+let currentSearch = '';
+let currentSort = 'name'; // 'name' or 'numBooks'
+let currentDesc = false;
+
 /**
  * Load and render the Authors listing view for the given library.
- * Fetches GET /api/libraries/{libraryId}/authors and renders a grid.
+ * Fetches GET /api/libraries/{libraryId}/authors and renders a grid with controls.
  */
 export async function loadAuthors(libraryId) {
   const opmlBtn = document.getElementById('opml-btn');
@@ -29,33 +33,103 @@ export async function loadAuthors(libraryId) {
     </div>
   `;
 
+  renderAuthorsView(container, libraryId);
+}
+
+async function renderAuthorsView(container, libraryId) {
   try {
-    const payload = await request('GET', `/api/libraries/${libraryId}/authors`);
-    const authors = payload.authors || [];
+    const queryParams = new URLSearchParams({
+      sort: currentSort,
+      desc: currentDesc ? 'true' : 'false',
+      search: currentSearch
+    });
 
-    if (bookCount) bookCount.textContent = `${authors.length} Authors`;
+    const payload = await request('GET', `/api/libraries/${libraryId}/authors?${queryParams.toString()}`);
+    const authors = payload.results || payload.authors || [];
 
+    const bookCount = document.getElementById('book-count');
+    if (bookCount) bookCount.textContent = `${authors.length} Author${authors.length !== 1 ? 's' : ''}`;
+
+    container.innerHTML = `
+      <div class="p-6 space-y-6 text-left">
+        <!-- Controls Toolbar -->
+        <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 bg-black-600/40 p-4 rounded-lg border border-black-600/30">
+          <!-- Search input -->
+          <div class="relative flex-grow max-w-md">
+            <span class="material-symbols absolute left-3 top-2.5 text-black-200 text-lg">search</span>
+            <input type="text" id="authors-search" placeholder="Search authors..." value="${escapeHtml(currentSearch)}"
+              class="w-full bg-black-500 text-white pl-10 pr-4 py-2 rounded-lg border border-black-300 focus:outline-none focus:border-accent text-sm transition-colors">
+          </div>
+
+          <!-- Sort and Order controls -->
+          <div class="flex items-center gap-3">
+            <label class="text-xs font-semibold text-black-100 uppercase tracking-wider">Sort by:</label>
+            <select id="authors-sort-select" class="bg-black-500 border border-black-300 text-white text-xs rounded px-3 py-1.5 focus:outline-none cursor-pointer">
+              <option value="name" ${currentSort === 'name' ? 'selected' : ''}>Name</option>
+              <option value="numBooks" ${currentSort === 'numBooks' ? 'selected' : ''}>Book Count</option>
+            </select>
+            <button id="authors-direction-btn" class="p-1.5 bg-black-500 hover:bg-black-400 border border-black-300 rounded text-white flex items-center justify-center transition-colors" title="Toggle Sort Order">
+              <span class="material-symbols text-lg">${currentDesc ? 'arrow_downward' : 'arrow_upward'}</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Authors Grid -->
+        <div id="authors-grid-container"></div>
+      </div>
+    `;
+
+    // Setup input/button event handlers
+    const searchInput = document.getElementById('authors-search');
+    if (searchInput) {
+      let searchTimeout;
+      searchInput.addEventListener('input', (e) => {
+        currentSearch = e.target.value;
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+          loadAuthors(libraryId);
+        }, 300);
+      });
+    }
+
+    const sortSelect = document.getElementById('authors-sort-select');
+    if (sortSelect) {
+      sortSelect.addEventListener('change', (e) => {
+        currentSort = e.target.value;
+        loadAuthors(libraryId);
+      });
+    }
+
+    const directionBtn = document.getElementById('authors-direction-btn');
+    if (directionBtn) {
+      directionBtn.addEventListener('click', () => {
+        currentDesc = !currentDesc;
+        loadAuthors(libraryId);
+      });
+    }
+
+    const gridContainer = document.getElementById('authors-grid-container');
     if (authors.length === 0) {
-      container.innerHTML = `
+      gridContainer.innerHTML = `
         <div class="flex flex-col items-center justify-center h-48 text-black-100">
           <span class="material-symbols text-4xl mb-2">person</span>
-          <p class="text-sm font-medium">No authors found in this library</p>
+          <p class="text-sm font-medium">No authors found</p>
         </div>
       `;
       return;
     }
 
-    container.innerHTML = '';
-
     const grid = document.createElement('div');
-    grid.className = 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 p-6';
+    grid.style.display = 'grid';
+    grid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(var(--bookshelf-card-width, 120px), 1fr))';
+    grid.style.gap = '1.5rem';
 
     authors.forEach(author => {
       const card = createAuthorCard(author);
       grid.appendChild(card);
     });
 
-    container.appendChild(grid);
+    gridContainer.appendChild(grid);
   } catch (err) {
     console.error('Failed to load authors:', err);
     container.innerHTML = `
@@ -131,6 +205,7 @@ export async function loadSeries(libraryId) {
 function createAuthorCard(author) {
   const card = document.createElement('div');
   card.className = 'flex flex-col items-center p-3 bg-primary border border-black-400 rounded-md hover:bg-black-500 cursor-pointer transition-colors group';
+  card.style.width = '100%';
 
   const token = localStorage.getItem('token');
   const imageUrl = resolvePath(`/api/authors/${author.id}/image?token=${token}`);
@@ -138,11 +213,11 @@ function createAuthorCard(author) {
   const numBooks = author.numBooks !== undefined ? author.numBooks : (author.bookCount || 0);
 
   card.innerHTML = `
-    <div class="w-20 h-20 rounded-full overflow-hidden bg-black-400 mb-2 flex items-center justify-center flex-shrink-0">
+    <div class="w-2/3 aspect-square rounded-full overflow-hidden bg-black-400 mb-2 flex items-center justify-center flex-shrink-0">
       <img src="${imageUrl}" alt="${escapeHtml(author.name)}" class="w-full h-full object-cover">
     </div>
-    <p class="text-sm font-semibold text-white text-center leading-tight truncate w-full text-center">${escapeHtml(author.name)}</p>
-    <p class="text-xs text-black-100 mt-0.5">${numBooks} book${numBooks !== 1 ? 's' : ''}</p>
+    <p class="text-xs font-semibold text-white text-center leading-tight truncate w-full" title="${escapeHtml(author.name)}">${escapeHtml(author.name)}</p>
+    <p class="text-[10px] text-black-100 mt-0.5">${numBooks} book${numBooks !== 1 ? 's' : ''}</p>
   `;
 
   const img = card.querySelector('img');

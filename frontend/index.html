@@ -244,18 +244,21 @@
         
         <!-- Brand & Library Selector -->
         <div class="flex items-center space-x-4">
-          <!-- Logo -->
-          <img src="assets/images/logo.png" alt="Audiobookshelf Logo" class="h-9 w-auto select-none">
-          <h1 class="text-1.5xl font-semibold tracking-wide hidden sm:block">audiobookshelf</h1>
+          <!-- Logo & Brand links -->
+          <a href="#" id="header-logo-link" class="flex items-center focus:outline-none">
+            <img src="assets/images/icon.svg" alt="Home" class="w-8 min-w-8 h-8 mr-2 sm:w-10 sm:min-w-10 sm:h-10 sm:mr-4 select-none cursor-pointer">
+          </a>
+          <a href="#" id="header-title-link" class="focus:outline-none">
+            <h1 class="text-xl mr-6 hidden lg:block hover:underline cursor-pointer select-none font-semibold">audiobookshelf</h1>
+          </a>
           
           <!-- Library Dropdown -->
-          <div class="relative">
-            <button id="library-dropdown-btn" class="flex items-center space-x-2 bg-black-500 hover:bg-black-400 px-3 py-1.5 rounded text-sm font-medium border border-black-300 transition-colors focus:outline-none">
-              <span class="material-symbols text-lg">local_library</span>
-              <span id="library-dropdown-selected-name">Loading...</span>
-              <span class="material-symbols text-sm">keyboard_arrow_down</span>
+          <div class="relative h-8 max-w-52 md:min-w-32 flex items-center">
+            <button id="library-dropdown-btn" class="w-10 sm:w-full relative h-full border border-white/10 hover:border-opacity-20 rounded-sm shadow-xs px-2 text-left text-sm cursor-pointer bg-black/20 text-gray-400 hover:text-gray-200 flex items-center transition-colors focus:outline-none" title="Select Library">
+              <span id="library-dropdown-icon" class="material-symbols text-lg sm:mr-1.5 flex items-center justify-center">local_library</span>
+              <span id="library-dropdown-selected-name" class="hidden sm:block truncate">Loading...</span>
             </button>
-            <div id="library-dropdown-menu" class="absolute left-0 mt-2 w-56 bg-primary border border-black-300 rounded shadow-lg hidden py-1 z-50">
+            <div id="library-dropdown-menu" class="absolute z-10 -mt-px left-0 top-full w-full min-w-48 bg-primary border border-black-200 shadow-lg rounded-b-md py-1 overflow-auto focus:outline-none sm:text-sm hidden">
               <!-- Dynamically populated -->
             </div>
           </div>
@@ -274,14 +277,14 @@
         </div>
 
         <!-- Search bar -->
-        <div id="global-search-container" class="flex-grow max-w-md mx-6 hidden md:block relative text-sm">
-          <div class="flex items-center bg-black-500 rounded border border-black-300 px-3 py-1.5 focus-within:border-accent">
-            <span class="material-symbols text-black-100 pr-2 select-none">search</span>
-            <input type="text" id="global-search-input" placeholder="Search.." class="bg-transparent w-full text-white placeholder-black-100 focus:outline-none" autocomplete="off">
-            <span id="global-search-clear-btn" class="material-symbols text-black-100 cursor-pointer pl-2 hover:text-white hidden select-none">close</span>
-          </div>
+        <div id="global-search-container" class="grow max-w-xs mx-6 hidden md:block relative text-sm h-8">
+          <input type="text" id="global-search-input" placeholder="Search.." class="w-full h-full bg-black/20 border border-white/10 focus:border-white/20 rounded-sm shadow-xs pl-2 pr-8 text-gray-200 placeholder-gray-400 focus:outline-none text-sm animate-none" autocomplete="off">
+          <button id="global-search-clear-btn" class="absolute top-0 right-0 bottom-0 h-full flex items-center px-2 text-gray-400 cursor-pointer focus:outline-none" title="Search/Clear">
+            <span id="global-search-icon-symbol" class="material-symbols text-lg select-none">search</span>
+          </button>
+          
           <!-- Dropdown menu -->
-          <div id="global-search-dropdown" class="absolute left-0 right-0 mt-1 bg-primary border border-black-300 rounded shadow-lg overflow-y-auto max-h-[calc(100vh-75px)] z-50 hidden">
+          <div id="global-search-dropdown" class="absolute left-0 right-0 mt-1 bg-bg border border-black-300 rounded shadow-lg overflow-y-auto max-h-[calc(100vh-75px)] z-50 hidden p-2">
             <ul id="global-search-results-list" class="py-1">
               <!-- Results dynamically populated -->
             </ul>
@@ -299,27 +302,27 @@
           <google-cast-launcher id="header-cast-btn" class="w-9 h-9 text-black-50 hover:text-white cursor-pointer flex items-center justify-center rounded-full hover:bg-black-500/50" title="Cast..."></google-cast-launcher>
 
           <!-- Server Activity Button -->
-          <button id="header-activity-btn" class="p-2 hover:bg-black-500 rounded-full text-black-50 hover:text-white flex items-center justify-center" title="Server Activity">
-            <span class="material-symbols text-xl">monitoring</span>
+          <button id="header-activity-btn" class="w-8 h-8 flex items-center justify-center mx-1 text-gray-400 hover:text-gray-200 transition-colors focus:outline-none hover:bg-black/10 rounded-sm" title="Server Activity">
+            <span class="material-symbols text-2xl font-normal">&#xe01d;</span>
           </button>
 
           <!-- Upload Button (admin/root only) -->
-          <button id="header-upload-btn" class="hidden p-2 hover:bg-black-500 rounded-full text-black-50 hover:text-white flex items-center justify-center" title="Upload Media">
-            <span class="material-symbols text-xl">upload</span>
+          <button id="header-upload-btn" class="hidden w-8 h-8 flex items-center justify-center mx-1 text-gray-400 hover:text-gray-200 transition-colors focus:outline-none hover:bg-black/10 rounded-sm" title="Upload Media">
+            <span class="material-symbols text-2xl font-normal">upload</span>
           </button>
 
           <!-- Settings Gear Button (admin/root only) -->
-          <button id="header-settings-btn" class="hidden p-2 hover:bg-black-500 rounded-full text-black-50 hover:text-white flex items-center justify-center" title="Settings">
-            <span class="material-symbols text-xl">settings</span>
+          <button id="header-settings-btn" class="hidden w-8 h-8 flex items-center justify-center mx-1 text-gray-400 hover:text-gray-200 transition-colors focus:outline-none hover:bg-black/10 rounded-sm" title="Settings">
+            <span class="material-symbols text-2xl font-normal">&#xe8b8;</span>
           </button>
 
           <!-- User Profile Button Pill -->
           <div class="relative">
-            <button id="user-menu-btn" class="flex items-center space-x-2 bg-black-600/40 hover:bg-black-500/60 pl-3 pr-1 py-1 rounded-full text-xs font-semibold text-white border border-black-300/30 focus:outline-none transition-colors" aria-label="User Profile">
-              <span id="user-menu-username" class="hidden sm:inline">jaygz</span>
-              <div class="flex items-center justify-center w-7 h-7 rounded-full bg-accent text-primary font-bold text-[11px] select-none">
-                <span id="user-initials">JD</span>
-              </div>
+            <button id="user-menu-btn" class="relative w-9 h-9 md:w-32 bg-fg border border-gray-500 rounded-sm shadow-xs ml-1.5 sm:ml-3 md:ml-5 md:pl-3 md:pr-10 py-1.5 text-left text-sm cursor-pointer hover:bg-bg/40 focus:outline-none flex items-center justify-center md:justify-between transition-colors" aria-label="User Profile">
+              <span id="user-menu-username" class="hidden md:block truncate text-xs font-semibold text-white">jaygz</span>
+              <span class="h-full md:absolute inset-y-0 right-0 flex items-center justify-center md:pr-2 pointer-events-none text-gray-100">
+                <span class="material-symbols text-xl">&#xe7fd;</span>
+              </span>
             </button>
 
             <!-- User Dropdown (Mockup) -->
@@ -661,6 +664,9 @@
       <div class="flex flex-col items-center flex-grow max-w-xl px-4">
         <!-- Buttons -->
         <div class="flex items-center space-x-4 mb-1">
+          <button id="player-prev-chapter" class="p-1.5 hover:bg-black-500 rounded text-black-50 hover:text-white hidden" title="Previous Chapter">
+            <span class="material-symbols text-lg">first_page</span>
+          </button>
           <button id="player-seek-back" class="p-1.5 hover:bg-black-500 rounded text-black-50 hover:text-white" title="Seek Back 10s">
             <span class="material-symbols text-lg">replay_10</span>
           </button>
@@ -670,12 +676,18 @@
           <button id="player-seek-forward" class="p-1.5 hover:bg-black-500 rounded text-black-50 hover:text-white" title="Seek Forward 10s">
             <span class="material-symbols text-lg">forward_10</span>
           </button>
+          <button id="player-next" class="p-1.5 hover:bg-black-500 rounded text-black-50 hover:text-white hidden" title="Next">
+            <span class="material-symbols text-lg">last_page</span>
+          </button>
           <button id="player-bookmark-btn" class="p-1.5 hover:bg-black-500 rounded text-black-50 hover:text-white" title="Add Bookmark">
             <span class="material-symbols text-lg">bookmark_add</span>
           </button>
           <button id="player-sleep-btn" class="p-1.5 hover:bg-black-500 rounded text-black-50 hover:text-white relative" title="Sleep Timer">
             <span id="player-sleep-icon" class="material-symbols text-lg">bedtime</span>
             <span id="player-sleep-badge" class="absolute -top-1 -right-1 bg-accent text-primary text-[9px] font-bold rounded-full w-4 h-4 flex items-center justify-center hidden"></span>
+          </button>
+          <button id="player-chapters-btn" class="p-1.5 hover:bg-black-500 rounded text-black-50 hover:text-white hidden" title="Chapters">
+            <span class="material-symbols text-lg">format_list_bulleted</span>
           </button>
           <button id="player-settings-btn" class="p-1.5 hover:bg-black-500 rounded text-black-50 hover:text-white" title="Player Settings">
             <span class="material-symbols text-lg">settings</span>
@@ -697,6 +709,8 @@
           </div>
           <span id="player-time-remaining">0:00</span>
         </div>
+        <!-- Chapter Info -->
+        <div id="player-chapter-info" class="text-[10px] text-black-100 truncate max-w-full hidden mt-0.5"></div>
       </div>
 
       <!-- Right section: Speed, Volume, Close -->

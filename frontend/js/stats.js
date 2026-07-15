@@ -60,7 +60,7 @@ export async function loadStats() {
     const totalTimeStr = formatDuration(stats.totalTime);
     const todayTimeStr = formatDuration(stats.today);
     
-    const itemsList = Object.values(stats.items || {});
+    const itemsList = Object.entries(stats.items || {}).map(([id, item]) => ({ id, ...item }));
     const uniqueItemsCount = itemsList.length;
 
     // Calculate maximum time for normalization
@@ -233,9 +233,9 @@ export async function loadStats() {
                 return `
                   <div class="space-y-1">
                     <div class="flex justify-between items-center text-sm">
-                      <div class="truncate max-w-[70%]">
-                        <span class="font-medium text-white">${item.title}</span>
-                        ${item.author ? `<span class="text-xs text-black-100 block truncate">by ${item.author}</span>` : ''}
+                      <div class="truncate max-w-[70%] cursor-pointer group" onclick="window.navigateTo('/item/${item.id}')">
+                        <span class="font-medium text-white group-hover:text-accent transition-colors">${item.title}</span>
+                        ${item.author ? `<span class="text-xs text-black-100 block truncate group-hover:text-accent/80 transition-colors">by ${item.author}</span>` : ''}
                       </div>
                       <span class="text-xs font-mono text-accent">${formatDuration(item.timeListened)}</span>
                     </div>
@@ -423,9 +423,9 @@ export async function loadStats() {
           }
           return `
             <tr class="border-b border-black-500 hover:bg-black-500/20">
-              <td class="py-3 pr-4 font-medium text-white max-w-[200px] truncate">
-                ${sess.title || 'Unknown Item'}
-                ${sess.author ? `<span class="text-xs text-black-100 block truncate">by ${sess.author}</span>` : ''}
+              <td class="py-3 pr-4 font-medium text-white max-w-[200px] truncate cursor-pointer group" onclick="window.navigateTo('/item/${sess.mediaItemId}')">
+                <span class="group-hover:text-accent transition-colors">${sess.title || 'Unknown Item'}</span>
+                ${sess.author ? `<span class="text-xs text-black-100 block truncate group-hover:text-accent/80 transition-colors">by ${sess.author}</span>` : ''}
               </td>
               ${activeTab === 'server' ? `<td class="py-3 pr-4 text-black-50">${sess.username || 'Unknown User'}</td>` : ''}
               <td class="py-3 pr-4 text-black-50">${dateStr}</td>

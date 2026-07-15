@@ -1,5 +1,5 @@
 import { request, resolvePath } from './api.js';
-import { playItem } from './player.js';
+import { playItem, playItems } from './player.js';
 import { loadItemDetails } from './itemDetails.js';
 
 export async function loadPlaylists(libraryId) {
@@ -32,7 +32,7 @@ export async function loadPlaylists(libraryId) {
           </button>
         </div>
 
-        <div id="playlists-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
+        <div id="playlists-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--bookshelf-card-width, 120px), 1fr)); gap: 1.5rem;">
           <!-- Playlist Cards -->
         </div>
 
@@ -56,6 +56,45 @@ export async function loadPlaylists(libraryId) {
   }
 }
 
+function renderCoversPreview(bookIds, token) {
+  if (!bookIds || bookIds.length === 0) {
+    return `<span class="material-symbols text-4xl text-accent/80">playlist_play</span>`;
+  }
+  
+  if (bookIds.length === 1) {
+    return `<img src="${resolvePath(`/api/items/${bookIds[0]}/cover?token=${token}&width=200`)}" class="w-full h-full object-cover" alt="Cover" onerror="this.onerror=null; this.src='assets/images/book_placeholder.jpg';">`;
+  }
+  
+  if (bookIds.length === 2) {
+    return `
+      <div class="grid grid-cols-2 w-full h-full gap-0.5">
+        <img src="${resolvePath(`/api/items/${bookIds[0]}/cover?token=${token}&width=120`)}" class="w-full h-full object-cover" alt="Cover 1" onerror="this.style.display='none'">
+        <img src="${resolvePath(`/api/items/${bookIds[1]}/cover?token=${token}&width=120`)}" class="w-full h-full object-cover" alt="Cover 2" onerror="this.style.display='none'">
+      </div>
+    `;
+  }
+  
+  if (bookIds.length === 3) {
+    return `
+      <div class="grid grid-cols-2 grid-rows-2 w-full h-full gap-0.5">
+        <img src="${resolvePath(`/api/items/${bookIds[0]}/cover?token=${token}&width=100`)}" class="w-full h-full object-cover row-span-2" alt="Cover 1" onerror="this.style.display='none'">
+        <img src="${resolvePath(`/api/items/${bookIds[1]}/cover?token=${token}&width=100`)}" class="w-full h-full object-cover" alt="Cover 2" onerror="this.style.display='none'">
+        <img src="${resolvePath(`/api/items/${bookIds[2]}/cover?token=${token}&width=100`)}" class="w-full h-full object-cover" alt="Cover 3" onerror="this.style.display='none'">
+      </div>
+    `;
+  }
+
+  // 4 or more
+  return `
+    <div class="grid grid-cols-2 grid-rows-2 w-full h-full gap-0.5">
+      <img src="${resolvePath(`/api/items/${bookIds[0]}/cover?token=${token}&width=100`)}" class="w-full h-full object-cover" alt="Cover 1" onerror="this.style.display='none'">
+      <img src="${resolvePath(`/api/items/${bookIds[1]}/cover?token=${token}&width=100`)}" class="w-full h-full object-cover" alt="Cover 2" onerror="this.style.display='none'">
+      <img src="${resolvePath(`/api/items/${bookIds[2]}/cover?token=${token}&width=100`)}" class="w-full h-full object-cover" alt="Cover 3" onerror="this.style.display='none'">
+      <img src="${resolvePath(`/api/items/${bookIds[3]}/cover?token=${token}&width=100`)}" class="w-full h-full object-cover" alt="Cover 4" onerror="this.style.display='none'">
+    </div>
+  `;
+}
+
 function renderPlaylistsGrid(playlists, libraryId) {
   const grid = document.getElementById('playlists-grid');
   const emptyState = document.getElementById('playlists-empty');
@@ -68,28 +107,32 @@ function renderPlaylistsGrid(playlists, libraryId) {
   }
   emptyState.classList.add('hidden');
 
+  const token = localStorage.getItem('token');
+
   playlists.forEach(p => {
     const card = document.createElement('div');
-    card.className = 'bg-primary border border-black-300 rounded overflow-hidden shadow hover:border-black-100 transition-all flex flex-col justify-between p-4 relative group cursor-pointer';
+    card.className = 'bg-primary border border-black-300 rounded overflow-hidden shadow hover:border-black-100 transition-all flex flex-col justify-between p-3 relative group cursor-pointer';
+    card.style.width = '100%';
     
-    const count = p.itemIds?.length || 0;
+    const bookIds = p.itemIds || [];
+    const count = bookIds.length;
     
     card.innerHTML = `
       <div class="space-y-2">
-        <div class="h-28 w-full bg-black-500 rounded flex items-center justify-center text-accent/80 border border-black-400 mb-2 relative">
-          <span class="material-symbols text-4xl">playlist_play</span>
-          <span class="absolute bottom-2 right-2 bg-black-600/80 px-2 py-0.5 text-xs text-white rounded font-semibold">${count} items</span>
+        <div class="w-full bg-black-500 rounded overflow-hidden flex items-center justify-center text-accent/80 border border-black-400 mb-2 relative" style="aspect-ratio: 2/3;">
+          ${renderCoversPreview(bookIds, token)}
+          <span class="absolute bottom-2 right-2 bg-black-600/80 px-2 py-0.5 text-[10px] text-white rounded font-semibold z-10">${count} items</span>
         </div>
-        <h3 class="font-semibold text-white truncate">${escapeHtml(p.name)}</h3>
-        <p class="text-xs text-black-50 line-clamp-2">${escapeHtml(p.description) || 'No description'}</p>
+        <h3 class="font-semibold text-white truncate text-xs" title="${escapeHtml(p.name)}">${escapeHtml(p.name)}</h3>
+        <p class="text-[10px] text-black-50 line-clamp-2 h-7 leading-relaxed">${escapeHtml(p.description) || 'No description'}</p>
       </div>
 
-      <div class="flex justify-between items-center mt-4 pt-2 border-t border-black-400/50">
-        <button class="delete-btn text-error hover:text-red-400 text-xs flex items-center space-x-1" data-id="${p.id}">
-          <span class="material-symbols text-sm">delete</span>
+      <div class="flex justify-between items-center mt-3 pt-2 border-t border-black-400/50">
+        <button class="delete-btn text-error hover:text-red-400 text-[10px] flex items-center space-x-0.5" data-id="${p.id}">
+          <span class="material-symbols text-[13px]">delete</span>
           <span>Delete</span>
         </button>
-        <span class="text-[0.7rem] text-black-100">Click to view</span>
+        <span class="text-[9px] text-black-100">View Details</span>
       </div>
     `;
 
@@ -229,7 +272,13 @@ export async function loadPlaylistDetails(playlistId, libraryId) {
               <h2 class="text-2xl font-bold text-white mb-1" id="playlist-title">${escapeHtml(playlist.name)}</h2>
               <p class="text-xs text-black-100">Created: ${window.formatDateTime ? window.formatDateTime(playlist.createdAt) : new Date(playlist.createdAt).toLocaleString()}</p>
             </div>
-            <div class="space-x-2">
+            <div class="space-x-2 flex items-center">
+              ${itemsDetails.length > 0 ? `
+              <button id="play-playlist-btn" class="bg-accent hover:opacity-90 text-primary font-bold px-3 py-1.5 rounded text-xs inline-flex items-center space-x-1 transition-opacity">
+                <span class="material-symbols text-sm">play_arrow</span>
+                <span>Play</span>
+              </button>
+              ` : ''}
               <button id="edit-playlist-btn" class="bg-black-400 hover:bg-black-300 border border-black-300 text-white font-semibold px-3 py-1.5 rounded text-xs">Edit Name</button>
               <button id="delete-playlist-btn" class="bg-red-900 hover:bg-red-800 text-red-200 font-semibold px-3 py-1.5 rounded text-xs">Delete</button>
             </div>
@@ -260,6 +309,13 @@ export async function loadPlaylistDetails(playlistId, libraryId) {
     `;
 
     renderPlaylistItemsRows(playlist, itemsDetails, libraryId);
+
+    const playBtn = document.getElementById('play-playlist-btn');
+    if (playBtn) {
+      playBtn.onclick = async () => {
+        await playItems(itemsDetails);
+      };
+    }
 
     document.getElementById('back-playlists-btn').onclick = () => {
       if (window.navigateTo) {

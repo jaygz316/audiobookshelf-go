@@ -123,7 +123,9 @@ async function renderNarratorsView(container, libraryId) {
     }
 
     const grid = document.createElement('div');
-    grid.className = 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4';
+    grid.style.display = 'grid';
+    grid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(var(--bookshelf-card-width, 120px), 1fr))';
+    grid.style.gap = '1.5rem';
 
     narrators.forEach(narrator => {
       const card = createNarratorCard(narrator);
@@ -144,16 +146,17 @@ async function renderNarratorsView(container, libraryId) {
 
 function createNarratorCard(narrator) {
   const card = document.createElement('div');
-  card.className = 'flex flex-col items-center p-4 bg-primary border border-black-400 rounded-lg hover:bg-black-500 hover:border-black-300 cursor-pointer transition-all duration-150 transform hover:-translate-y-0.5 group';
+  card.className = 'flex flex-col items-center p-3 bg-primary border border-black-400 rounded-md hover:bg-black-500 cursor-pointer transition-colors group';
+  card.style.width = '100%';
 
   const numBooks = narrator.numBooks || 0;
 
   card.innerHTML = `
-    <div class="w-16 h-16 rounded-full bg-gradient-to-tr from-black-600 to-black-400 mb-3 flex items-center justify-center flex-shrink-0 group-hover:from-accent/20 group-hover:to-accent/5 transition-all">
+    <div class="w-2/3 aspect-square rounded-full bg-gradient-to-tr from-black-600 to-black-400 mb-3 flex items-center justify-center flex-shrink-0 group-hover:from-accent/20 group-hover:to-accent/5 transition-all">
       <span class="material-symbols text-3xl text-black-100 group-hover:text-accent transition-colors">record_voice_over</span>
     </div>
-    <p class="text-sm font-semibold text-white text-center leading-tight truncate w-full group-hover:text-accent transition-colors">${escapeHtml(narrator.name)}</p>
-    <p class="text-xs text-black-100 mt-1">${numBooks} book${numBooks !== 1 ? 's' : ''}</p>
+    <p class="text-xs font-semibold text-white text-center leading-tight truncate w-full group-hover:text-accent transition-colors" title="${escapeHtml(narrator.name)}">${escapeHtml(narrator.name)}</p>
+    <p class="text-[10px] text-black-100 mt-1">${numBooks} book${numBooks !== 1 ? 's' : ''}</p>
   `;
 
   card.onclick = () => {

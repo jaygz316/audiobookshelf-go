@@ -150,6 +150,30 @@ func handleGetMeProgress(db *sql.DB) http.HandlerFunc {
 			episodeID = parts[1]
 		}
 
+		if episodeID == "" {
+			var mediaItemID, mediaItemType string
+			err := db.QueryRowContext(r.Context(), "SELECT mediaId, mediaType FROM libraryItems WHERE id = ? OR mediaId = ?", libraryItemID, libraryItemID).Scan(&mediaItemID, &mediaItemType)
+			if err == nil && mediaItemType == "podcast" {
+				rows, err := db.QueryContext(r.Context(), `SELECT id, userId, mediaItemId, mediaItemType, duration, currentTime, isFinished, hideFromContinueListening, ebookLocation, ebookProgress, finishedAt, extraData, createdAt, updatedAt, podcastId 
+					FROM mediaProgresses WHERE userId = ? AND (podcastId = ? OR json_extract(extraData, '$.libraryItemId') = ?)`, userSess.ID, mediaItemID, libraryItemID)
+				if err != nil {
+					log.Errorf("[Me Progress] Podcast query error: %v", err)
+					http.Error(w, "Database error", http.StatusInternalServerError)
+					return
+				}
+				defer rows.Close()
+				progresses, err := scanMediaProgressRows(rows)
+				if err != nil {
+					log.Errorf("[Me Progress] Podcast scan error: %v", err)
+					http.Error(w, "Database error", http.StatusInternalServerError)
+					return
+				}
+				w.Header().Set("Content-Type", "application/json")
+				json.NewEncoder(w).Encode(progresses)
+				return
+			}
+		}
+
 		var row *sql.Row
 		if episodeID != "" {
 			row = db.QueryRowContext(r.Context(), `SELECT id, userId, mediaItemId, mediaItemType, duration, currentTime, isFinished, hideFromContinueListening, ebookLocation, ebookProgress, finishedAt, extraData, createdAt, updatedAt, podcastId 
@@ -543,17 +567,34 @@ func handleRemoveMeProgress(db *sql.DB) http.HandlerFunc {
 			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
 			return
 		}
-
-		progressID := utils.TrimAPIPath(r.URL.Path, "/api/me/progress/")
-		if progressID == "" || strings.Contains(progressID, "/") {
+		subPath := utils.TrimAPIPath(r.URL.Path, "/api/me/progress/")
+		parts := strings.Split(subPath, "/")
+		if len(parts) == 0 || parts[0] == "" {
 			http.Error(w, `{"error": "Bad Request"}`, http.StatusBadRequest)
 			return
 		}
 
-		// Verify belongs to user
-		var count int
-		db.QueryRowContext(r.Context(), "SELECT COUNT(*) FROM mediaProgresses WHERE id = ? AND userId = ?", progressID, userSess.ID).Scan(&count)
-		if count == 0 {
+		idParam := parts[0]
+		var episodeID string
+		if len(parts) > 1 {
+			episodeID = parts[1]
+		}
+
+		var progressID string
+		if episodeID != "" {
+			_ = db.QueryRowContext(r.Context(), "SELECT id FROM mediaProgresses WHERE userId = ? AND mediaItemId = ?", userSess.ID, episodeID).Scan(&progressID)
+		} else {
+			var count int
+			_ = db.QueryRowContext(r.Context(), "SELECT COUNT(*) FROM mediaProgresses WHERE id = ? AND userId = ?", idParam, userSess.ID).Scan(&count)
+			if count > 0 {
+				progressID = idParam
+			} else {
+				_ = db.QueryRowContext(r.Context(), `SELECT id FROM mediaProgresses WHERE userId = ? AND 
+					(mediaItemId = ? OR json_extract(extraData, '$.libraryItemId') = ?) LIMIT 1`, userSess.ID, idParam, idParam).Scan(&progressID)
+			}
+		}
+
+		if progressID == "" {
 			http.Error(w, `{"error": "Progress not found"}`, http.StatusNotFound)
 			return
 		}
@@ -1123,6 +1164,85 @@ func handleMeRemoveBookmark(db *sql.DB) http.HandlerFunc {
 
 		w.WriteHeader(http.StatusOK)
 	}
+}
+
+// scanMediaProgressRows scans multiple database rows into a slice of maps used by client API
+func scanMediaProgressRows(rows *sql.Rows) ([]map[string]interface{}, error) {
+	var results []map[string]interface{}
+	for rows.Next() {
+		var id, userId, mediaItemId, mediaItemType string
+		var duration, currentTime float64
+		var isFinishedInt, hideFromContinueListeningInt int
+		var ebookLocation, finishedAt, extraData, createdAt, updatedAt, podcastId sql.NullString
+		var ebookProgress sql.NullFloat64
+
+		err := rows.Scan(&id, &userId, &mediaItemId, &mediaItemType, &duration, &currentTime, &isFinishedInt, &hideFromContinueListeningInt, &ebookLocation, &ebookProgress, &finishedAt, &extraData, &createdAt, &updatedAt, &podcastId)
+		if err != nil {
+			return nil, err
+		}
+
+		var extra map[string]interface{}
+		if extraData.Valid && extraData.String != "" {
+			json.Unmarshal([]byte(extraData.String), &extra)
+		}
+		if extra == nil {
+			extra = make(map[string]interface{})
+		}
+
+		libItemID, _ := extra["libraryItemId"].(string)
+		progressVal := 0.0
+		if duration > 0 {
+			progressVal = currentTime / duration
+			if progressVal > 1.0 {
+				progressVal = 1.0
+			}
+		}
+
+		updatedAtMs := idb.ParseTimeStr(updatedAt.String)
+		createdAtMs := idb.ParseTimeStr(createdAt.String)
+		var finishedAtMs *int64
+		if finishedAt.Valid && finishedAt.String != "" {
+			val := idb.ParseTimeStr(finishedAt.String)
+			finishedAtMs = &val
+		}
+
+		var episodeID *string
+		if mediaItemType == "podcastEpisode" {
+			val := mediaItemId
+			episodeID = &val
+		}
+
+		var ebookLoc *string
+		if ebookLocation.Valid {
+			val := ebookLocation.String
+			ebookLoc = &val
+		}
+		var ebookProgVal *float64
+		if ebookProgress.Valid {
+			val := ebookProgress.Float64
+			ebookProgVal = &val
+		}
+
+		results = append(results, map[string]interface{}{
+			"id":                        id,
+			"userId":                    userId,
+			"libraryItemId":             libItemID,
+			"episodeId":                 episodeID,
+			"mediaItemId":               mediaItemId,
+			"mediaItemType":             mediaItemType,
+			"duration":                  duration,
+			"progress":                  progressVal,
+			"currentTime":               currentTime,
+			"isFinished":                isFinishedInt != 0,
+			"hideFromContinueListening": hideFromContinueListeningInt != 0,
+			"ebookLocation":             ebookLoc,
+			"ebookProgress":             ebookProgVal,
+			"lastUpdate":                updatedAtMs,
+			"startedAt":                 createdAtMs,
+			"finishedAt":                finishedAtMs,
+		})
+	}
+	return results, nil
 }
 
 // scanMediaProgress scans a database row into a map format used by client API

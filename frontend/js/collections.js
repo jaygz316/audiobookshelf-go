@@ -32,7 +32,7 @@ export async function loadCollections(libraryId) {
           </button>
         </div>
 
-        <div id="collections-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
+        <div id="collections-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--bookshelf-card-width, 120px), 1fr)); gap: 1.5rem;">
           <!-- Collection Cards -->
         </div>
 
@@ -56,6 +56,45 @@ export async function loadCollections(libraryId) {
   }
 }
 
+function renderCoversPreview(bookIds, token) {
+  if (!bookIds || bookIds.length === 0) {
+    return `<span class="material-symbols text-4xl text-accent/80">collections_bookmark</span>`;
+  }
+  
+  if (bookIds.length === 1) {
+    return `<img src="${resolvePath(`/api/items/${bookIds[0]}/cover?token=${token}&width=200`)}" class="w-full h-full object-cover" alt="Cover" onerror="this.onerror=null; this.src='assets/images/book_placeholder.jpg';">`;
+  }
+  
+  if (bookIds.length === 2) {
+    return `
+      <div class="grid grid-cols-2 w-full h-full gap-0.5">
+        <img src="${resolvePath(`/api/items/${bookIds[0]}/cover?token=${token}&width=120`)}" class="w-full h-full object-cover" alt="Cover 1" onerror="this.style.display='none'">
+        <img src="${resolvePath(`/api/items/${bookIds[1]}/cover?token=${token}&width=120`)}" class="w-full h-full object-cover" alt="Cover 2" onerror="this.style.display='none'">
+      </div>
+    `;
+  }
+  
+  if (bookIds.length === 3) {
+    return `
+      <div class="grid grid-cols-2 grid-rows-2 w-full h-full gap-0.5">
+        <img src="${resolvePath(`/api/items/${bookIds[0]}/cover?token=${token}&width=100`)}" class="w-full h-full object-cover row-span-2" alt="Cover 1" onerror="this.style.display='none'">
+        <img src="${resolvePath(`/api/items/${bookIds[1]}/cover?token=${token}&width=100`)}" class="w-full h-full object-cover" alt="Cover 2" onerror="this.style.display='none'">
+        <img src="${resolvePath(`/api/items/${bookIds[2]}/cover?token=${token}&width=100`)}" class="w-full h-full object-cover" alt="Cover 3" onerror="this.style.display='none'">
+      </div>
+    `;
+  }
+
+  // 4 or more
+  return `
+    <div class="grid grid-cols-2 grid-rows-2 w-full h-full gap-0.5">
+      <img src="${resolvePath(`/api/items/${bookIds[0]}/cover?token=${token}&width=100`)}" class="w-full h-full object-cover" alt="Cover 1" onerror="this.style.display='none'">
+      <img src="${resolvePath(`/api/items/${bookIds[1]}/cover?token=${token}&width=100`)}" class="w-full h-full object-cover" alt="Cover 2" onerror="this.style.display='none'">
+      <img src="${resolvePath(`/api/items/${bookIds[2]}/cover?token=${token}&width=100`)}" class="w-full h-full object-cover" alt="Cover 3" onerror="this.style.display='none'">
+      <img src="${resolvePath(`/api/items/${bookIds[3]}/cover?token=${token}&width=100`)}" class="w-full h-full object-cover" alt="Cover 4" onerror="this.style.display='none'">
+    </div>
+  `;
+}
+
 function renderCollectionsGrid(collections, libraryId) {
   const grid = document.getElementById('collections-grid');
   const emptyState = document.getElementById('collections-empty');
@@ -68,29 +107,33 @@ function renderCollectionsGrid(collections, libraryId) {
   }
   emptyState.classList.add('hidden');
 
+  const token = localStorage.getItem('token');
+
   collections.forEach(c => {
     const card = document.createElement('div');
-    card.className = 'bg-primary border border-black-300 rounded overflow-hidden shadow hover:border-black-100 transition-all flex flex-col justify-between p-4 relative group cursor-pointer';
+    card.className = 'bg-primary border border-black-300 rounded overflow-hidden shadow hover:border-black-100 transition-all flex flex-col justify-between p-3 relative group cursor-pointer';
+    card.style.width = '100%';
     
-    const count = c.books?.length || 0;
+    const bookIds = c.books || c.itemIds || [];
+    const count = bookIds.length;
     
     card.innerHTML = `
       <div class="space-y-2">
-        <div class="h-28 w-full bg-black-500 rounded flex items-center justify-center text-accent/80 border border-black-400 mb-2 relative">
-          ${c.isSmart ? `<span class="absolute top-2 left-2 bg-accent/20 text-accent border border-accent/30 px-1.5 py-0.5 text-[0.65rem] rounded font-bold uppercase tracking-wide">Smart</span>` : ''}
-          <span class="material-symbols text-4xl">collections_bookmark</span>
-          <span class="absolute bottom-2 right-2 bg-black-600/80 px-2 py-0.5 text-xs text-white rounded font-semibold">${count} books</span>
+        <div class="w-full bg-black-500 rounded overflow-hidden flex items-center justify-center text-accent/80 border border-black-400 mb-2 relative" style="aspect-ratio: 2/3;">
+          ${c.isSmart ? `<span class="absolute top-2 left-2 bg-accent/20 text-accent border border-accent/30 px-1.5 py-0.5 text-[0.65rem] rounded font-bold uppercase tracking-wide z-10">Smart</span>` : ''}
+          ${renderCoversPreview(bookIds, token)}
+          <span class="absolute bottom-2 right-2 bg-black-600/80 px-2 py-0.5 text-[10px] text-white rounded font-semibold z-10">${count} books</span>
         </div>
-        <h3 class="font-semibold text-white truncate">${escapeHtml(c.name)}</h3>
-        <p class="text-xs text-black-50 line-clamp-2">${escapeHtml(c.description) || 'No description'}</p>
+        <h3 class="font-semibold text-white truncate text-xs" title="${escapeHtml(c.name)}">${escapeHtml(c.name)}</h3>
+        <p class="text-[10px] text-black-50 line-clamp-2 h-7 leading-relaxed">${escapeHtml(c.description) || 'No description'}</p>
       </div>
 
-      <div class="flex justify-between items-center mt-4 pt-2 border-t border-black-400/50">
-        <button class="delete-btn text-error hover:text-red-400 text-xs flex items-center space-x-1" data-id="${c.id}">
-          <span class="material-symbols text-sm">delete</span>
+      <div class="flex justify-between items-center mt-3 pt-2 border-t border-black-400/50">
+        <button class="delete-btn text-error hover:text-red-400 text-[10px] flex items-center space-x-0.5" data-id="${c.id}">
+          <span class="material-symbols text-[13px]">delete</span>
           <span>Delete</span>
         </button>
-        <span class="text-[0.7rem] text-black-100">Click to view</span>
+        <span class="text-[9px] text-black-100">View Details</span>
       </div>
     `;
 

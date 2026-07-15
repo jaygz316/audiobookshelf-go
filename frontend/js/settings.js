@@ -177,6 +177,9 @@ export async function loadSettings() {
       if (activeTabId === 'tasks') {
         renderTasksTab();
       }
+      
+      // Update hash without triggering router reload
+      window.location.hash = activeTabId;
     };
   });
 
@@ -198,6 +201,15 @@ export async function loadSettings() {
     renderEmailsTab(),
     renderSharesTab()
   ]);
+
+  // Set initial tab from hash if present
+  const hash = window.location.hash.substring(1);
+  if (hash) {
+    const targetTabBtn = Array.from(tabs).find(t => t.dataset.tab === hash);
+    if (targetTabBtn) {
+      targetTabBtn.click();
+    }
+  }
 }
 
 async function renderServerSettingsTab() {
@@ -3521,7 +3533,7 @@ function showLibraryModal(lib) {
   const coverAspectRatio = libSettings.coverAspectRatio || 1;
 
   modal.innerHTML = `
-    <div class="bg-primary border border-black-300 w-full max-w-lg p-6 rounded-md shadow-lg space-y-4 my-8">
+    <div class="bg-primary border border-black-300 w-full max-w-lg p-6 rounded-md shadow-lg space-y-4 my-8 relative">
       <h3 class="text-lg font-bold border-b border-black-400 pb-2">${isEdit ? 'Edit Library' : 'Add Library'}</h3>
       
       <form id="library-form" class="space-y-4">
@@ -3592,14 +3604,254 @@ function showLibraryModal(lib) {
   const closeModal = () => modal.remove();
   modal.querySelector('#close-lib-modal-btn').onclick = closeModal;
 
+  // Open Folder Picker Helper
+  function openFolderPicker(inputEl) {
+    const pickerContainer = document.createElement('div');
+    pickerContainer.className = 'absolute inset-0 bg-primary rounded-md p-6 flex flex-col z-20 space-y-4';
+    
+    pickerContainer.innerHTML = `
+      <div class="flex items-center justify-between border-b border-black-400 pb-2">
+        <h4 class="text-sm font-bold text-white flex items-center">
+          <span class="material-symbols text-lg mr-1.5">folder_open</span>
+          <span>Select Folder</span>
+        </h4>
+        <button type="button" id="btn-picker-close" class="text-gray-400 hover:text-white material-symbols text-lg focus:outline-none">close</button>
+      </div>
+
+      <!-- Current path display and navigation up -->
+      <div class="flex items-center space-x-2 bg-black-500/70 p-2 rounded border border-black-300/30 text-xs">
+        <button type="button" id="btn-picker-up" class="text-accent hover:opacity-85 material-symbols text-base focus:outline-none flex items-center justify-center" title="Go up one folder">arrow_upward</button>
+        <span class="text-black-100">Path:</span>
+        <span id="picker-current-path" class="font-mono text-white truncate grow">/</span>
+      </div>
+
+      <!-- Main columns flex layout -->
+      <div class="flex flex-grow min-h-0 border border-black-350 bg-black-600 rounded overflow-hidden text-sm h-[260px]">
+        <!-- Directories list (left column) -->
+        <div class="w-1/2 border-r border-black-350 flex flex-col h-full">
+          <div class="bg-black-700/50 px-3 py-1.5 text-xs text-black-50 font-semibold border-b border-black-350">Folders</div>
+          <div id="picker-dirs-list" class="flex-grow overflow-y-auto p-1 divide-y divide-black-500/20">
+            <!-- Dynamically populated -->
+          </div>
+        </div>
+        <!-- Subdirectories list (right column) -->
+        <div class="w-1/2 flex flex-col h-full">
+          <div class="bg-black-700/50 px-3 py-1.5 text-xs text-black-50 font-semibold border-b border-black-350">Subfolders</div>
+          <div id="picker-subdirs-list" class="flex-grow overflow-y-auto p-1 divide-y divide-black-500/20">
+            <!-- Dynamically populated -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer controls -->
+      <div class="flex items-center justify-between pt-2 border-t border-black-400">
+        <div class="text-xxs text-black-100 flex items-center mr-2">
+          <span class="material-symbols text-xs mr-1 text-accent flex items-center justify-center">info</span>
+          <span class="leading-none">Click to inspect subfolders. Double-click to open.</span>
+        </div>
+        <div class="flex space-x-2">
+          <button type="button" id="btn-picker-cancel" class="bg-black-400 hover:bg-black-350 px-3 py-1.5 rounded text-xs font-semibold text-white transition-colors">Cancel</button>
+          <button type="button" id="btn-picker-select" class="bg-accent hover:opacity-90 text-primary px-4 py-1.5 rounded text-xs font-semibold transition-opacity" disabled>Select Folder</button>
+        </div>
+      </div>
+    `;
+
+    // Append to modal card
+    const cardEl = modal.querySelector('.bg-primary');
+    cardEl.appendChild(pickerContainer);
+
+    const closeBtn = pickerContainer.querySelector('#btn-picker-close');
+    const cancelBtn = pickerContainer.querySelector('#btn-picker-cancel');
+    const selectBtn = pickerContainer.querySelector('#btn-picker-select');
+    const upBtn = pickerContainer.querySelector('#btn-picker-up');
+    const currentPathEl = pickerContainer.querySelector('#picker-current-path');
+    const dirsListEl = pickerContainer.querySelector('#picker-dirs-list');
+    const subdirsListEl = pickerContainer.querySelector('#picker-subdirs-list');
+
+    let currentPath = inputEl.value.trim() || '/';
+    let selectedPath = currentPath;
+    let directories = [];
+    let subdirs = [];
+    let isPosix = true;
+
+    const closePicker = () => pickerContainer.remove();
+    closeBtn.onclick = closePicker;
+    cancelBtn.onclick = closePicker;
+
+    selectBtn.onclick = () => {
+      inputEl.value = selectedPath;
+      closePicker();
+    };
+
+    function getLevel(pathStr) {
+      if (!pathStr || pathStr === '/' || pathStr === '\\') return 0;
+      const clean = pathStr.replace(/\\/g, '/');
+      const parts = clean.split('/').filter(Boolean);
+      return parts.length;
+    }
+
+    async function loadPath(path, lvl) {
+      dirsListEl.innerHTML = '<div class="text-xs text-black-100 p-2">Loading...</div>';
+      subdirsListEl.innerHTML = '';
+      selectBtn.disabled = true;
+      selectBtn.classList.add('opacity-50');
+
+      try {
+        const queryPath = path === '/' ? '' : path;
+        const data = await request('GET', `/api/filesystem?path=${encodeURIComponent(queryPath)}&level=${lvl}`);
+        isPosix = (data.posix !== false);
+        directories = data.directories || [];
+        renderDirs();
+        updatePathDisplay();
+      } catch (err) {
+        if (path !== '/') {
+          currentPath = '/';
+          selectedPath = '/';
+          loadPath('/', 0);
+        } else {
+          dirsListEl.innerHTML = `<div class="text-xs text-red-400 p-2">Error: ${escapeHtml(err.message)}</div>`;
+        }
+      }
+    }
+
+    function updatePathDisplay() {
+      currentPathEl.textContent = currentPath;
+      if (currentPath === '/' || currentPath === '' || (!isPosix && /^[a-zA-Z]:\\?$/.test(currentPath))) {
+        upBtn.disabled = true;
+        upBtn.classList.add('opacity-50');
+      } else {
+        upBtn.disabled = false;
+        upBtn.classList.remove('opacity-50');
+      }
+    }
+
+    upBtn.onclick = () => {
+      let parts;
+      let newPath;
+      if (isPosix) {
+        parts = currentPath.split('/').filter(Boolean);
+        parts.pop();
+        newPath = '/' + parts.join('/');
+      } else {
+        parts = currentPath.split('\\').filter(Boolean);
+        parts.pop();
+        newPath = parts.join('\\');
+        if (parts.length === 1 && /^[a-zA-Z]:$/.test(parts[0])) {
+          newPath = parts[0] + '\\';
+        }
+      }
+      currentPath = newPath;
+      selectedPath = newPath;
+      loadPath(currentPath, getLevel(currentPath));
+    };
+
+    function renderDirs() {
+      dirsListEl.innerHTML = '';
+      if (directories.length === 0) {
+        dirsListEl.innerHTML = '<div class="text-xs text-black-100 p-2">No folders found.</div>';
+        return;
+      }
+
+      directories.forEach(dir => {
+        const item = document.createElement('button');
+        item.type = 'button';
+        item.className = 'w-full text-left flex items-center px-2 py-1.5 text-xs text-gray-300 hover:text-white hover:bg-black-400 transition-colors focus:outline-none rounded';
+        
+        const isSelected = dir.path === selectedPath;
+        if (isSelected) {
+          item.classList.add('bg-black-500', 'text-white', 'font-semibold');
+          selectBtn.disabled = false;
+          selectBtn.classList.remove('opacity-50');
+        }
+
+        item.innerHTML = `
+          <span class="material-symbols text-yellow-500 text-sm mr-1.5 flex items-center" style="font-variation-settings: 'FILL' 1;">folder</span>
+          <span class="truncate grow font-mono text-left">${escapeHtml(dir.dirname)}</span>
+          ${isSelected ? '<span class="material-symbols text-[14px] text-accent flex items-center">check</span>' : ''}
+        `;
+
+        item.onclick = (e) => {
+          selectedPath = dir.path;
+          Array.from(dirsListEl.children).forEach(child => {
+            child.classList.remove('bg-black-500', 'text-white', 'font-semibold');
+            const chk = child.querySelector('.text-accent');
+            if (chk) chk.remove();
+          });
+          item.classList.add('bg-black-500', 'text-white', 'font-semibold');
+          const checkSpan = document.createElement('span');
+          checkSpan.className = 'material-symbols text-[14px] text-accent flex items-center';
+          checkSpan.textContent = 'check';
+          item.appendChild(checkSpan);
+
+          selectBtn.disabled = false;
+          selectBtn.classList.remove('opacity-50');
+
+          loadSubdirs(dir.path);
+        };
+
+        item.ondblclick = () => {
+          currentPath = dir.path;
+          selectedPath = dir.path;
+          loadPath(currentPath, getLevel(currentPath));
+        };
+
+        dirsListEl.appendChild(item);
+      });
+    }
+
+    async function loadSubdirs(path) {
+      subdirsListEl.innerHTML = '<div class="text-xs text-black-100 p-2">Loading subfolders...</div>';
+      try {
+        const lvl = getLevel(path) + 1;
+        const data = await request('GET', `/api/filesystem?path=${encodeURIComponent(path)}&level=${lvl}`);
+        subdirs = data.directories || [];
+        renderSubdirs();
+      } catch (err) {
+        subdirsListEl.innerHTML = `<div class="text-xs text-red-400 p-2">Error: ${escapeHtml(err.message)}</div>`;
+      }
+    }
+
+    function renderSubdirs() {
+      subdirsListEl.innerHTML = '';
+      if (subdirs.length === 0) {
+        subdirsListEl.innerHTML = '<div class="text-xs text-black-100 p-2">No subfolders.</div>';
+        return;
+      }
+
+      subdirs.forEach(dir => {
+        const item = document.createElement('button');
+        item.type = 'button';
+        item.className = 'w-full text-left flex items-center px-2 py-1.5 text-xs text-gray-300 hover:text-white hover:bg-black-400 transition-colors focus:outline-none rounded';
+        item.innerHTML = `
+          <span class="material-symbols text-yellow-500/80 text-sm mr-1.5 flex items-center" style="font-variation-settings: 'FILL' 1;">folder</span>
+          <span class="truncate grow font-mono text-left">${escapeHtml(dir.dirname)}</span>
+          <span class="material-symbols text-xs text-gray-500 flex items-center">chevron_right</span>
+        `;
+
+        item.onclick = () => {
+          currentPath = dir.path;
+          selectedPath = dir.path;
+          loadPath(currentPath, getLevel(currentPath));
+        };
+
+        subdirsListEl.appendChild(item);
+      });
+    }
+
+    loadPath(currentPath, getLevel(currentPath));
+  }
+
   // Add folder row helper
   function addFolderRow(val = '', id = '') {
     const row = document.createElement('div');
     row.className = 'flex items-center space-x-2';
     row.innerHTML = `
       <input type="text" class="lib-folder-path flex-grow bg-black-500 text-white px-3 py-1.5 rounded border border-black-300 focus:outline-none focus:border-accent text-sm" placeholder="e.g. /path/to/media" value="${escapeHtml(val)}" data-id="${id}">
-      <button type="button" class="btn-remove-folder-row text-red-500 hover:text-red-400 material-symbols text-lg focus:outline-none">delete</button>
+      <button type="button" class="btn-browse-folder text-accent hover:opacity-85 material-symbols text-lg focus:outline-none flex items-center justify-center p-1 hover:bg-white/5 rounded" title="Browse Folder">folder_open</button>
+      <button type="button" class="btn-remove-folder-row text-red-500 hover:text-red-400 material-symbols text-lg focus:outline-none flex items-center justify-center p-1 hover:bg-white/5 rounded" title="Remove Folder">delete</button>
     `;
+    const input = row.querySelector('.lib-folder-path');
+    row.querySelector('.btn-browse-folder').onclick = () => openFolderPicker(input);
     row.querySelector('.btn-remove-folder-row').onclick = () => row.remove();
     foldersContainer.appendChild(row);
   }

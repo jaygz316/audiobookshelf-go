@@ -41,5 +41,19 @@
   - Allowed the shelf size control slider to be visible on `/series` and `/authors` list pages.
   - Added seamless Back to Series and Back to Authors navigation links.
   - Implemented real-time reading progress cache querying for series cards, displaying an overall progress bar matching Vue.js frontend standards.
+- **Audio Player UI Parity & Chapter Controls**:
+  - Implemented Previous/Next Chapter navigation and queue item transitions matching original Vue component behavior.
+  - Added a chapters list modal (`player-chapters-dialog`) triggered by `player-chapters-btn` displaying start times and durations, with auto-scroll to the active chapter.
+  - Implemented custom skip forward/backward duration selects in the Player Settings modal, dynamically saving to/loading from `localStorage` and updating seek button icons and tooltips.
+  - Added chapter titles into the timeline hover tooltips and dynamic chapter info display (`player-chapter-info`) below the scrubber.
+- **Collections & Playlists Cover Fallbacks**: Fixed invalid `/assets/cover-fallback.png` image references in collections and playlist views, changing them to use the existing `assets/images/book_placeholder.jpg` to prevent 404 resource errors and broken cover icons in the UI.
+- **Podcast View & Episodes Audit**: Completed detailed visual parity and functional audit of the Podcast view. Verified iTunes/RSS subscription actions, filter and sorting mechanisms, settings updates, downloading/queueing tasks, and episode-specific actions (play/resume, mark played/unplayed, delete, hard delete). Ran Go end-to-end integration tests to verify API correctness.
+- **Authors & Playlists UX Parity (Priority 10)**:
+  - Added search input, sort fields (Name/Book Count), and sort order controls to the Authors page, matching the Narrators page UI. Added backend support for search querying in GET `/api/libraries/:id/authors`.
+  - Added a "Play Playlist" button to the Playlist details page header.
+  - Implemented `playItems` in `player.js` to clear/populate the playbackQueue with playlist items and play them sequentially starting from any index.
+- **Settings Page Bookmarkable Tab Hashes**: Enhanced the Settings page tab switcher to synchronize with and initialize from `window.location.hash`, preserving the active settings sub-tab selection (Users, Libraries, Server, Auth, etc.) on page refreshes and bookmark links.
+- **Onboarding Welcome Screen**: Implemented `showNoLibrariesWelcome()` onboarding welcome screen for new users or setups with empty libraries, offering a direct "Add Your First Library" shortcut button that links straight to the Settings Libraries sub-tab and launches the creation dialog.
+- **FS Directory Picker**: Integrated an interactive folder browse modal overlay into the library configuration modal, querying GET `/api/filesystem` to list server directories, drill down into subfolders, and navigate up.
 
 

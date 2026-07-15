@@ -377,42 +377,17 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
                   </div>
                 </div>
               ` : ''}
+
             </div>
 
             <!-- Tracks / Episode Accordion -->
-            ${mediaType === 'podcast' && item.media && item.media.episodes && item.media.episodes.length > 0 ? `
-              <div class="space-y-2">
-                <h3 class="font-bold text-sm text-white border-b border-black-400 pb-1">Episodes (${item.media.episodes.length})</h3>
-                <ul class="space-y-2 max-h-64 overflow-y-auto no-scroll border border-black-400/50 rounded-md p-2 bg-primary/20">
-                  ${item.media.episodes.map((ep, idx) => {
-                    const isDownloaded = ep.audioFile && ep.audioFile.metadata && ep.audioFile.metadata.path;
-                    return `
-                      <li class="flex items-center justify-between p-2 hover:bg-black-500/40 rounded transition-colors text-xs">
-                        <div class="truncate flex-grow mr-4">
-                          <p class="font-semibold text-white truncate">${escapeHtml(ep.title)}</p>
-                          ${ep.pubDate ? `<p class="text-[0.7rem] text-black-100 mt-0.5">${escapeHtml(ep.pubDate)}</p>` : ''}
-                        </div>
-                        <div class="flex items-center space-x-1.5 flex-shrink-0">
-                          ${isDownloaded ? `
-                            <button class="podcast-ep-play-btn flex items-center space-x-1 bg-accent text-primary px-2.5 py-1 rounded font-bold hover:opacity-90" data-idx="${idx}">
-                              <span class="material-symbols text-sm font-bold">play_arrow</span>
-                              <span>Play</span>
-                            </button>
-                          ` : `
-                            <button class="podcast-ep-download-btn flex items-center space-x-1 bg-black-400 hover:bg-black-300 border border-black-300 text-white px-2.5 py-1 rounded font-bold" data-id="${ep.id}">
-                              <span class="material-symbols text-sm">download</span>
-                              <span>Download</span>
-                            </button>
-                          `}
-                        </div>
-                      </li>
-                    `;
-                  }).join('')}
-                </ul>
+            ${mediaType === 'podcast' && item.media ? `
+              <div class="space-y-3" id="podcast-episodes-section">
+                <!-- Managed dynamically in JS -->
               </div>
             ` : ''}
 
-            ${mediaType === 'podcast' && item.media ? `
+            ${mediaType === 'podcast' ? `
               <div class="space-y-3 bg-black-500/10 p-3.5 rounded border border-black-400/20">
                 <h3 class="font-bold text-xs text-white border-b border-black-400 pb-1 flex items-center gap-1.5 uppercase tracking-wider">
                   <span class="material-symbols text-sm text-accent">settings</span>
@@ -718,51 +693,465 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
         };
       }
 
-      // Hook podcast episode clicks
-      const epPlayBtns = container.querySelectorAll('.podcast-ep-play-btn');
-      epPlayBtns.forEach(btn => {
-        btn.onclick = () => {
-          const idx = parseInt(btn.getAttribute('data-idx'), 10);
-          const episode = item.media.episodes[idx];
-          // We can construct a mock item or play the episode
-          const mockItem = {
-            ...item,
-            media: {
-              ...item.media,
-              audioFiles: [episode.audioFile],
-              duration: episode.duration || 0,
-              metadata: {
-                ...item.media.metadata,
-                title: episode.title
-              }
+      if (mediaType === 'podcast') {
+        const episodesSection = document.getElementById('podcast-episodes-section');
+        if (episodesSection) {
+          (async () => {
+            // 1. Fetch progresses
+            let progresses = [];
+            try {
+              progresses = await request('GET', `/api/me/progress/${item.id}`);
+            } catch (err) {
+              console.warn('Failed to fetch podcast progresses:', err);
             }
-          };
-          playItem(mockItem, 0);
-        };
-      });
 
-      // Hook podcast episode downloads
-      const epDownloadBtns = container.querySelectorAll('.podcast-ep-download-btn');
-      epDownloadBtns.forEach(btn => {
-        btn.onclick = async () => {
-          const episodeId = btn.getAttribute('data-id');
-          const originalContent = btn.innerHTML;
-          btn.disabled = true;
-          btn.innerHTML = `<span class="animate-spin text-white material-symbols text-xs">sync</span><span>Downloading...</span>`;
-          try {
-            await request('POST', `/api/podcasts/${item.mediaId || item.media.id}/download-episodes`, [episodeId]);
-            showToast('Download started in background', 'success');
-            btn.className = "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold px-2.5 py-1 rounded cursor-default focus:outline-none";
-            btn.innerHTML = `<span class="material-symbols text-xs">sync_saved_locally</span><span>Queued</span>`;
-            btn.onclick = null;
-          } catch (err) {
-            console.error('Download failed:', err);
-            showToast('Failed to start download: ' + err.message, 'error');
-            btn.disabled = false;
-            btn.innerHTML = originalContent;
-          }
-        };
-      });
+            // Build a lookup map of progress
+            const progressMap = {};
+            if (Array.isArray(progresses)) {
+              progresses.forEach(p => {
+                if (p.episodeId) {
+                  progressMap[p.episodeId] = p;
+                }
+              });
+            }
+
+            // Global/local variables to track search, filter, and sort state
+            let searchQuery = '';
+            let filterValue = 'all';
+            let sortValue = 'newest';
+
+            // Render the controls and the list wrapper
+            episodesSection.innerHTML = `
+              <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-black-400 pb-2">
+                <div class="flex items-center space-x-2">
+                  <h3 class="font-bold text-sm text-white">Episodes (<span id="episodes-count-badge">0</span>)</h3>
+                  <button id="podcast-sync-feed-btn" class="flex items-center justify-center p-1.5 rounded-full hover:bg-black-400/50 text-accent transition-colors" title="Sync Feed">
+                    <span class="material-symbols text-lg font-bold" id="podcast-sync-icon">sync</span>
+                  </button>
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                  <!-- Search input -->
+                  <div class="relative">
+                    <input type="text" id="episodes-search-input" placeholder="Search episodes..." class="bg-black-500 text-white border border-black-300 rounded pl-8 pr-2.5 py-1 text-xs w-48 focus:outline-none focus:border-accent">
+                    <span class="material-symbols text-xs text-black-100 absolute left-2.5 top-[8px]">search</span>
+                  </div>
+                  <!-- Filter Select -->
+                  <select id="episodes-filter-select" class="bg-black-500 text-white border border-black-300 rounded px-2.5 py-1 text-xs focus:outline-none focus:border-accent cursor-pointer">
+                    <option value="all">All Episodes</option>
+                    <option value="downloaded">Downloaded</option>
+                    <option value="not-downloaded">Not Downloaded</option>
+                    <option value="in-progress">In Progress</option>
+                    <option value="played">Played</option>
+                    <option value="unplayed">Unplayed</option>
+                  </select>
+                  <!-- Sort Select -->
+                  <select id="episodes-sort-select" class="bg-black-500 text-white border border-black-300 rounded px-2.5 py-1 text-xs focus:outline-none focus:border-accent cursor-pointer">
+                    <option value="newest">Newest First</option>
+                    <option value="oldest">Oldest First</option>
+                  </select>
+                </div>
+              </div>
+              <!-- Episode list container -->
+              <ul class="space-y-2.5 max-h-[500px] overflow-y-auto no-scroll border border-black-400/50 rounded-md p-3 bg-primary/20" id="podcast-episodes-list">
+              </ul>
+            `;
+
+            // Reference DOM elements
+            const episodesCountBadge = document.getElementById('episodes-count-badge');
+            const episodesList = document.getElementById('podcast-episodes-list');
+            const searchInput = document.getElementById('episodes-search-input');
+            const filterSelect = document.getElementById('episodes-filter-select');
+            const sortSelect = document.getElementById('episodes-sort-select');
+            const syncFeedBtn = document.getElementById('podcast-sync-feed-btn');
+            const syncIcon = document.getElementById('podcast-sync-icon');
+
+            // Expanded items state
+            const expandedEpisodes = new Set();
+
+            // Render episodes list
+            const renderList = () => {
+              let episodes = [...(item.media.episodes || [])];
+
+              // Filter episodes
+              if (searchQuery) {
+                const query = searchQuery.toLowerCase();
+                episodes = episodes.filter(ep => 
+                  (ep.title && ep.title.toLowerCase().includes(query)) ||
+                  (ep.description && ep.description.toLowerCase().includes(query))
+                );
+              }
+
+              if (filterValue !== 'all') {
+                episodes = episodes.filter(ep => {
+                  const isDownloaded = ep.audioFile && ep.audioFile.metadata && ep.audioFile.metadata.path;
+                  const prog = progressMap[ep.id];
+                  const isPlayed = prog && prog.isFinished;
+                  const isInProgress = prog && !prog.isFinished && prog.currentTime > 0;
+                  
+                  if (filterValue === 'downloaded') return isDownloaded;
+                  if (filterValue === 'not-downloaded') return !isDownloaded;
+                  if (filterValue === 'in-progress') return isInProgress;
+                  if (filterValue === 'played') return isPlayed;
+                  if (filterValue === 'unplayed') return !isPlayed && !isInProgress;
+                  return true;
+                });
+              }
+
+              // Sort episodes
+              episodes.sort((a, b) => {
+                const dateA = a.pubDate ? new Date(a.pubDate) : new Date(0);
+                const dateB = b.pubDate ? new Date(b.pubDate) : new Date(0);
+                return sortValue === 'newest' ? dateB - dateA : dateA - dateB;
+              });
+
+              // Update badge count
+              episodesCountBadge.textContent = episodes.length;
+
+              if (episodes.length === 0) {
+                episodesList.innerHTML = `
+                  <div class="text-center py-8 text-black-100">
+                    <span class="material-symbols text-3xl">info</span>
+                    <p class="mt-2 text-xs">No episodes found matching criteria.</p>
+                  </div>
+                `;
+                return;
+              }
+
+              episodesList.innerHTML = episodes.map((ep) => {
+                const isDownloaded = ep.audioFile && ep.audioFile.metadata && ep.audioFile.metadata.path;
+                const fileSize = ep.audioFile && ep.audioFile.metadata && ep.audioFile.metadata.size;
+                const durationVal = ep.duration || (ep.audioFile && ep.audioFile.duration) || 0;
+                
+                const prog = progressMap[ep.id];
+                const isPlayed = prog && prog.isFinished;
+                const isInProgress = prog && !prog.isFinished && prog.currentTime > 0;
+
+                // Badges
+                let statusBadge = '';
+                if (isPlayed) {
+                  statusBadge = `<span class="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[9px] font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5"><span class="material-symbols text-[10px]">check</span>Played</span>`;
+                } else if (isInProgress) {
+                  const percent = Math.round(prog.progress * 100);
+                  statusBadge = `<span class="bg-blue-500/10 border border-blue-500/30 text-blue-400 text-[9px] font-bold px-1.5 py-0.5 rounded flex items-center gap-1"><span class="animate-pulse w-1.5 h-1.5 bg-blue-400 rounded-full"></span>${percent}%</span>`;
+                }
+
+                let downloadBadge = '';
+                if (isDownloaded) {
+                  const sizeStr = fileSize ? ` (${formatBytes(fileSize)})` : '';
+                  downloadBadge = `<span class="bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 text-[9px] font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5" title="Downloaded${sizeStr}"><span class="material-symbols text-[10px]">download_done</span>Downloaded</span>`;
+                }
+
+                // Play Button
+                let playBtn = '';
+                if (isDownloaded) {
+                  let btnText = 'Play';
+                  let btnIcon = 'play_arrow';
+                  if (isInProgress) {
+                    btnText = 'Resume';
+                    btnIcon = 'play_arrow';
+                  } else if (isPlayed) {
+                    btnText = 'Replay';
+                    btnIcon = 'replay';
+                  }
+                  playBtn = `
+                    <button class="episode-play-btn flex items-center space-x-1 bg-accent text-primary px-2.5 py-1 rounded font-bold hover:opacity-90 transition-opacity" data-id="${ep.id}">
+                      <span class="material-symbols text-sm font-bold">${btnIcon}</span>
+                      <span>${btnText}</span>
+                    </button>
+                  `;
+                }
+
+                // Download Action Button
+                let downloadActionBtn = '';
+                if (!isDownloaded) {
+                  downloadActionBtn = `
+                    <button class="episode-download-btn flex items-center space-x-1 bg-black-400 hover:bg-black-300 border border-black-300 text-white px-2.5 py-1 rounded font-bold transition-colors" data-id="${ep.id}">
+                      <span class="material-symbols text-sm">download</span>
+                      <span>Download</span>
+                    </button>
+                  `;
+                }
+
+                const isExpanded = expandedEpisodes.has(ep.id);
+
+                return `
+                  <li class="border border-black-400/30 hover:border-black-400/70 bg-black-500/10 hover:bg-black-500/30 rounded-md transition-all text-xs" data-episode-id="${ep.id}">
+                    <!-- Header row (clickable to expand description) -->
+                    <div class="flex items-start justify-between p-3 cursor-pointer select-none" data-action="toggle-expand" data-id="${ep.id}">
+                      <div class="flex-grow mr-4 min-w-0">
+                        <div class="flex items-center space-x-2">
+                          <span class="font-bold text-white text-xs hover:text-accent transition-colors truncate block max-w-md">${escapeHtml(ep.title)}</span>
+                          <!-- Badges -->
+                          <div class="flex items-center space-x-1.5 flex-shrink-0">
+                            ${statusBadge}
+                            ${downloadBadge}
+                          </div>
+                        </div>
+                        <div class="flex items-center space-x-3 text-[10px] text-black-100 mt-1">
+                          ${ep.pubDate ? `<span>${escapeHtml(ep.pubDate)}</span>` : ''}
+                          ${durationVal > 0 ? `<span>•</span><span>${formatDuration(durationVal)}</span>` : ''}
+                        </div>
+                      </div>
+                      <!-- Play & Actions Buttons -->
+                      <div class="flex items-center space-x-2 flex-shrink-0" onclick="event.stopPropagation()">
+                        ${playBtn}
+                        ${downloadActionBtn}
+                        <!-- Episode Option Button / Dropdown -->
+                        <div class="relative inline-block text-left">
+                          <button class="episode-actions-trigger p-1 hover:bg-black-400 rounded transition-colors text-black-100 hover:text-white" data-id="${ep.id}">
+                            <span class="material-symbols text-sm font-bold">more_vert</span>
+                          </button>
+                          <!-- Dropdown menu -->
+                          <div class="episode-actions-dropdown hidden absolute right-0 mt-1 w-36 rounded-md shadow-lg bg-black-500 border border-black-300 ring-1 ring-black ring-opacity-5 z-20">
+                            <div class="py-1" role="menu">
+                              <button class="mark-played-btn flex w-full items-center px-3 py-2 text-left hover:bg-black-400 text-white" data-id="${ep.id}">
+                                <span class="material-symbols text-xs mr-2">check_circle</span>
+                                <span>Mark Played</span>
+                              </button>
+                              <button class="mark-unplayed-btn flex w-full items-center px-3 py-2 text-left hover:bg-black-400 text-white" data-id="${ep.id}">
+                                <span class="material-symbols text-xs mr-2">radio_button_unchecked</span>
+                                <span>Mark Unplayed</span>
+                              </button>
+                              ${isDownloaded ? `
+                                <button class="delete-file-btn flex w-full items-center px-3 py-2 text-left hover:bg-black-400 text-red-400" data-id="${ep.id}">
+                                  <span class="material-symbols text-xs mr-2">delete</span>
+                                  <span>Delete File</span>
+                                </button>
+                              ` : ''}
+                              <button class="hard-delete-btn flex w-full items-center px-3 py-2 text-left hover:bg-black-400 text-red-500 font-bold" data-id="${ep.id}">
+                                <span class="material-symbols text-xs mr-2">delete_forever</span>
+                                <span>Hard Delete</span>
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <!-- Description Accordion panel (hidden by default) -->
+                    <div class="episode-description ${isExpanded ? '' : 'hidden'} border-t border-black-400/20 p-3.5 bg-black-500/20 text-black-100 text-xs leading-relaxed max-h-48 overflow-y-auto no-scroll">
+                      ${ep.description ? ep.description : '<em class="text-black-200">No description available.</em>'}
+                    </div>
+                  </li>
+                `;
+              }).join('');
+
+              // Hook play buttons
+              episodesList.querySelectorAll('.episode-play-btn').forEach(btn => {
+                btn.onclick = async () => {
+                  const epId = btn.getAttribute('data-id');
+                  const ep = item.media.episodes.find(e => e.id === epId);
+                  if (!ep) return;
+
+                  let startTime = 0;
+                  const prog = progressMap[epId];
+                  if (prog && prog.currentTime !== undefined) {
+                    startTime = prog.currentTime;
+                  }
+
+                  const mockItem = {
+                    ...item,
+                    episodeId: ep.id,
+                    media: {
+                      ...item.media,
+                      audioFiles: [ep.audioFile],
+                      duration: ep.duration || 0,
+                      metadata: {
+                        ...item.media.metadata,
+                        title: ep.title
+                      }
+                    }
+                  };
+                  playItem(mockItem, startTime);
+                };
+              });
+
+              // Hook download buttons
+              episodesList.querySelectorAll('.episode-download-btn').forEach(btn => {
+                btn.onclick = async () => {
+                  const epId = btn.getAttribute('data-id');
+                  const originalContent = btn.innerHTML;
+                  btn.disabled = true;
+                  btn.innerHTML = `<span class="animate-spin text-white material-symbols text-xs">sync</span><span>Downloading...</span>`;
+                  try {
+                    await request('POST', `/api/podcasts/${item.mediaId || item.media.id}/download-episodes`, [epId]);
+                    showToast('Download started in background', 'success');
+                    btn.className = "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold px-2.5 py-1 rounded cursor-default focus:outline-none";
+                    btn.innerHTML = `<span class="material-symbols text-xs">sync_saved_locally</span><span>Queued</span>`;
+                    btn.onclick = null;
+                  } catch (err) {
+                    console.error('Download failed:', err);
+                    showToast('Failed to start download: ' + err.message, 'error');
+                    btn.disabled = false;
+                    btn.innerHTML = originalContent;
+                  }
+                };
+              });
+
+              // Hook actions trigger dropdowns
+              episodesList.querySelectorAll('.episode-actions-trigger').forEach(trigger => {
+                trigger.onclick = (e) => {
+                  e.stopPropagation();
+                  const dropdown = trigger.nextElementSibling;
+                  document.querySelectorAll('.episode-actions-dropdown').forEach(d => {
+                    if (d !== dropdown) d.classList.add('hidden');
+                  });
+                  dropdown.classList.toggle('hidden');
+                };
+              });
+
+              // Hook mark played buttons
+              episodesList.querySelectorAll('.mark-played-btn').forEach(btn => {
+                btn.onclick = async (e) => {
+                  e.stopPropagation();
+                  const epId = btn.getAttribute('data-id');
+                  const ep = item.media.episodes.find(e => e.id === epId);
+                  if (!ep) return;
+                  const durationVal = ep.duration || (ep.audioFile && ep.audioFile.duration) || 0;
+
+                  try {
+                    const payload = {
+                      currentTime: durationVal,
+                      duration: durationVal,
+                      isFinished: true
+                    };
+                    await request('PATCH', `/api/me/progress/${item.id}/${epId}`, payload);
+                    showToast('Episode marked as played', 'success');
+                    
+                    progressMap[epId] = {
+                      episodeId: epId,
+                      currentTime: durationVal,
+                      duration: durationVal,
+                      isFinished: true,
+                      progress: 1.0
+                    };
+                    renderList();
+                  } catch (err) {
+                    showToast('Failed to mark played: ' + err.message, 'error');
+                  }
+                };
+              });
+
+              // Hook mark unplayed buttons
+              episodesList.querySelectorAll('.mark-unplayed-btn').forEach(btn => {
+                btn.onclick = async (e) => {
+                  e.stopPropagation();
+                  const epId = btn.getAttribute('data-id');
+
+                  try {
+                    await request('DELETE', `/api/me/progress/${item.id}/${epId}`);
+                    showToast('Episode marked as unplayed', 'success');
+                    
+                    delete progressMap[epId];
+                    renderList();
+                  } catch (err) {
+                    showToast('Failed to mark unplayed: ' + err.message, 'error');
+                  }
+                };
+              });
+
+              // Hook delete downloaded file buttons
+              episodesList.querySelectorAll('.delete-file-btn').forEach(btn => {
+                btn.onclick = async (e) => {
+                  e.stopPropagation();
+                  if (!confirm('Are you sure you want to delete the local file for this episode?')) return;
+                  const epId = btn.getAttribute('data-id');
+
+                  try {
+                    await request('DELETE', `/api/podcasts/${item.mediaId || item.media.id}/episode/${epId}`);
+                    showToast('File deleted successfully', 'success');
+                    
+                    const ep = item.media.episodes.find(e => e.id === epId);
+                    if (ep) {
+                      ep.audioFile = {};
+                    }
+                    renderList();
+                  } catch (err) {
+                    showToast('Failed to delete file: ' + err.message, 'error');
+                  }
+                };
+              });
+
+              // Hook hard delete episode buttons
+              episodesList.querySelectorAll('.hard-delete-btn').forEach(btn => {
+                btn.onclick = async (e) => {
+                  e.stopPropagation();
+                  if (!confirm('Are you sure you want to completely delete this episode from the database? This cannot be undone.')) return;
+                  const epId = btn.getAttribute('data-id');
+
+                  try {
+                    await request('DELETE', `/api/podcasts/${item.mediaId || item.media.id}/episode/${epId}?hard=1`);
+                    showToast('Episode deleted permanently', 'success');
+                    
+                    item.media.episodes = item.media.episodes.filter(e => e.id !== epId);
+                    renderList();
+                  } catch (err) {
+                    showToast('Failed to delete episode: ' + err.message, 'error');
+                  }
+                };
+              });
+
+              // Hook toggling expand description
+              episodesList.querySelectorAll('[data-action="toggle-expand"]').forEach(header => {
+                header.onclick = () => {
+                  const epId = header.getAttribute('data-id');
+                  if (expandedEpisodes.has(epId)) {
+                    expandedEpisodes.delete(epId);
+                  } else {
+                    expandedEpisodes.add(epId);
+                  }
+                  renderList();
+                };
+              });
+            };
+
+            // Hook filter and sort inputs
+            searchInput.oninput = (e) => {
+              searchQuery = e.target.value;
+              renderList();
+            };
+
+            filterSelect.onchange = (e) => {
+              filterValue = e.target.value;
+              renderList();
+            };
+
+            sortSelect.onchange = (e) => {
+              sortValue = e.target.value;
+              renderList();
+            };
+
+            // Close dropdowns on document click
+            document.addEventListener('click', () => {
+              document.querySelectorAll('.episode-actions-dropdown').forEach(d => d.classList.add('hidden'));
+            });
+
+            // Sync feed handler
+            syncFeedBtn.onclick = async () => {
+              syncFeedBtn.disabled = true;
+              syncIcon.classList.add('animate-spin');
+              try {
+                const res = await request('GET', `/api/podcasts/${item.mediaId || item.media.id}/checknew`);
+                if (res && res.episodes) {
+                  item.media.episodes = res.episodes;
+                  showToast('Podcast feed synced successfully', 'success');
+                } else {
+                  showToast('Podcast feed synced', 'success');
+                }
+                renderList();
+              } catch (err) {
+                console.error('Failed to sync feed:', err);
+                showToast('Sync feed failed: ' + err.message, 'error');
+              } finally {
+                syncFeedBtn.disabled = false;
+                syncIcon.classList.remove('animate-spin');
+              }
+            };
+
+            // Initial render
+            renderList();
+          })();
+        }
+      }
 
       // Hook podcast settings save
       const saveSettingsBtn = document.getElementById('podcast-details-save-settings-btn');
