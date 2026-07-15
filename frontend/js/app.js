@@ -160,6 +160,26 @@ export async function updateSidebarVisibility() {
 window.updateSidebarVisibility = updateSidebarVisibility;
 
 function setupEventHandlers() {
+  // Password Visibility Toggle
+  document.querySelectorAll('.password-wrapper').forEach(wrapper => {
+    const input = wrapper.querySelector('input');
+    const toggleBtn = wrapper.querySelector('.password-toggle-btn');
+    const icon = toggleBtn ? toggleBtn.querySelector('.material-symbols') : null;
+    if (input && toggleBtn && icon) {
+      toggleBtn.onclick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (input.type === 'password') {
+          input.type = 'text';
+          icon.textContent = 'visibility_off';
+        } else {
+          input.type = 'password';
+          icon.textContent = 'visibility';
+        }
+      };
+    }
+  });
+
   // Credentials Form Submission
   const loginForm = document.getElementById('login-form');
   if (loginForm) {
@@ -388,7 +408,8 @@ function setupEventHandlers() {
       if (!pEl) return;
       const pageName = pEl.textContent.trim();
       let path = '/';
-      if (pageName === 'Playlists') path = '/playlists';
+      if (pageName === 'Library') path = '/library';
+      else if (pageName === 'Playlists') path = '/playlists';
       else if (pageName === 'Collections') path = '/collections';
       else if (pageName === 'Authors') path = '/authors';
       else if (pageName === 'Series') path = '/series';
@@ -440,6 +461,9 @@ function setupEventHandlers() {
     if (!libraryId) return;
     
     updateSidebarVisibility();
+    if (window.updateCustomSortMenu) {
+      window.updateCustomSortMenu();
+    }
     
     // Reload the current active page content without changing URL path
     let relPath = window.location.pathname;
@@ -488,7 +512,14 @@ function setupEventHandlers() {
       const seriesId = relPath.substring('/series/'.length);
       loadSeriesDetails(seriesId);
     } else {
-      loadDashboard(libraryId);
+      let pathName = window.location.pathname;
+      if (typeof ROUTER_BASE_PATH !== 'undefined' && ROUTER_BASE_PATH && pathName.startsWith(ROUTER_BASE_PATH)) {
+        pathName = pathName.substring(ROUTER_BASE_PATH.length);
+      }
+      if (!pathName.startsWith('/')) {
+        pathName = '/' + pathName;
+      }
+      loadDashboard(libraryId, pathName === '/');
     }
   });
 
@@ -497,20 +528,20 @@ function setupEventHandlers() {
     if (!activeLibId) return;
     const { filterBy, filterLabel } = e.detail;
 
-    window.history.pushState(null, '', resolvePath('/'));
+    window.history.pushState(null, '', resolvePath('/library'));
 
     if (filterLabel === 'Issues') {
       highlightSidebarLink('Issues');
     } else {
-      highlightSidebarLink('Home');
+      highlightSidebarLink('Library');
     }
 
     const viewTitle = document.getElementById('view-title');
     if (viewTitle) {
-      viewTitle.textContent = filterLabel || 'Home';
+      viewTitle.textContent = filterLabel || 'Library';
     }
 
-    loadDashboard(activeLibId, filterBy, filterLabel);
+    loadDashboard(activeLibId, false, filterBy, filterLabel);
   });
 
   window.addEventListener('navigate-to-author', (e) => {
@@ -1025,9 +1056,11 @@ function setupEventHandlers() {
     const sortLabels = {
       "media.metadata.title": "Sort: Title",
       "media.metadata.authorName": "Sort: Author",
+      "media.metadata.author": "Sort: Publisher",
       "media.metadata.publishedYear": "Sort: Year",
       "addedAt": "Sort: Date Added",
       "media.duration": "Sort: Duration",
+      "media.numTracks": "Sort: Episodes",
       "random": "Sort: Random"
     };
 
@@ -1047,19 +1080,74 @@ function setupEventHandlers() {
       });
     };
 
-    updateSortLabel(activeSort);
+    const renderSortMenu = () => {
+      const activeLib = getActiveLibrary();
+      const mediaType = activeLib ? activeLib.mediaType : 'book';
+      let currentSort = localStorage.getItem('library-sortBy') || 'media.metadata.title';
 
-    sortMenu.querySelectorAll('.sort-option-btn').forEach(btn => {
-      btn.onclick = (e) => {
-        e.stopPropagation();
-        const val = btn.getAttribute('data-value');
-        localStorage.setItem('library-sortBy', val);
-        updateSortLabel(val);
-        closeSort();
-        const activeLibId = getActiveLibraryId();
-        if (activeLibId) loadDashboard(activeLibId);
-      };
-    });
+      // Validate/map sort options based on mediaType
+      if (mediaType === 'podcast') {
+        if (currentSort === 'media.metadata.authorName') {
+          currentSort = 'media.metadata.author';
+        } else if (currentSort !== 'media.metadata.title' && currentSort !== 'media.metadata.author' && currentSort !== 'addedAt' && currentSort !== 'media.numTracks' && currentSort !== 'random') {
+          currentSort = 'media.metadata.title';
+        }
+      } else {
+        if (currentSort === 'media.metadata.author') {
+          currentSort = 'media.metadata.authorName';
+        } else if (currentSort !== 'media.metadata.title' && currentSort !== 'media.metadata.authorName' && currentSort !== 'media.metadata.publishedYear' && currentSort !== 'addedAt' && currentSort !== 'media.duration' && currentSort !== 'random') {
+          currentSort = 'media.metadata.title';
+        }
+      }
+      localStorage.setItem('library-sortBy', currentSort);
+
+      let options = [];
+      if (mediaType === 'podcast') {
+        options = [
+          { value: 'media.metadata.title', label: 'Title' },
+          { value: 'media.metadata.author', label: 'Publisher' },
+          { value: 'addedAt', label: 'Date Added' },
+          { value: 'media.numTracks', label: 'Episodes' },
+          { value: 'random', label: 'Random' }
+        ];
+      } else {
+        options = [
+          { value: 'media.metadata.title', label: 'Title' },
+          { value: 'media.metadata.authorName', label: 'Author' },
+          { value: 'media.metadata.publishedYear', label: 'Year' },
+          { value: 'addedAt', label: 'Date Added' },
+          { value: 'media.duration', label: 'Duration' },
+          { value: 'random', label: 'Random' }
+        ];
+      }
+
+      sortMenu.innerHTML = options.map(opt => {
+        const isSelected = currentSort === opt.value;
+        return `
+          <button class="sort-option-btn w-full text-left px-3 py-2 text-xs text-black-50 hover:bg-black-500 hover:text-white flex items-center justify-between transition-colors focus:outline-none ${isSelected ? 'text-accent font-medium' : ''}" data-value="${opt.value}">
+            <span>${opt.label}</span>
+            <span class="material-symbols text-[12px] check-icon ${isSelected ? '' : 'hidden'}">check</span>
+          </button>
+        `;
+      }).join('');
+
+      sortMenu.querySelectorAll('.sort-option-btn').forEach(btn => {
+        btn.onclick = (e) => {
+          e.stopPropagation();
+          const val = btn.getAttribute('data-value');
+          localStorage.setItem('library-sortBy', val);
+          updateSortLabel(val);
+          closeSort();
+          const activeLibId = getActiveLibraryId();
+          if (activeLibId) loadDashboard(activeLibId);
+        };
+      });
+
+      updateSortLabel(currentSort);
+    };
+
+    window.updateCustomSortMenu = renderSortMenu;
+    renderSortMenu();
   };
 
   initCustomFilterAndSort();
@@ -1123,7 +1211,7 @@ function setupEventHandlers() {
         relPath = '/' + relPath;
       }
       const showControls = (relPath === '/' || relPath === '/library' || relPath === '/series' || relPath === '/authors' || relPath === '/collections' || relPath === '/playlists' || relPath === '/narrators');
-      if (showControls && newStyle !== 'list') {
+      if (showControls && (relPath === '/' || newStyle !== 'list')) {
         shelfSizeCtrl.classList.remove('hidden');
       } else {
         shelfSizeCtrl.classList.add('hidden');
@@ -1131,7 +1219,16 @@ function setupEventHandlers() {
     }
 
     const activeLibId = getActiveLibraryId();
-    if (activeLibId) loadDashboard(activeLibId);
+    if (activeLibId) {
+      let pathName = window.location.pathname;
+      if (typeof ROUTER_BASE_PATH !== 'undefined' && ROUTER_BASE_PATH && pathName.startsWith(ROUTER_BASE_PATH)) {
+        pathName = pathName.substring(ROUTER_BASE_PATH.length);
+      }
+      if (!pathName.startsWith('/')) {
+        pathName = '/' + pathName;
+      }
+      loadDashboard(activeLibId, pathName === '/');
+    }
   };
 
   if (styleBtnShelf) styleBtnShelf.onclick = () => setStyle('shelf');
@@ -1625,21 +1722,21 @@ function bootstrapApp(payload) {
             localStorage.setItem('library-filterBy', 'tags.' + encoded);
             const labelEl = document.getElementById('filter-selected-label');
             if (labelEl) labelEl.textContent = 'Tag: ' + val;
-            navigateTo('/');
+            navigateTo('/library');
           } else if (type === 'genre') {
             const val = el.getAttribute('data-val');
             const encoded = btoa(unescape(encodeURIComponent(val)));
             localStorage.setItem('library-filterBy', 'genres.' + encoded);
             const labelEl = document.getElementById('filter-selected-label');
             if (labelEl) labelEl.textContent = 'Genre: ' + val;
-            navigateTo('/');
+            navigateTo('/library');
           } else if (type === 'narrator') {
             const val = el.getAttribute('data-val');
             const encoded = btoa(unescape(encodeURIComponent(val)));
             localStorage.setItem('library-filterBy', 'narrators.' + encoded);
             const labelEl = document.getElementById('filter-selected-label');
             if (labelEl) labelEl.textContent = 'Narrator: ' + val;
-            navigateTo('/');
+            navigateTo('/library');
           }
         };
       });
@@ -1702,9 +1799,14 @@ function bootstrapApp(payload) {
         if (!relPath.startsWith('/')) {
           relPath = '/' + relPath;
         }
+        if (relPath === '/' && query) {
+          navigateTo('/library', true);
+          return;
+        }
         const isDashboard = (relPath === '/' || relPath === '/library');
         if (isDashboard) {
-          loadDashboard(activeLibId);
+          const isHome = (relPath === '/');
+          loadDashboard(activeLibId, isHome);
         }
       }, 300);
     };
@@ -1740,9 +1842,10 @@ function bootstrapApp(payload) {
           }
           const isDashboard = (relPath === '/' || relPath === '/library');
           if (!isDashboard) {
-            navigateTo('/');
+            navigateTo('/library');
           } else if (activeLibId) {
-            loadDashboard(activeLibId);
+            const isHome = (relPath === '/');
+            loadDashboard(activeLibId, isHome);
           }
         }
       } else if (e.key === 'Escape') {
@@ -1769,7 +1872,14 @@ function bootstrapApp(payload) {
       console.log('[Socket] progress updated:', data);
       const activeLibId = getActiveLibraryId();
       if (activeLibId && isDashboardActive()) {
-        loadDashboard(activeLibId);
+        let pathName = window.location.pathname;
+        if (typeof ROUTER_BASE_PATH !== 'undefined' && ROUTER_BASE_PATH && pathName.startsWith(ROUTER_BASE_PATH)) {
+          pathName = pathName.substring(ROUTER_BASE_PATH.length);
+        }
+        if (!pathName.startsWith('/')) {
+          pathName = '/' + pathName;
+        }
+        loadDashboard(activeLibId, pathName === '/');
       }
     });
 
@@ -1777,7 +1887,14 @@ function bootstrapApp(payload) {
       console.log('[Socket] user updated:', data);
       const activeLibId = getActiveLibraryId();
       if (activeLibId && isDashboardActive()) {
-        loadDashboard(activeLibId);
+        let pathName = window.location.pathname;
+        if (typeof ROUTER_BASE_PATH !== 'undefined' && ROUTER_BASE_PATH && pathName.startsWith(ROUTER_BASE_PATH)) {
+          pathName = pathName.substring(ROUTER_BASE_PATH.length);
+        }
+        if (!pathName.startsWith('/')) {
+          pathName = '/' + pathName;
+        }
+        loadDashboard(activeLibId, pathName === '/');
       }
     });
 
@@ -1796,7 +1913,14 @@ function bootstrapApp(payload) {
         if (icon) icon.classList.remove('animate-spin');
         showToast('Library scan completed', 'success');
         if (isDashboardActive()) {
-          loadDashboard(libraryId); // refresh
+          let pathName = window.location.pathname;
+          if (typeof ROUTER_BASE_PATH !== 'undefined' && ROUTER_BASE_PATH && pathName.startsWith(ROUTER_BASE_PATH)) {
+            pathName = pathName.substring(ROUTER_BASE_PATH.length);
+          }
+          if (!pathName.startsWith('/')) {
+            pathName = '/' + pathName;
+          }
+          loadDashboard(libraryId, pathName === '/');
         }
       }
     });
@@ -1840,9 +1964,21 @@ function navigateTo(path, pushState = true) {
   const shelfSizeControl = document.getElementById('shelf-size-control');
   const styleSwitcher = document.getElementById('style-switcher');
 
-  const showControls = (relPath === '/' || relPath === '/library');
+  const showControls = (relPath === '/library');
+  const showBookCount = (relPath === '/library');
   const showShelfSize = (relPath === '/' || relPath === '/library' || relPath === '/series' || relPath === '/authors' || relPath === '/collections' || relPath === '/playlists' || relPath === '/narrators');
   
+  const bookCount = document.getElementById('book-count');
+  const viewTitleSeparator = document.getElementById('view-title-separator');
+  if (bookCount) {
+    if (showBookCount) bookCount.classList.remove('hidden');
+    else bookCount.classList.add('hidden');
+  }
+  if (viewTitleSeparator) {
+    if (showBookCount) viewTitleSeparator.classList.remove('hidden');
+    else viewTitleSeparator.classList.add('hidden');
+  }
+
   const globalSearchInput = document.getElementById('global-search-input');
   const globalSearchClearBtn = document.getElementById('global-search-clear-btn');
   const globalSearchDropdown = document.getElementById('global-search-dropdown');
@@ -1866,7 +2002,7 @@ function navigateTo(path, pushState = true) {
   }
   if (shelfSizeControl) {
     const currentStyle = localStorage.getItem('library-style') || 'shelf';
-    if (showShelfSize && currentStyle !== 'list') shelfSizeControl.classList.remove('hidden');
+    if (showShelfSize && (relPath === '/' || currentStyle !== 'list')) shelfSizeControl.classList.remove('hidden');
     else shelfSizeControl.classList.add('hidden');
   }
   if (styleSwitcher) {
@@ -1887,7 +2023,7 @@ function navigateTo(path, pushState = true) {
 
   const activeLibId = getActiveLibraryId();
 
-  if (relPath === '/' || relPath === '/library') {
+  if (relPath === '/') {
     const isMissing = localStorage.getItem('library-filterBy') === 'missing';
     if (isMissing) {
       highlightSidebarLink('Issues');
@@ -1897,7 +2033,19 @@ function navigateTo(path, pushState = true) {
     const viewTitle = document.getElementById('view-title');
     if (viewTitle) viewTitle.textContent = isMissing ? 'Issues' : 'Home';
     if (activeLibId) {
-      loadDashboard(activeLibId);
+      loadDashboard(activeLibId, true);
+    } else {
+      showNoLibrariesWelcome();
+    }
+  } else if (relPath === '/library') {
+    highlightSidebarLink('Library');
+    const viewTitle = document.getElementById('view-title');
+    if (viewTitle) {
+      const lib = getActiveLibrary();
+      viewTitle.textContent = lib ? lib.name : 'Library';
+    }
+    if (activeLibId) {
+      loadDashboard(activeLibId, false);
     } else {
       showNoLibrariesWelcome();
     }
@@ -1996,7 +2144,7 @@ function navigateTo(path, pushState = true) {
     }
   } else {
     highlightSidebarLink('Home');
-    if (activeLibId) loadDashboard(activeLibId);
+    if (activeLibId) loadDashboard(activeLibId, true);
   }
 }
 window.navigateTo = navigateTo;
@@ -2164,6 +2312,10 @@ window.addEventListener('dragleave', (e) => {
   if (e.clientX <= 0 || e.clientY <= 0 || e.clientX >= window.innerWidth || e.clientY >= window.innerHeight) {
     hideDragOverlay();
   }
+});
+
+window.addEventListener('dragend', () => {
+  hideDragOverlay();
 });
 
 async function readAllDirectoryEntries(dirReader) {

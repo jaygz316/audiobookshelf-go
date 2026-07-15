@@ -74,17 +74,11 @@ Audiobookshelf is a Go rewrite of the popular [Audiobookshelf](https://github.co
 
 ### Building
 
-**Build the Go backend** (requires frontend to be built first):
+**Build the Go backend**:
 ```bash
-go build -o audiobookshelf .
-```
-
-**Build the frontend** (from `frontend/` directory):
-```bash
-cd frontend
-npm ci          # Install dependencies
-npm run generate # Generate static Nuxt build
-cd ..
+go build -o audiobookshelf-go .
+# Or via Go task runner
+go run run.go build
 ```
 
 **Build with Docker**:
@@ -133,10 +127,9 @@ go test ./... -cover
 
 **Run integration tests** (in `e2e/`):
 ```bash
-cd e2e
-npm ci
-npm test
-cd ..
+go test ./e2e/...
+# Or via the Go task runner
+go run run.go test
 ```
 
 ### Development Workflow
@@ -220,7 +213,7 @@ cd ..
 
 ## Common Issues & Patterns
 
-1. **Frontend not updating**: Run `npm run generate` in `frontend/` after changes and rebuild the Go binary.
+1. **Frontend not updating**: Rebuild the Go binary (or restart the development server) so that the updated embedded static assets are loaded.
 2. **Socket.io connection issues**: Ensure reverse proxy supports WebSocket upgrades.
 3. **Library scanning hangs**: Check file permissions on library folders and FFmpeg/ffprobe availability.
 4. **Metadata not fetching**: Verify metadata provider configurations in settings.

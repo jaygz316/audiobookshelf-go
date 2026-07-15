@@ -386,6 +386,10 @@ export async function openEbookReader(item, token) {
   // Reader variables
   let book = null;
   let rendition = null;
+  let pdfDoc = null;
+  let pdfCurrentPage = 1;
+  let renderPdfPage = null;
+  let refreshPdfBookmarksList = null;
   let currentTheme = 'dark';
   let currentFontSize = 100;
   let currentFont = 'Georgia, serif';
@@ -396,6 +400,21 @@ export async function openEbookReader(item, token) {
   let progressSaveTimeout = null;
   let currentProgress = 0;
   let tocDrawerOpen = false;
+
+  // Throttled progress save helper
+  const queueSaveProgress = (cfiOrPage, progressPercent) => {
+    if (progressSaveTimeout) clearTimeout(progressSaveTimeout);
+    progressSaveTimeout = setTimeout(async () => {
+      try {
+        await request('PATCH', `/api/me/progress/${itemId}`, {
+          ebookLocation: cfiOrPage,
+          ebookProgress: progressPercent
+        });
+      } catch (err) {
+        console.error("Failed to save progress:", err);
+      }
+    }, 3000);
+  };
 
   // Selected Text & Highlight Variables
   let selectedCfiRange = null;
@@ -447,6 +466,12 @@ export async function openEbookReader(item, token) {
         ebookLocation: cfi,
         ebookProgress: pct
       }).catch(err => console.error("Error saving final progress:", err));
+    } else if (format === 'pdf' && pdfDoc) {
+      let pct = pdfDoc.numPages > 1 ? (pdfCurrentPage - 1) / (pdfDoc.numPages - 1) : 1.0;
+      request('PATCH', `/api/me/progress/${itemId}`, {
+        ebookLocation: pdfCurrentPage.toString(),
+        ebookProgress: pct
+      }).catch(err => console.error("Error saving final progress:", err));
     }
 
     // Stop TTS speaking
@@ -474,11 +499,22 @@ export async function openEbookReader(item, token) {
 
   // Keyboard navigation
   const keyListener = (e) => {
-    if (!rendition) return;
-    if (e.key === "ArrowLeft") {
-      rendition.prev();
-    } else if (e.key === "ArrowRight") {
-      rendition.next();
+    if (format === 'epub' && rendition) {
+      if (e.key === "ArrowLeft") {
+        rendition.prev();
+      } else if (e.key === "ArrowRight") {
+        rendition.next();
+      }
+    } else if (format === 'pdf' && pdfDoc && renderPdfPage) {
+      if (e.key === "ArrowLeft" || e.key === "PageUp") {
+        if (pdfCurrentPage > 1) {
+          renderPdfPage(pdfCurrentPage - 1);
+        }
+      } else if (e.key === "ArrowRight" || e.key === "PageDown") {
+        if (pdfCurrentPage < pdfDoc.numPages) {
+          renderPdfPage(pdfCurrentPage + 1);
+        }
+      }
     }
   };
 
@@ -566,12 +602,17 @@ export async function openEbookReader(item, token) {
         <div class="flex h-full w-full relative min-w-0" id="pdf-viewer-container">
           <!-- Left Thumbnails Sidebar / Rail -->
           <div id="pdf-thumbnails-sidebar" class="w-44 bg-primary border-r border-black-600/50 flex flex-col flex-shrink-0 z-30 select-none">
-            <div class="p-3 border-b border-black-600/50 flex items-center justify-between">
-              <span class="text-[10px] font-bold text-white uppercase tracking-wider">Thumbnails</span>
-              <span id="pdf-total-pages-badge" class="text-[9px] bg-black-600 px-1.5 py-0.5 rounded text-black-50 font-mono">${pdfDoc.numPages}</span>
+            <div class="p-1.5 border-b border-black-600/50 flex flex-col space-y-1.5 flex-shrink-0">
+              <div class="flex bg-black-600 p-0.5 rounded border border-black-400">
+                <button id="pdf-tab-thumbnails" class="flex-1 text-center py-1 text-[10px] rounded transition-colors bg-accent text-primary font-bold shadow animate-fade-in">Pages</button>
+                <button id="pdf-tab-bookmarks" class="flex-1 text-center py-1 text-[10px] rounded transition-colors text-black-100 hover:text-white">Notes</button>
+              </div>
             </div>
             <div id="pdf-thumbnails-list" class="flex-grow overflow-y-auto p-2 space-y-3 bg-black-900/10 no-scroll">
               <!-- Thumbnail items -->
+            </div>
+            <div id="pdf-bookmarks-list" class="hidden flex-grow overflow-y-auto p-2 space-y-2 bg-black-900/10 no-scroll">
+              <!-- Bookmarks and notes list -->
             </div>
           </div>
 
@@ -621,6 +662,9 @@ export async function openEbookReader(item, token) {
                   <button id="pdf-next-page-btn" class="p-1 hover:bg-black-500 rounded text-black-50 hover:text-white transition-colors" title="Next Page">
                     <span class="material-symbols text-base">chevron_right</span>
                   </button>
+                  <button id="pdf-add-bookmark-btn" class="p-1 hover:bg-black-500 rounded text-black-50 hover:text-white transition-colors" title="Bookmark current page">
+                    <span class="material-symbols text-base">bookmark_add</span>
+                  </button>
                 </div>
               </div>
             </div>
@@ -635,7 +679,7 @@ export async function openEbookReader(item, token) {
         </div>
       `;
 
-      let pdfCurrentPage = 1;
+      pdfCurrentPage = 1;
       let pdfZoomLevel = 1.0;
       let pdfRendering = false;
       let pdfPendingPage = null;
@@ -643,7 +687,7 @@ export async function openEbookReader(item, token) {
       const canvas = document.getElementById('pdf-canvas');
       const ctx = canvas.getContext('2d');
 
-      const renderPdfPage = async (pageNum) => {
+      renderPdfPage = async (pageNum) => {
         if (pdfRendering) {
           pdfPendingPage = pageNum;
           return;
@@ -664,6 +708,11 @@ export async function openEbookReader(item, token) {
 
           await page.render(renderContext).promise;
           pdfRendering = false;
+
+          // Save progress
+          let pct = pdfDoc.numPages > 1 ? (pageNum - 1) / (pdfDoc.numPages - 1) : 1.0;
+          currentProgress = pct;
+          queueSaveProgress(pageNum.toString(), pct);
 
           // Update inputs
           const pageInput = document.getElementById('pdf-current-page-input');
@@ -852,8 +901,126 @@ export async function openEbookReader(item, token) {
         jumpToSearchMatch();
       };
 
-      // Render first page initial
-      await renderPdfPage(1);
+      // PDF Bookmarks / Notes list refresh helper
+      refreshPdfBookmarksList = async () => {
+        try {
+          window.currentUser = await request('GET', '/api/me');
+        } catch (e) {
+          console.warn("Failed to sync bookmarks:", e);
+        }
+        
+        const curUser = window.currentUser || {};
+        const bms = (curUser.bookmarks || []).filter(b => b.libraryItemId === itemId);
+        
+        bms.sort((a, b) => b.createdAt - a.createdAt);
+        
+        const container = document.getElementById('pdf-bookmarks-list');
+        if (!container) return;
+        
+        container.innerHTML = `
+          ${bms.length === 0 ? `
+            <p class="text-[10px] text-black-100 italic text-center py-4">No notes or bookmarks.</p>
+          ` : bms.map((b, idx) => {
+            const hlColor = b.color || '#ffeb3b';
+            const borderStyle = `border-left: 3px solid ${hlColor}; padding-left: 6px;`;
+            
+            return `
+              <div class="bg-black-600/30 hover:bg-black-500/30 border border-black-400/20 rounded p-2 transition-colors relative group cursor-pointer" data-pdf-bm-idx="${idx}" style="${borderStyle}">
+                <div class="flex justify-between items-start space-x-1.5">
+                  <div class="flex-grow min-w-0 pr-4">
+                    <p class="text-[10px] font-bold text-accent">${escapeHtml(b.cfi || 'Page ' + b.title)}</p>
+                    ${b.note ? `<p class="text-[10px] text-black-50 mt-1 line-clamp-3">${escapeHtml(b.note)}</p>` : ''}
+                    <span class="text-[8px] text-black-100 block mt-1.5">${new Date(b.createdAt || b.time * 1000).toLocaleDateString()}</span>
+                  </div>
+                  <button class="delete-pdf-bookmark-btn text-black-100 hover:text-error transition-colors p-0.5 rounded hover:bg-black-400 focus:outline-none" data-time="${b.time}" title="Delete bookmark">
+                    <span class="material-symbols text-xs">delete</span>
+                  </button>
+                </div>
+              </div>
+            `;
+          }).join('')}
+        `;
+
+        container.querySelectorAll('[data-pdf-bm-idx]').forEach(el => {
+          el.onclick = (e) => {
+            if (e.target.closest('.delete-pdf-bookmark-btn')) return;
+            const idx = parseInt(el.getAttribute('data-pdf-bm-idx'));
+            const bm = bms[idx];
+            if (bm && bm.cfi && bm.cfi.startsWith('Page ')) {
+              const pageNum = parseInt(bm.cfi.replace('Page ', ''), 10);
+              if (!isNaN(pageNum) && pageNum >= 1 && pageNum <= pdfDoc.numPages) {
+                renderPdfPage(pageNum);
+              }
+            }
+          };
+        });
+
+        container.querySelectorAll('.delete-pdf-bookmark-btn').forEach(btn => {
+          btn.onclick = async (e) => {
+            e.stopPropagation();
+            const timeVal = parseFloat(btn.getAttribute('data-time'));
+            
+            if (confirm("Are you sure you want to delete this bookmark?")) {
+              try {
+                await request('DELETE', `/api/me/item/${itemId}/bookmark/${timeVal}`);
+                await refreshPdfBookmarksList();
+              } catch (err) {
+                console.error("Failed to delete PDF bookmark:", err);
+                alert("Failed to delete bookmark");
+              }
+            }
+          };
+        });
+      };
+
+      // Add PDF bookmark button click
+      const addBookmarkBtn = document.getElementById('pdf-add-bookmark-btn');
+      if (addBookmarkBtn) {
+        addBookmarkBtn.onclick = () => {
+          showHighlightModal(`Page ${pdfCurrentPage}`, `Bookmark/Note for Page ${pdfCurrentPage}`);
+        };
+      }
+
+      // Sidebar Tab Switcher
+      const tabThumbs = document.getElementById('pdf-tab-thumbnails');
+      const tabBms = document.getElementById('pdf-tab-bookmarks');
+      const listThumbs = document.getElementById('pdf-thumbnails-list');
+      const listBms = document.getElementById('pdf-bookmarks-list');
+
+      if (tabThumbs && tabBms && listThumbs && listBms) {
+        tabThumbs.onclick = () => {
+          tabThumbs.className = `flex-1 text-center py-1 text-[10px] rounded transition-colors ${activeBtnClass}`;
+          tabBms.className = `flex-1 text-center py-1 text-[10px] rounded transition-colors ${inactiveBtnClass}`;
+          listThumbs.classList.remove('hidden');
+          listBms.classList.add('hidden');
+        };
+
+        tabBms.onclick = () => {
+          tabBms.className = `flex-1 text-center py-1 text-[10px] rounded transition-colors ${activeBtnClass}`;
+          tabThumbs.className = `flex-1 text-center py-1 text-[10px] rounded transition-colors ${inactiveBtnClass}`;
+          listThumbs.classList.add('hidden');
+          listBms.classList.remove('hidden');
+          refreshPdfBookmarksList();
+        };
+      }
+      
+
+      // Fetch saved progress from server
+      let savedPage = 1;
+      try {
+        const progressObj = await request('GET', `/api/me/progress/${itemId}`);
+        if (progressObj && progressObj.ebookLocation) {
+          const pageNum = parseInt(progressObj.ebookLocation, 10);
+          if (!isNaN(pageNum) && pageNum >= 1 && pageNum <= pdfDoc.numPages) {
+            savedPage = pageNum;
+          }
+        }
+      } catch (err) {
+        console.log("No progress found for book", err);
+      }
+
+      // Render saved or first page initial
+      await renderPdfPage(savedPage);
 
       if (spinner) spinner.remove();
     } catch (err) {
@@ -1254,20 +1421,6 @@ export async function openEbookReader(item, token) {
         await initRendition(currentCfi);
       };
 
-      // Throttled progress save
-      const queueSaveProgress = (cfi, progressPercent) => {
-        if (progressSaveTimeout) clearTimeout(progressSaveTimeout);
-        progressSaveTimeout = setTimeout(async () => {
-          try {
-            await request('PATCH', `/api/me/progress/${itemId}`, {
-              ebookLocation: cfi,
-              ebookProgress: progressPercent
-            });
-          } catch (err) {
-            console.error("Failed to save progress:", err);
-          }
-        }, 3000);
-      };
 
       // First initial rendition load
       await initRendition(savedLocation || undefined);
@@ -1526,6 +1679,10 @@ export async function openEbookReader(item, token) {
           // Trigger rendering highlights and refresh side drawer
           renderExistingHighlights();
           await refreshBookmarksTab();
+          
+          if (format === 'pdf' && typeof refreshPdfBookmarksList === 'function') {
+            await refreshPdfBookmarksList();
+          }
           
         } catch (err) {
           console.error("Failed to save highlight:", err);

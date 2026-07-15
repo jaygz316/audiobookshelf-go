@@ -34,6 +34,11 @@
 - **Sidebar & Siderail Navigation Styling**: Switched navigation styling to exactly match the original client's layout (`bg-bg` and custom icons). Removed custom template overrides in favor of native CSS styles.
 
 ### 2026-07-15
+- **Home/Dashboard & Task Runner UX Audit**:
+  - Added `bookshelf-card` class to dynamically generated library cards to ensure CSS selectors map perfectly.
+  - Refactored `initBatchEditHandlers` in `dashboard.js` to target `.bookshelf-card` elements instead of `.bookshelfRow .group`, ensuring batch editing styling applies correctly to the bottom grid shelf ("All Books") and all other list/grid elements.
+  - Added `cursor-pointer` utility classes to shelf sizing control dec/inc buttons in `index.html` for clean hover cursor indicators.
+  - Updated Go task runner `runVet` command in `run.go` to vet native and WebAssembly packages separately using their respective build constraints, resolving validation compile errors.
 - **Item Details UX Enhancement**: Implemented visual parity features on the Item Details view matching the original client. Added "Add to Playlist", "Download", and "Delete" actions (the latter is admin-restricted). Created and wired up a dedicated, interactive "Listening/Reading Progress" card to track, reset, and toggle item completion status.
 - **Series View UX Audit & Parity**:
   - Re-styled and optimized the Series stacked cover grid.
@@ -82,5 +87,27 @@
 - **Sidebar Footer & Dynamic Version Info**:
   - Dynamically load the server version (`sidebar-version`) and environment source (`sidebar-source`) from `/status` and authorization response payloads, removing hardcoded indicators.
   - Wired up the help button (`sidebar-help-btn`) and version link (`sidebar-version`) in the footer to open the official documentation and original releases page in a new window/tab.
+- **Login & Initial Setup Screen Audit (Priority 1 - Regression Pass)**:
+  - Added relative `.password-wrapper` containers and visibility toggles (`.password-toggle-btn` with eye icons) to the login password input, setup password input, and setup confirm password input.
+  - Implemented CSS styles in `styles.css` to make the toggle buttons visible when the wrapper is hovered or contains focus.
+  - Wired up click event handlers in `setupEventHandlers()` in `app.js` to toggle password visibility.
+  - Implemented a client-side HTML sanitizer `sanitizeHTML()` in `auth.js` to securely filter server-provided custom login messages before rendering them in the DOM to prevent Stored XSS.
+- **Go Task Runner Implementation**: Rewrote the non-Go build and startup scripts (`Makefile` and `start.sh`) into a unified, cross-platform task runner written in pure Go (`run.go`). The `Makefile` and `start.sh` files were updated to thin delegators to `run.go`, preserving backward compatibility while bringing all build, testing, linting, formatting check, and startup logic into Go.
+- **Go WebAssembly Frontend Core Rewrite**:
+  - Rewrote the core frontend logic (authentication checks, OIDC single-sign-on integration, first-run initialization setup cards, and DOM-based HTML sanitization) in Go, located in [main.go](file:///home/jay/projects/audiobookshelf-go/frontend/go/main.go) and compiled to WebAssembly (`frontend/main.wasm`).
+  - Configured [index.html](file:///home/jay/projects/audiobookshelf-go/frontend/index.html) to initialize the WASM bundle via a global `window.wasmReady` Promise, avoiding race conditions with page loading.
+  - Rewrote [auth.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/auth.js) as a bridge delegating to the Go WebAssembly exported functions.
+  - Exposed `request` and `resolvePath` utilities globally as `window.apiRequest` and `window.resolvePath` to allow the Go WebAssembly client to execute network requests.
+  - Updated [run.go](file:///home/jay/projects/audiobookshelf-go/run.go) to automatically compile `main.wasm` and copy Go's official `wasm_exec.js` runtime utility during compilation. Adjusted the task runner's `test` command to explicitly target test directories to prevent native compilation issues on WebAssembly constraints.
+- **Home/Dashboard Bookshelf Texture Scaling Fix**: Added `background-size: auto 100% !important` style to `.bookshelfRow` in [styles.css](file:///home/jay/projects/audiobookshelf-go/frontend/css/styles.css) to ensure the wooden shelf background textures scale nicely with dynamic row heights when adjusted by the card-size control slider.
+- **Home/Dashboard Bookshelf Visual Parity & Reflections**: Layered the shelf divider plank and wood texture in the background of `.bookshelfRow` in [styles.css](file:///home/jay/projects/audiobookshelf-go/frontend/css/styles.css). Adjusted bottom padding to 20px so books rest directly on the shelf and their cover reflections draw seamlessly over the divider. Hidden the redundant `.bookshelfDividerCategorized` element and offset `.categoryPlacard` up by 8px to center on the shelf.
+- **Onboarding Setup Wizard Enhancement**: Transitioned the initial server setup screen into a robust 3-step wizard workflow (Account Setup -> Library Configuration -> Summary Confirmation). Re-implemented `showSetupScreenGo` inside [main.go](file:///home/jay/projects/audiobookshelf-go/frontend/go/main.go) in Go WebAssembly to handle stepping forward/backward, validating input values per step, dynamically updating progress indicators, showing a summary, and performing a sequential POST registration, login, token storage, and library creation payload submission flow.
+- **Dynamic Sort Dropdown & Filter Fixes**:
+  - Refactored `initCustomFilterAndSort` in [app.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/app.js) to dynamically populate sorting options and update selected labels depending on the active library's media type (e.g. Title, Author, Year, Date Added, Duration for books vs. Title, Publisher, Date Added, Episodes, Random for podcasts).
+  - Wired up a global listener on the `library-changed` event to update the sorting menu layout and validate/map stale stored sort settings in `localStorage` when switching libraries.
+  - Corrected checks in [dashboard.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/dashboard.js) to query `activeFilter` instead of the function parameter `filterBy`. This fixes rendering errors where personalized shelves were incorrectly shown when a filter was set via `localStorage` on page reload.
+  - Fixed `TestGetLibraryPersonalized` in [main_test.go](file:///home/jay/projects/audiobookshelf-go/main_test.go) to dynamically search for the `recently-added` shelf inside the personalized shelves payload rather than assuming it's the only shelf, ensuring robustness as shelves like `Discover` are added.
+  - Enabled the shelf card size control widget to be visible on the Home/Dashboard view (`/` path) in [app.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/app.js).
+
 
 

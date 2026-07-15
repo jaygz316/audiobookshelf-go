@@ -1,2 +1,2 @@
 #!/bin/bash
-ROUTER_BASE_PATH="/" go run main.go &
+go run run.go start
