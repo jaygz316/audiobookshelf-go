@@ -242,8 +242,8 @@ function initVolumeBoost() {
 
 export async function playItems(items, startIndex = 0) {
   if (!items || items.length === 0) return;
-  playbackQueue = [...items];
-  const itemToPlay = playbackQueue.splice(startIndex, 1)[0];
+  playbackQueue = items.slice(startIndex + 1);
+  const itemToPlay = items[startIndex];
   updateQueueUI();
   await playItem(itemToPlay);
 }

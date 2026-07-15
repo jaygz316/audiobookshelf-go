@@ -1,23 +1,23 @@
 # Handoff: Audiobookshelf Go Port — UX Audit
 
 ## Current Screen Under Audit
-- **Screen**: Login Screen (Priority 1) & Header Bar (Priority 3)
+- **Screen**: Playlists (Priority 9) & Audio Player (Priority 8) — Regression Pass
 - **Status**: ✅ Complete (Passed)
 
 ## What Was Fixed This Run
-- **Custom Login Message & OIDC Button Text**: Added a `login-custom-message` banner to `frontend/index.html` to support server-provided custom messages, updated `frontend/js/auth.js` to correctly toggle the visibility/content of this banner based on `/status` response data, and fixed OIDC button text rendering to prioritize the server-provided `authOpenIDButtonText` property.
-- **Upload Buttons Permission Fix**: Moved upload button configuration logic in `frontend/js/app.js` outside of the admin-only block, ensuring standard users with the upload permission are correctly configured.
+- **Playlist Track-Level Playback**: Added a play button (`play-track-btn`) to individual tracks in the playlist details track row. Clicking it allows starting playlist playback from that specific track.
+- **Playback Queue Slicing**: Fixed the `playItems` function in `frontend/js/player.js` so that the `playbackQueue` is correctly initialized with the slice of items *after* the selected track, ensuring sequential playback continues from that track rather than restarting from the beginning of the playlist.
+- **Server Recompile & Restart**: Successfully recompiled the Go binary and restarted the background server process to load the updated frontend assets.
 
 ## Remaining Issues on This Screen
 - None.
 
 ## Next Screen in Queue
-- **Regression Pass**: All 13 screens in the audit queue (Login, Onboarding, Home, Header, Sidebar, Library Grid, Series, Detail Page, Player, Settings, Stats, Upload, Reader) have been audited and achieved complete visual/functional parity. Suggesting a final regression pass across all views or user verification review.
+- **Regression Pass / User Verification**: All 13 screens in the audit queue (Login, Onboarding, Home, Header, Sidebar, Library Grid, Series, Detail Page, Player, Settings, Stats, Upload, Reader) have been audited and achieved complete visual/functional parity. Suggesting a final regression pass across all views or user verification review.
 
 ## Controls Verified Working This Run
-- **Custom Login Messages**: Correctly updates banner and changes status text.
-- **OpenID Sign-in Button**: Dynamically loads button text.
-- **Upload Buttons**: Properly displays and wires functions based on user upload permission settings.
+- **Play Playlist starting from X**: Play button on track rows starts sequential playback at that track and populates the remaining queue.
+- **Server Compilation & Rebuild**: Port 3333 is open, responding with `200 OK`.
 
 ## Controls Known Broken
 - None.
