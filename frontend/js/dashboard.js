@@ -292,7 +292,7 @@ function createShelfSection(shelfId, label, entities, libraryId) {
   itemsContainer.className = 'w-max h-full pt-4e flex items-center pl-8e pr-8e';
   
   entities.forEach(item => {
-    const card = createCard(item, shelfId.startsWith('continue'), libraryId);
+    const card = createCard(item, shelfId.startsWith('continue'), libraryId, shelfId);
     itemsContainer.appendChild(card);
   });
   
@@ -342,7 +342,7 @@ function createShelfGridSection(shelfId, label, entities, libraryId) {
   return shelfWrapper;
 }
 
-export function createCard(item, isContinue, libraryId) {
+export function createCard(item, isContinue, libraryId, shelfId = '') {
   const card = document.createElement('div');
   card.className = 'w-28e h-40e mr-8e relative cursor-pointer select-none box-shadow-book rounded-sm overflow-hidden flex-shrink-0 transition-transform hover:scale-105 group';
   
@@ -366,22 +366,33 @@ export function createCard(item, isContinue, libraryId) {
   const coverUrl = resolvePath(`/api/items/${item.id}/cover?token=${token}&ts=${ts}`);
   const narrator = item.media?.metadata?.narratorName || '';
 
+  const isPlayable = shelfId === 'continue-listening';
+
   card.innerHTML = `
     <img class="w-full h-full object-cover" src="${coverUrl}" alt="${escapeHtml(title)}" onerror="this.onerror=null; this.src='assets/images/logo.png'">
     
     <!-- Hover overlay details -->
-    <div class="absolute inset-0 bg-black/85 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col justify-between p-3 select-none text-left z-30">
+    <div class="absolute inset-0 bg-black/85 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col justify-between p-3 select-none text-left z-30 font-sans">
       <div class="overflow-y-auto no-scroll">
         <h4 class="font-semibold text-sm text-white leading-tight mb-1">${escapeHtml(title)}</h4>
         <p class="text-xs text-black-100">${escapeHtml(author)}</p>
         ${narrator ? `<p class="text-[10px] text-accent mt-2 italic truncate" title="${escapeHtml(narrator)}">Narrated by: ${escapeHtml(narrator)}</p>` : ''}
       </div>
     </div>
+
+    ${isPlayable ? `
+      <!-- Play button overlay -->
+      <div class="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-40 card-play-btn-overlay">
+        <button class="w-12 h-12 rounded-full bg-accent text-white flex items-center justify-center shadow-lg transition-transform hover:scale-110 play-btn pointer-events-auto animate-fade-in" title="Play Now">
+          <span class="material-symbols text-2xl font-bold">play_arrow</span>
+        </button>
+      </div>
+    ` : ''}
   `;
 
   if (isContinue) {
     const progBarContainer = document.createElement('div');
-    progBarContainer.className = 'absolute bottom-0 left-0 right-0 h-1.5 bg-black/40 box-shadow-progressbar rounded-b-sm overflow-hidden z-20 hidden';
+    progBarContainer.className = 'absolute bottom-0 left-0 right-0 h-1.5 bg-black/40 box-shadow-progressbar rounded-b-sm overflow-hidden z-50 hidden';
     const progBarFill = document.createElement('div');
     progBarFill.className = 'h-full bg-accent';
     progBarFill.style.width = '0%';
@@ -415,6 +426,16 @@ export function createCard(item, isContinue, libraryId) {
 
   if (batchEditMode && selectedItems.has(item.id)) {
     card.classList.add('ring-4', 'ring-accent', 'scale-105');
+  }
+
+  // Play button handler
+  const playBtn = card.querySelector('.play-btn');
+  if (playBtn) {
+    playBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      playItem(item.id);
+    });
   }
 
   // Click handler to view item details
