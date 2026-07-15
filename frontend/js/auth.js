@@ -200,10 +200,21 @@ async function applyStatusToLoginScreen(status) {
         oidcBtnText.textContent = 'Sign in with OpenId';
       }
 
-      oidcBtn.onclick = () => {
+      const triggerOidcRedirect = () => {
         const callbackUrl = encodeURIComponent(window.location.origin + window.location.pathname);
         window.location.href = resolvePath(`/auth/openid?redirect=${callbackUrl}`);
       };
+
+      oidcBtn.onclick = triggerOidcRedirect;
+
+      // Auto-Launch OIDC if configured (and not bypassed via ?local=1 or ?bypass=1)
+      if (status.authFormData && status.authFormData.authOpenIDAutoLaunch) {
+        const urlParams = new URLSearchParams(window.location.search);
+        if (!urlParams.has('local') && !urlParams.has('bypass')) {
+          triggerOidcRedirect();
+          return;
+        }
+      }
     } else {
       oidcBtn.classList.add('hidden');
       divider.classList.add('hidden');
