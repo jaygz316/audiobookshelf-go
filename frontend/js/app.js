@@ -364,6 +364,13 @@ function setupEventHandlers() {
     link.addEventListener('click', (e) => {
       e.preventDefault();
       
+      // Close mobile sidebar if open
+      const sidebar = document.getElementById('sidebar');
+      if (sidebar && sidebar.classList.contains('fixed')) {
+        sidebar.classList.add('hidden');
+        sidebar.classList.remove('fixed', 'left-0', 'top-16', 'bottom-0', 'flex');
+      }
+      
       const pEl = link.querySelector('p');
       if (!pEl) return;
       const pageName = pEl.textContent.trim();
@@ -1088,6 +1095,39 @@ function setupEventHandlers() {
   if (styleBtnShelf) styleBtnShelf.onclick = () => setStyle('shelf');
   if (styleBtnGrid) styleBtnGrid.onclick = () => setStyle('grid');
   if (styleBtnList) styleBtnList.onclick = () => setStyle('list');
+
+  // Mobile Menu Drawer Toggle
+  const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+  const sidebar = document.getElementById('sidebar');
+  if (mobileMenuBtn && sidebar) {
+    mobileMenuBtn.onclick = (e) => {
+      e.stopPropagation();
+      const isOpen = !sidebar.classList.contains('hidden');
+      if (isOpen) {
+        sidebar.classList.add('hidden');
+        sidebar.classList.remove('fixed', 'left-0', 'top-16', 'bottom-0', 'flex');
+      } else {
+        sidebar.classList.remove('hidden');
+        sidebar.classList.add('fixed', 'left-0', 'top-16', 'bottom-0', 'flex');
+      }
+    };
+
+    // Close when clicking anywhere else
+    document.addEventListener('click', (e) => {
+      if (sidebar.classList.contains('fixed') && !sidebar.contains(e.target) && e.target !== mobileMenuBtn) {
+        sidebar.classList.add('hidden');
+        sidebar.classList.remove('fixed', 'left-0', 'top-16', 'bottom-0', 'flex');
+      }
+    });
+
+    // Close when resizing window to desktop
+    window.addEventListener('resize', () => {
+      if (window.innerWidth >= 768) {
+        sidebar.classList.remove('fixed', 'left-0', 'top-16', 'bottom-0');
+        sidebar.classList.add('hidden');
+      }
+    });
+  }
 }
 
 function bootstrapApp(payload) {
