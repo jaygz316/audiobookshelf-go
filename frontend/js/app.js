@@ -178,6 +178,12 @@ function setupEventHandlers() {
         submitBtn.textContent = 'Checking...';
       }
 
+      const authWarning = document.getElementById('login-auth-warning');
+      if (authWarning) {
+        authWarning.classList.add('hidden');
+        authWarning.classList.remove('flex');
+      }
+
       try {
         const credentials = {
           username: usernameInput.value,
@@ -193,7 +199,14 @@ function setupEventHandlers() {
         }
       } catch (err) {
         console.error('Login failed:', err);
-        loginError.textContent = err.message || 'Invalid username or password';
+        let errorMsg = err.message;
+        try {
+          const parsed = JSON.parse(err.message);
+          if (parsed && parsed.error) {
+            errorMsg = parsed.error;
+          }
+        } catch (_) {}
+        loginError.textContent = errorMsg || 'Invalid username or password';
         loginError.classList.remove('hidden');
       } finally {
         if (submitBtn) {
