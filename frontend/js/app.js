@@ -1169,34 +1169,43 @@ function bootstrapApp(payload) {
       };
     }
 
+    const canUpload = user.type === 'root' || user.type === 'admin' || (user.permissions && user.permissions.upload);
     const headerUploadBtn = document.getElementById('header-upload-btn');
     if (headerUploadBtn) {
-      headerUploadBtn.classList.remove('hidden');
-      headerUploadBtn.onclick = () => {
-        const libId = getActiveLibraryId();
-        if (!libId) {
-          showToast('No active library selected to upload to', 'warning');
-          return;
-        }
-        import('./upload.js').then(module => {
-          module.openUploadModal(libId);
-        });
-      };
+      if (canUpload) {
+        headerUploadBtn.classList.remove('hidden');
+        headerUploadBtn.onclick = () => {
+          const libId = getActiveLibraryId();
+          if (!libId) {
+            showToast('No active library selected to upload to', 'warning');
+            return;
+          }
+          import('./upload.js').then(module => {
+            module.openUploadModal(libId);
+          });
+        };
+      } else {
+        headerUploadBtn.classList.add('hidden');
+      }
     }
 
     const uploadBtn = document.getElementById('upload-btn');
     if (uploadBtn) {
-      uploadBtn.classList.remove('hidden');
-      uploadBtn.onclick = () => {
-        const libId = getActiveLibraryId();
-        if (!libId) {
-          showToast('No active library selected to upload to', 'warning');
-          return;
-        }
-        import('./upload.js').then(module => {
-          module.openUploadModal(libId);
-        });
-      };
+      if (canUpload) {
+        uploadBtn.classList.remove('hidden');
+        uploadBtn.onclick = () => {
+          const libId = getActiveLibraryId();
+          if (!libId) {
+            showToast('No active library selected to upload to', 'warning');
+            return;
+          }
+          import('./upload.js').then(module => {
+            module.openUploadModal(libId);
+          });
+        };
+      } else {
+        uploadBtn.classList.add('hidden');
+      }
     }
   }
 
@@ -2034,7 +2043,8 @@ window.addEventListener('dragover', (e) => {
   const userJson = localStorage.getItem('user');
   let user = null;
   try { user = userJson ? JSON.parse(userJson) : null; } catch(_) {}
-  if (!token || !user || (user.type !== 'root' && user.type !== 'admin')) return;
+  const canUpload = user && (user.type === 'root' || user.type === 'admin' || (user.permissions && user.permissions.upload));
+  if (!token || !canUpload) return;
 
   e.preventDefault();
   showDragOverlay();
@@ -2046,15 +2056,25 @@ window.addEventListener('dragleave', (e) => {
   }
 });
 
+async function readAllDirectoryEntries(dirReader) {
+  let allEntries = [];
+  while (true) {
+    const entries = await new Promise((resolve, reject) => {
+      dirReader.readEntries(resolve, reject);
+    });
+    if (entries.length === 0) break;
+    allEntries.push(...entries);
+  }
+  return allEntries;
+}
+
 async function getFilesFromEntry(entry, path = '') {
   if (entry.isFile) {
     const file = await new Promise((resolve, reject) => entry.file(resolve, reject));
     return [{ file, path: path + file.name }];
   } else if (entry.isDirectory) {
     const dirReader = entry.createReader();
-    const entries = await new Promise((resolve, reject) => {
-      dirReader.readEntries(resolve, reject);
-    });
+    const entries = await readAllDirectoryEntries(dirReader);
     const filePromises = entries.map(childEntry => 
       getFilesFromEntry(childEntry, path + entry.name + '/')
     );
@@ -2069,7 +2089,8 @@ window.addEventListener('drop', async (e) => {
   const userJson = localStorage.getItem('user');
   let user = null;
   try { user = userJson ? JSON.parse(userJson) : null; } catch(_) {}
-  if (!token || !user || (user.type !== 'root' && user.type !== 'admin')) return;
+  const canUpload = user && (user.type === 'root' || user.type === 'admin' || (user.permissions && user.permissions.upload));
+  if (!token || !canUpload) return;
 
   e.preventDefault();
   hideDragOverlay();

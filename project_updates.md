@@ -55,5 +55,12 @@
 - **Settings Page Bookmarkable Tab Hashes**: Enhanced the Settings page tab switcher to synchronize with and initialize from `window.location.hash`, preserving the active settings sub-tab selection (Users, Libraries, Server, Auth, etc.) on page refreshes and bookmark links.
 - **Onboarding Welcome Screen**: Implemented `showNoLibrariesWelcome()` onboarding welcome screen for new users or setups with empty libraries, offering a direct "Add Your First Library" shortcut button that links straight to the Settings Libraries sub-tab and launches the creation dialog.
 - **FS Directory Picker**: Integrated an interactive folder browse modal overlay into the library configuration modal, querying GET `/api/filesystem` to list server directories, drill down into subfolders, and navigate up.
+- **Listening Stats Tabs, Line Charts, and Heatmaps**: Completed visual/functional audit of the Stats page. Re-implemented `stats.js` to feature tabs: "My Stats" (with personal statistics, SVG-based line chart, streak tracker, and interactive year-wide heatmap calendar with CSS tooltips), "Library Stats" (with metadata cards and progress-bar based lists for Genres, Authors, Longest, and Largest items), and "Server Stats" (with paginated playback sessions table and aggregated bar charts). All tests passing.
+- **Upload Page & Drag-and-Drop UX Fixes (Priority 12)**:
+  - Enabled dynamic conditional display of `header-upload-btn` and `upload-btn` (and associated dragover/drop upload listeners) matching user upload permission (`user.permissions.upload`).
+  - Fixed standard directory batch recursion limitation in `webkitGetAsEntry` drop/drag upload parsing (`getFilesFromEntry` in `upload.js` and `app.js`) to support folders containing over 100 files by looping through `dirReader.readEntries()`.
+  - Unhidden the "Clear All" queue button in the upload modal when files are added to the queue, and wired up its dynamic visibility state in `updateQueueUI()`.
+
+
 
 
