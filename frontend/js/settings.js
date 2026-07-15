@@ -67,8 +67,8 @@ export async function loadSettings() {
   container.innerHTML = `
     <div class="max-w-7xl mx-auto p-4 flex flex-col md:flex-row gap-6 h-full min-h-0">
       <!-- Left Settings Navigation Sidebar -->
-      <div class="w-full md:w-64 flex-shrink-0 bg-primary/45 border border-black-400/40 rounded-lg p-2 flex flex-col space-y-1 h-fit" id="settings-tabs">
-        <div class="text-xs font-semibold text-accent uppercase tracking-wider px-3 py-2 border-b border-black-400/40 mb-2">Settings</div>
+      <div class="w-full md:w-72 flex-shrink-0 bg-primary/50 border border-black-400/50 rounded-lg p-2 flex flex-col space-y-1 h-fit" id="settings-tabs">
+        <div class="text-xs font-semibold text-accent uppercase tracking-wider px-3 py-2 border-b border-black-400/50 mb-2">Settings</div>
         <button class="w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-accent bg-black-500/80 flex items-center space-x-2" data-tab="users">
           <span class="material-symbols text-lg">group</span>
           <span>Users</span>
@@ -136,7 +136,7 @@ export async function loadSettings() {
       </div>
 
       <!-- Right Content Column -->
-      <div class="flex-grow bg-primary/20 border border-black-400/20 rounded-lg p-6 min-w-0" id="settings-tab-content">
+      <div class="flex-grow bg-primary/20 border border-black-400/50 rounded-lg p-6 min-w-0" id="settings-tab-content">
         <div id="tab-users" class="space-y-6"></div>
         <div id="tab-libraries" class="space-y-6 hidden"></div>
         <div id="tab-server" class="space-y-6 hidden"></div>

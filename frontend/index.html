@@ -247,6 +247,10 @@
         
         <!-- Brand & Library Selector -->
         <div class="flex items-center space-x-4">
+          <!-- Hamburger menu for mobile -->
+          <button id="mobile-menu-btn" class="md:hidden p-1.5 hover:bg-black-500 rounded-full text-black-50 hover:text-white flex items-center justify-center mr-1" aria-label="Toggle Menu">
+            <span class="material-symbols text-xl">menu</span>
+          </button>
           <!-- Logo & Brand links -->
           <a href="#" id="header-logo-link" class="flex items-center focus:outline-none">
             <img src="assets/images/icon.svg" alt="Home" class="w-8 min-w-8 h-8 mr-2 sm:w-10 sm:min-w-10 sm:h-10 sm:mr-4 select-none cursor-pointer">
@@ -358,7 +362,7 @@
     <div class="flex flex-1 min-h-0 w-full overflow-hidden">
       
       <!-- Left Navigation Sidebar (Side Rail) -->
-      <aside role="toolbar" aria-orientation="vertical" class="w-20 bg-bg h-full border-r border-black-600/50 hidden md:flex flex-col justify-between select-none z-40 box-shadow-side" style="min-width: 80px;">
+      <aside id="sidebar" role="toolbar" aria-orientation="vertical" class="w-20 bg-bg h-full border-r border-black-600/50 hidden md:flex flex-col justify-between select-none z-40 box-shadow-side" style="min-width: 80px;">
         <nav id="siderail-buttons-container" class="w-full flex flex-col overflow-y-auto overflow-x-hidden">
           
           <!-- Home Link (Active by default) -->
