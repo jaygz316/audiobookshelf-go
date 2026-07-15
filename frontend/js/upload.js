@@ -5,10 +5,35 @@ import { showToast } from './app.js';
 
 let uploadModal = null;
 let fileQueue = []; // Array of { file, path }
+let activeXhr = null;
+
+function closeModalGlobal() {
+  if (activeXhr) {
+    try {
+      activeXhr.abort();
+    } catch (_) {}
+    activeXhr = null;
+  }
+  if (uploadModal) {
+    uploadModal.remove();
+    uploadModal = null;
+  }
+  fileQueue = [];
+}
+
+function reloadNormalModal(libraryId, preserveQueue) {
+  const tempQueue = [...preserveQueue];
+  closeModalGlobal();
+  openUploadModal(libraryId, tempQueue);
+}
 
 export async function openUploadModal(libraryId, initialFiles = []) {
   // If modal is already open, just append new files
   if (uploadModal) {
+    if (activeXhr) {
+      showToast('An upload is already in progress', 'warning');
+      return;
+    }
     if (initialFiles.length > 0) {
       appendFilesToQueue(initialFiles);
     }
@@ -36,6 +61,17 @@ export async function openUploadModal(libraryId, initialFiles = []) {
 
   uploadModal = document.createElement('div');
   uploadModal.className = 'fixed inset-0 bg-black-900/80 z-50 flex items-center justify-center p-4 backdrop-blur-sm';
+  
+  // Backdrop click listener to close modal safely
+  uploadModal.onclick = (e) => {
+    if (e.target === uploadModal) {
+      if (activeXhr) {
+        showToast('Please cancel the upload first', 'warning');
+        return;
+      }
+      closeModalGlobal();
+    }
+  };
   
   if (isPodcast) {
     renderPodcastModal(libraryId, libraryName, libraryFolders);
@@ -234,9 +270,7 @@ function renderModal(libraryId, libraryName, folders) {
   const dropZone = uploadModal.querySelector('#upload-dropzone');
 
   const closeModal = () => {
-    uploadModal.remove();
-    uploadModal = null;
-    fileQueue = [];
+    closeModalGlobal();
   };
 
   closeBtn.onclick = closeModal;
@@ -310,11 +344,16 @@ function renderModal(libraryId, libraryName, folders) {
     if (fileEntries.length > 0) {
       showToast('Processing dropped items...', 'info');
       const filesList = [];
-      for (const entry of fileEntries) {
-        const files = await getFilesFromEntry(entry);
-        filesList.push(...files);
+      try {
+        for (const entry of fileEntries) {
+          const files = await getFilesFromEntry(entry);
+          filesList.push(...files);
+        }
+        appendFilesToQueue(filesList);
+      } catch (err) {
+        console.error('Failed to process dropped files:', err);
+        showToast('Failed to process dropped files: ' + err.message, 'error');
       }
-      appendFilesToQueue(filesList);
     }
   };
 
@@ -412,6 +451,7 @@ function startMultipartUpload(libraryId) {
 
   // Setup XHR request for tracking progress
   const xhr = new XMLHttpRequest();
+  activeXhr = xhr;
   xhr.open('POST', resolvePath('/api/upload'));
 
   const token = localStorage.getItem('token');
@@ -420,10 +460,8 @@ function startMultipartUpload(libraryId) {
   }
 
   abortBtn.onclick = () => {
-    xhr.abort();
     showToast('Upload aborted by user', 'warning');
-    // Reload normal modal layout
-    openUploadModal(libraryId, fileQueue);
+    reloadNormalModal(libraryId, fileQueue);
   };
 
   // Progress listener
@@ -448,6 +486,7 @@ function startMultipartUpload(libraryId) {
   };
 
   xhr.onload = () => {
+    activeXhr = null;
     if (xhr.status >= 200 && xhr.status < 300) {
       let resp = {};
       try {
@@ -472,9 +511,7 @@ function startMultipartUpload(libraryId) {
       `;
 
       footerContainer.querySelector('#upload-success-close-btn').onclick = () => {
-        uploadModal.remove();
-        uploadModal = null;
-        fileQueue = [];
+        closeModalGlobal();
       };
 
     } else {
@@ -485,13 +522,13 @@ function startMultipartUpload(libraryId) {
       } catch (_) {}
       
       showToast('Upload failed: ' + errText, 'error');
-      openUploadModal(libraryId, fileQueue);
+      reloadNormalModal(libraryId, fileQueue);
     }
   };
 
   xhr.onerror = () => {
     showToast('Network error during upload', 'error');
-    openUploadModal(libraryId, fileQueue);
+    reloadNormalModal(libraryId, fileQueue);
   };
 
   xhr.send(formData);
@@ -608,8 +645,7 @@ function renderPodcastModal(libraryId, libraryName, folders) {
   const cancelBtn = uploadModal.querySelector('#cancel-upload-btn');
   
   const closeModal = () => {
-    uploadModal.remove();
-    uploadModal = null;
+    closeModalGlobal();
   };
 
   closeBtn.onclick = closeModal;

@@ -96,6 +96,7 @@ export async function loadStats() {
   };
 
   const renderUI = (stats, libraryId) => {
+    let postRenderHook = null;
     let tabsHtml = `
       <div class="flex space-x-4 border-b border-black-400 pb-2 mb-6">
         <button id="tab-my-stats" class="px-4 py-2 text-sm font-semibold rounded-md transition-colors ${activeTab === 'my' ? 'bg-accent text-primary font-bold' : 'text-white hover:bg-black-500'}" data-tab="my">My Stats</button>
@@ -364,11 +365,12 @@ export async function loadStats() {
               `).join('')}
 
               <!-- Day Labels -->
-              <div class="absolute bottom-1 left-[34px] flex w-[330px] justify-between">
-                ${last7DaysOfListening.map(d => `
-                  <div class="text-xs text-black-100 text-center font-semibold" style="width: ${daySpacing}px;">${d.label}</div>
-                `).join('')}
-              </div>
+              ${last7DaysOfListening.map((d, idx) => {
+                const x = chartContentMarginLeft + daySpacing * idx;
+                return `
+                  <div class="absolute text-xs text-black-100 text-center font-semibold" style="left: ${x - 20}px; width: 40px; bottom: 4px;">${d.label}</div>
+                `;
+              }).join('')}
             </div>
 
             <!-- Chart summary row -->
@@ -446,8 +448,8 @@ export async function loadStats() {
         </div>
       `;
 
-      // Trigger asynchronous fetch of recent sessions list
-      setTimeout(() => {
+      // Trigger fetch of recent sessions list after render
+      postRenderHook = () => {
         const listContainer = document.getElementById('recent-sessions-list');
         if (!listContainer) return;
         request('GET', '/api/me/listening-sessions?page=0&itemsPerPage=10')
@@ -470,7 +472,7 @@ export async function loadStats() {
               return `
                 <div class="flex justify-between items-center border-b border-black-500 pb-2 text-sm">
                   <div class="truncate max-w-[70%] cursor-pointer group" onclick="window.navigateTo('/item/${sess.mediaItemId}')">
-                    <span class="font-medium text-white group-hover:text-accent transition-colors block truncate">${sess.title || 'Unknown'}</span>
+                    <span class="font-medium text-white group-hover:text-accent transition-colors block truncate font-semibold">${sess.title || 'Unknown'}</span>
                     <span class="text-xs text-black-100 block truncate group-hover:text-accent/80 transition-colors">${dateStr} via ${sess.deviceInfo || 'Web'}</span>
                   </div>
                   <span class="text-xs font-mono text-accent font-medium">${formatDuration(sess.timeListened)}</span>
@@ -481,7 +483,7 @@ export async function loadStats() {
           .catch(err => {
             listContainer.innerHTML = `<p class="text-error text-center py-10 text-sm font-semibold">Failed to load recent sessions.</p>`;
           });
-      }, 50);
+      };
 
     } else if (activeTab === 'library') {
       const activeLib = getLibrariesList().find(lib => lib.id === libraryId) || getActiveLibrary() || getLibrariesList()[0];
@@ -672,8 +674,8 @@ export async function loadStats() {
         </div>
       `;
 
-      // Hook library selector change event
-      setTimeout(() => {
+      // Hook library selector change event after render
+      postRenderHook = () => {
         const selectEl = document.getElementById('library-stats-select');
         if (selectEl) {
           selectEl.onchange = (e) => {
@@ -681,7 +683,7 @@ export async function loadStats() {
             fetchAndRender();
           };
         }
-      }, 50);
+      };
 
     } else if (activeTab === 'server') {
       const totalTimeStr = formatDuration(stats.totalTime);
@@ -1055,7 +1057,7 @@ export async function loadStats() {
         }
       };
 
-      setTimeout(() => {
+      postRenderHook = () => {
         const prevBtn = document.getElementById('sessions-prev-btn');
         const nextBtn = document.getElementById('sessions-next-btn');
         if (prevBtn) {
@@ -1073,7 +1075,7 @@ export async function loadStats() {
           };
         }
         renderSessionsTable(0);
-      }, 50);
+      };
     }
 
     container.innerHTML = `
@@ -1082,6 +1084,8 @@ export async function loadStats() {
         ${viewContentHtml}
       </div>
     `;
+
+    if (postRenderHook) postRenderHook();
 
     // Hook tab switches
     const tabMy = document.getElementById('tab-my-stats');
