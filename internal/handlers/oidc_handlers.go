@@ -31,10 +31,16 @@ func getOIDCSettings(db *sql.DB) (auth.OIDCSettings, error) {
 	}
 
 	s := auth.OIDCSettings{
-		IssuerURL:    getString(settingsMap["authOpenIDIssuerURL"]),
-		ClientID:     getString(settingsMap["authOpenIDClientID"]),
-		ClientSecret: getString(settingsMap["authOpenIDClientSecret"]),
-		RedirectURL:  getString(settingsMap["authOpenIDRedirectURL"]),
+		IssuerURL:             getString(settingsMap["authOpenIDIssuerURL"]),
+		ClientID:              getString(settingsMap["authOpenIDClientID"]),
+		ClientSecret:          getString(settingsMap["authOpenIDClientSecret"]),
+		RedirectURL:           getString(settingsMap["authOpenIDRedirectURL"]),
+		AuthorizationURL:      getString(settingsMap["authOpenIDAuthorizationURL"]),
+		TokenURL:              getString(settingsMap["authOpenIDTokenURL"]),
+		UserInfoURL:           getString(settingsMap["authOpenIDUserInfoURL"]),
+		JwksURL:               getString(settingsMap["authOpenIDJwksURL"]),
+		LogoutURL:             getString(settingsMap["authOpenIDLogoutURL"]),
+		TokenSigningAlgorithm: getString(settingsMap["authOpenIDTokenSigningAlgorithm"]),
 	}
 
 	if settingsMap["authOpenIDAutoRegister"] != nil {

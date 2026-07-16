@@ -56,7 +56,6 @@ function highlightSidebarLink(pageName) {
       link.classList.add('bg-primary/80', 'text-white');
       const activeBar = link.querySelector('.active-indicator');
       if (activeBar) {
-        activeBar.classList.remove('hidden');
         activeBar.classList.add('active');
       }
     } else {
@@ -64,7 +63,6 @@ function highlightSidebarLink(pageName) {
       link.classList.add('hover:bg-primary', 'text-white/80', 'bg-bg/60');
       const activeBar = link.querySelector('.active-indicator');
       if (activeBar) {
-        activeBar.classList.add('hidden');
         activeBar.classList.remove('active');
       }
     }
@@ -1253,7 +1251,7 @@ function setupEventHandlers() {
         relPath = '/' + relPath;
       }
       const showControls = (relPath === '/' || relPath === '/library' || relPath === '/series' || relPath === '/authors' || relPath === '/collections' || relPath === '/playlists' || relPath === '/narrators');
-      if (showControls && (relPath === '/' || newStyle !== 'list')) {
+      if (showControls && (relPath !== '/library' || newStyle !== 'list')) {
         shelfSizeCtrl.classList.remove('hidden');
       } else {
         shelfSizeCtrl.classList.add('hidden');
@@ -2084,7 +2082,7 @@ function navigateTo(path, pushState = true) {
   }
   if (shelfSizeControl) {
     const currentStyle = localStorage.getItem('library-style') || 'shelf';
-    if (showShelfSize && (relPath === '/' || currentStyle !== 'list')) shelfSizeControl.classList.remove('hidden');
+    if (showShelfSize && (relPath !== '/library' || currentStyle !== 'list')) shelfSizeControl.classList.remove('hidden');
     else shelfSizeControl.classList.add('hidden');
   }
   if (styleSwitcher) {
@@ -2182,7 +2180,7 @@ function navigateTo(path, pushState = true) {
       l.classList.remove('bg-primary/80', 'text-white');
       l.classList.add('hover:bg-primary', 'text-white/80', 'bg-bg/60');
       const activeBar = l.querySelector('.active-indicator');
-      if (activeBar) activeBar.classList.add('hidden');
+      if (activeBar) activeBar.classList.remove('active');
     });
     loadSettings();
   } else if (relPath.startsWith('/item/')) {

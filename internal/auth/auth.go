@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -32,6 +33,12 @@ type OIDCSettings struct {
 	GroupClaim               string   `json:"authOpenIDGroupClaim"`
 	AdvancedPermsClaim       string   `json:"authOpenIDAdvancedPermsClaim"`
 	SubfolderForRedirectURLs bool     `json:"authOpenIDSubfolderForRedirectURLs"`
+	AuthorizationURL         string   `json:"authOpenIDAuthorizationURL"`
+	TokenURL                 string   `json:"authOpenIDTokenURL"`
+	UserInfoURL              string   `json:"authOpenIDUserInfoURL"`
+	JwksURL                  string   `json:"authOpenIDJwksURL"`
+	LogoutURL                string   `json:"authOpenIDLogoutURL"`
+	TokenSigningAlgorithm    string   `json:"authOpenIDTokenSigningAlgorithm"`
 }
 
 // OIDCHandler coordinates OIDC authentication login redirects and callback parsing.
@@ -111,12 +118,23 @@ func (h *OIDCHandler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	ctx := oidc.ClientContext(r.Context(), h.getClient())
 	settings := h.getSettings()
 
-	// PORT: Perform discovery dynamically using the IssuerURL and safe HTTP client.
-	provider, err := oidc.NewProvider(ctx, settings.IssuerURL)
-	if err != nil {
-		log.Printf("[OidcAuth] Discovery failed: %v", err)
-		http.Error(w, "Failed to discover OIDC provider", http.StatusInternalServerError)
-		return
+	var endpoint oauth2.Endpoint
+	var provider *oidc.Provider
+	var err error
+	if settings.AuthorizationURL != "" && settings.TokenURL != "" {
+		endpoint = oauth2.Endpoint{
+			AuthURL:  settings.AuthorizationURL,
+			TokenURL: settings.TokenURL,
+		}
+	} else {
+		// PORT: Perform discovery dynamically using the IssuerURL and safe HTTP client.
+		provider, err = oidc.NewProvider(ctx, settings.IssuerURL)
+		if err != nil {
+			log.Printf("[OidcAuth] Discovery failed: %v", err)
+			http.Error(w, "Failed to discover OIDC provider", http.StatusInternalServerError)
+			return
+		}
+		endpoint = provider.Endpoint()
 	}
 
 	isPKCE := r.URL.Query().Get("response_type") == "code" ||
@@ -225,7 +243,7 @@ func (h *OIDCHandler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	oauth2Config := &oauth2.Config{
 		ClientID:     settings.ClientID,
 		ClientSecret: settings.ClientSecret,
-		Endpoint:     provider.Endpoint(),
+		Endpoint:     endpoint,
 		RedirectURL:  ssoRedirectURI,
 		Scopes:       h.getScopes(),
 	}
@@ -273,9 +291,21 @@ func (h *OIDCHandler) HandleCallback(w http.ResponseWriter, r *http.Request) (ma
 		return nil, nil
 	}
 
-	provider, err := oidc.NewProvider(ctx, settings.IssuerURL)
-	if err != nil {
-		return nil, fmt.Errorf("failed to discover OIDC provider: %w", err)
+	var provider *oidc.Provider
+	var endpoint oauth2.Endpoint
+	var err error
+
+	if settings.AuthorizationURL != "" && settings.TokenURL != "" {
+		endpoint = oauth2.Endpoint{
+			AuthURL:  settings.AuthorizationURL,
+			TokenURL: settings.TokenURL,
+		}
+	} else {
+		provider, err = oidc.NewProvider(ctx, settings.IssuerURL)
+		if err != nil {
+			return nil, fmt.Errorf("failed to discover OIDC provider: %w", err)
+		}
+		endpoint = provider.Endpoint()
 	}
 
 	val, ok := h.sessions.Load(state)
@@ -305,7 +335,7 @@ func (h *OIDCHandler) HandleCallback(w http.ResponseWriter, r *http.Request) (ma
 	oauth2Config := &oauth2.Config{
 		ClientID:     settings.ClientID,
 		ClientSecret: settings.ClientSecret,
-		Endpoint:     provider.Endpoint(),
+		Endpoint:     endpoint,
 		RedirectURL:  ssoRedirectURI,
 		Scopes:       h.getScopes(),
 	}
@@ -325,7 +355,24 @@ func (h *OIDCHandler) HandleCallback(w http.ResponseWriter, r *http.Request) (ma
 		return nil, fmt.Errorf("no id_token found in token response")
 	}
 
-	verifier := provider.Verifier(&oidc.Config{ClientID: settings.ClientID})
+	var verifier *oidc.IDTokenVerifier
+	if settings.JwksURL != "" {
+		keySet := oidc.NewRemoteKeySet(ctx, settings.JwksURL)
+		config := &oidc.Config{ClientID: settings.ClientID}
+		if settings.TokenSigningAlgorithm != "" {
+			config.SupportedSigningAlgs = []string{settings.TokenSigningAlgorithm}
+		}
+		verifier = oidc.NewVerifier(settings.IssuerURL, keySet, config)
+	} else {
+		if provider == nil {
+			provider, err = oidc.NewProvider(ctx, settings.IssuerURL)
+			if err != nil {
+				return nil, fmt.Errorf("failed to verify ID token issuer: %w", err)
+			}
+		}
+		verifier = provider.Verifier(&oidc.Config{ClientID: settings.ClientID})
+	}
+
 	idToken, err := verifier.Verify(ctx, rawIDToken)
 	if err != nil {
 		return nil, fmt.Errorf("failed to verify ID token: %w", err)
@@ -337,12 +384,28 @@ func (h *OIDCHandler) HandleCallback(w http.ResponseWriter, r *http.Request) (ma
 	}
 
 	// PORT: Attempt to fetch userinfo from the provider's userinfo endpoint if supported.
-	if userInfo, err := provider.UserInfo(ctx, oauth2.StaticTokenSource(token)); err == nil {
-		var userInfoClaims map[string]interface{}
-		if err := userInfo.Claims(&userInfoClaims); err == nil {
-			for k, v := range userInfoClaims {
-				claims[k] = v
+	var userInfoClaims map[string]interface{}
+	if settings.UserInfoURL != "" {
+		req, err := http.NewRequestWithContext(ctx, "GET", settings.UserInfoURL, nil)
+		if err == nil {
+			req.Header.Set("Authorization", "Bearer "+token.AccessToken)
+			resp, err := h.getClient().Do(req)
+			if err == nil {
+				defer resp.Body.Close()
+				if resp.StatusCode == http.StatusOK {
+					_ = json.NewDecoder(resp.Body).Decode(&userInfoClaims)
+				}
 			}
+		}
+	} else if provider != nil {
+		if userInfo, err := provider.UserInfo(ctx, oauth2.StaticTokenSource(token)); err == nil {
+			_ = userInfo.Claims(&userInfoClaims)
+		}
+	}
+
+	if userInfoClaims != nil {
+		for k, v := range userInfoClaims {
+			claims[k] = v
 		}
 	}
 

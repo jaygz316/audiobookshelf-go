@@ -6042,5 +6042,25 @@ summary {
   opacity: 1 !important;
 }
 
+/* Responsive Touch Active States for Interactive Navigation Elements */
+#siderail-buttons-container a:active {
+  background-color: var(--color-primary) !important;
+  opacity: 0.9;
+}
+
+#mobile-menu-btn:active,
+#mobile-search-btn:active,
+#library-dropdown-btn:active,
+#scan-library-btn:active,
+#header-logo-link:active,
+#customize-columns-btn:active,
+.btn-scan-lib:active,
+.btn-library-actions:active {
+  transform: scale(0.95);
+  opacity: 0.8;
+  transition: transform 0.1s ease, opacity 0.1s ease;
+}
+
+
 
 

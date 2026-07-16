@@ -1,6 +1,12 @@
 import { request, resolvePath } from './api.js';
+import { showToast } from './app.js';
 import { playItem } from './player.js';
 import { loadItemDetails } from './itemDetails.js';
+
+let currentSearch = '';
+let currentSort = 'name'; // 'name', 'numBooks'
+let currentDesc = false;
+let allCollections = [];
 
 export async function loadCollections(libraryId) {
   const opmlBtn = document.getElementById('opml-btn');
@@ -18,14 +24,10 @@ export async function loadCollections(libraryId) {
 
   try {
     const res = await request('GET', `/api/libraries/${libraryId}/collections`);
-    const collections = res.results || [];
-
-    if (bookCount) {
-      bookCount.textContent = collections.length === 1 ? '1 Collection' : `${collections.length} Collections`;
-    }
+    allCollections = res.results || [];
 
     container.innerHTML = `
-      <div class="p-6 space-y-6">
+      <div class="p-6 space-y-6 text-left">
         <div class="flex justify-between items-center">
           <h2 class="text-xl font-bold">Your Collections</h2>
           <button id="create-collection-btn" class="bg-accent hover:opacity-90 text-primary font-bold px-4 py-2 rounded transition-opacity flex items-center space-x-1.5 text-sm">
@@ -34,7 +36,29 @@ export async function loadCollections(libraryId) {
           </button>
         </div>
 
-        <div id="collections-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--bookshelf-card-width, 120px), 1fr)); gap: 1.5rem;">
+        <!-- Controls Toolbar -->
+        <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 bg-black-600/40 p-4 rounded-lg border border-black-600/30 animate-fade-in">
+          <!-- Search input -->
+          <div class="relative flex-grow max-w-md">
+            <span class="material-symbols absolute left-3 top-2.5 text-black-200 text-lg">search</span>
+            <input type="text" id="collections-search" placeholder="Search collections..." value="${escapeHtml(currentSearch)}"
+              class="w-full bg-black-500 text-white pl-10 pr-4 py-2 rounded-lg border border-black-300 focus:outline-none focus:border-accent text-sm transition-colors">
+          </div>
+
+          <!-- Sort and Order controls -->
+          <div class="flex items-center gap-3">
+            <label class="text-xs font-semibold text-black-100 uppercase tracking-wider">Sort by:</label>
+            <select id="collections-sort-select" class="bg-black-500 border border-black-300 text-white text-xs rounded px-3 py-1.5 focus:outline-none cursor-pointer">
+              <option value="name" ${currentSort === 'name' ? 'selected' : ''}>Name</option>
+              <option value="numBooks" ${currentSort === 'numBooks' ? 'selected' : ''}>Book Count</option>
+            </select>
+            <button id="collections-direction-btn" class="p-1.5 bg-black-500 hover:bg-black-400 border border-black-300 rounded text-white flex items-center justify-center transition-colors" title="Toggle Sort Order">
+              <span class="material-symbols text-lg">${currentDesc ? 'arrow_downward' : 'arrow_upward'}</span>
+            </button>
+          </div>
+        </div>
+
+        <div id="collections-grid" class="library-grid w-full">
           <!-- Collection Cards -->
         </div>
 
@@ -46,12 +70,78 @@ export async function loadCollections(libraryId) {
       </div>
     `;
 
-    renderCollectionsGrid(collections, libraryId);
+    const updateGrid = () => {
+      let filtered = [...allCollections];
+
+      if (currentSearch) {
+        const searchLower = currentSearch.toLowerCase();
+        filtered = filtered.filter(c =>
+          (c.name && c.name.toLowerCase().includes(searchLower)) ||
+          (c.description && c.description.toLowerCase().includes(searchLower))
+        );
+      }
+
+      filtered.sort((a, b) => {
+        let comparison = 0;
+        if (currentSort === 'numBooks') {
+          const countA = (a.books || a.itemIds || []).length;
+          const countB = (b.books || b.itemIds || []).length;
+          comparison = countA - countB;
+        }
+
+        if (comparison === 0) {
+          const nameA = (a.name || '').toLowerCase();
+          const nameB = (b.name || '').toLowerCase();
+          comparison = nameA.localeCompare(nameB);
+        }
+
+        return currentDesc ? -comparison : comparison;
+      });
+
+      if (bookCount) {
+        bookCount.textContent = filtered.length === 1 ? '1 Collection' : `${filtered.length} Collections`;
+      }
+
+      renderCollectionsGrid(filtered, libraryId);
+
+      // Wire up the empty state button if needed
+      const emptyBtn = document.getElementById('create-first-collection-btn');
+      if (emptyBtn) emptyBtn.onclick = showCreateModal;
+    };
 
     const showCreateModal = () => triggerCreateCollectionModal(libraryId);
     document.getElementById('create-collection-btn').onclick = showCreateModal;
-    const emptyBtn = document.getElementById('create-first-collection-btn');
-    if (emptyBtn) emptyBtn.onclick = showCreateModal;
+
+    // Listeners
+    const searchInput = document.getElementById('collections-search');
+    if (searchInput) {
+      searchInput.addEventListener('input', (e) => {
+        currentSearch = e.target.value;
+        updateGrid();
+      });
+    }
+
+    const sortSelect = document.getElementById('collections-sort-select');
+    if (sortSelect) {
+      sortSelect.addEventListener('change', (e) => {
+        currentSort = e.target.value;
+        updateGrid();
+      });
+    }
+
+    const directionBtn = document.getElementById('collections-direction-btn');
+    if (directionBtn) {
+      directionBtn.addEventListener('click', () => {
+        currentDesc = !currentDesc;
+        const icon = directionBtn.querySelector('.material-symbols');
+        if (icon) {
+          icon.textContent = currentDesc ? 'arrow_downward' : 'arrow_upward';
+        }
+        updateGrid();
+      });
+    }
+
+    updateGrid();
 
   } catch (err) {
     container.innerHTML = `<p class="text-red-400 text-sm p-6">Failed to load collections: ${err.message}</p>`;
@@ -449,9 +539,9 @@ export async function loadCollectionDetails(collectionId, libraryId) {
             copyBtn.onclick = () => {
               const urlInput = document.getElementById('rss-feed-url-input');
               navigator.clipboard.writeText(urlInput ? urlInput.value : activeFeed.feedUrl).then(() => {
-                const oldText = copyBtn.textContent;
-                copyBtn.textContent = 'Copied';
-                setTimeout(() => { copyBtn.textContent = oldText; }, 2000);
+                showToast('Feed URL copied to clipboard', 'success');
+              }).catch(err => {
+                showToast('Failed to copy feed URL: ' + err.message, 'error');
               });
             };
           }
@@ -462,9 +552,10 @@ export async function loadCollectionDetails(collectionId, libraryId) {
               if (!confirm('Are you sure you want to close this RSS feed?')) return;
               try {
                 await request('DELETE', `/api/feeds/${activeFeed.id}`);
+                showToast('RSS feed closed successfully', 'success');
                 updateRssSection();
               } catch (err) {
-                alert('Failed to close RSS feed: ' + err.message);
+                showToast('Failed to close RSS feed: ' + err.message, 'error');
               }
             };
           }
@@ -488,9 +579,10 @@ export async function loadCollectionDetails(collectionId, libraryId) {
                     entityId: collection.id,
                     type: 'collection'
                   });
+                  showToast('RSS feed opened successfully', 'success');
                   updateRssSection();
                 } catch (err) {
-                  alert('Failed to open RSS feed: ' + err.message);
+                  showToast('Failed to open RSS feed: ' + err.message, 'error');
                 }
               };
             }

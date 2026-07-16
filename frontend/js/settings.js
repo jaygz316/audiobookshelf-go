@@ -3,6 +3,8 @@ import { request, resolvePath } from './api.js';
 import { getActiveLibraryId, getLibrariesList, initLibrary } from './library.js';
 import { onEvent, offEvent, sendEvent } from './socket.js';
 import { logout } from './auth.js';
+import { showToast } from './app.js';
+
 
 let currentSessions = [];
 let selectedUserIdFilter = '';
@@ -79,13 +81,17 @@ export async function loadSettings() {
       <!-- Left Settings Navigation Sidebar -->
       <div class="w-full md:w-72 flex-shrink-0 bg-primary/50 border border-black-400/50 rounded-lg p-2 flex flex-col space-y-1 h-fit" id="settings-tabs">
         <div class="text-xs font-semibold text-accent uppercase tracking-wider px-3 py-2 border-b border-black-400/50 mb-2">Settings</div>
-        <button class="w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-accent bg-black-500/80 flex items-center space-x-2" data-tab="users">
+        <button class="w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-accent bg-black-500/80 flex items-center space-x-2" data-tab="libraries">
+          <span class="material-symbols text-lg">local_library</span>
+          <span>Libraries</span>
+        </button>
+        <button class="w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2" data-tab="users">
           <span class="material-symbols text-lg">group</span>
           <span>Users</span>
         </button>
-        <button class="w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2" data-tab="libraries">
-          <span class="material-symbols text-lg">local_library</span>
-          <span>Libraries</span>
+        <button class="w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2" data-tab="apikeys">
+          <span class="material-symbols text-lg">vpn_key</span>
+          <span>API Keys</span>
         </button>
         <button class="w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2" data-tab="server">
           <span class="material-symbols text-lg">dns</span>
@@ -95,49 +101,45 @@ export async function loadSettings() {
           <span class="material-symbols text-lg">security</span>
           <span>Authentication</span>
         </button>
-        <button class="w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2" data-tab="backups">
-          <span class="material-symbols text-lg">backup</span>
-          <span>Backups</span>
-        </button>
-        <button class="w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2" data-tab="providers">
-          <span class="material-symbols text-lg">api</span>
-          <span>Metadata Providers</span>
-        </button>
-        <button class="w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2" data-tab="upload">
-          <span class="material-symbols text-lg">upload</span>
-          <span>Upload Media</span>
-        </button>
-        <button class="w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2" data-tab="apikeys">
-          <span class="material-symbols text-lg">vpn_key</span>
-          <span>API Keys</span>
-        </button>
-        <button class="w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2" data-tab="listening-sessions">
-          <span class="material-symbols text-lg">insights</span>
-          <span>Listening Sessions</span>
-        </button>
-        <button class="w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2" data-tab="login-sessions">
-          <span class="material-symbols text-lg">devices</span>
-          <span>Login Sessions</span>
-        </button>
-        <button class="w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2" data-tab="logs">
-          <span class="material-symbols text-lg">description</span>
-          <span>Logs</span>
-        </button>
         <button class="w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2" data-tab="notifications">
           <span class="material-symbols text-lg">notifications</span>
           <span>Notifications</span>
-        </button>
-        <button class="w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2" data-tab="feeds">
-          <span class="material-symbols text-lg">rss_feed</span>
-          <span>RSS Feeds</span>
         </button>
         <button class="w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2" data-tab="emails">
           <span class="material-symbols text-lg">mail</span>
           <span>E-Reader Email</span>
         </button>
+        <button class="w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2" data-tab="feeds">
+          <span class="material-symbols text-lg">rss_feed</span>
+          <span>RSS Feeds</span>
+        </button>
+        <button class="w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2" data-tab="listening-sessions">
+          <span class="material-symbols text-lg">insights</span>
+          <span>Playback Sessions</span>
+        </button>
+        <button class="w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2" data-tab="login-sessions">
+          <span class="material-symbols text-lg">devices</span>
+          <span>Login Sessions</span>
+        </button>
+        <button class="w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2" data-tab="backups">
+          <span class="material-symbols text-lg">backup</span>
+          <span>Backups</span>
+        </button>
+        <button class="w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2" data-tab="upload">
+          <span class="material-symbols text-lg">upload</span>
+          <span>Uploads</span>
+        </button>
+        <button class="w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2" data-tab="providers">
+          <span class="material-symbols text-lg">api</span>
+          <span>Custom Metadata Providers</span>
+        </button>
         <button class="w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2" data-tab="shares">
           <span class="material-symbols text-lg">share</span>
-          <span>Public Shares</span>
+          <span>Shares</span>
+        </button>
+        <button class="w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2" data-tab="logs">
+          <span class="material-symbols text-lg">description</span>
+          <span>System Logs</span>
         </button>
         <button class="w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2" data-tab="tasks">
           <span class="material-symbols text-lg">downloading</span>
@@ -147,21 +149,21 @@ export async function loadSettings() {
 
       <!-- Right Content Column -->
       <div class="flex-grow bg-primary/20 border border-black-400/50 rounded-lg p-6 min-w-0" id="settings-tab-content">
-        <div id="tab-users" class="space-y-6"></div>
-        <div id="tab-libraries" class="space-y-6 hidden"></div>
+        <div id="tab-libraries" class="space-y-6"></div>
+        <div id="tab-users" class="space-y-6 hidden"></div>
+        <div id="tab-apikeys" class="space-y-6 hidden"></div>
         <div id="tab-server" class="space-y-6 hidden"></div>
         <div id="tab-auth" class="space-y-6 hidden"></div>
-        <div id="tab-backups" class="space-y-6 hidden"></div>
-        <div id="tab-providers" class="space-y-6 hidden"></div>
-        <div id="tab-upload" class="space-y-6 hidden"></div>
-        <div id="tab-apikeys" class="space-y-6 hidden"></div>
+        <div id="tab-notifications" class="space-y-6 hidden"></div>
+        <div id="tab-emails" class="space-y-6 hidden"></div>
+        <div id="tab-feeds" class="space-y-6 hidden"></div>
         <div id="tab-listening-sessions" class="space-y-6 hidden"></div>
         <div id="tab-login-sessions" class="space-y-6 hidden"></div>
-        <div id="tab-logs" class="space-y-6 hidden"></div>
-        <div id="tab-notifications" class="space-y-6 hidden"></div>
-        <div id="tab-feeds" class="space-y-6 hidden"></div>
-        <div id="tab-emails" class="space-y-6 hidden"></div>
+        <div id="tab-backups" class="space-y-6 hidden"></div>
+        <div id="tab-upload" class="space-y-6 hidden"></div>
+        <div id="tab-providers" class="space-y-6 hidden"></div>
         <div id="tab-shares" class="space-y-6 hidden"></div>
+        <div id="tab-logs" class="space-y-6 hidden"></div>
         <div id="tab-tasks" class="space-y-6 hidden"></div>
       </div>
     </div>
@@ -186,6 +188,8 @@ export async function loadSettings() {
       });
       if (activeTabId === 'tasks') {
         renderTasksTab();
+      } else if (activeTabId === 'feeds') {
+        renderFeedsTab();
       }
       
       // Update hash without triggering router reload
@@ -261,7 +265,10 @@ async function renderServerSettingsTab() {
             <label class="block text-xs font-semibold text-black-100 uppercase tracking-wider mb-2">OPDS Feed URL</label>
             <div class="flex space-x-2">
               <input type="text" id="setting-opds-url" readonly value="${window.location.origin}/opds" class="w-full bg-black-500 text-white px-3 py-2 rounded border border-black-300 focus:outline-none cursor-default">
-              <button type="button" id="btn-copy-opds" class="bg-accent hover:opacity-90 text-primary font-bold px-3 py-2 rounded transition-opacity">Copy</button>
+              <button type="button" id="btn-copy-opds" class="bg-accent hover:opacity-90 text-primary font-bold px-3 py-2 rounded transition-opacity flex items-center space-x-1 text-sm">
+                <span class="material-symbols text-sm">content_copy</span>
+                <span>Copy</span>
+              </button>
             </div>
             <p class="text-xs text-black-100 mt-1">Use this URL to connect your e-readers and book discovery clients (e.g. KyBook, Marvin, Aldiko) to Audiobookshelf.</p>
           </div>
@@ -446,7 +453,10 @@ async function renderServerSettingsTab() {
 
         <hr class="border-black-400">
 
-        <button type="submit" class="bg-accent hover:opacity-90 text-primary font-bold px-4 py-2 rounded transition-opacity">Save Server Settings</button>
+        <button type="submit" class="bg-accent hover:opacity-90 text-primary font-bold px-4 py-2 rounded transition-opacity flex items-center space-x-1.5 text-sm">
+          <span class="material-symbols text-lg">save</span>
+          <span>Save Server Settings</span>
+        </button>
       </form>
 
       <form id="sorting-prefixes-form" class="space-y-6 bg-primary border border-black-300 p-6 rounded-md">
@@ -458,7 +468,10 @@ async function renderServerSettingsTab() {
           <input type="text" id="setting-prefixes" value="${escapeHtml(prefixes.join(', '))}" placeholder="e.g. the, a, an, el, la" class="w-full bg-black-500 text-white px-3 py-2 rounded border border-black-300 focus:outline-none focus:border-accent">
         </div>
 
-        <button type="submit" class="bg-accent hover:opacity-90 text-primary font-bold px-4 py-2 rounded transition-opacity">Save & Recompute Prefixes</button>
+        <button type="submit" class="bg-accent hover:opacity-90 text-primary font-bold px-4 py-2 rounded transition-opacity flex items-center space-x-1.5 text-sm">
+          <span class="material-symbols text-lg">save</span>
+          <span>Save & Recompute Prefixes</span>
+        </button>
       </form>
 
       <!-- Troubleshooting / Cache Tools -->
@@ -467,8 +480,14 @@ async function renderServerSettingsTab() {
         <p class="text-sm text-black-100">Perform maintenance operations on server caches and temporary storage.</p>
         
         <div class="flex flex-wrap gap-4 pt-2">
-          <button type="button" id="btn-purge-all-cache" class="bg-black-600 hover:bg-black-500 text-white font-semibold px-4 py-2 rounded-md transition-colors border border-black-400/40">Purge All Cache</button>
-          <button type="button" id="btn-purge-items-cache" class="bg-black-600 hover:bg-black-500 text-white font-semibold px-4 py-2 rounded-md transition-colors border border-black-400/40">Purge Items Cache</button>
+          <button type="button" id="btn-purge-all-cache" class="bg-black-600 hover:bg-black-500 text-white font-semibold px-4 py-2 rounded-md transition-colors border border-black-400/40 flex items-center space-x-1.5 text-sm">
+            <span class="material-symbols text-lg">delete_sweep</span>
+            <span>Purge All Cache</span>
+          </button>
+          <button type="button" id="btn-purge-items-cache" class="bg-black-600 hover:bg-black-500 text-white font-semibold px-4 py-2 rounded-md transition-colors border border-black-400/40 flex items-center space-x-1.5 text-sm">
+            <span class="material-symbols text-lg">delete_sweep</span>
+            <span>Purge Items Cache</span>
+          </button>
         </div>
       </div>
     `;
@@ -481,9 +500,9 @@ async function renderServerSettingsTab() {
         if (opdsUrl) {
           opdsUrl.select();
           navigator.clipboard.writeText(opdsUrl.value).then(() => {
-            alert('OPDS Feed URL copied to clipboard!');
+            showToast('OPDS Feed URL copied to clipboard!', 'success');
           }).catch(err => {
-            alert('Failed to copy: ' + err);
+            showToast('Failed to copy: ' + err, 'error');
           });
         }
       };
@@ -526,9 +545,9 @@ async function renderServerSettingsTab() {
           window.serverSettings = res.serverSettings;
           applyServerThemeAndCss(res.serverSettings);
         }
-        alert('Server settings saved successfully!');
+        showToast('Server settings saved successfully!', 'success');
       } catch (err) {
-        alert('Failed to save settings: ' + err.message);
+        showToast('Failed to save settings: ' + err.message, 'error');
       }
     };
 
@@ -541,9 +560,9 @@ async function renderServerSettingsTab() {
         if (res && res.serverSettings) {
           window.serverSettings = res.serverSettings;
         }
-        alert(`Sorting prefixes updated! Title ignore columns will update in the background.`);
+        showToast('Sorting prefixes updated! Title ignore columns will update in the background.', 'success');
       } catch (err) {
-        alert('Failed to save prefixes: ' + err.message);
+        showToast('Failed to save prefixes: ' + err.message, 'error');
       }
     };
 
@@ -553,14 +572,20 @@ async function renderServerSettingsTab() {
         if (!confirm('Are you sure you want to purge all cache? This includes resized cover images.')) return;
         try {
           btnPurgeAll.disabled = true;
-          btnPurgeAll.textContent = 'Purging...';
+          btnPurgeAll.innerHTML = `
+            <span class="animate-spin rounded-full h-4 w-4 border-b-2 border-white inline-block mr-1.5"></span>
+            <span>Purging...</span>
+          `;
           await request('POST', '/api/cache/purge-all');
-          alert('Cache purged successfully!');
+          showToast('Cache purged successfully!', 'success');
         } catch (err) {
-          alert('Failed to purge cache: ' + err.message);
+          showToast('Failed to purge cache: ' + err.message, 'error');
         } finally {
           btnPurgeAll.disabled = false;
-          btnPurgeAll.textContent = 'Purge All Cache';
+          btnPurgeAll.innerHTML = `
+            <span class="material-symbols text-lg">delete_sweep</span>
+            <span>Purge All Cache</span>
+          `;
         }
       };
     }
@@ -571,14 +596,20 @@ async function renderServerSettingsTab() {
         if (!confirm('Are you sure you want to purge item cover cache? All resized cover images will be deleted.')) return;
         try {
           btnPurgeItems.disabled = true;
-          btnPurgeItems.textContent = 'Purging...';
+          btnPurgeItems.innerHTML = `
+            <span class="animate-spin rounded-full h-4 w-4 border-b-2 border-white inline-block mr-1.5"></span>
+            <span>Purging...</span>
+          `;
           await request('POST', '/api/cache/purge-items');
-          alert('Items cover cache purged successfully!');
+          showToast('Items cover cache purged successfully!', 'success');
         } catch (err) {
-          alert('Failed to purge items cover cache: ' + err.message);
+          showToast('Failed to purge items cover cache: ' + err.message, 'error');
         } finally {
           btnPurgeItems.disabled = false;
-          btnPurgeItems.textContent = 'Purge Items Cache';
+          btnPurgeItems.innerHTML = `
+            <span class="material-symbols text-lg">delete_sweep</span>
+            <span>Purge Items Cache</span>
+          `;
         }
       };
     }
@@ -597,6 +628,7 @@ async function renderAuthSettingsTab() {
   try {
     const auth = await request('GET', '/api/auth-settings');
     const activeMethods = auth.authActiveAuthMethods || ['local'];
+    const hasManual = !!(auth.authOpenIDAuthorizationURL || auth.authOpenIDTokenURL || auth.authOpenIDUserInfoURL || auth.authOpenIDJwksURL || auth.authOpenIDLogoutURL);
 
     container.innerHTML = `
       <form id="auth-settings-form" class="space-y-6 bg-primary border border-black-300 p-6 rounded-md">
@@ -644,7 +676,7 @@ async function renderAuthSettingsTab() {
             </div>
             <div>
               <label class="block text-xs text-black-100 mb-1">Match Existing Users By</label>
-              <select id="oidc-match-existing-by" class="w-full bg-black-500 text-white px-3 py-2 rounded border border-black-300 focus:outline-none focus:border-accent">
+              <select id="oidc-match-existing-by" class="w-full bg-black-500 text-white px-3 py-2 rounded border border-black-300 focus:outline-none focus:border-accent text-sm">
                 <option value="" ${!auth.authOpenIDMatchExistingBy ? 'selected' : ''}>Do Not Match</option>
                 <option value="email" ${auth.authOpenIDMatchExistingBy === 'email' ? 'selected' : ''}>Email</option>
                 <option value="username" ${auth.authOpenIDMatchExistingBy === 'username' ? 'selected' : ''}>Username</option>
@@ -691,9 +723,59 @@ async function renderAuthSettingsTab() {
               <span>Use subfolder for redirect URLs</span>
             </label>
           </div>
+
+          <div class="pt-4 border-t border-black-400/60">
+            <label class="flex items-center space-x-3 cursor-pointer select-none">
+              <span class="abs-switch">
+                <input type="checkbox" id="oidc-manual-endpoints-toggle" ${hasManual ? 'checked' : ''}>
+                <span class="abs-slider"></span>
+              </span>
+              <span class="text-sm font-semibold text-white">Configure Endpoints Manually</span>
+            </label>
+          </div>
+
+          <div id="oidc-manual-endpoints-container" class="${hasManual ? '' : 'hidden'} transition-all grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-black-400/30">
+            <div>
+              <label class="block text-xs text-black-100 mb-1">Authorization URL</label>
+              <input type="text" id="oidc-auth-url" value="${escapeHtml(auth.authOpenIDAuthorizationURL || '')}" class="w-full bg-black-500 text-white px-3 py-2 rounded border border-black-300 focus:outline-none focus:border-accent">
+            </div>
+            <div>
+              <label class="block text-xs text-black-100 mb-1">Token URL</label>
+              <input type="text" id="oidc-token-url" value="${escapeHtml(auth.authOpenIDTokenURL || '')}" class="w-full bg-black-500 text-white px-3 py-2 rounded border border-black-300 focus:outline-none focus:border-accent">
+            </div>
+            <div>
+              <label class="block text-xs text-black-100 mb-1">UserInfo URL</label>
+              <input type="text" id="oidc-userinfo-url" value="${escapeHtml(auth.authOpenIDUserInfoURL || '')}" class="w-full bg-black-500 text-white px-3 py-2 rounded border border-black-300 focus:outline-none focus:border-accent">
+            </div>
+            <div>
+              <label class="block text-xs text-black-100 mb-1">JWKS URL</label>
+              <input type="text" id="oidc-jwks-url" value="${escapeHtml(auth.authOpenIDJwksURL || '')}" class="w-full bg-black-500 text-white px-3 py-2 rounded border border-black-300 focus:outline-none focus:border-accent">
+            </div>
+            <div>
+              <label class="block text-xs text-black-100 mb-1">Logout URL</label>
+              <input type="text" id="oidc-logout-url" value="${escapeHtml(auth.authOpenIDLogoutURL || '')}" class="w-full bg-black-500 text-white px-3 py-2 rounded border border-black-300 focus:outline-none focus:border-accent">
+            </div>
+            <div>
+              <label class="block text-xs text-black-100 mb-1">Token Signing Algorithm</label>
+              <select id="oidc-signing-algorithm" class="w-full bg-black-500 text-white px-3 py-2 rounded border border-black-300 focus:outline-none focus:border-accent text-sm">
+                <option value="RS256" ${auth.authOpenIDTokenSigningAlgorithm === 'RS256' ? 'selected' : ''}>RS256 (Default)</option>
+                <option value="RS384" ${auth.authOpenIDTokenSigningAlgorithm === 'RS384' ? 'selected' : ''}>RS384</option>
+                <option value="RS512" ${auth.authOpenIDTokenSigningAlgorithm === 'RS512' ? 'selected' : ''}>RS512</option>
+                <option value="ES256" ${auth.authOpenIDTokenSigningAlgorithm === 'ES256' ? 'selected' : ''}>ES256</option>
+                <option value="ES384" ${auth.authOpenIDTokenSigningAlgorithm === 'ES384' ? 'selected' : ''}>ES384</option>
+                <option value="ES512" ${auth.authOpenIDTokenSigningAlgorithm === 'ES512' ? 'selected' : ''}>ES512</option>
+                <option value="HS256" ${auth.authOpenIDTokenSigningAlgorithm === 'HS256' ? 'selected' : ''}>HS256</option>
+                <option value="HS384" ${auth.authOpenIDTokenSigningAlgorithm === 'HS384' ? 'selected' : ''}>HS384</option>
+                <option value="HS512" ${auth.authOpenIDTokenSigningAlgorithm === 'HS512' ? 'selected' : ''}>HS512</option>
+              </select>
+            </div>
+          </div>
         </div>
 
-        <button type="submit" class="bg-accent hover:opacity-90 text-primary font-bold px-4 py-2 rounded transition-opacity">Save Auth Settings</button>
+        <button type="submit" class="bg-accent hover:opacity-90 text-primary font-bold px-4 py-2 rounded transition-opacity flex items-center space-x-1.5 text-sm">
+          <span class="material-symbols text-lg">save</span>
+          <span>Save Auth Settings</span>
+        </button>
       </form>
     `;
 
@@ -708,6 +790,18 @@ async function renderAuthSettingsTab() {
       }
     };
 
+    const manualToggle = document.getElementById('oidc-manual-endpoints-toggle');
+    const manualContainer = document.getElementById('oidc-manual-endpoints-container');
+    if (manualToggle && manualContainer) {
+      manualToggle.onchange = () => {
+        if (manualToggle.checked) {
+          manualContainer.classList.remove('hidden');
+        } else {
+          manualContainer.classList.add('hidden');
+        }
+      };
+    }
+
     document.getElementById('auth-settings-form').onsubmit = async (e) => {
       e.preventDefault();
       try {
@@ -716,10 +810,11 @@ async function renderAuthSettingsTab() {
         if (document.getElementById('auth-method-openid').checked) methods.push('openid');
 
         if (methods.length === 0) {
-          alert('You must enable at least one authentication method.');
+          showToast('You must enable at least one authentication method.', 'warning');
           return;
         }
 
+        const isManual = document.getElementById('oidc-manual-endpoints-toggle').checked;
         const payload = {
           authActiveAuthMethods: methods,
           authOpenIDIssuerURL: document.getElementById('oidc-issuer').value,
@@ -731,7 +826,13 @@ async function renderAuthSettingsTab() {
           authOpenIDMatchExistingBy: document.getElementById('oidc-match-existing-by').value,
           authOpenIDGroupClaim: document.getElementById('oidc-group-claim').value,
           authOpenIDAdvancedPermsClaim: document.getElementById('oidc-advanced-perms-claim').value,
-          authOpenIDSubfolderForRedirectURLs: document.getElementById('oidc-subfolder-redirects').checked
+          authOpenIDSubfolderForRedirectURLs: document.getElementById('oidc-subfolder-redirects').checked,
+          authOpenIDAuthorizationURL: isManual ? document.getElementById('oidc-auth-url').value : '',
+          authOpenIDTokenURL: isManual ? document.getElementById('oidc-token-url').value : '',
+          authOpenIDUserInfoURL: isManual ? document.getElementById('oidc-userinfo-url').value : '',
+          authOpenIDJwksURL: isManual ? document.getElementById('oidc-jwks-url').value : '',
+          authOpenIDLogoutURL: isManual ? document.getElementById('oidc-logout-url').value : '',
+          authOpenIDTokenSigningAlgorithm: isManual ? document.getElementById('oidc-signing-algorithm').value : 'RS256'
         };
 
         const secretVal = document.getElementById('oidc-client-secret').value;
@@ -743,9 +844,9 @@ async function renderAuthSettingsTab() {
         payload.authOpenIDMobileRedirectURIs = mobileRedirects.split(',').map(s => s.trim()).filter(Boolean);
 
         await request('PATCH', '/api/auth-settings', payload);
-        alert('Authentication settings saved successfully!');
+        showToast('Authentication settings saved successfully!', 'success');
       } catch (err) {
-        alert('Failed to save auth settings: ' + err.message);
+        showToast('Failed to save auth settings: ' + err.message, 'error');
       }
     };
 
@@ -792,7 +893,10 @@ async function renderBackupsTab() {
             <label class="block text-xs font-semibold text-black-100 uppercase tracking-wider mb-2">Backups Storage Directory</label>
             <input type="text" id="backup-location-path" value="${escapeHtml(location)}" class="w-full bg-black-500 text-white px-3 py-2 rounded border border-black-300 focus:outline-none focus:border-accent">
           </div>
-          <button type="submit" class="bg-black-400 hover:bg-black-300 border border-black-300 text-white font-medium px-4 py-2 rounded transition-colors">Change Path</button>
+          <button type="submit" class="bg-black-400 hover:bg-black-300 border border-black-300 text-white font-medium px-4 py-2 rounded transition-colors flex items-center space-x-1.5 text-sm">
+            <span class="material-symbols text-sm">save</span>
+            <span>Change Path</span>
+          </button>
         </form>
 
         <form id="backup-schedule-form" class="pt-4 border-t border-black-400 space-y-4">
@@ -812,7 +916,10 @@ async function renderBackupsTab() {
               <input type="text" id="backup-schedule-cron" value="${escapeHtml(backupSchedule)}" placeholder="e.g. 0 0 * * *" class="w-full bg-black-500 text-white px-3 py-2 rounded border border-black-300 focus:outline-none focus:border-accent">
             </div>
             <div>
-              <button type="submit" class="bg-black-400 hover:bg-black-300 border border-black-300 text-white font-medium px-4 py-2 rounded transition-colors w-full md:w-auto">Save Schedule</button>
+              <button type="submit" class="bg-black-400 hover:bg-black-300 border border-black-300 text-white font-medium px-4 py-2 rounded transition-colors w-full md:w-auto flex items-center justify-center space-x-1.5 text-sm">
+                <span class="material-symbols text-sm">save</span>
+                <span>Save Schedule</span>
+              </button>
             </div>
           </div>
           <p class="text-xs text-black-100">Configure background scheduled backups to run automatically using standard cron formats.</p>
@@ -887,10 +994,10 @@ async function renderBackupsTab() {
         }
 
         await request('PATCH', '/api/settings', { backupSchedule: scheduleVal });
-        alert('Backup schedule updated successfully!');
+        showToast('Backup schedule updated successfully!', 'success');
         renderBackupsTab(); // reload
       } catch (err) {
-        alert('Failed to update backup schedule: ' + err.message);
+        showToast('Failed to update backup schedule: ' + err.message, 'error');
       }
     };
 
@@ -899,10 +1006,10 @@ async function renderBackupsTab() {
       try {
         const path = document.getElementById('backup-location-path').value;
         await request('PATCH', '/api/backups/path', { path });
-        alert('Backup path updated successfully!');
+        showToast('Backup path updated successfully!', 'success');
         renderBackupsTab(); // reload
       } catch (err) {
-        alert('Failed to update backup path: ' + err.message);
+        showToast('Failed to update backup path: ' + err.message, 'error');
       }
     };
 
@@ -913,9 +1020,9 @@ async function renderBackupsTab() {
       try {
         const res = await request('POST', '/api/backups');
         renderBackupsListRows(res.backups || []);
-        alert('Backup created successfully!');
+        showToast('Backup created successfully!', 'success');
       } catch (err) {
-        alert('Failed to create backup: ' + err.message);
+        showToast('Failed to create backup: ' + err.message, 'error');
       } finally {
         btn.disabled = false;
         btn.innerHTML = `<span class="material-symbols text-lg">backup</span><span>Create Backup Now</span>`;
@@ -942,9 +1049,9 @@ async function renderBackupsTab() {
         if (!res.ok) throw new Error(await res.text() || res.statusText);
         const data = await res.json();
         renderBackupsListRows(data.backups || []);
-        alert('Backup uploaded successfully!');
+        showToast('Backup uploaded successfully!', 'success');
       } catch (err) {
-        alert('Upload failed: ' + err.message);
+        showToast('Upload failed: ' + err.message, 'error');
       }
     };
 
@@ -979,9 +1086,18 @@ function renderBackupsListRows(backups) {
       <td class="px-4 py-3 font-mono text-xs">${escapeHtml(b.filename)}</td>
       <td class="px-4 py-3">${sizeFormatted}</td>
       <td class="px-4 py-3 text-right space-x-2">
-        <button class="apply-btn bg-emerald-800 hover:bg-emerald-700 text-emerald-100 text-xs font-semibold px-2.5 py-1 rounded" data-id="${b.id}">Restore</button>
-        <a href="${downloadUrl}" class="inline-block bg-black-400 hover:bg-black-300 text-white text-xs font-semibold px-2.5 py-1 rounded">Download</a>
-        <button class="delete-btn bg-red-900 hover:bg-red-800 text-red-200 text-xs font-semibold px-2.5 py-1 rounded" data-id="${b.id}">Delete</button>
+        <button class="apply-btn bg-emerald-800 hover:bg-emerald-700 text-emerald-100 text-xs font-semibold px-2.5 py-1 rounded inline-flex items-center space-x-1" data-id="${b.id}">
+          <span class="material-symbols text-sm">settings_backup_restore</span>
+          <span>Restore</span>
+        </button>
+        <a href="${downloadUrl}" class="inline-block bg-black-400 hover:bg-black-300 text-white text-xs font-semibold px-2.5 py-1 rounded inline-flex items-center space-x-1">
+          <span class="material-symbols text-sm">download</span>
+          <span>Download</span>
+        </a>
+        <button class="delete-btn bg-red-900 hover:bg-red-800 text-red-200 text-xs font-semibold px-2.5 py-1 rounded inline-flex items-center space-x-1" data-id="${b.id}">
+          <span class="material-symbols text-sm">delete</span>
+          <span>Delete</span>
+        </button>
       </td>
     `;
 
@@ -992,10 +1108,10 @@ function renderBackupsListRows(backups) {
       }
       try {
         await request('POST', `/api/backups/${b.id}/apply`);
-        alert('Backup applied successfully! Page will reload.');
+        showToast('Backup applied successfully! Page will reload.', 'success');
         window.location.reload();
       } catch (err) {
-        alert('Restore failed: ' + err.message);
+        showToast('Restore failed: ' + err.message, 'error');
       }
     };
 
@@ -1004,9 +1120,9 @@ function renderBackupsListRows(backups) {
       try {
         const res = await request('DELETE', `/api/backups/${b.id}`);
         renderBackupsListRows(res.backups || []);
-        alert('Backup deleted.');
+        showToast('Backup deleted successfully.', 'success');
       } catch (err) {
-        alert('Delete failed: ' + err.message);
+        showToast('Delete failed: ' + err.message, 'error');
       }
     };
 
@@ -1073,7 +1189,10 @@ async function renderProvidersTab() {
             <input type="text" id="prov-auth" placeholder="Bearer my-secret-token" class="w-full bg-black-500 text-white px-3 py-1.5 rounded border border-black-300 focus:outline-none focus:border-accent text-sm">
           </div>
 
-          <button type="submit" class="w-full bg-accent hover:opacity-90 text-primary font-bold py-2 rounded transition-opacity text-sm">Add Provider</button>
+          <button type="submit" class="w-full bg-accent hover:opacity-90 text-primary font-bold py-2 rounded transition-opacity text-sm flex items-center justify-center space-x-1.5">
+            <span class="material-symbols text-lg">save</span>
+            <span>Add Provider</span>
+          </button>
         </form>
       </div>
 
@@ -1115,10 +1234,10 @@ async function renderProvidersTab() {
         }
 
         await request('POST', '/api/custom-metadata-providers', payload);
-        alert('Custom metadata provider created!');
+        showToast('Custom metadata provider created!', 'success');
         renderProvidersTab(); // reload
       } catch (err) {
-        alert('Failed to add provider: ' + err.message);
+        showToast('Failed to add provider: ' + err.message, 'error');
       }
     };
 
@@ -1148,7 +1267,10 @@ function renderCustomProvidersRows(customProviders) {
       <td class="px-4 py-3 uppercase text-xs">${escapeHtml(p.mediaType)}</td>
       <td class="px-4 py-3 font-mono text-xs truncate max-w-xs">${escapeHtml(p.url)}</td>
       <td class="px-4 py-3 text-right">
-        <button class="delete-prov-btn bg-red-900 hover:bg-red-800 text-red-200 text-xs font-semibold px-2.5 py-1 rounded" data-id="${p.id}">Delete</button>
+        <button class="delete-prov-btn bg-red-900 hover:bg-red-800 text-red-200 text-xs font-semibold px-2.5 py-1 rounded inline-flex items-center space-x-1" data-id="${p.id}">
+          <span class="material-symbols text-sm">delete</span>
+          <span>Delete</span>
+        </button>
       </td>
     `;
 
@@ -1157,9 +1279,9 @@ function renderCustomProvidersRows(customProviders) {
       try {
         await request('DELETE', `/api/custom-metadata-providers/${p.id}`);
         renderProvidersTab(); // reload
-        alert('Custom provider deleted.');
+        showToast('Custom provider deleted successfully.', 'success');
       } catch (err) {
-        alert('Delete failed: ' + err.message);
+        showToast('Delete failed: ' + err.message, 'error');
       }
     };
 
@@ -1250,13 +1372,13 @@ async function renderUploadTab() {
     e.preventDefault();
     const files = fileInput.files;
     if (!files || files.length === 0) {
-      alert('Please select at least one file to upload.');
+      showToast('Please select at least one file to upload.', 'warning');
       return;
     }
 
     const libraryId = getActiveLibraryId();
     if (!libraryId) {
-      alert('No active library selected. Please select a library first.');
+      showToast('No active library selected. Please select a library first.', 'warning');
       return;
     }
 
@@ -1307,10 +1429,10 @@ async function renderUploadTab() {
       fileInput.value = '';
       fileNames.innerHTML = '';
       fileList.classList.add('hidden');
-      alert(`${files.length} file(s) uploaded successfully! The library will be scanned for new items.`);
+      showToast(`${files.length} file(s) uploaded successfully! The library will be scanned for new items.`, 'success');
     } catch (err) {
       progressLabel.textContent = 'Upload failed: ' + err.message;
-      alert('Upload failed: ' + err.message);
+      showToast('Upload failed: ' + err.message, 'error');
     } finally {
       btn.disabled = false;
     }
@@ -1410,9 +1532,15 @@ function renderUsersListRows(users, currentUser) {
       <td class="px-4 py-3 text-xs text-black-100">${lastSeenFormatted}</td>
       <td class="px-4 py-3 text-xs text-black-100">${createdAtFormatted}</td>
       <td class="px-4 py-3 text-right space-x-2">
-        ${u.hasOpenIDLink && canEdit ? '<button class="unlink-oidc-btn bg-yellow-900 hover:bg-yellow-800 text-yellow-200 text-xs font-semibold px-2 py-1 rounded" data-id="' + u.id + '">Unlink</button>' : ''}
-        <button class="edit-user-btn bg-black-400 hover:bg-black-300 text-white text-xs font-semibold px-2.5 py-1 rounded disabled:opacity-40 disabled:cursor-not-allowed" ${canEdit ? '' : 'disabled'} data-id="${u.id}">Edit</button>
-        <button class="delete-user-btn bg-red-900 hover:bg-red-800 text-red-200 text-xs font-semibold px-2.5 py-1 rounded disabled:opacity-40 disabled:cursor-not-allowed" ${canDelete ? '' : 'disabled'} data-id="${u.id}">Delete</button>
+        ${u.hasOpenIDLink && canEdit ? '<button class="unlink-oidc-btn bg-yellow-900 hover:bg-yellow-800 text-yellow-200 text-xs font-semibold px-2 py-1 rounded inline-flex items-center space-x-1" data-id="' + u.id + '"><span class="material-symbols text-sm">link_off</span><span>Unlink</span></button>' : ''}
+        <button class="edit-user-btn bg-black-400 hover:bg-black-300 text-white text-xs font-semibold px-2.5 py-1 rounded disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center space-x-1" ${canEdit ? '' : 'disabled'} data-id="${u.id}">
+          <span class="material-symbols text-sm">edit</span>
+          <span>Edit</span>
+        </button>
+        <button class="delete-user-btn bg-red-900 hover:bg-red-800 text-red-200 text-xs font-semibold px-2.5 py-1 rounded disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center space-x-1" ${canDelete ? '' : 'disabled'} data-id="${u.id}">
+          <span class="material-symbols text-sm">delete</span>
+          <span>Delete</span>
+        </button>
       </td>
     `;
 
@@ -1425,9 +1553,10 @@ function renderUsersListRows(users, currentUser) {
           if (!confirm(`Are you sure you want to unlink OIDC for user "${u.username}"?`)) return;
           try {
             await request('PATCH', `/api/users/${u.id}/openid-unlink`);
+            showToast('OIDC link removed successfully.', 'success');
             renderUsersTab();
           } catch (err) {
-            alert('Failed to unlink OpenID: ' + err.message);
+            showToast('Failed to unlink OpenID: ' + err.message, 'error');
           }
         };
       }
@@ -1440,9 +1569,10 @@ function renderUsersListRows(users, currentUser) {
         }
         try {
           await request('DELETE', `/api/users/${u.id}`);
+          showToast('User deleted successfully.', 'success');
           renderUsersTab();
         } catch (err) {
-          alert('Failed to delete user: ' + err.message);
+          showToast('Failed to delete user: ' + err.message, 'error');
         }
       };
     }
@@ -1635,8 +1765,14 @@ async function triggerUserModal(user = null, currentUser, onSaveSuccess) {
         </div>
 
         <div class="flex justify-end space-x-3 pt-2">
-          <button type="button" id="close-user-modal-btn" class="bg-black-400 hover:bg-black-300 text-white px-4 py-2 rounded text-xs font-semibold">Cancel</button>
-          <button type="submit" class="bg-accent hover:opacity-90 text-primary font-bold px-4 py-2 rounded text-xs">${isEdit ? 'Save Changes' : 'Create User'}</button>
+          <button type="button" id="close-user-modal-btn" class="bg-black-400 hover:bg-black-300 text-white px-4 py-2 rounded text-xs font-semibold transition-colors flex items-center space-x-1">
+            <span class="material-symbols text-sm">close</span>
+            <span>Cancel</span>
+          </button>
+          <button type="submit" class="bg-accent hover:opacity-90 text-primary font-bold px-4 py-2 rounded text-xs transition-opacity flex items-center space-x-1">
+            <span class="material-symbols text-sm">check</span>
+            <span>${isEdit ? 'Save' : 'Create'}</span>
+          </button>
         </div>
       </form>
     </div>
@@ -1690,7 +1826,7 @@ async function triggerUserModal(user = null, currentUser, onSaveSuccess) {
     const librariesAccessible = Array.from(libCheckboxes).map(cb => cb.value);
 
     if (!accessAllLibraries && librariesAccessible.length === 0) {
-      alert('You must select at least one accessible library if "Access All Libraries" is disabled.');
+      showToast('You must select at least one accessible library if "Access All Libraries" is disabled.', 'warning');
       return;
     }
 
@@ -1751,7 +1887,7 @@ async function triggerUserModal(user = null, currentUser, onSaveSuccess) {
       closeModal();
       if (onSaveSuccess) onSaveSuccess();
     } catch (err) {
-      alert(`Failed to save user: ` + err.message);
+      showToast('Failed to save user: ' + err.message, 'error');
     }
   };
 }
@@ -1774,8 +1910,9 @@ async function renderApiKeysTab() {
       <div class="space-y-4">
         <div class="flex justify-between items-center">
           <h3 class="text-lg font-semibold text-white">API Keys</h3>
-          <button id="add-apikey-btn" class="bg-accent hover:opacity-90 text-primary font-bold px-4 py-2 rounded text-xs">
-            + Add API Key
+          <button id="add-apikey-btn" class="bg-accent hover:opacity-90 text-primary font-bold px-4 py-2 rounded text-xs transition-opacity flex items-center space-x-1">
+            <span class="material-symbols text-sm">add</span>
+            <span>Add API Key</span>
           </button>
         </div>
         
@@ -1845,8 +1982,9 @@ function renderApiKeysListRows(apiKeys, users) {
       <td class="px-4 py-3 text-black-100">${escapeHtml(expiresAtFormatted)}</td>
       <td class="px-4 py-3 text-black-100">${escapeHtml(createdAtFormatted)}</td>
       <td class="px-4 py-3 text-right">
-        <button class="delete-apikey-btn text-red-500 hover:text-red-400 font-semibold text-xs" data-id="${key.id}">
-          Delete
+        <button class="delete-apikey-btn text-red-500 hover:text-red-400 font-semibold text-xs inline-flex items-center space-x-1" data-id="${key.id}">
+          <span class="material-symbols text-sm">delete</span>
+          <span>Delete</span>
         </button>
       </td>
     `;
@@ -1857,9 +1995,10 @@ function renderApiKeysListRows(apiKeys, users) {
       if (confirmed) {
         try {
           await request('DELETE', `/api/api-keys/${key.id}`);
+          showToast('API key deleted successfully.', 'success');
           renderApiKeysTab();
         } catch (err) {
-          alert(`Failed to delete API key: ${err.message}`);
+          showToast('Failed to delete API key: ' + err.message, 'error');
         }
       }
     };
@@ -1897,8 +2036,14 @@ function triggerApiKeyModal(users, onSaveSuccess) {
         </div>
 
         <div class="flex justify-end space-x-3 pt-2">
-          <button type="button" id="close-apikey-modal-btn" class="bg-black-400 hover:bg-black-300 text-white px-4 py-2 rounded text-xs font-semibold">Cancel</button>
-          <button type="submit" class="bg-accent hover:opacity-90 text-primary font-bold px-4 py-2 rounded text-xs">Generate</button>
+          <button type="button" id="close-apikey-modal-btn" class="bg-black-400 hover:bg-black-300 text-white px-4 py-2 rounded text-xs font-semibold transition-colors flex items-center space-x-1">
+            <span class="material-symbols text-sm">close</span>
+            <span>Cancel</span>
+          </button>
+          <button type="submit" class="bg-accent hover:opacity-90 text-primary font-bold px-4 py-2 rounded text-xs transition-opacity flex items-center space-x-1">
+            <span class="material-symbols text-sm">vpn_key</span>
+            <span>Generate</span>
+          </button>
         </div>
       </form>
     </div>
@@ -1935,7 +2080,7 @@ function triggerApiKeyModal(users, onSaveSuccess) {
         if (onSaveSuccess) onSaveSuccess();
       }
     } catch (err) {
-      alert(`Failed to create API key: ${err.message}`);
+      showToast('Failed to create API key: ' + err.message, 'error');
     }
   };
 }
@@ -1961,7 +2106,10 @@ function triggerShowTokenModal(token, onClosed) {
         </div>
 
         <div class="flex justify-end pt-2">
-          <button type="button" id="close-token-modal-btn" class="bg-accent hover:opacity-90 text-primary font-bold px-4 py-2 rounded text-xs">Done</button>
+          <button type="button" id="close-token-modal-btn" class="bg-accent hover:opacity-90 text-primary font-bold px-4 py-2 rounded text-xs transition-opacity flex items-center space-x-1">
+            <span class="material-symbols text-sm">check</span>
+            <span>Done</span>
+          </button>
         </div>
       </div>
     </div>
@@ -2087,8 +2235,9 @@ function renderListeningSessionsListRows(sessions) {
     let actionsHtml = '';
     if (canClose) {
       actionsHtml = `
-        <button class="close-session-btn text-red-500 hover:text-red-400 font-semibold text-xs transition-colors duration-150" data-id="${session.id}">
-          Close Session
+        <button class="close-session-btn text-red-500 hover:text-red-400 font-semibold text-xs transition-colors duration-150 inline-flex items-center space-x-1" data-id="${session.id}">
+          <span class="material-symbols text-sm">close</span>
+          <span>Close Session</span>
         </button>
       `;
     }
@@ -2114,8 +2263,9 @@ function renderListeningSessionsListRows(sessions) {
             // But we can also remove it locally right away for an instant UI update:
             currentSessions = currentSessions.filter(s => s.id !== session.id);
             renderListeningSessionsListRows(getFilteredSessions());
+            showToast('Playback session closed successfully.', 'success');
           } catch (err) {
-            alert('Failed to close playback session: ' + err.message);
+            showToast('Failed to close playback session: ' + err.message, 'error');
           }
         }
       };
@@ -2291,8 +2441,9 @@ async function renderLogsTab() {
 
       try {
         await request('PATCH', '/api/settings', { logLevel: val });
+        showToast('Log level updated successfully.', 'success');
       } catch (err) {
-        alert('Failed to save log level on server: ' + err.message);
+        showToast('Failed to save log level on server: ' + err.message, 'error');
         currentSelectedLevel = prevVal;
         logLevelSelect.value = prevVal;
         sendEvent('set_log_listener', prevVal);
@@ -2349,7 +2500,10 @@ export async function renderNotificationsTab() {
           </div>
         </div>
 
-        <button type="submit" id="save-apprise-settings-btn" class="bg-accent hover:opacity-90 text-primary font-bold px-4 py-2 rounded transition-opacity">Save General Settings</button>
+        <button type="submit" id="save-apprise-settings-btn" class="bg-accent hover:opacity-90 text-primary font-bold px-4 py-2 rounded transition-opacity flex items-center space-x-1.5 text-sm">
+          <span class="material-symbols text-lg">save</span>
+          <span>Save General Settings</span>
+        </button>
       </form>
 
       <hr class="border-black-400">
@@ -2357,8 +2511,9 @@ export async function renderNotificationsTab() {
       <div class="space-y-4">
         <div class="flex justify-between items-center">
           <h3 class="text-lg font-semibold text-white">Notification Setups</h3>
-          <button id="add-notification-btn" class="bg-accent hover:opacity-90 text-primary font-bold px-4 py-2 rounded text-xs">
-            + Create
+          <button id="add-notification-btn" class="bg-accent hover:opacity-90 text-primary font-bold px-4 py-2 rounded text-xs transition-opacity flex items-center space-x-1">
+            <span class="material-symbols text-sm">add</span>
+            <span>Create</span>
           </button>
         </div>
         
@@ -2397,10 +2552,10 @@ export async function renderNotificationsTab() {
         };
 
         await request('POST', '/api/notifications', payload);
-        alert('Notification settings saved successfully!');
+        showToast('Notification settings saved successfully!', 'success');
         renderNotificationsTab();
       } catch (err) {
-        alert('Failed to save settings: ' + err.message);
+        showToast('Failed to save settings: ' + err.message, 'error');
       }
     };
 
@@ -2445,8 +2600,9 @@ function renderNotificationsListRows(notifications, allSettings) {
       <td class="px-4 py-3 text-black-50">${escapeHtml(notif.eventName || '')}</td>
       <td class="px-4 py-3">${enabledBadge}</td>
       <td class="px-4 py-3 text-right">
-        <button class="delete-notif-btn text-red-500 hover:text-red-400 font-semibold text-xs" data-id="${notif.id}">
-          Delete
+        <button class="delete-notif-btn text-red-500 hover:text-red-400 font-semibold text-xs inline-flex items-center space-x-1" data-id="${notif.id}">
+          <span class="material-symbols text-sm">delete</span>
+          <span>Delete</span>
         </button>
       </td>
     `;
@@ -2467,9 +2623,10 @@ function renderNotificationsListRows(notifications, allSettings) {
             notifications: updatedNotifications
           };
           await request('POST', '/api/notifications', payload);
+          showToast('Notification setup deleted successfully.', 'success');
           renderNotificationsTab();
         } catch (err) {
-          alert('Failed to delete notification setup: ' + err.message);
+          showToast('Failed to delete notification setup: ' + err.message, 'error');
         }
       }
     };
@@ -2533,8 +2690,14 @@ function triggerCreateNotificationModal(allSettings, onSaveSuccess) {
         </div>
 
         <div class="flex justify-end space-x-3 pt-2">
-          <button type="button" id="close-notif-modal-btn" class="bg-black-400 hover:bg-black-300 text-white px-4 py-2 rounded text-xs font-semibold">Cancel</button>
-          <button type="submit" class="bg-accent hover:opacity-90 text-primary font-bold px-4 py-2 rounded text-xs">Create</button>
+          <button type="button" id="close-notif-modal-btn" class="bg-black-400 hover:bg-black-300 text-white px-4 py-2 rounded text-xs font-semibold transition-colors flex items-center space-x-1">
+            <span class="material-symbols text-sm">close</span>
+            <span>Cancel</span>
+          </button>
+          <button type="submit" class="bg-accent hover:opacity-90 text-primary font-bold px-4 py-2 rounded text-xs transition-opacity flex items-center space-x-1">
+            <span class="material-symbols text-sm">check</span>
+            <span>Create</span>
+          </button>
         </div>
       </form>
     </div>
@@ -2585,7 +2748,7 @@ function triggerCreateNotificationModal(allSettings, onSaveSuccess) {
       closeModal();
       if (onSaveSuccess) onSaveSuccess();
     } catch (err) {
-      alert(`Failed to save notification setup: ${err.message}`);
+      showToast(`Failed to save notification setup: ${err.message}`, 'error');
     }
   };
 }
@@ -2599,6 +2762,22 @@ async function renderFeedsTab() {
   try {
     const feedsResp = await request('GET', '/api/feeds');
     const feeds = feedsResp.feeds || [];
+
+    const typeIcons = {
+      book: 'book',
+      podcast: 'podcasts',
+      playlist: 'playlist_play',
+      collection: 'bookmarks',
+      series: 'layers'
+    };
+
+    const typeLabels = {
+      book: 'Book',
+      podcast: 'Podcast',
+      playlist: 'Playlist',
+      collection: 'Collection',
+      series: 'Series'
+    };
 
     container.innerHTML = `
       <div class="space-y-4">
@@ -2642,7 +2821,7 @@ async function renderFeedsTab() {
           if (firstPodcastLib) {
             targetLibId = firstPodcastLib.id;
           } else {
-            alert('Please create a Podcast library first to import/export OPML.');
+            showToast('Please create a Podcast library first to import/export OPML.', 'warning');
             return;
           }
         }
@@ -2659,19 +2838,27 @@ async function renderFeedsTab() {
     feeds.forEach(feed => {
       const tr = document.createElement('tr');
       tr.className = 'hover:bg-black-500/30';
+      const icon = typeIcons[feed.type] || 'rss_feed';
+      const label = typeLabels[feed.type] || (feed.type ? feed.type.charAt(0).toUpperCase() + feed.type.slice(1) : 'Unknown');
+
       tr.innerHTML = `
-        <td class="px-4 py-3 font-medium text-white">${escapeHtml(feed.title || feed.entityId)}</td>
-        <td class="px-4 py-3 text-black-50 uppercase text-xs">${escapeHtml(feed.type)}</td>
+        <td class="px-4 py-3 font-medium text-white flex items-center gap-2">
+          <span class="material-symbols text-lg text-black-200/80">${icon}</span>
+          <span>${escapeHtml(feed.title || feed.entityId)}</span>
+        </td>
+        <td class="px-4 py-3 text-black-50 text-xs">${escapeHtml(label)}</td>
         <td class="px-4 py-3 text-black-100">
-          <div class="flex items-center gap-2">
-            <span class="truncate max-w-xs font-mono text-xs select-all">${escapeHtml(feed.feedUrl)}</span>
-            <button class="copy-feed-btn text-accent hover:underline text-xs" data-url="${escapeHtml(feed.feedUrl)}">
+          <div class="flex items-center gap-3">
+            <span class="truncate max-w-xs font-mono text-xs select-all text-black-100">${escapeHtml(feed.feedUrl)}</span>
+            <button class="copy-feed-btn text-accent hover:text-accent-hover font-semibold text-xs flex items-center gap-1" data-url="${escapeHtml(feed.feedUrl)}">
+              <span class="material-symbols text-sm pointer-events-none">content_copy</span>
               Copy
             </button>
           </div>
         </td>
         <td class="px-4 py-3 text-right">
-          <button class="delete-feed-btn text-error hover:underline text-xs" data-id="${escapeHtml(feed.id)}">
+          <button class="delete-feed-btn text-error hover:text-red-400 font-semibold text-xs inline-flex items-center gap-1" data-id="${escapeHtml(feed.id)}">
+            <span class="material-symbols text-sm pointer-events-none">close</span>
             Close Feed
           </button>
         </td>
@@ -2679,23 +2866,24 @@ async function renderFeedsTab() {
 
       // Wire up copy button
       tr.querySelector('.copy-feed-btn').onclick = (e) => {
-        const btn = e.target;
+        const btn = e.currentTarget;
         navigator.clipboard.writeText(btn.dataset.url).then(() => {
-          const oldText = btn.textContent;
-          btn.textContent = 'Copied!';
-          setTimeout(() => { btn.textContent = oldText; }, 2000);
+          showToast('Feed URL copied to clipboard', 'success');
+        }).catch(err => {
+          showToast('Failed to copy feed URL: ' + err.message, 'error');
         });
       };
 
       // Wire up delete button
       tr.querySelector('.delete-feed-btn').onclick = async (e) => {
         if (!confirm('Are you sure you want to close this RSS feed?')) return;
-        const btn = e.target;
+        const btn = e.currentTarget;
         try {
           await request('DELETE', `/api/feeds/${btn.dataset.id}`);
+          showToast('RSS feed closed successfully', 'success');
           renderFeedsTab();
         } catch (err) {
-          alert('Failed to close feed: ' + err.message);
+          showToast('Failed to close feed: ' + err.message, 'error');
         }
       };
 
@@ -2792,8 +2980,14 @@ export async function renderEmailsTab() {
         </div>
 
         <div class="flex space-x-4 pt-2">
-          <button type="submit" id="save-email-settings-btn" class="bg-accent hover:opacity-90 text-primary font-bold px-4 py-2 rounded transition-opacity">Save Settings</button>
-          <button type="button" id="test-email-settings-btn" class="bg-black-500 hover:bg-black-400 border border-black-300 text-white font-bold px-4 py-2 rounded transition-colors">Send Test Email</button>
+          <button type="submit" id="save-email-settings-btn" class="bg-accent hover:opacity-90 text-primary font-bold px-4 py-2 rounded transition-opacity text-sm flex items-center space-x-1.5">
+            <span class="material-symbols text-lg">save</span>
+            <span>Save Settings</span>
+          </button>
+          <button type="button" id="test-email-settings-btn" class="bg-black-500 hover:bg-black-400 border border-black-300 text-white font-bold px-4 py-2 rounded transition-colors text-sm flex items-center space-x-1.5">
+            <span class="material-symbols text-lg">mail</span>
+            <span>Send Test Email</span>
+          </button>
         </div>
       </form>
 
@@ -2802,8 +2996,9 @@ export async function renderEmailsTab() {
       <div class="space-y-4">
         <div class="flex justify-between items-center">
           <h3 class="text-lg font-semibold text-white">E-Reader Devices</h3>
-          <button id="add-ereader-btn" class="bg-accent hover:opacity-90 text-primary font-bold px-4 py-2 rounded text-xs">
-            + Add Device
+          <button id="add-ereader-btn" class="bg-accent hover:opacity-90 text-primary font-bold px-4 py-2 rounded text-xs transition-opacity flex items-center space-x-1.5">
+            <span class="material-symbols text-sm">devices</span>
+            <span>Add Device</span>
           </button>
         </div>
         
@@ -2852,10 +3047,10 @@ export async function renderEmailsTab() {
         };
 
         await request('PATCH', '/api/emails/settings', payload);
-        alert('SMTP configuration saved successfully!');
+        showToast('SMTP configuration saved successfully!', 'success');
         renderEmailsTab();
       } catch (err) {
-        alert('Failed to save configuration: ' + err.message);
+        showToast('Failed to save configuration: ' + err.message, 'error');
       }
     };
 
@@ -2883,23 +3078,29 @@ export async function renderEmailsTab() {
         };
 
         if (!payload.testAddress) {
-          alert('Please specify a Test Recipient Address');
+          showToast('Please specify a Test Recipient Address', 'warning');
           return;
         }
 
         const btn = document.getElementById('test-email-settings-btn');
-        btn.textContent = 'Sending...';
+        btn.innerHTML = `
+          <span class="animate-spin rounded-full h-4 w-4 border-b-2 border-white inline-block mr-2"></span>
+          <span>Sending...</span>
+        `;
         btn.disabled = true;
 
         try {
           await request('POST', '/api/emails/test', payload);
-          alert('Test email sent successfully! Please check the recipient address.');
+          showToast('Test email sent successfully! Please check the recipient address.', 'success');
         } finally {
-          btn.textContent = 'Send Test Email';
+          btn.innerHTML = `
+            <span class="material-symbols text-lg">mail</span>
+            <span>Send Test Email</span>
+          `;
           btn.disabled = false;
         }
       } catch (err) {
-        alert('Failed to send test email: ' + err.message);
+        showToast('Failed to send test email: ' + err.message, 'error');
       }
     };
 
@@ -2949,27 +3150,35 @@ function renderEreaderDevicesRows(devices, users, settings) {
       <td class="px-4 py-3 font-mono text-black-50">${escapeHtml(dev.email)}</td>
       <td class="px-4 py-3 text-sm">${availText}</td>
       <td class="px-4 py-3 text-right space-x-2">
-        <button class="edit-dev-btn text-accent hover:underline text-xs font-semibold" data-index="${idx}">Edit</button>
-        <button class="delete-dev-btn text-red-400 hover:underline text-xs font-semibold" data-index="${idx}">Delete</button>
+        <button class="edit-dev-btn text-accent hover:text-accent-hover text-xs font-semibold inline-flex items-center space-x-1" data-index="${idx}">
+          <span class="material-symbols text-sm">edit</span>
+          <span>Edit</span>
+        </button>
+        <button class="delete-dev-btn text-red-400 hover:text-red-300 text-xs font-semibold inline-flex items-center space-x-1" data-index="${idx}">
+          <span class="material-symbols text-sm">delete</span>
+          <span>Delete</span>
+        </button>
       </td>
     `;
 
     tr.querySelector('.edit-dev-btn').onclick = (e) => {
-      const index = parseInt(e.target.dataset.index, 10);
+      const btn = e.currentTarget;
+      const index = parseInt(btn.dataset.index, 10);
       triggerEreaderDeviceModal(devices[index], devices, users, settings);
     };
 
     tr.querySelector('.delete-dev-btn').onclick = async (e) => {
-      const index = parseInt(e.target.dataset.index, 10);
+      const btn = e.currentTarget;
+      const index = parseInt(btn.dataset.index, 10);
       if (!confirm(`Are you sure you want to delete device "${devices[index].name}"?`)) return;
 
       const updatedDevices = devices.filter((_, i) => i !== index);
       try {
         await request('POST', '/api/emails/ereader-devices', { ereaderDevices: updatedDevices });
-        alert('Device deleted successfully.');
+        showToast('Device deleted successfully.', 'success');
         renderEmailsTab();
       } catch (err) {
-        alert('Failed to delete device: ' + err.message);
+        showToast('Failed to delete device: ' + err.message, 'error');
       }
     };
 
@@ -3026,8 +3235,14 @@ function triggerEreaderDeviceModal(device = null, devices, users, settings) {
         </div>
 
         <div class="flex justify-end space-x-3 pt-4 border-t border-black-400">
-          <button type="button" id="close-ereader-modal-btn" class="bg-black-400 hover:bg-black-300 text-white px-4 py-2 rounded text-xs font-semibold">Cancel</button>
-          <button type="submit" class="bg-accent hover:opacity-90 text-primary font-bold px-4 py-2 rounded text-xs">Save</button>
+          <button type="button" id="close-ereader-modal-btn" class="bg-black-400 hover:bg-black-300 text-white px-4 py-2 rounded text-xs font-semibold transition-colors flex items-center space-x-1">
+            <span class="material-symbols text-sm">close</span>
+            <span>Cancel</span>
+          </button>
+          <button type="submit" class="bg-accent hover:opacity-90 text-primary font-bold px-4 py-2 rounded text-xs transition-opacity flex items-center space-x-1">
+            <span class="material-symbols text-sm">check</span>
+            <span>Save</span>
+          </button>
         </div>
       </form>
     </div>
@@ -3084,11 +3299,11 @@ function triggerEreaderDeviceModal(device = null, devices, users, settings) {
 
     try {
       await request('POST', '/api/emails/ereader-devices', { ereaderDevices: updatedDevices });
-      alert(isEdit ? 'Device updated successfully.' : 'Device added successfully.');
+      showToast(isEdit ? 'Device updated successfully.' : 'Device added successfully.', 'success');
       closeModal();
       renderEmailsTab();
     } catch (err) {
-      alert('Failed to save device: ' + err.message);
+      showToast('Failed to save device: ' + err.message, 'error');
     }
   };
 }
@@ -3145,7 +3360,7 @@ async function renderSharesTab() {
                     <td class="px-4 py-3 text-black-100">${expiresStr}</td>
                     <td class="px-4 py-3 text-right">
                       <button data-id="${s.id}" class="delete-share-btn bg-red-950 hover:bg-red-900 border border-red-500/50 hover:border-red-500 text-red-100 px-2.5 py-1 rounded text-xs transition-colors flex items-center space-x-1 ml-auto">
-                        <span class="material-symbols text-xs">delete</span>
+                        <span class="material-symbols text-xs">link_off</span>
                         <span>Revoke</span>
                       </button>
                     </td>
@@ -3167,10 +3382,10 @@ async function renderSharesTab() {
         }
         try {
           await request('DELETE', `/api/share/mediaitem/${id}`);
-          alert('Share link revoked successfully');
+          showToast('Share link revoked successfully', 'success');
           renderSharesTab();
         } catch (err) {
-          alert('Failed to revoke share link: ' + err.message);
+          showToast('Failed to revoke share link: ' + err.message, 'error');
         }
       };
     });
@@ -3279,8 +3494,9 @@ async function loadAndRenderLoginSessions(userId) {
       ` : '';
 
       const actionButtonHtml = `
-        <button class="revoke-login-session-btn text-red-500 hover:text-red-400 font-semibold text-xs transition-colors duration-150" data-id="${session.id}">
-          Revoke
+        <button class="revoke-login-session-btn text-red-500 hover:text-red-400 font-semibold text-xs transition-colors duration-150 flex items-center space-x-1" data-id="${session.id}">
+          <span class="material-symbols text-sm">close</span>
+          <span>Revoke</span>
         </button>
       `;
 
@@ -3310,8 +3526,9 @@ async function loadAndRenderLoginSessions(userId) {
             } else {
               loadAndRenderLoginSessions(userId);
             }
+            showToast('Login session revoked successfully.', 'success');
           } catch (err) {
-            alert('Failed to revoke session: ' + err.message);
+            showToast('Failed to revoke session: ' + err.message, 'error');
           }
         }
       };
@@ -3389,7 +3606,10 @@ async function renderLibrariesTab() {
               </div>
             </div>
             <div class="flex items-center space-x-2 w-full md:w-auto justify-end relative">
-              <button type="button" class="btn-scan-lib bg-accent/10 hover:bg-accent/20 border border-accent/30 text-accent text-xs font-semibold px-3 py-1.5 rounded transition-colors" data-id="${lib.id}">Scan</button>
+              <button type="button" class="btn-scan-lib bg-accent/10 hover:bg-accent/20 border border-accent/30 text-accent text-xs font-semibold px-3 py-1.5 rounded transition-colors flex items-center space-x-1" data-id="${lib.id}">
+                <span class="material-symbols text-sm">sync</span>
+                <span>Scan</span>
+              </button>
               
               <!-- Action Menu Dropdown Container -->
               <div class="relative inline-block text-left">
@@ -3496,9 +3716,9 @@ async function renderLibrariesTab() {
         const id = btn.dataset.id;
         try {
           await request('POST', `/api/libraries/${id}/scan`);
-          alert('Library scan requested successfully.');
+          showToast('Library scan requested successfully.', 'success');
         } catch (err) {
-          alert('Failed to scan library: ' + err.message);
+          showToast('Failed to scan library: ' + err.message, 'error');
         }
       };
     });
@@ -3521,13 +3741,13 @@ async function renderLibrariesTab() {
         if (confirm(`Are you sure you want to delete the library "${lib.name}"? This action cannot be undone.`)) {
           try {
             await request('DELETE', `/api/libraries/${id}`);
-            alert('Library deleted successfully.');
+            showToast('Library deleted successfully.', 'success');
             // Re-render tab and update dropdown
             await renderLibrariesTab();
             const updated = await request('GET', '/api/libraries');
             initLibrary(updated);
           } catch (err) {
-            alert('Failed to delete library: ' + err.message);
+            showToast('Failed to delete library: ' + err.message, 'error');
           }
         }
       };
@@ -3634,8 +3854,14 @@ function showLibraryModal(lib) {
         </div>
 
         <div class="flex justify-end space-x-2 pt-4 border-t border-black-400">
-          <button type="button" id="close-lib-modal-btn" class="bg-black-400 hover:bg-black-300 px-4 py-2 rounded text-sm font-semibold text-white transition-colors">Cancel</button>
-          <button type="submit" class="bg-accent hover:opacity-90 text-primary px-4 py-2 rounded text-sm font-semibold transition-opacity">Save</button>
+          <button type="button" id="close-lib-modal-btn" class="bg-black-400 hover:bg-black-300 px-4 py-2 rounded text-sm font-semibold text-white transition-colors flex items-center space-x-1">
+            <span class="material-symbols text-sm">close</span>
+            <span>Cancel</span>
+          </button>
+          <button type="submit" class="bg-accent hover:opacity-90 text-primary px-4 py-2 rounded text-sm font-semibold transition-opacity flex items-center space-x-1">
+            <span class="material-symbols text-sm">check</span>
+            <span>Save</span>
+          </button>
         </div>
       </form>
     </div>
@@ -3693,8 +3919,14 @@ function showLibraryModal(lib) {
           <span class="leading-none">Click to inspect subfolders. Double-click to open.</span>
         </div>
         <div class="flex space-x-2">
-          <button type="button" id="btn-picker-cancel" class="bg-black-400 hover:bg-black-300 px-3 py-1.5 rounded text-xs font-semibold text-white transition-colors">Cancel</button>
-          <button type="button" id="btn-picker-select" class="bg-accent hover:opacity-90 text-primary px-4 py-1.5 rounded text-xs font-semibold transition-opacity" disabled>Select Folder</button>
+          <button type="button" id="btn-picker-cancel" class="bg-black-400 hover:bg-black-300 px-3 py-1.5 rounded text-xs font-semibold text-white transition-colors flex items-center space-x-1">
+            <span class="material-symbols text-sm">close</span>
+            <span>Cancel</span>
+          </button>
+          <button type="button" id="btn-picker-select" class="bg-accent hover:opacity-90 text-primary px-4 py-1.5 rounded text-xs font-semibold transition-opacity flex items-center space-x-1" disabled>
+            <span class="material-symbols text-sm">check</span>
+            <span>Select Folder</span>
+          </button>
         </div>
       </div>
     `;
@@ -3951,7 +4183,7 @@ function showLibraryModal(lib) {
     });
 
     if (!foldersValid || folders.length === 0) {
-      alert('Please specify at least one valid folder path.');
+      showToast('Please specify at least one valid folder path.', 'warning');
       return;
     }
 
@@ -3978,7 +4210,7 @@ function showLibraryModal(lib) {
       const res = await request('GET', '/api/libraries');
       initLibrary(res);
     } catch (err) {
-      alert('Failed to save library: ' + err.message);
+      showToast('Failed to save library: ' + err.message, 'error');
     }
   };
 }

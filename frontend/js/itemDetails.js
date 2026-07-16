@@ -1,6 +1,7 @@
 import { request, resolvePath } from './api.js';
 import { playItem, getCurrentPlayingItem, getCurrentPlaybackTime, addToQueue, seekTo } from './player.js';
 import { openEbookReader } from './reader.js';
+import { showToast } from './app.js';
 
 let currentUser = null;
 let activeItemId = null;
@@ -1500,9 +1501,9 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
             copyBtn.onclick = () => {
               const urlInput = document.getElementById('rss-feed-url-input');
               navigator.clipboard.writeText(urlInput ? urlInput.value : activeFeed.feedUrl).then(() => {
-                const oldText = copyBtn.textContent;
-                copyBtn.textContent = 'Copied';
-                setTimeout(() => { copyBtn.textContent = oldText; }, 2000);
+                showToast('Feed URL copied to clipboard', 'success');
+              }).catch(err => {
+                showToast('Failed to copy feed URL: ' + err.message, 'error');
               });
             };
           }
@@ -1513,9 +1514,10 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
               if (!confirm('Are you sure you want to close this RSS feed?')) return;
               try {
                 await request('DELETE', `/api/feeds/${activeFeed.id}`);
+                showToast('RSS feed closed successfully', 'success');
                 updateRssSection();
               } catch (err) {
-                alert('Failed to close RSS feed: ' + err.message);
+                showToast('Failed to close RSS feed: ' + err.message, 'error');
               }
             };
           }
@@ -1539,9 +1541,10 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
                     entityId: item.id,
                     type: mediaType
                   });
+                  showToast('RSS feed opened successfully', 'success');
                   updateRssSection();
                 } catch (err) {
-                  alert('Failed to open RSS feed: ' + err.message);
+                  showToast('Failed to open RSS feed: ' + err.message, 'error');
                 }
               };
             }

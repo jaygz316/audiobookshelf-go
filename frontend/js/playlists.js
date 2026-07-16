@@ -2,6 +2,11 @@ import { request, resolvePath } from './api.js';
 import { playItem, playItems } from './player.js';
 import { loadItemDetails } from './itemDetails.js';
 
+let currentSearch = '';
+let currentSort = 'name'; // 'name', 'numBooks'
+let currentDesc = false;
+let allPlaylists = [];
+
 export async function loadPlaylists(libraryId) {
   const opmlBtn = document.getElementById('opml-btn');
   if (opmlBtn) opmlBtn.classList.add('hidden');
@@ -18,14 +23,10 @@ export async function loadPlaylists(libraryId) {
 
   try {
     const res = await request('GET', `/api/libraries/${libraryId}/playlists`);
-    const playlists = res.results || [];
-
-    if (bookCount) {
-      bookCount.textContent = playlists.length === 1 ? '1 Playlist' : `${playlists.length} Playlists`;
-    }
+    allPlaylists = res.results || [];
 
     container.innerHTML = `
-      <div class="p-6 space-y-6">
+      <div class="p-6 space-y-6 text-left">
         <div class="flex justify-between items-center">
           <h2 class="text-xl font-bold">Your Playlists</h2>
           <button id="create-playlist-btn" class="bg-accent hover:opacity-90 text-primary font-bold px-4 py-2 rounded transition-opacity flex items-center space-x-1.5 text-sm">
@@ -34,7 +35,29 @@ export async function loadPlaylists(libraryId) {
           </button>
         </div>
 
-        <div id="playlists-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--bookshelf-card-width, 120px), 1fr)); gap: 1.5rem;">
+        <!-- Controls Toolbar -->
+        <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 bg-black-600/40 p-4 rounded-lg border border-black-600/30 animate-fade-in">
+          <!-- Search input -->
+          <div class="relative flex-grow max-w-md">
+            <span class="material-symbols absolute left-3 top-2.5 text-black-200 text-lg">search</span>
+            <input type="text" id="playlists-search" placeholder="Search playlists..." value="${escapeHtml(currentSearch)}"
+              class="w-full bg-black-500 text-white pl-10 pr-4 py-2 rounded-lg border border-black-300 focus:outline-none focus:border-accent text-sm transition-colors">
+          </div>
+
+          <!-- Sort and Order controls -->
+          <div class="flex items-center gap-3">
+            <label class="text-xs font-semibold text-black-100 uppercase tracking-wider">Sort by:</label>
+            <select id="playlists-sort-select" class="bg-black-500 border border-black-300 text-white text-xs rounded px-3 py-1.5 focus:outline-none cursor-pointer">
+              <option value="name" ${currentSort === 'name' ? 'selected' : ''}>Name</option>
+              <option value="numBooks" ${currentSort === 'numBooks' ? 'selected' : ''}>Book Count</option>
+            </select>
+            <button id="playlists-direction-btn" class="p-1.5 bg-black-500 hover:bg-black-400 border border-black-300 rounded text-white flex items-center justify-center transition-colors" title="Toggle Sort Order">
+              <span class="material-symbols text-lg">${currentDesc ? 'arrow_downward' : 'arrow_upward'}</span>
+            </button>
+          </div>
+        </div>
+
+        <div id="playlists-grid" class="library-grid w-full">
           <!-- Playlist Cards -->
         </div>
 
@@ -46,17 +69,84 @@ export async function loadPlaylists(libraryId) {
       </div>
     `;
 
-    renderPlaylistsGrid(playlists, libraryId);
+    const updateGrid = () => {
+      let filtered = [...allPlaylists];
+
+      if (currentSearch) {
+        const searchLower = currentSearch.toLowerCase();
+        filtered = filtered.filter(p =>
+          (p.name && p.name.toLowerCase().includes(searchLower)) ||
+          (p.description && p.description.toLowerCase().includes(searchLower))
+        );
+      }
+
+      filtered.sort((a, b) => {
+        let comparison = 0;
+        if (currentSort === 'numBooks') {
+          const countA = (a.items || a.itemIds || []).length;
+          const countB = (b.items || b.itemIds || []).length;
+          comparison = countA - countB;
+        }
+
+        if (comparison === 0) {
+          const nameA = (a.name || '').toLowerCase();
+          const nameB = (b.name || '').toLowerCase();
+          comparison = nameA.localeCompare(nameB);
+        }
+
+        return currentDesc ? -comparison : comparison;
+      });
+
+      if (bookCount) {
+        bookCount.textContent = filtered.length === 1 ? '1 Playlist' : `${filtered.length} Playlists`;
+      }
+
+      renderPlaylistsGrid(filtered, libraryId);
+
+      // Wire up empty state button if needed
+      const emptyBtn = document.getElementById('create-first-playlist-btn');
+      if (emptyBtn) emptyBtn.onclick = showCreateModal;
+    };
 
     const showCreateModal = () => triggerCreatePlaylistModal(libraryId);
     document.getElementById('create-playlist-btn').onclick = showCreateModal;
-    const emptyBtn = document.getElementById('create-first-playlist-btn');
-    if (emptyBtn) emptyBtn.onclick = showCreateModal;
+
+    // Listeners
+    const searchInput = document.getElementById('playlists-search');
+    if (searchInput) {
+      searchInput.addEventListener('input', (e) => {
+        currentSearch = e.target.value;
+        updateGrid();
+      });
+    }
+
+    const sortSelect = document.getElementById('playlists-sort-select');
+    if (sortSelect) {
+      sortSelect.addEventListener('change', (e) => {
+        currentSort = e.target.value;
+        updateGrid();
+      });
+    }
+
+    const directionBtn = document.getElementById('playlists-direction-btn');
+    if (directionBtn) {
+      directionBtn.addEventListener('click', () => {
+        currentDesc = !currentDesc;
+        const icon = directionBtn.querySelector('.material-symbols');
+        if (icon) {
+          icon.textContent = currentDesc ? 'arrow_downward' : 'arrow_upward';
+        }
+        updateGrid();
+      });
+    }
+
+    updateGrid();
 
   } catch (err) {
     container.innerHTML = `<p class="text-red-400 text-sm p-6">Failed to load playlists: ${err.message}</p>`;
   }
 }
+
 
 function renderCoversPreview(bookIds, token) {
   if (!bookIds || bookIds.length === 0) {
