@@ -111,7 +111,14 @@
   - Fixed `TestGetLibraryPersonalized` in [main_test.go](file:///home/jay/projects/audiobookshelf-go/main_test.go) to dynamically search for the `recently-added` shelf inside the personalized shelves payload rather than assuming it's the only shelf, ensuring robustness as shelves like `Discover` are added.
   - Enabled the shelf card size control widget to be visible on the Home/Dashboard view (`/` path) in [app.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/app.js).
   - Dynamically labeled the "Author" column as "Publisher" for podcast libraries in both list view table headers and list view column customization options in [dashboard.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/dashboard.js).
-
-
-
-
+- **UI Parity & Settings Hover Fixes**:
+  - Audited and verified sorting/filtering menu UI/UX styling, header/sidebar layout symmetry, and wooden bookshelf texture scaling.
+  - Fixed non-existent CSS hover color classes (`hover:bg-black-450` and `hover:bg-black-350`) in `settings.js` by aligning them with correct design tokens (`hover:bg-black-400` and `hover:bg-black-300`), which restores functional hover highlights to library rows, cancel buttons, and action menu triggers.
+  - Verified drag-and-drop reordering, active library borders, and switches.
+  - Rebuilt assets and verified that Go unit, integration, and vet test suites pass.
+- **Audio Player Keyboard Controls & MediaSession Integration**:
+  - Implemented global keyboard shortcuts (Space to toggle play/pause, ArrowLeft/Right to seek back and forward) that bypass triggering when focus is in input fields or textareas.
+  - Added support for the browser's native MediaSession API, enabling system-level/lock screen controls, headphone controls, and status sync.
+  - Exposed media control handlers in `player.js` to handle play, pause, seek backward, seek forward, previous chapter, and next chapter/queue transitions.
+  - Automatically updates the OS media session metadata (title, artist/author, album, cover image) and playbackState ('playing', 'paused', 'none') dynamically on playback events.
+  - Built WebAssembly assets and verified backend tests successfully.

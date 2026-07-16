@@ -1,13 +1,13 @@
 # Handoff: Audiobookshelf Go Port
 
 ## Targeted Task & Accomplishments
-- **Target Task**: Series details page and cover art stacking visuals audit & authors list regression pass.
+- **Target Task**: UI visual audit and theme/symmetry checks across themes, sidebar, search/filter bars, and bookshelf textures.
 - **Accomplishments**:
-  - Audited the Series Details view and cover art stacking CSS styles (`.series-detail-cover-stack`), verifying that layout, absolute image scaling, rotation, fanning hover animations, and margins mirror the original interface.
-  - Audited `/authors` list view and discovered that the grid used manually defined inline styles rather than the standard `.library-grid` class.
-  - Refactored `renderAuthorsView` in `frontend/js/authors.js` to use `library-grid` class, improving code reuse and ensuring the authors grid is styled consistently (including padding, spacing, alignment, and column width scaling).
-  - Validated that the card components inside the authors grid (`createAuthorCard`) correctly resize with the library shelf-sizing control slider.
-  - Built the Go WebAssembly frontend and backend binaries and ran the complete test suite successfully.
+  - Completed visual audit of Library grid sorting/filtering menus, confirming they use animated custom JS-driven dropdown layouts that correctly match the original Audiobookshelf project's styles.
+  - Verified header/sidebar layout symmetry across light, dark, and sepia themes. Confirmed that CSS variables (`--color-bg`, `--color-primary`, `--color-accent`, etc.) dynamically adjust backgrounds, borders, and text colors.
+  - Audited the wooden bookshelf texture scaling. Extended the `.library-shelf-grid` selectors in `frontend/css/styles.css` to support both `.bookshelf-card` and `.group` elements, ensuring cover art cards and reflections render perfectly.
+  - Verified OIDC/SSO styling and dynamic button rendering on the login screen (integrated with Go WebAssembly's DOM initialization).
+  - Built the WebAssembly assets and Go backend binary, confirming that all integration and unit tests pass successfully.
 
 ## Next Steps
-- Continue with Priority 5 UI/UX regression pass or other pending visual audits.
+- Continue with remaining UI details or feature parity enhancements as requested.

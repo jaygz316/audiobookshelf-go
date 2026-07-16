@@ -197,6 +197,9 @@ function initAudio() {
   audio.addEventListener('play', () => {
     if (remotePlayer && remotePlayer.isConnected) return;
     updatePlayPauseButton(true);
+    if ('mediaSession' in navigator) {
+      navigator.mediaSession.playbackState = 'playing';
+    }
     
     // Auto-restart sleep timer if enabled
     if (sleepTimerAutoRestart && sleepTimerType !== 'off' && !isSleepTimerActive) {
@@ -206,6 +209,9 @@ function initAudio() {
   audio.addEventListener('pause', () => {
     if (remotePlayer && remotePlayer.isConnected) return;
     updatePlayPauseButton(false);
+    if ('mediaSession' in navigator) {
+      navigator.mediaSession.playbackState = 'paused';
+    }
     
     // Clear/stop sleep timer on pause, but preserve sleepTimerType for auto-restart
     if (isSleepTimerActive) {
@@ -704,6 +710,47 @@ function setupUIEventListeners() {
       triggerExpandedPlayer();
     };
   }
+
+  // Global keyboard shortcuts for player control (Space: play/pause, ArrowLeft: seek back, ArrowRight: seek forward)
+  if (!window.hasPlayerKeyboardListeners) {
+    window.hasPlayerKeyboardListeners = true;
+    document.addEventListener('keydown', (e) => {
+      if (!currentItem) return;
+      
+      const activeEl = document.activeElement;
+      if (activeEl) {
+        const tagName = activeEl.tagName;
+        if (tagName === 'INPUT' || tagName === 'TEXTAREA' || tagName === 'SELECT' || activeEl.isContentEditable) {
+          return;
+        }
+      }
+      
+      if (e.code === 'Space') {
+        e.preventDefault();
+        handlePlayPause();
+      } else if (e.code === 'ArrowLeft') {
+        e.preventDefault();
+        handleSeekBack();
+      } else if (e.code === 'ArrowRight') {
+        e.preventDefault();
+        handleSeekForward();
+      }
+    });
+  }
+
+  // MediaSession API action handlers for headphones/lockscreen/system media controls
+  if ('mediaSession' in navigator) {
+    try {
+      navigator.mediaSession.setActionHandler('play', handlePlayPause);
+      navigator.mediaSession.setActionHandler('pause', handlePlayPause);
+      navigator.mediaSession.setActionHandler('seekbackward', handleSeekBack);
+      navigator.mediaSession.setActionHandler('seekforward', handleSeekForward);
+      navigator.mediaSession.setActionHandler('previoustrack', handlePrevChapter);
+      navigator.mediaSession.setActionHandler('nexttrack', handleNext);
+    } catch (err) {
+      console.warn('Failed to set MediaSession action handlers:', err);
+    }
+  }
 }
 
 
@@ -823,6 +870,21 @@ function updateMetadataUI(item) {
   if (titleEl) titleEl.textContent = title;
   if (authorEl) authorEl.textContent = author;
   if (coverEl) coverEl.src = coverUrl;
+
+  if ('mediaSession' in navigator) {
+    try {
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: title,
+        artist: author,
+        album: item.mediaType === 'book' ? (item.media?.metadata?.seriesName || 'Audiobook') : 'Podcast',
+        artwork: [
+          { src: coverUrl, sizes: '512x512', type: 'image/jpeg' }
+        ]
+      });
+    } catch (err) {
+      console.warn('Failed to update MediaSession metadata:', err);
+    }
+  }
 
   const expandedDialog = document.getElementById('expanded-player-dialog');
   if (expandedDialog) {
@@ -1057,6 +1119,10 @@ function destroyPlayer() {
   if (audio) {
     audio.pause();
     audio.src = '';
+  }
+
+  if ('mediaSession' in navigator) {
+    navigator.mediaSession.playbackState = 'none';
   }
 
   if (hls) {

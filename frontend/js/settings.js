@@ -3362,7 +3362,7 @@ async function renderLibrariesTab() {
         const borderClass = isSelected ? 'border-l-warning' : 'border-l-black-400';
 
         html += `
-          <div class="library-row border-y border-r ${borderClass} bg-black-500 rounded-r p-4 flex flex-col md:flex-row justify-between items-start md:items-center space-y-4 md:space-y-0 cursor-move transition-colors hover:bg-black-450" draggable="true" data-id="${lib.id}">
+          <div class="library-row border-y border-r ${borderClass} bg-black-500 rounded-r p-4 flex flex-col md:flex-row justify-between items-start md:items-center space-y-4 md:space-y-0 cursor-move transition-colors hover:bg-black-400" draggable="true" data-id="${lib.id}">
             <div class="flex items-center space-x-3 w-full md:w-auto">
               <!-- Reorder Handle -->
               <span class="material-symbols text-black-200 hover:text-white text-xl select-none mr-1">drag_handle</span>
@@ -3383,7 +3383,7 @@ async function renderLibrariesTab() {
               
               <!-- Action Menu Dropdown Container -->
               <div class="relative inline-block text-left">
-                <button type="button" class="btn-library-actions p-1.5 bg-black-400 hover:bg-black-350 text-white hover:text-accent rounded-full transition-colors focus:outline-none flex items-center justify-center" data-id="${lib.id}" title="Actions">
+                <button type="button" class="btn-library-actions p-1.5 bg-black-400 hover:bg-black-300 text-white hover:text-accent rounded-full transition-colors focus:outline-none flex items-center justify-center" data-id="${lib.id}" title="Actions">
                   <span class="material-symbols text-lg">more_vert</span>
                 </button>
                 <div class="library-actions-menu absolute right-0 mt-1 w-32 bg-primary border border-black-300 rounded shadow-lg hidden py-1 z-50">
@@ -3624,7 +3624,7 @@ function showLibraryModal(lib) {
         </div>
 
         <div class="flex justify-end space-x-2 pt-4 border-t border-black-400">
-          <button type="button" id="close-lib-modal-btn" class="bg-black-400 hover:bg-black-350 px-4 py-2 rounded text-sm font-semibold text-white transition-colors">Cancel</button>
+          <button type="button" id="close-lib-modal-btn" class="bg-black-400 hover:bg-black-300 px-4 py-2 rounded text-sm font-semibold text-white transition-colors">Cancel</button>
           <button type="submit" class="bg-accent hover:opacity-90 text-primary px-4 py-2 rounded text-sm font-semibold transition-opacity">Save</button>
         </div>
       </form>
@@ -3683,7 +3683,7 @@ function showLibraryModal(lib) {
           <span class="leading-none">Click to inspect subfolders. Double-click to open.</span>
         </div>
         <div class="flex space-x-2">
-          <button type="button" id="btn-picker-cancel" class="bg-black-400 hover:bg-black-350 px-3 py-1.5 rounded text-xs font-semibold text-white transition-colors">Cancel</button>
+          <button type="button" id="btn-picker-cancel" class="bg-black-400 hover:bg-black-300 px-3 py-1.5 rounded text-xs font-semibold text-white transition-colors">Cancel</button>
           <button type="button" id="btn-picker-select" class="bg-accent hover:opacity-90 text-primary px-4 py-1.5 rounded text-xs font-semibold transition-opacity" disabled>Select Folder</button>
         </div>
       </div>
