@@ -142,6 +142,9 @@ type PodcastMinifiedJSON struct {
 	LastEpisodeCheck         *int64              `json:"lastEpisodeCheck"`
 	MaxEpisodesToKeep        int                 `json:"maxEpisodesToKeep"`
 	MaxNewEpisodesToDownload int                 `json:"maxNewEpisodesToDownload"`
+	AutoDeletePlayed         bool                `json:"autoDeletePlayed"`
+	SkipIntroDuration        int                 `json:"skipIntroDuration"`
+	SkipOutroDuration        int                 `json:"skipOutroDuration"`
 	Size                     int64               `json:"size"`
 	Episodes                 []interface{}       `json:"episodes,omitempty"`
 }
@@ -329,12 +332,16 @@ func GetLibraryItemMinifiedByID(db *sql.DB, itemID string) (*LibraryItemMinified
 		var pTitle, pTitleIgnorePrefix, pAuthor, pReleaseDate, pFeedURL, pImageURL, pDescription, pItunesPageURL, pItunesID, pItunesArtistID, pLanguage, pPodcastType, pCoverPath string
 		var pExplicit, pAutoDownloadEpisodes, pMaxEpisodesToKeep, pMaxNewEpisodesToDownload, pNumEpisodes int
 		var pTags, pGenres, pLockedFields []byte
+		var pAutoDownloadSchedule sql.NullString
+		var pLastEpisodeCheck sql.NullInt64
+		var pAutoDeletePlayed, pSkipIntroDuration, pSkipOutroDuration int
 
 		err = db.QueryRow(`
-			SELECT title, titleIgnorePrefix, author, releaseDate, feedURL, imageURL, description, itunesPageURL, itunesId, itunesArtistId, language, podcastType, explicit, autoDownloadEpisodes, maxEpisodesToKeep, maxNewEpisodesToDownload, coverPath, tags, genres, numEpisodes, lockedFields
+			SELECT title, titleIgnorePrefix, author, releaseDate, feedURL, imageURL, description, itunesPageURL, itunesId, itunesArtistId, language, podcastType, explicit, autoDownloadEpisodes, maxEpisodesToKeep, maxNewEpisodesToDownload, coverPath, tags, genres, numEpisodes, lockedFields, autoDownloadSchedule, lastEpisodeCheck, autoDeletePlayed, skipIntroDuration, skipOutroDuration
 			FROM podcasts WHERE id = ?
 		`, mediaID).Scan(
 			&pTitle, &pTitleIgnorePrefix, &pAuthor, &pReleaseDate, &pFeedURL, &pImageURL, &pDescription, &pItunesPageURL, &pItunesID, &pItunesArtistID, &pLanguage, &pPodcastType, &pExplicit, &pAutoDownloadEpisodes, &pMaxEpisodesToKeep, &pMaxNewEpisodesToDownload, &pCoverPath, &pTags, &pGenres, &pNumEpisodes, &pLockedFields,
+			&pAutoDownloadSchedule, &pLastEpisodeCheck, &pAutoDeletePlayed, &pSkipIntroDuration, &pSkipOutroDuration,
 		)
 		if err == nil {
 			var tags []string
@@ -393,14 +400,28 @@ func GetLibraryItemMinifiedByID(db *sql.DB, itemID string) (*LibraryItemMinified
 				}
 			}
 
+			var lastCheck *int64
+			if pLastEpisodeCheck.Valid {
+				lastCheck = &pLastEpisodeCheck.Int64
+			}
+			var schedule *string
+			if pAutoDownloadSchedule.Valid {
+				schedule = &pAutoDownloadSchedule.String
+			}
+
 			podcastMin := &PodcastMinifiedJSON{
 				ID:                       mediaID,
 				CoverPath:                nullIfEmpty(pCoverPath),
 				Tags:                     tags,
 				NumEpisodes:              pNumEpisodes,
 				AutoDownloadEpisodes:     pAutoDownloadEpisodes != 0,
+				AutoDownloadSchedule:     schedule,
+				LastEpisodeCheck:         lastCheck,
 				MaxEpisodesToKeep:        pMaxEpisodesToKeep,
 				MaxNewEpisodesToDownload: pMaxNewEpisodesToDownload,
+				AutoDeletePlayed:         pAutoDeletePlayed != 0,
+				SkipIntroDuration:        pSkipIntroDuration,
+				SkipOutroDuration:        pSkipOutroDuration,
 				Size:                     size,
 				Episodes:                 episodes,
 				Metadata: &PodcastMetadataMin{
