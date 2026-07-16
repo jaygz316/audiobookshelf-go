@@ -41,7 +41,12 @@ export async function loadPlaylists(libraryId) {
           <div class="relative flex-grow max-w-md">
             <span class="material-symbols absolute left-3 top-2.5 text-black-200 text-lg">search</span>
             <input type="text" id="playlists-search" placeholder="Search playlists..." value="${escapeHtml(currentSearch)}"
-              class="w-full bg-black-500 text-white pl-10 pr-4 py-2 rounded-lg border border-black-300 focus:outline-none focus:border-accent text-sm transition-colors">
+              class="w-full bg-black-500 text-white pl-10 pr-10 py-2 rounded-lg border border-black-300 focus:outline-none focus:border-accent text-sm transition-colors">
+            ${currentSearch ? `
+              <button id="playlists-search-clear-btn" class="absolute right-3 top-2.5 text-black-200 hover:text-white transition-colors focus:outline-none" title="Clear Search">
+                <span class="material-symbols text-lg">close</span>
+              </button>
+            ` : ''}
           </div>
 
           <!-- Sort and Order controls -->
@@ -116,7 +121,15 @@ export async function loadPlaylists(libraryId) {
     if (searchInput) {
       searchInput.addEventListener('input', (e) => {
         currentSearch = e.target.value;
-        updateGrid();
+        loadPlaylists(libraryId); // reload structure to reflect show/hide clear btn
+      });
+    }
+
+    const clearSearchBtn = document.getElementById('playlists-search-clear-btn');
+    if (clearSearchBtn) {
+      clearSearchBtn.addEventListener('click', () => {
+        currentSearch = '';
+        loadPlaylists(libraryId);
       });
     }
 
