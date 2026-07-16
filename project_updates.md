@@ -157,5 +157,9 @@
   - Redesigned E-Reader device list rows' Edit/Delete actions using inline-flex icon buttons with `edit` and `delete` Material Symbol icons.
   - Polished the modal footer actions inside the Add/Edit E-Reader Device modal (`triggerEreaderDeviceModal`) to use standard `close` and `check` Material Symbol icons and transition animations.
   - Resolved dynamic selector scoping issues in device row event listeners by replacing `e.target` dataset lookups with `e.currentTarget` dataset lookups, ensuring compatibility with nested span/icon child elements.
+- **Library Grid, Count, & Toolbar Alignment**:
+  - Removed `font-mono` typography classes from the toolbar results count label (`#book-count`) and separators (`#view-title-separator`) in `frontend/index.html` to align with the clean, modern sans-serif typography of the original project.
+  - Refined custom Filter and Sort dropdown menu items' hover colors in `frontend/js/app.js` from `hover:bg-black-500` to `hover:bg-black-400` so that highlights are clearly visible against the dark gray background.
+  - Aligned global styles in `frontend/css/styles.css` by updating core variable configurations (`--color-bg` to `#2c2c2c` for true charcoal backgrounds and `--color-accent` to `#e5a93b` for gold highlights) to match the brand color scheme of the original Audiobookshelf project.
 
 
