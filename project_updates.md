@@ -34,6 +34,11 @@
 - **Sidebar & Siderail Navigation Styling**: Switched navigation styling to exactly match the original client's layout (`bg-bg` and custom icons). Removed custom template overrides in favor of native CSS styles.
 
 ### 2026-07-15
+- **Mobile Navigation Responsive Toggles & Smooth Transitions**:
+  - Implemented mobile menu drawer backdrop overlay `#sidebar-backdrop` to dim and blur main layout viewports on mobile size viewports.
+  - Re-implemented the Mobile Sidebar Drawer navigation layout to slide in and out smoothly from the left using CSS transform transitions (`translateX(-100%)` to `translateX(0)`) and visibility overrides instead of block class swaps.
+  - Styled active navigation page indicators to scale (`scaleY(0)` to `scaleY(1)`) and fade (`opacity: 0` to `opacity: 1`) smoothly using CSS transitions.
+  - Linked backdrop overlay click events and navigation item selection handlers to automatically invoke the drawer's slide-out transition and visibility timers.
 - **Home/Dashboard & Task Runner UX Audit**:
   - Added `bookshelf-card` class to dynamically generated library cards to ensure CSS selectors map perfectly.
   - Refactored `initBatchEditHandlers` in `dashboard.js` to target `.bookshelf-card` elements instead of `.bookshelfRow .group`, ensuring batch editing styling applies correctly to the bottom grid shelf ("All Books") and all other list/grid elements.
