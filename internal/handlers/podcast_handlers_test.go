@@ -256,3 +256,211 @@ func TestGetLibraryOPML(t *testing.T) {
 		t.Errorf("Expected OPML to contain feedURL, got:\n%s", body)
 	}
 }
+
+func TestExportOPML(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	// Seed podcast
+	_, err := db.Exec(`INSERT INTO podcasts (id, title, feedURL) VALUES ('podcast-1', 'Podcast A', 'https://example.com/podcast_a.xml')`)
+	if err != nil {
+		t.Fatalf("Failed to seed podcast: %v", err)
+	}
+	_, err = db.Exec(`INSERT INTO podcasts (id, title, feedURL) VALUES ('podcast-2', 'Podcast B', '')`) // should be ignored (empty feedURL)
+	if err != nil {
+		t.Fatalf("Failed to seed podcast 2: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/podcasts/opml/export", nil)
+	ctx := context.WithValue(req.Context(), core.UserContextKey, &core.UserSession{
+		ID:   "user-1",
+		Type: "admin",
+	})
+	req = req.WithContext(ctx)
+
+	w := httptest.NewRecorder()
+	handleExportOPML(db)(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("Expected status 200, got %d. Body: %s", w.Code, w.Body.String())
+	}
+
+	body := w.Body.String()
+	if !bytes.Contains([]byte(body), []byte("Podcast A")) {
+		t.Errorf("Expected OPML to contain 'Podcast A'")
+	}
+	if bytes.Contains([]byte(body), []byte("Podcast B")) {
+		t.Errorf("Expected OPML to NOT contain 'Podcast B' because its feedURL is empty")
+	}
+}
+
+func TestDeleteEpisodesBulk(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	// Seed podcast, episodes, and library item
+	_, err := db.Exec(`INSERT INTO libraryItems (id, libraryId, mediaType, mediaId, title) VALUES ('item-1', 'lib-1', 'podcast', 'podcast-1', 'Test Podcast')`)
+	if err != nil {
+		t.Fatalf("Failed to insert library item: %v", err)
+	}
+	_, err = db.Exec(`INSERT INTO podcasts (id, title, feedURL) VALUES ('podcast-1', 'Test Podcast', 'https://example.com/podcast.xml')`)
+	if err != nil {
+		t.Fatalf("Failed to seed podcast: %v", err)
+	}
+	_, err = db.Exec(`INSERT INTO podcastEpisodes (id, podcastId, title, audioFile) VALUES ('ep-1', 'podcast-1', 'Episode 1', '{"metadata":{"path":"/tmp/ep1.mp3"}}')`)
+	if err != nil {
+		t.Fatalf("Failed to seed episode 1: %v", err)
+	}
+	_, err = db.Exec(`INSERT INTO podcastEpisodes (id, podcastId, title, audioFile) VALUES ('ep-2', 'podcast-1', 'Episode 2', '{"metadata":{"path":"/tmp/ep2.mp3"}}')`)
+	if err != nil {
+		t.Fatalf("Failed to seed episode 2: %v", err)
+	}
+
+	reqBody, _ := json.Marshal([]string{"ep-1", "ep-2"})
+	req := httptest.NewRequest(http.MethodPost, "/api/podcasts/podcast-1/delete-episodes", bytes.NewReader(reqBody))
+	ctx := context.WithValue(req.Context(), core.UserContextKey, &core.UserSession{
+		ID:   "user-1",
+		Type: "admin",
+	})
+	req = req.WithContext(ctx)
+
+	w := httptest.NewRecorder()
+	handleDeleteEpisodes(db, "podcast-1")(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("Expected status 200, got %d. Body: %s", w.Code, w.Body.String())
+	}
+
+	// Verify soft delete sets audioFile to '{}'
+	var audioFile1, audioFile2 string
+	db.QueryRow("SELECT audioFile FROM podcastEpisodes WHERE id = 'ep-1'").Scan(&audioFile1)
+	db.QueryRow("SELECT audioFile FROM podcastEpisodes WHERE id = 'ep-2'").Scan(&audioFile2)
+	if audioFile1 != "{}" {
+		t.Errorf("Expected ep-1 audioFile to be '{}', got %q", audioFile1)
+	}
+	if audioFile2 != "{}" {
+		t.Errorf("Expected ep-2 audioFile to be '{}', got %q", audioFile2)
+	}
+
+	// Verify hard delete deletes records
+	reqBody2, _ := json.Marshal([]string{"ep-1", "ep-2"})
+	req2 := httptest.NewRequest(http.MethodPost, "/api/podcasts/podcast-1/delete-episodes?hard=1", bytes.NewReader(reqBody2))
+	req2 = req2.WithContext(ctx)
+	w2 := httptest.NewRecorder()
+	handleDeleteEpisodes(db, "podcast-1")(w2, req2)
+
+	var count int
+	db.QueryRow("SELECT COUNT(*) FROM podcastEpisodes WHERE podcastId = 'podcast-1'").Scan(&count)
+	if count != 0 {
+		t.Errorf("Expected 0 episodes remaining after hard delete, got %d", count)
+	}
+}
+
+func TestBulkUpdateEpisodesProgress(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	_, _ = db.Exec("ALTER TABLE mediaProgresses ADD COLUMN mediaItemType TEXT")
+	_, _ = db.Exec("ALTER TABLE mediaProgresses ADD COLUMN duration REAL")
+	_, _ = db.Exec("ALTER TABLE mediaProgresses ADD COLUMN finishedAt TEXT")
+	_, _ = db.Exec("ALTER TABLE mediaProgresses ADD COLUMN podcastId TEXT")
+	_, _ = db.Exec("ALTER TABLE mediaProgresses ADD COLUMN createdAt TEXT")
+
+	// Seed podcast, episodes, and library item
+	_, err := db.Exec(`INSERT INTO libraryItems (id, libraryId, mediaType, mediaId, title) VALUES ('item-1', 'lib-1', 'podcast', 'podcast-1', 'Test Podcast')`)
+	if err != nil {
+		t.Fatalf("Failed to insert library item: %v", err)
+	}
+	_, err = db.Exec(`INSERT INTO podcasts (id, title, feedURL) VALUES ('podcast-1', 'Test Podcast', 'https://example.com/podcast.xml')`)
+	if err != nil {
+		t.Fatalf("Failed to seed podcast: %v", err)
+	}
+	_, err = db.Exec(`INSERT INTO podcastEpisodes (id, podcastId, title, audioFile) VALUES ('ep-1', 'podcast-1', 'Episode 1', '{"duration": 100}')`)
+	if err != nil {
+		t.Fatalf("Failed to seed episode 1: %v", err)
+	}
+	_, err = db.Exec(`INSERT INTO podcastEpisodes (id, podcastId, title, audioFile) VALUES ('ep-2', 'podcast-1', 'Episode 2', '{"duration": 200}')`)
+	if err != nil {
+		t.Fatalf("Failed to seed episode 2: %v", err)
+	}
+
+	// Request with custom progress body
+	reqBody, _ := json.Marshal(map[string]interface{}{
+		"episodeIds":  []string{"ep-1", "ep-2"},
+		"isFinished":  true,
+		"currentTime": 50,
+	})
+	req := httptest.NewRequest(http.MethodPost, "/api/podcasts/podcast-1/progress-episodes", bytes.NewReader(reqBody))
+	ctx := context.WithValue(req.Context(), core.UserContextKey, &core.UserSession{
+		ID:   "user-1",
+		Type: "user",
+	})
+	req = req.WithContext(ctx)
+
+	w := httptest.NewRecorder()
+	handleBulkUpdateEpisodesProgress(db, "podcast-1")(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("Expected status 200, got %d. Body: %s", w.Code, w.Body.String())
+	}
+
+	// Verify progress entries in DB
+	var count int
+	db.QueryRow("SELECT COUNT(*) FROM mediaProgresses WHERE userId = 'user-1'").Scan(&count)
+	if count != 2 {
+		t.Errorf("Expected 2 progress records, got %d", count)
+	}
+
+	var isFinished int
+	db.QueryRow("SELECT isFinished FROM mediaProgresses WHERE userId = 'user-1' AND mediaItemId = 'ep-1'").Scan(&isFinished)
+	if isFinished != 1 {
+		t.Errorf("Expected ep-1 to be marked as finished (1), got %d", isFinished)
+	}
+}
+
+func TestUpdatePodcastSettingsSkipDurations(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	_, _ = db.Exec("ALTER TABLE podcasts ADD COLUMN skipIntroDuration INTEGER DEFAULT 0")
+	_, _ = db.Exec("ALTER TABLE podcasts ADD COLUMN skipOutroDuration INTEGER DEFAULT 0")
+
+	// Seed podcast, episodes, and library item
+	_, err := db.Exec(`INSERT INTO libraryItems (id, libraryId, mediaType, mediaId, title) VALUES ('item-1', 'lib-1', 'podcast', 'podcast-1', 'Test Podcast')`)
+	if err != nil {
+		t.Fatalf("Failed to insert library item: %v", err)
+	}
+	_, err = db.Exec(`INSERT INTO podcasts (id, title, feedURL, skipIntroDuration, skipOutroDuration) VALUES ('podcast-1', 'Test Podcast', 'https://example.com/podcast.xml', 0, 0)`)
+	if err != nil {
+		t.Fatalf("Failed to seed podcast: %v", err)
+	}
+
+	// Request with skipIntroDuration and skipOutroDuration
+	reqBody, _ := json.Marshal(map[string]interface{}{
+		"title":             "Test Podcast",
+		"skipIntroDuration": 15,
+		"skipOutroDuration": 30,
+	})
+	req := httptest.NewRequest(http.MethodPatch, "/api/items/item-1", bytes.NewReader(reqBody))
+	ctx := context.WithValue(req.Context(), core.UserContextKey, &core.UserSession{
+		ID:   "user-1",
+		Type: "admin",
+	})
+	req = req.WithContext(ctx)
+
+	w := httptest.NewRecorder()
+	handleUpdateLibraryItemByID(db, "item-1")(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("Expected status 200, got %d. Body: %s", w.Code, w.Body.String())
+	}
+
+	var skipIntro, skipOutro int
+	db.QueryRow("SELECT skipIntroDuration, skipOutroDuration FROM podcasts WHERE id = 'podcast-1'").Scan(&skipIntro, &skipOutro)
+	if skipIntro != 15 {
+		t.Errorf("Expected skipIntroDuration to be 15, got %d", skipIntro)
+	}
+	if skipOutro != 30 {
+		t.Errorf("Expected skipOutroDuration to be 30, got %d", skipOutro)
+	}
+}

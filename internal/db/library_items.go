@@ -142,6 +142,8 @@ type PodcastMinifiedJSON struct {
 	LastEpisodeCheck         *int64              `json:"lastEpisodeCheck"`
 	MaxEpisodesToKeep        int                 `json:"maxEpisodesToKeep"`
 	MaxNewEpisodesToDownload int                 `json:"maxNewEpisodesToDownload"`
+	SkipIntroDuration        int                 `json:"skipIntroDuration"`
+	SkipOutroDuration        int                 `json:"skipOutroDuration"`
 	Size                     int64               `json:"size"`
 	Episodes                 []interface{}       `json:"episodes,omitempty"`
 }
@@ -327,14 +329,14 @@ func GetLibraryItemMinifiedByID(db *sql.DB, itemID string) (*LibraryItemMinified
 		}
 	} else if mediaType == "podcast" {
 		var pTitle, pTitleIgnorePrefix, pAuthor, pReleaseDate, pFeedURL, pImageURL, pDescription, pItunesPageURL, pItunesID, pItunesArtistID, pLanguage, pPodcastType, pCoverPath string
-		var pExplicit, pAutoDownloadEpisodes, pMaxEpisodesToKeep, pMaxNewEpisodesToDownload, pNumEpisodes int
+		var pExplicit, pAutoDownloadEpisodes, pMaxEpisodesToKeep, pMaxNewEpisodesToDownload, pNumEpisodes, pSkipIntroDuration, pSkipOutroDuration int
 		var pTags, pGenres, pLockedFields []byte
 
 		err = db.QueryRow(`
-			SELECT title, titleIgnorePrefix, author, releaseDate, feedURL, imageURL, description, itunesPageURL, itunesId, itunesArtistId, language, podcastType, explicit, autoDownloadEpisodes, maxEpisodesToKeep, maxNewEpisodesToDownload, coverPath, tags, genres, numEpisodes, lockedFields
+			SELECT title, titleIgnorePrefix, author, releaseDate, feedURL, imageURL, description, itunesPageURL, itunesId, itunesArtistId, language, podcastType, explicit, autoDownloadEpisodes, maxEpisodesToKeep, maxNewEpisodesToDownload, coverPath, tags, genres, numEpisodes, lockedFields, skipIntroDuration, skipOutroDuration
 			FROM podcasts WHERE id = ?
 		`, mediaID).Scan(
-			&pTitle, &pTitleIgnorePrefix, &pAuthor, &pReleaseDate, &pFeedURL, &pImageURL, &pDescription, &pItunesPageURL, &pItunesID, &pItunesArtistID, &pLanguage, &pPodcastType, &pExplicit, &pAutoDownloadEpisodes, &pMaxEpisodesToKeep, &pMaxNewEpisodesToDownload, &pCoverPath, &pTags, &pGenres, &pNumEpisodes, &pLockedFields,
+			&pTitle, &pTitleIgnorePrefix, &pAuthor, &pReleaseDate, &pFeedURL, &pImageURL, &pDescription, &pItunesPageURL, &pItunesID, &pItunesArtistID, &pLanguage, &pPodcastType, &pExplicit, &pAutoDownloadEpisodes, &pMaxEpisodesToKeep, &pMaxNewEpisodesToDownload, &pCoverPath, &pTags, &pGenres, &pNumEpisodes, &pLockedFields, &pSkipIntroDuration, &pSkipOutroDuration,
 		)
 		if err == nil {
 			var tags []string
@@ -401,6 +403,8 @@ func GetLibraryItemMinifiedByID(db *sql.DB, itemID string) (*LibraryItemMinified
 				AutoDownloadEpisodes:     pAutoDownloadEpisodes != 0,
 				MaxEpisodesToKeep:        pMaxEpisodesToKeep,
 				MaxNewEpisodesToDownload: pMaxNewEpisodesToDownload,
+				SkipIntroDuration:        pSkipIntroDuration,
+				SkipOutroDuration:        pSkipOutroDuration,
 				Size:                     size,
 				Episodes:                 episodes,
 				Metadata: &PodcastMetadataMin{
@@ -516,7 +520,7 @@ func GetFilteredLibraryItems(db *sql.DB, options GetFilteredLibraryItemsOptions)
 		selectQuery = fmt.Sprintf(`
 			SELECT 
 				li.id, li.ino, li.path, li.relPath, li.isFile, li.mtime, li.ctime, li.birthtime, li.createdAt, li.updatedAt, li.isMissing, li.isInvalid, li.mediaType, li.mediaId, li.size, li.libraryFolderId,
-				p.id, p.title, p.titleIgnorePrefix, p.author, p.releaseDate, p.feedURL, p.imageURL, p.description, p.itunesPageURL, p.itunesId, p.itunesArtistId, p.language, p.podcastType, p.explicit, p.autoDownloadEpisodes, p.autoDownloadSchedule, p.lastEpisodeCheck, p.maxEpisodesToKeep, p.maxNewEpisodesToDownload, p.coverPath, p.tags, p.genres, p.numEpisodes
+				p.id, p.title, p.titleIgnorePrefix, p.author, p.releaseDate, p.feedURL, p.imageURL, p.description, p.itunesPageURL, p.itunesId, p.itunesArtistId, p.language, p.podcastType, p.explicit, p.autoDownloadEpisodes, p.autoDownloadSchedule, p.lastEpisodeCheck, p.maxEpisodesToKeep, p.maxNewEpisodesToDownload, p.coverPath, p.tags, p.genres, p.numEpisodes, p.skipIntroDuration, p.skipOutroDuration
 			FROM libraryItems li
 			JOIN podcasts p ON li.mediaId = p.id AND li.mediaType = 'podcast'
 			%s
@@ -711,13 +715,13 @@ func GetFilteredLibraryItems(db *sql.DB, options GetFilteredLibraryItemsOptions)
 			var pID, pTitle string
 			var pTitleIgnorePrefix sql.NullString
 			var pAuthor, pReleaseDate, pFeedURL, pImageURL, pDescription, pItunesPageURL, pItunesID, pItunesArtistID, pLanguage, pPodcastType, pAutoDownloadSchedule, pCoverPath sql.NullString
-			var pExplicit, pAutoDownloadEpisodes, pMaxEpisodesToKeep, pMaxNewEpisodesToDownload, pNumEpisodes sql.NullInt64
+			var pExplicit, pAutoDownloadEpisodes, pMaxEpisodesToKeep, pMaxNewEpisodesToDownload, pNumEpisodes, pSkipIntroDuration, pSkipOutroDuration sql.NullInt64
 			var pLastEpisodeCheck sql.NullString
 			var pTags, pGenres []byte
 
 			err = rows.Scan(
 				&id, &ino, &path, &relPath, &isFileVal, &mtimeStr, &ctimeStr, &birthtimeStr, &createdAtStr, &updatedAtStr, &isMissingVal, &isInvalidVal, &mediaType, &mediaID, &size, &libraryFolderID,
-				&pID, &pTitle, &pTitleIgnorePrefix, &pAuthor, &pReleaseDate, &pFeedURL, &pImageURL, &pDescription, &pItunesPageURL, &pItunesID, &pItunesArtistID, &pLanguage, &pPodcastType, &pExplicit, &pAutoDownloadEpisodes, &pAutoDownloadSchedule, &pLastEpisodeCheck, &pMaxEpisodesToKeep, &pMaxNewEpisodesToDownload, &pCoverPath, &pTags, &pGenres, &pNumEpisodes,
+				&pID, &pTitle, &pTitleIgnorePrefix, &pAuthor, &pReleaseDate, &pFeedURL, &pImageURL, &pDescription, &pItunesPageURL, &pItunesID, &pItunesArtistID, &pLanguage, &pPodcastType, &pExplicit, &pAutoDownloadEpisodes, &pAutoDownloadSchedule, &pLastEpisodeCheck, &pMaxEpisodesToKeep, &pMaxNewEpisodesToDownload, &pCoverPath, &pTags, &pGenres, &pNumEpisodes, &pSkipIntroDuration, &pSkipOutroDuration,
 			)
 			if err != nil {
 				return nil, 0, err
@@ -801,6 +805,8 @@ func GetFilteredLibraryItems(db *sql.DB, options GetFilteredLibraryItemsOptions)
 				LastEpisodeCheck:         lastEpisodeCheckVal,
 				MaxEpisodesToKeep:        int(pMaxEpisodesToKeep.Int64),
 				MaxNewEpisodesToDownload: int(pMaxNewEpisodesToDownload.Int64),
+				SkipIntroDuration:        int(pSkipIntroDuration.Int64),
+				SkipOutroDuration:        int(pSkipOutroDuration.Int64),
 				Size:                     size.Int64,
 				Metadata: &PodcastMetadataMin{
 					Title:             pTitle,
