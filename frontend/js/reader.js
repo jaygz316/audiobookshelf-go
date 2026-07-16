@@ -1,4 +1,17 @@
 import { request, resolvePath } from './api.js';
+import {
+  getThemeButtonActiveStyle,
+  getThemeButtonInactiveStyle,
+  getThemeRules,
+  applyIframeStyles,
+  applyTheme
+} from './reader/theme.js';
+
+import {
+  refreshPdfBookmarksList,
+  refreshBookmarksTab
+} from './reader/bookmarks.js';
+
 
 const loadedLibraries = {};
 
@@ -15,17 +28,6 @@ function loadScript(src) {
     document.head.appendChild(script);
   });
   return loadedLibraries[src];
-}
-
-function getThemeButtonActiveStyle(theme) {
-  if (theme === 'light') return 'px-2.5 py-1 text-xs rounded transition-colors bg-white text-black font-bold shadow';
-  if (theme === 'sepia') return 'px-2.5 py-1 text-xs rounded transition-colors bg-[#f4ecd8] text-[#5b4636] font-bold shadow';
-  if (theme === 'warm') return 'px-2.5 py-1 text-xs rounded transition-colors bg-[#fbf0e3] text-[#5c4033] font-bold shadow';
-  return 'px-2.5 py-1 text-xs rounded transition-colors bg-[#1a1a1a] text-white font-bold border border-black-300 shadow';
-}
-
-function getThemeButtonInactiveStyle(theme) {
-  return 'px-2.5 py-1 text-xs rounded transition-colors text-black-100 hover:text-white hover:bg-black-500';
 }
 
 function escapeHtml(str) {
@@ -903,76 +905,10 @@ export async function openEbookReader(item, token) {
 
       // PDF Bookmarks / Notes list refresh helper
       refreshPdfBookmarksList = async () => {
-        try {
-          window.currentUser = await request('GET', '/api/me');
-        } catch (e) {
-          console.warn("Failed to sync bookmarks:", e);
-        }
-        
-        const curUser = window.currentUser || {};
-        const bms = (curUser.bookmarks || []).filter(b => b.libraryItemId === itemId);
-        
-        bms.sort((a, b) => b.createdAt - a.createdAt);
-        
-        const container = document.getElementById('pdf-bookmarks-list');
-        if (!container) return;
-        
-        container.innerHTML = `
-          ${bms.length === 0 ? `
-            <p class="text-[10px] text-black-100 italic text-center py-4">No notes or bookmarks.</p>
-          ` : bms.map((b, idx) => {
-            const hlColor = b.color || '#ffeb3b';
-            const borderStyle = `border-left: 3px solid ${hlColor}; padding-left: 6px;`;
-            
-            return `
-              <div class="bg-black-600/30 hover:bg-black-500/30 border border-black-400/20 rounded p-2 transition-colors relative group cursor-pointer" data-pdf-bm-idx="${idx}" style="${borderStyle}">
-                <div class="flex justify-between items-start space-x-1.5">
-                  <div class="flex-grow min-w-0 pr-4">
-                    <p class="text-[10px] font-bold text-accent">${escapeHtml(b.cfi || 'Page ' + b.title)}</p>
-                    ${b.note ? `<p class="text-[10px] text-black-50 mt-1 line-clamp-3">${escapeHtml(b.note)}</p>` : ''}
-                    <span class="text-[8px] text-black-100 block mt-1.5">${new Date(b.createdAt || b.time * 1000).toLocaleDateString()}</span>
-                  </div>
-                  <button class="delete-pdf-bookmark-btn text-black-100 hover:text-error transition-colors p-0.5 rounded hover:bg-black-400 focus:outline-none" data-time="${b.time}" title="Delete bookmark">
-                    <span class="material-symbols text-xs">delete</span>
-                  </button>
-                </div>
-              </div>
-            `;
-          }).join('')}
-        `;
-
-        container.querySelectorAll('[data-pdf-bm-idx]').forEach(el => {
-          el.onclick = (e) => {
-            if (e.target.closest('.delete-pdf-bookmark-btn')) return;
-            const idx = parseInt(el.getAttribute('data-pdf-bm-idx'));
-            const bm = bms[idx];
-            if (bm && bm.cfi && bm.cfi.startsWith('Page ')) {
-              const pageNum = parseInt(bm.cfi.replace('Page ', ''), 10);
-              if (!isNaN(pageNum) && pageNum >= 1 && pageNum <= pdfDoc.numPages) {
-                renderPdfPage(pageNum);
-              }
-            }
-          };
-        });
-
-        container.querySelectorAll('.delete-pdf-bookmark-btn').forEach(btn => {
-          btn.onclick = async (e) => {
-            e.stopPropagation();
-            const timeVal = parseFloat(btn.getAttribute('data-time'));
-            
-            if (confirm("Are you sure you want to delete this bookmark?")) {
-              try {
-                await request('DELETE', `/api/me/item/${itemId}/bookmark/${timeVal}`);
-                await refreshPdfBookmarksList();
-              } catch (err) {
-                console.error("Failed to delete PDF bookmark:", err);
-                alert("Failed to delete bookmark");
-              }
-            }
-          };
+        await refreshPdfBookmarksList(itemId, (b) => {
+          jumpToPage(b.time);
         });
       };
-
       // Add PDF bookmark button click
       const addBookmarkBtn = document.getElementById('pdf-add-bookmark-btn');
       if (addBookmarkBtn) {
@@ -1116,70 +1052,7 @@ export async function openEbookReader(item, token) {
         }
       };
 
-      const getThemeRules = (theme, font, lineHeight, margin) => {
-        let bg, fg;
-        if (theme === 'light') {
-          bg = '#ffffff';
-          fg = '#000000';
-        } else if (theme === 'sepia') {
-          bg = '#f4ecd8';
-          fg = '#5b4636';
-        } else if (theme === 'warm') {
-          bg = '#fbf0e3';
-          fg = '#5c4033';
-        } else {
-          bg = '#1a1a1a';
-          fg = '#e0e0e0';
-        }
-        return {
-          body: {
-            background: `${bg} !important`,
-            color: `${fg} !important`,
-            "font-family": `${font} !important`,
-            "line-height": `${lineHeight} !important`,
-            "padding": `0 ${margin} !important`
-          },
-          p: {
-            color: `${fg} !important`
-          }
-        };
-      };
 
-      const applyIframeStyles = () => {
-        if (!rendition) return;
-        let bg, fg;
-        if (currentTheme === 'light') {
-          bg = '#ffffff';
-          fg = '#000000';
-        } else if (currentTheme === 'sepia') {
-          bg = '#f4ecd8';
-          fg = '#5b4636';
-        } else if (currentTheme === 'warm') {
-          bg = '#fbf0e3';
-          fg = '#5c4033';
-        } else {
-          bg = '#1a1a1a';
-          fg = '#e0e0e0';
-        }
-        
-        const lineSpacing = parseFloat(currentLineHeight);
-        
-        const rules = {
-          '*': {
-            'color': `${fg} !important`,
-            'background-color': `${bg} !important`,
-            'line-height': `${lineSpacing} !important`
-          },
-          'a': {
-            'color': `${fg} !important`
-          }
-        };
-        
-        try {
-          rendition.getContents().forEach((c) => {
-            c.addStylesheetRules(rules);
-          });
-        } catch (e) {
           console.warn("Failed to apply stylesheet rules to iframe contents:", e);
         }
       };
@@ -1425,103 +1298,23 @@ export async function openEbookReader(item, token) {
       // First initial rendition load
       await initRendition(savedLocation || undefined);
 
-      const applyTheme = (theme) => {
+
+      const applyThemeWrapper = (theme) => {
         currentTheme = theme;
         saveSettings();
-        
-        const vContainer = document.getElementById('epub-viewer');
-        const cBody = document.getElementById('reader-content-body');
-        
-        if (theme === 'light') {
-          if (vContainer) {
-            vContainer.style.backgroundColor = '#ffffff';
-            vContainer.style.color = '#000000';
-          }
-          if (cBody) cBody.style.backgroundColor = '#f5f5f5';
-        } else if (theme === 'sepia') {
-          if (vContainer) {
-            vContainer.style.backgroundColor = '#f4ecd8';
-            vContainer.style.color = '#5b4636';
-          }
-          if (cBody) cBody.style.backgroundColor = '#e9dfc4';
-        } else if (theme === 'warm') {
-          if (vContainer) {
-            vContainer.style.backgroundColor = '#fbf0e3';
-            vContainer.style.color = '#5c4033';
-          }
-          if (cBody) cBody.style.backgroundColor = '#eddccb';
-        } else {
-          // dark
-          if (vContainer) {
-            vContainer.style.backgroundColor = '#1a1a1a';
-            vContainer.style.color = '#e0e0e0';
-          }
-          if (cBody) cBody.style.backgroundColor = '#121212';
-        }
-
-        let bg, fg, border, headerBg, textMuted, inputBg;
-        if (theme === 'light') {
-          bg = '#ffffff';
-          fg = '#111827';
-          border = '#e5e7eb';
-          headerBg = '#f3f4f6';
-          textMuted = '#4b5563';
-          inputBg = '#f9fafb';
-        } else if (theme === 'sepia') {
-          bg = '#f4ecd8';
-          fg = '#5b4636';
-          border = '#e6dcbd';
-          headerBg = '#eae0c9';
-          textMuted = '#705b4a';
-          inputBg = '#fcf8ee';
-        } else if (theme === 'warm') {
-          bg = '#fbf0e3';
-          fg = '#5c4033';
-          border = '#eddccb';
-          headerBg = '#f5e6d3';
-          textMuted = '#785b4c';
-          inputBg = '#fffaf4';
-        } else {
-          bg = '#1a1a1a';
-          fg = '#e0e0e0';
-          border = '#2d2d2d';
-          headerBg = '#121212';
-          textMuted = '#9ca3af';
-          inputBg = '#262626';
-        }
-
-        overlay.style.setProperty('--reader-bg', bg);
-        overlay.style.setProperty('--reader-fg', fg);
-        overlay.style.setProperty('--reader-border', border);
-        overlay.style.setProperty('--reader-header-bg', headerBg);
-        overlay.style.setProperty('--reader-text-muted', textMuted);
-        overlay.style.setProperty('--reader-input-bg', inputBg);
-        
-        if (rendition) {
-          rendition.themes.register("light", getThemeRules("light", currentFont, currentLineHeight, currentMargin));
-          rendition.themes.register("sepia", getThemeRules("sepia", currentFont, currentLineHeight, currentMargin));
-          rendition.themes.register("warm", getThemeRules("warm", currentFont, currentLineHeight, currentMargin));
-          rendition.themes.register("dark", getThemeRules("dark", currentFont, currentLineHeight, currentMargin));
-          rendition.themes.select(theme);
-          applyIframeStyles();
-        }
-        
-        document.querySelectorAll('[data-theme]').forEach(btn => {
-          if (btn.getAttribute('data-theme') === theme) {
-            btn.className = getThemeButtonActiveStyle(theme);
-          } else {
-            btn.className = getThemeButtonInactiveStyle(btn.getAttribute('data-theme'));
-          }
-        });
+        applyTheme(theme, rendition, 
+          { currentFont, currentLineHeight, currentMargin }, 
+          { overlay, vContainer: document.getElementById('epub-viewer'), cBody: document.getElementById('reader-content-body') }
+        );
       };
 
       // Set initial theme
-      applyTheme(currentTheme);
+      applyThemeWrapper(currentTheme);
 
       // Theme button click events
       document.querySelectorAll('[data-theme]').forEach(btn => {
         btn.onclick = (e) => {
-          applyTheme(e.target.getAttribute('data-theme'));
+          applyThemeWrapper(e.target.getAttribute('data-theme'));
         };
       });
 
@@ -1938,109 +1731,15 @@ export async function openEbookReader(item, token) {
       document.addEventListener('click', clickOutsideTOC);
 
       // Bookmarks view refresh helper
-      const refreshBookmarksTab = async () => {
-        try {
-          window.currentUser = await request('GET', '/api/me');
-        } catch (e) {
-          console.warn("Failed to sync bookmarks:", e);
-        }
-        
-        const curUser = window.currentUser || {};
-        const bms = (curUser.bookmarks || []).filter(b => b.libraryItemId === itemId);
-        
-        bms.sort((a, b) => b.createdAt - a.createdAt);
-        
-        const container = document.getElementById('reader-bookmarks-list');
-        if (!container) return;
-        
-        const searchVal = document.getElementById('bookmarks-search-input')?.value || "";
-        
-        const filteredBms = bms.filter(b => {
-          if (!searchVal) return true;
-          const q = searchVal.toLowerCase();
-          return (b.title || "").toLowerCase().includes(q) || (b.note || "").toLowerCase().includes(q);
-        });
-
-        container.innerHTML = `
-          <div class="px-2 pb-2">
-            <input id="bookmarks-search-input" type="text" placeholder="Search highlights & notes..." class="w-full bg-black-600 border border-black-400 text-white rounded text-xs px-2 py-1.5 focus:outline-none focus:border-accent" value="${escapeHtml(searchVal)}" />
-          </div>
-          <div class="space-y-2 p-1 max-h-[calc(100vh-12rem)] overflow-y-auto no-scroll" id="bookmarks-items-container">
-            ${filteredBms.length === 0 ? `
-              <p class="text-xs text-black-100 italic text-center py-4">No highlights or notes found.</p>
-            ` : filteredBms.map((b, idx) => {
-              const isHighlight = !!b.cfi;
-              const hlColor = b.color || '#ffeb3b';
-              const borderStyle = isHighlight ? `border-left: 4px solid ${hlColor}; padding-left: 8px;` : '';
-              
-              return `
-                <div class="bg-black-600/50 hover:bg-black-500/50 border border-black-400/30 rounded p-2.5 transition-colors relative group cursor-pointer" data-idx="${idx}" style="${borderStyle}">
-                  <div class="flex justify-between items-start space-x-2">
-                    <div class="flex-grow min-w-0 pr-4">
-                      ${b.title ? `<p class="text-xs font-semibold text-white/90 line-clamp-3 italic">${escapeHtml(b.title)}</p>` : ''}
-                      ${b.note ? `<p class="text-xs text-black-50 mt-1.5">${escapeHtml(b.note)}</p>` : ''}
-                      <span class="text-[10px] text-black-100 block mt-2">${new Date(b.createdAt || b.time * 1000).toLocaleString()}</span>
-                    </div>
-                    <button class="delete-bookmark-btn text-black-100 hover:text-error transition-colors p-1 rounded hover:bg-black-400 focus:outline-none" data-time="${b.time}" title="Delete highlight">
-                      <span class="material-symbols text-sm">delete</span>
-                    </button>
-                  </div>
-                </div>
-              `;
-            }).join('')}
-          </div>
-        `;
-
-        const searchInput = document.getElementById('bookmarks-search-input');
-        if (searchInput) {
-          searchInput.oninput = () => {
-            refreshBookmarksTab();
-          };
-        }
-
-        container.querySelectorAll('[data-idx]').forEach(el => {
-          el.onclick = (e) => {
-            if (e.target.closest('.delete-bookmark-btn')) return;
-            const idx = parseInt(el.getAttribute('data-idx'));
-            const bm = filteredBms[idx];
-            if (bm && rendition) {
-              if (bm.cfi) {
-                rendition.display(bm.cfi);
-              }
-              closeTOCDrawer();
-            }
-          };
-        });
-
-        container.querySelectorAll('.delete-bookmark-btn').forEach(btn => {
-          btn.onclick = async (e) => {
-            e.stopPropagation();
-            const timeVal = parseFloat(btn.getAttribute('data-time'));
-            
-            if (confirm("Are you sure you want to delete this highlight?")) {
-              try {
-                await request('DELETE', `/api/me/item/${itemId}/bookmark/${timeVal}`);
-                
-                const bm = bms.find(b => b.time === timeVal);
-                if (bm && bm.cfi && rendition) {
-                  rendition.annotations.remove(bm.cfi, "highlight");
-                }
-
-                await refreshBookmarksTab();
-              } catch (err) {
-                console.error("Failed to delete bookmark:", err);
-                alert("Failed to delete bookmark");
-              }
-            }
-          };
+      refreshBookmarksTab = async () => {
+        await refreshBookmarksTab(itemId, (b) => {
+          if (rendition && b.cfi) {
+            rendition.display(b.cfi);
+            const drawer = document.getElementById('reader-toc-drawer');
+            if (drawer) drawer.style.transform = 'translateX(-100%)';
+          }
         });
       };
-
-      // Navigation arrows click events
-      document.getElementById('epub-prev-page-btn').onclick = () => rendition.prev();
-      document.getElementById('epub-next-page-btn').onclick = () => rendition.next();
-
-      // Navigation / TOC building
       book.loaded.navigation.then(nav => {
         const tocList = document.getElementById('reader-toc-list');
         tocList.innerHTML = '';
