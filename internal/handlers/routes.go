@@ -907,7 +907,7 @@ func registerTasksAndOtherRoutes(mux *http.ServeMux, cfg *core.Config, db *sql.D
 
 	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/auth/openid"), func(w http.ResponseWriter, r *http.Request) {
 		s, err := getOIDCSettings(db)
-		if err != nil || s.IssuerURL == "" {
+		if err != nil || (s.IssuerURL == "" && (s.AuthorizationURL == "" || s.TokenURL == "")) {
 			log.Infof("[OIDC Login] Error getting OIDC settings or not configured: %v", err)
 			http.Error(w, "OIDC is not configured or settings error", http.StatusBadRequest)
 			return

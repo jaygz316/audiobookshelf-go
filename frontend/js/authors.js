@@ -10,6 +10,10 @@ let currentSearch = '';
 let currentSort = 'name'; // 'name' or 'numBooks'
 let currentDesc = false;
 
+let seriesSearch = '';
+let seriesSort = 'name';
+let seriesDesc = false;
+
 /**
  * Load and render the Authors listing view for the given library.
  * Fetches GET /api/libraries/{libraryId}/authors and renders a grid with controls.
@@ -163,32 +167,99 @@ export async function loadSeries(libraryId) {
   `;
 
   try {
-    const payload = await request('GET', `/api/libraries/${libraryId}/series`);
+    const queryParams = new URLSearchParams({
+      sort: seriesSort,
+      desc: seriesDesc ? 'true' : 'false',
+      filter: seriesSearch
+    });
+
+    const payload = await request('GET', `/api/libraries/${libraryId}/series?${queryParams.toString()}`);
     const seriesList = payload.results || payload.series || [];
 
     if (bookCount) bookCount.textContent = `${seriesList.length} Series`;
 
+    container.innerHTML = `
+      <div class="p-6 space-y-6 text-left">
+        <!-- Controls Toolbar -->
+        <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 bg-black-600/40 p-4 rounded-lg border border-black-600/30 animate-fade-in">
+          <!-- Search input -->
+          <div class="relative flex-grow max-w-md">
+            <span class="material-symbols absolute left-3 top-2.5 text-black-200 text-lg">search</span>
+            <input type="text" id="series-search" placeholder="Search series..." value="${escapeHtml(seriesSearch)}"
+              class="w-full bg-black-500 text-white pl-10 pr-4 py-2 rounded-lg border border-black-300 focus:outline-none focus:border-accent text-sm transition-colors">
+          </div>
+
+          <!-- Sort and Order controls -->
+          <div class="flex items-center gap-3">
+            <label class="text-xs font-semibold text-black-100 uppercase tracking-wider">Sort by:</label>
+            <select id="series-sort-select" class="bg-black-500 border border-black-300 text-white text-xs rounded px-3 py-1.5 focus:outline-none cursor-pointer">
+              <option value="name" ${seriesSort === 'name' ? 'selected' : ''}>Name</option>
+              <option value="numBooks" ${seriesSort === 'numBooks' ? 'selected' : ''}>Book Count</option>
+              <option value="totalDuration" ${seriesSort === 'totalDuration' ? 'selected' : ''}>Total Duration</option>
+              <option value="addedAt" ${seriesSort === 'addedAt' ? 'selected' : ''}>Date Added</option>
+              <option value="lastBookAdded" ${seriesSort === 'lastBookAdded' ? 'selected' : ''}>Last Book Added</option>
+              <option value="lastBookUpdated" ${seriesSort === 'lastBookUpdated' ? 'selected' : ''}>Last Book Updated</option>
+            </select>
+            <button id="series-direction-btn" class="p-1.5 bg-black-500 hover:bg-black-400 border border-black-300 rounded text-white flex items-center justify-center transition-colors" title="Toggle Sort Order">
+              <span class="material-symbols text-lg">${seriesDesc ? 'arrow_downward' : 'arrow_upward'}</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Series Grid -->
+        <div id="series-grid-container"></div>
+      </div>
+    `;
+
+    // Setup input/button event handlers
+    const searchInput = document.getElementById('series-search');
+    if (searchInput) {
+      let searchTimeout;
+      searchInput.addEventListener('input', (e) => {
+        seriesSearch = e.target.value;
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+          loadSeries(libraryId);
+        }, 300);
+      });
+    }
+
+    const sortSelect = document.getElementById('series-sort-select');
+    if (sortSelect) {
+      sortSelect.addEventListener('change', (e) => {
+        seriesSort = e.target.value;
+        loadSeries(libraryId);
+      });
+    }
+
+    const directionBtn = document.getElementById('series-direction-btn');
+    if (directionBtn) {
+      directionBtn.addEventListener('click', () => {
+        seriesDesc = !seriesDesc;
+        loadSeries(libraryId);
+      });
+    }
+
+    const gridContainer = document.getElementById('series-grid-container');
     if (seriesList.length === 0) {
-      container.innerHTML = `
+      gridContainer.innerHTML = `
         <div class="flex flex-col items-center justify-center h-48 text-black-100">
           <span class="material-symbols text-4xl mb-2">layers</span>
-          <p class="text-sm font-medium">No series found in this library</p>
+          <p class="text-sm font-medium">No series found</p>
         </div>
       `;
       return;
     }
 
-    container.innerHTML = '';
-
     const grid = document.createElement('div');
-    grid.className = 'library-grid';
+    grid.className = 'library-grid w-full';
 
     seriesList.forEach(series => {
       const card = createSeriesCard(series);
       grid.appendChild(card);
     });
 
-    container.appendChild(grid);
+    gridContainer.appendChild(grid);
   } catch (err) {
     console.error('Failed to load series:', err);
     container.innerHTML = `

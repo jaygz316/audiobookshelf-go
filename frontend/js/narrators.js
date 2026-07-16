@@ -123,9 +123,7 @@ async function renderNarratorsView(container, libraryId) {
     }
 
     const grid = document.createElement('div');
-    grid.style.display = 'grid';
-    grid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(var(--bookshelf-card-width, 120px), 1fr))';
-    grid.style.gap = '1.5rem';
+    grid.className = 'library-grid w-full';
 
     narrators.forEach(narrator => {
       const card = createNarratorCard(narrator);

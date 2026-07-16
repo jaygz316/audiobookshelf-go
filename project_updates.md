@@ -136,3 +136,26 @@
   - Exposed `window.updateFilterLabelGlobal` in `app.js` and updated `loadDashboard` in `dashboard.js` to save filter settings to local storage when dynamically navigated and update the toolbar labels automatically.
   - Styled genre and tag badges on the Item Details page as interactive links with transition properties, binding them to trigger custom events filtering the main dashboard view.
 
+### 2026-07-16
+- **Shelf Sizing Slider Consistency**: Fixed a bug where the bookshelf card sizing slider (`shelf-size-control`) would be hidden on grid-based views like `/series`, `/authors`, `/collections`, `/playlists`, and `/narrators` if the user had selected the `list` view style on the main `/library` page. The visibility logic was corrected to ensure that the slider remains visible on all grid-based pages regardless of the main library view style.
+- **Sidebar Active Indicator Transitions**: Refactored the sidebar highlight logic in `frontend/js/app.js` to remove manual toggles of the `hidden` class on the `.active-indicator` element. This allows the CSS-defined transform (`scaleY`) and opacity transitions to play smoothly when navigating between sections.
+- **Mobile Touch Indicators & Tactile Active States**: Added responsive active press states (`:active`) in [styles.css](file:///home/jay/projects/audiobookshelf-go/frontend/css/styles.css) for interactive navigation elements (sidebar links, mobile menu buttons, library selectors, scan buttons). This provides immediate visual scale-down and opacity feedback on touch devices to improve mobile UX.
+- **Settings Sidebar & Tabs Parity**: Reordered settings sub-navigation links to match original Audiobookshelf organization, renamed labels to official names (e.g. "Playback Sessions", "Custom Metadata Providers", "System Logs"), and set the default active tab on first load to "Libraries" with correct class and content panel mapping.
+- **Authentication Settings Manual OIDC Fields**: Added manual URL and key configuration fields (`authOpenIDAuthorizationURL`, `authOpenIDTokenURL`, `authOpenIDUserInfoURL`, `authOpenIDJwksURL`, `authOpenIDLogoutURL`, and `authOpenIDTokenSigningAlgorithm`) to backend `OIDCSettings` in [auth.go](file:///home/jay/projects/audiobookshelf-go/internal/auth/auth.go). Configured them to bypass dynamic issuer discovery in `HandleLogin` and `HandleCallback` if manually set, and manually verify tokens using RemoteKeySet with custom signing algorithms if JwksURL is configured.
+- **OIDC Manual Fields API Integration**: Updated `getOIDCSettings` in [oidc_handlers.go](file:///home/jay/projects/audiobookshelf-go/internal/handlers/oidc_handlers.go) and the OIDC initialization check in [routes.go](file:///home/jay/projects/audiobookshelf-go/internal/handlers/routes.go) to load and map these settings.
+- **RSS Feeds Settings Panel Visual Parity Audit**:
+  - Polished the RSS feeds settings layout with custom material icons mapped to entity type (`book`, `podcast`, `playlist`, `collection`, `series`, default `rss_feed`).
+  - Added capitalized entity type labels (`Book`, `Podcast`, etc.) for improved aesthetic parity.
+  - Refactored copy URL and delete actions to show premium toast notification alerts (`showToast`) instead of native browser popups.
+  - Fixed a potential bug by importing `showToast` from `./app.js` to `settings.js` and `itemDetails.js`, preventing runtime ReferenceError crashes.
+  - Re-routed tab click logic to dynamically call `renderFeedsTab()` when navigating to the feeds tab.
+  - Integrated `showToast` for all public RSS actions inside `collections.js` and `itemDetails.js` details panels.
+- **E-Reader Email Settings Visual & Behavioral Parity Audit**:
+  - Replaced browser `alert()` popups in `renderEmailsTab()`, `renderEreaderDevicesRows()`, and `triggerEreaderDeviceModal()` with premium `showToast(...)` toast notifications.
+  - Added Material Symbols (`save`, `mail`, `devices`) to SMTP Save Settings, Send Test Email, and Add Device buttons.
+  - Introduced a dynamic CSS-based sending/loading spinner inside the Send Test Email button.
+  - Redesigned E-Reader device list rows' Edit/Delete actions using inline-flex icon buttons with `edit` and `delete` Material Symbol icons.
+  - Polished the modal footer actions inside the Add/Edit E-Reader Device modal (`triggerEreaderDeviceModal`) to use standard `close` and `check` Material Symbol icons and transition animations.
+  - Resolved dynamic selector scoping issues in device row event listeners by replacing `e.target` dataset lookups with `e.currentTarget` dataset lookups, ensuring compatibility with nested span/icon child elements.
+
+
