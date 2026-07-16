@@ -163,3 +163,10 @@
   - Aligned global styles in `frontend/css/styles.css` by updating core variable configurations (`--color-bg` to `#2c2c2c` for true charcoal backgrounds and `--color-accent` to `#e5a93b` for gold highlights) to match the brand color scheme of the original Audiobookshelf project.
 
 
+- **Modularized Database Queries**:
+  - Broke down the monolithic `internal/db/db_queries.go` (2,261 lines) into four logically separated files inside the `db` package:
+    - [libraries.go](file:///home/jay/.gemini/antigravity/brain/bd7a400e-1bc2-403c-bd6c-929b68d9779c/.system_generated/worktrees/subagent-DB-Query-Modularizer-refactor-agent-14187e60/internal/db/libraries.go): Library management, settings merging, and library/podcast stats.
+    - [library_items.go](file:///home/jay/.gemini/antigravity/brain/bd7a400e-1bc2-403c-bd6c-929b68d9779c/.system_generated/worktrees/subagent-DB-Query-Modularizer-refactor-agent-14187e60/internal/db/library_items.go): Library item download info, covers, and minified item retrieval/filtering.
+    - [filter_sorting.go](file:///home/jay/.gemini/antigravity/brain/bd7a400e-1bc2-403c-bd6c-929b68d9779c/.system_generated/worktrees/subagent-DB-Query-Modularizer-refactor-agent-14187e60/internal/db/filter_sorting.go): Query filter builders, sorting orders, and library filter metadata.
+    - [db_utils.go](file:///home/jay/.gemini/antigravity/brain/bd7a400e-1bc2-403c-bd6c-929b68d9779c/.system_generated/worktrees/subagent-DB-Query-Modularizer-refactor-agent-14187e60/internal/db/db_utils.go): Generic JSON/Epoch and Table existence helper utilities.
+  - Removed unused imports and verified all `internal/db` tests pass successfully.
