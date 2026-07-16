@@ -1,9 +1,12 @@
-# Plan: Audiobookshelf Go Port - UI Header Count Regression & Formatting Fixes
+# Plan: Audiobookshelf Go Port - Commit UI & MediaSession Enhancements
 
-1. **Header Count Regression**:
-   - Change `showBookCount` variable in `frontend/js/app.js` to be true on `/series`, `/authors`, `/collections`, `/playlists`, and `/narrators` views as well, not just `/library`. This ensures the counts computed inside their respective JS views are not hidden by routing transitions.
-
-2. **Rebuild & Verification**:
-   - Compile WebAssembly and build: `go run run.go build`
-   - Run tests: `go run run.go test`
-   - Vet: `go run run.go vet`
+1. **Verify Baseline State**:
+   - Run tests, format, and vet (already executed successfully).
+2. **Review Workspace Changes**:
+   - `frontend/css/styles.css`: bookshelf-card alignment in shelf grid
+   - `frontend/js/player.js`: keyboard controls and MediaSession integration
+   - `frontend/js/settings.js`: settings hover color fixes
+3. **Commit Changes**:
+   - Git commit: "feat(ui): implement keyboard controls, MediaSession integration, and settings hover fixes"
+4. **Handoff and Cleanup**:
+   - Update `handoff.md` and clean up `plan.md`.
