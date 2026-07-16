@@ -828,7 +828,7 @@ function setupEventHandlers() {
       submenuItems.innerHTML = filtered.map(item => {
         const isSelected = activeFilterVal === item.value;
         return `
-          <button class="filter-submenu-option-btn w-full text-left px-3 py-1.5 text-xs text-black-50 hover:bg-black-500 hover:text-white flex items-center justify-between transition-colors focus:outline-none ${isSelected ? 'text-accent font-medium' : ''}" data-value="${item.value}">
+          <button class="filter-submenu-option-btn w-full text-left px-3 py-1.5 text-xs text-black-50 hover:bg-black-400 hover:text-white flex items-center justify-between transition-colors focus:outline-none ${isSelected ? 'text-accent font-medium' : ''}" data-value="${item.value}">
             <span class="truncate pr-2">${item.label}</span>
             <span class="material-symbols text-[14px] check-icon ${isSelected ? '' : 'hidden'}">check</span>
           </button>
@@ -980,7 +980,7 @@ function setupEventHandlers() {
         updateFilterLabel(currentActiveFilter, data);
 
         let menuHtml = `
-          <button class="filter-option-btn w-full text-left px-3 py-1.5 text-xs text-black-50 hover:bg-black-500 hover:text-white flex items-center justify-between transition-colors focus:outline-none" data-value="">
+          <button class="filter-option-btn w-full text-left px-3 py-1.5 text-xs text-black-50 hover:bg-black-400 hover:text-white flex items-center justify-between transition-colors focus:outline-none" data-value="">
             <span>Clear Filter</span>
             <span class="material-symbols text-[14px] check-icon ${!currentActiveFilter ? '' : 'hidden'}">check</span>
           </button>
@@ -1015,7 +1015,7 @@ function setupEventHandlers() {
             : '';
 
           menuHtml += `
-            <button class="filter-cat-row-btn w-full text-left px-3 py-1.5 text-xs text-black-50 hover:bg-black-500 hover:text-white flex items-center justify-between transition-colors focus:outline-none ${highlightClass}" data-cat="${cat.key}">
+            <button class="filter-cat-row-btn w-full text-left px-3 py-1.5 text-xs text-black-50 hover:bg-black-400 hover:text-white flex items-center justify-between transition-colors focus:outline-none ${highlightClass}" data-cat="${cat.key}">
               <span>${cat.label}${countBadge}</span>
               <span class="material-symbols text-[14px] text-black-200">chevron_right</span>
             </button>
@@ -1164,7 +1164,7 @@ function setupEventHandlers() {
       sortMenu.innerHTML = options.map(opt => {
         const isSelected = currentSort === opt.value;
         return `
-          <button class="sort-option-btn w-full text-left px-3 py-2 text-xs text-black-50 hover:bg-black-500 hover:text-white flex items-center justify-between transition-colors focus:outline-none ${isSelected ? 'text-accent font-medium' : ''}" data-value="${opt.value}">
+          <button class="sort-option-btn w-full text-left px-3 py-2 text-xs text-black-50 hover:bg-black-400 hover:text-white flex items-center justify-between transition-colors focus:outline-none ${isSelected ? 'text-accent font-medium' : ''}" data-value="${opt.value}">
             <span>${opt.label}</span>
             <span class="material-symbols text-[12px] check-icon ${isSelected ? '' : 'hidden'}">check</span>
           </button>
