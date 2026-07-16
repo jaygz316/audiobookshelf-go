@@ -365,6 +365,11 @@ func TestBulkUpdateEpisodesProgress(t *testing.T) {
 	_, _ = db.Exec("ALTER TABLE mediaProgresses ADD COLUMN finishedAt TEXT")
 	_, _ = db.Exec("ALTER TABLE mediaProgresses ADD COLUMN podcastId TEXT")
 	_, _ = db.Exec("ALTER TABLE mediaProgresses ADD COLUMN createdAt TEXT")
+	_, _ = db.Exec("ALTER TABLE mediaProgresses ADD COLUMN hideFromContinueListening INTEGER DEFAULT 0")
+	_, _ = db.Exec("ALTER TABLE mediaProgresses ADD COLUMN ebookLocation TEXT")
+	_, _ = db.Exec("ALTER TABLE mediaProgresses ADD COLUMN ebookProgress REAL")
+	_, _ = db.Exec("ALTER TABLE mediaProgresses ADD COLUMN extraData TEXT")
+	_, _ = db.Exec("ALTER TABLE mediaProgresses ADD COLUMN hideFromContinueListening INTEGER DEFAULT 0")
 
 	// Seed podcast, episodes, and library item
 	_, err := db.Exec(`INSERT INTO libraryItems (id, libraryId, mediaType, mediaId, title) VALUES ('item-1', 'lib-1', 'podcast', 'podcast-1', 'Test Podcast')`)
@@ -422,6 +427,7 @@ func TestUpdatePodcastSettingsSkipDurations(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
 
+	_, _ = db.Exec("ALTER TABLE podcasts ADD COLUMN autoDeletePlayed INTEGER DEFAULT 0")
 	_, _ = db.Exec("ALTER TABLE podcasts ADD COLUMN skipIntroDuration INTEGER DEFAULT 0")
 	_, _ = db.Exec("ALTER TABLE podcasts ADD COLUMN skipOutroDuration INTEGER DEFAULT 0")
 
