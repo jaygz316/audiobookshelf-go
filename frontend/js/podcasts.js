@@ -465,3 +465,98 @@ function escapeHtml(str) {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
 }
+
+import { getActiveLibrary } from './library.js';
+
+export async function downloadOPML(libraryId) {
+  try {
+    const opmlText = await request('GET', `/api/podcasts/opml/export?libraryId=${libraryId}`);
+    const blob = new Blob([opmlText], { type: 'application/xml' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'podcasts.opml';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    if (window.showToast) window.showToast('OPML file downloaded successfully', 'success');
+  } catch (err) {
+    if (window.showToast) window.showToast('Failed to export OPML: ' + err.message, 'error');
+  }
+}
+
+export function setupPodcastExportButton(libraryId) {
+  const opmlBtn = document.getElementById('opml-btn');
+  if (!opmlBtn) return;
+
+  const lib = getActiveLibrary();
+  const isPodcast = lib && (lib.mediaType === 'podcast' || lib.icon === 'podcasts');
+
+  let exportBtn = document.getElementById('export-opml-btn');
+
+  if (isPodcast) {
+    if (!exportBtn) {
+      exportBtn = document.createElement('button');
+      exportBtn.id = 'export-opml-btn';
+      exportBtn.className = 'flex items-center space-x-1 hover:bg-black-500 px-2.5 py-1.5 rounded text-black-50 hover:text-white border border-transparent hover:border-black-300';
+      exportBtn.title = 'Export OPML';
+      exportBtn.innerHTML = `
+        <span class="material-symbols text-base">download</span>
+        <span>Export OPML</span>
+      `;
+      opmlBtn.parentNode.insertBefore(exportBtn, opmlBtn.nextSibling);
+    }
+    if (opmlBtn.classList.contains('hidden')) {
+      exportBtn.classList.add('hidden');
+    } else {
+      exportBtn.classList.remove('hidden');
+    }
+    exportBtn.onclick = () => {
+      downloadOPML(libraryId);
+    };
+  } else {
+    if (exportBtn) {
+      exportBtn.classList.add('hidden');
+    }
+  }
+}
+
+// Global listener & observer to keep button state updated
+window.addEventListener('library-changed', (e) => {
+  const libraryId = e.detail.libraryId;
+  setupPodcastExportButton(libraryId);
+});
+
+// Observe opml-btn class changes to sync visibility
+const opmlBtnObserver = new MutationObserver((mutations) => {
+  mutations.forEach((mutation) => {
+    if (mutation.attributeName === 'class') {
+      const opmlBtn = mutation.target;
+      const exportBtn = document.getElementById('export-opml-btn');
+      if (exportBtn) {
+        if (opmlBtn.classList.contains('hidden')) {
+          exportBtn.classList.add('hidden');
+        } else {
+          const lib = getActiveLibrary();
+          if (lib && (lib.mediaType === 'podcast' || lib.icon === 'podcasts')) {
+            exportBtn.classList.remove('hidden');
+          }
+        }
+      }
+    }
+  });
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+  const opmlBtn = document.getElementById('opml-btn');
+  if (opmlBtn) {
+    opmlBtnObserver.observe(opmlBtn, { attributes: true });
+  }
+});
+
+// Since DOMContentLoaded might have already fired, check and attach immediately as well
+const opmlBtn = document.getElementById('opml-btn');
+if (opmlBtn) {
+  opmlBtnObserver.observe(opmlBtn, { attributes: true });
+}

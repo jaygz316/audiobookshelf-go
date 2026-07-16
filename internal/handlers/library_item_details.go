@@ -353,16 +353,17 @@ func handleGetLibraryItemByID(db *sql.DB, itemID string) http.HandlerFunc {
 			var pTitle, pAuthor, pDescription, pLanguage, pPodcastType, pCoverPath sql.NullString
 			var pExplicit sql.NullInt64
 			var pTags, pGenres, pLockedFields []byte
-			var autoDownloadVal, maxKeepVal, maxNewVal, autoDeleteVal int
+			var autoDownloadVal, maxKeepVal, maxNewVal, autoDeleteVal, skipIntroVal, skipOutroVal int
 			var scheduleVal sql.NullString
 
 			err = db.QueryRow(`
 				SELECT title, author, description, language, podcastType, explicit, coverPath, tags, genres, lockedFields,
-				       autoDownloadEpisodes, autoDownloadSchedule, maxEpisodesToKeep, maxNewEpisodesToDownload, autoDeletePlayed
+				       autoDownloadEpisodes, autoDownloadSchedule, maxEpisodesToKeep, maxNewEpisodesToDownload, autoDeletePlayed,
+				       skipIntroDuration, skipOutroDuration
 				FROM podcasts WHERE id = ?
 			`, mediaID).Scan(
 				&pTitle, &pAuthor, &pDescription, &pLanguage, &pPodcastType, &pExplicit, &pCoverPath, &pTags, &pGenres, &pLockedFields,
-				&autoDownloadVal, &scheduleVal, &maxKeepVal, &maxNewVal, &autoDeleteVal,
+				&autoDownloadVal, &scheduleVal, &maxKeepVal, &maxNewVal, &autoDeleteVal, &skipIntroVal, &skipOutroVal,
 			)
 			if err == nil {
 				var tags []string
@@ -488,6 +489,8 @@ func handleGetLibraryItemByID(db *sql.DB, itemID string) http.HandlerFunc {
 					"maxEpisodesToKeep":        maxKeepVal,
 					"maxNewEpisodesToDownload": maxNewVal,
 					"autoDeletePlayed":         autoDeleteVal == 1,
+					"skipIntroDuration":        skipIntroVal,
+					"skipOutroDuration":        skipOutroVal,
 					"metadata": map[string]interface{}{
 						"title":                    pTitle.String,
 						"author":                   pAuthor.String,
@@ -502,6 +505,8 @@ func handleGetLibraryItemByID(db *sql.DB, itemID string) http.HandlerFunc {
 						"maxEpisodesToKeep":        maxKeepVal,
 						"maxNewEpisodesToDownload": maxNewVal,
 						"autoDeletePlayed":         autoDeleteVal == 1,
+						"skipIntroDuration":        skipIntroVal,
+						"skipOutroDuration":        skipOutroVal,
 					},
 				}
 			} else {
