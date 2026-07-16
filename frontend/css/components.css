@@ -1,0 +1,490 @@
+.bookshelfRow {
+  height: var(--bookshelf-row-height) !important;
+  background-image: 
+    linear-gradient(to bottom, transparent 0px, transparent calc(var(--bookshelf-row-height) - 16px), var(--bookshelf-plank-top) calc(var(--bookshelf-row-height) - 16px), var(--bookshelf-plank-top) calc(var(--bookshelf-row-height) - 14px), var(--bookshelf-plank-mid) calc(var(--bookshelf-row-height) - 14px), var(--bookshelf-plank-bottom) var(--bookshelf-row-height)),
+    linear-gradient(to bottom, var(--bookshelf-overlay), var(--bookshelf-overlay)),
+    var(--bookshelf-texture-img) !important;
+  background-size: 100% var(--bookshelf-row-height), 100% 100%, auto 100% !important;
+  background-repeat: no-repeat, no-repeat, repeat-x !important;
+}
+
+.bookshelfRow > div {
+  align-items: flex-end !important;
+  padding-bottom: 20px !important; /* leaves room for cover reflection to draw on top of the 16px divider plank */
+}
+
+.bookshelfRow .bookshelf-card,
+.bookshelfRow .group {
+  width: var(--bookshelf-card-width) !important;
+  height: var(--bookshelf-card-height) !important;
+  margin-right: 2rem !important;
+  overflow: visible !important;
+  position: relative;
+  transition: transform 0.2s ease !important;
+}
+
+.bookshelfRow .bookshelf-card:hover,
+.bookshelfRow .group:hover {
+  transform: translateY(-6px) !important;
+}
+
+.bookshelfRow .bookshelf-card img,
+.bookshelfRow .group img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover;
+  border-radius: 4px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5), 0 2px 4px rgba(0, 0, 0, 0.4);
+  -webkit-box-reflect: var(--bookshelf-reflect);
+  transition: box-shadow 0.2s ease;
+}
+
+/* Card hover effect adjustments */
+.bookshelfRow .bookshelf-card:hover img,
+.bookshelfRow .group:hover img {
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.65), 0 4px 10px rgba(0, 0, 0, 0.45);
+}
+
+/* Keep hover details matching card dimensions */
+.bookshelfRow .bookshelf-card .absolute.inset-0,
+.bookshelfRow .group .absolute.inset-0 {
+  border-radius: 4px;
+  overflow: hidden;
+  height: 100% !important;
+  width: 100% !important;
+}
+
+/* Sliding Pill Switch / Toggle */
+.abs-switch {
+  position: relative;
+  display: inline-block;
+  width: 40px;
+  height: 20px;
+  flex-shrink: 0;
+}
+.abs-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.abs-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #4b5563;
+  transition: .2s;
+  border-radius: 20px;
+}
+.abs-slider:before {
+  position: absolute;
+  content: "";
+  height: 14px;
+  width: 14px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: .2s;
+  border-radius: 50%;
+}
+input:checked + .abs-slider {
+  background-color: #10b981;
+}
+input:checked + .abs-slider:before {
+  transform: translateX(20px);
+}
+
+.scale-95 {
+  transform: scale(0.95) !important;
+}
+
+.scale-100 {
+  transform: scale(1) !important;
+}
+
+/* Series Stack Cascading/Fanned Cards */
+.series-cover-stack {
+  position: relative;
+  width: var(--bookshelf-card-width, 120px) !important;
+  height: var(--bookshelf-card-height, 180px) !important;
+  margin-bottom: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.series-cover-stack img {
+  position: absolute;
+  object-fit: cover;
+  border-radius: 6px;
+  transition: transform 0.3s ease, opacity 0.3s ease, box-shadow 0.3s ease;
+}
+
+.series-cover-front {
+  width: 90%;
+  height: 90%;
+  top: 5%;
+  left: 5%;
+  z-index: 20;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.5), 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.group:hover .series-cover-front,
+.series-cover-stack:hover .series-cover-front {
+  transform: scale(1.05);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.6), 0 4px 8px rgba(0, 0, 0, 0.4);
+}
+
+.series-cover-middle {
+  width: 86%;
+  height: 86%;
+  top: 7%;
+  left: 7%;
+  z-index: 15;
+  opacity: 0.85;
+  transform: translate(12px, 6px) rotate(8deg);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+}
+
+.group:hover .series-cover-middle,
+.series-cover-stack:hover .series-cover-middle {
+  transform: translate(18px, 8px) rotate(12deg);
+  opacity: 0.95;
+}
+
+.series-cover-back {
+  width: 82%;
+  height: 82%;
+  top: 9%;
+  left: 9%;
+  z-index: 10;
+  opacity: 0.65;
+  transform: translate(-16px, 8px) rotate(-12deg);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.group:hover .series-cover-back,
+.series-cover-stack:hover .series-cover-back {
+  transform: translate(-24px, 10px) rotate(-16deg);
+  opacity: 0.8;
+}
+
+.series-cover-back-two {
+  width: 88%;
+  height: 88%;
+  top: 6%;
+  left: 6%;
+  z-index: 10;
+  opacity: 0.8;
+  transform: translate(-10px, 4px) rotate(-6deg);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+}
+
+.group:hover .series-cover-back-two,
+.series-cover-stack:hover .series-cover-back-two {
+  transform: translate(-16px, 6px) rotate(-10deg);
+  opacity: 0.9;
+}
+
+/* Interactive player timeline styling */
+#player-timeline {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  height: 24px; /* full container height to receive mouse events easily */
+}
+
+#player-timeline::-webkit-slider-runnable-track {
+  background: transparent;
+  border: none;
+  height: 24px;
+}
+
+#player-timeline::-moz-range-track {
+  background: transparent;
+  border: none;
+  height: 24px;
+}
+
+#player-timeline::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 2px;
+  height: 24px;
+  background: #ffffff;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+#player-timeline::-moz-range-thumb {
+  width: 2px;
+  height: 24px;
+  background: #ffffff;
+  border: none;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+#player-timeline:hover::-webkit-slider-thumb {
+  opacity: 0.8;
+}
+
+#player-timeline:hover::-moz-range-thumb {
+  opacity: 0.8;
+}
+
+/* Custom Border Classes for Libraries list selected state */
+.border-l-warning {
+  border-left: 4px solid var(--color-warning) !important;
+}
+
+.border-l-black-400 {
+  border-left: 4px solid var(--color-black-400) !important;
+}
+
+/* Series Detail Stack Cascading/Fanned Cards */
+.series-detail-cover-stack {
+  position: relative;
+  width: 150px;
+  height: 225px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.series-detail-cover-stack img {
+  position: absolute;
+  object-fit: cover;
+  border-radius: 6px;
+  transition: transform 0.3s ease, opacity 0.3s ease, box-shadow 0.3s ease;
+}
+.series-detail-cover-stack .series-cover-front {
+  width: 90%;
+  height: 90%;
+  top: 5%;
+  left: 5%;
+  z-index: 20;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.5), 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+.group:hover .series-detail-cover-stack .series-cover-front,
+.series-detail-cover-stack:hover .series-cover-front {
+  transform: scale(1.05);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.6), 0 4px 8px rgba(0, 0, 0, 0.4);
+}
+.series-detail-cover-stack .series-cover-middle {
+  width: 86%;
+  height: 86%;
+  top: 7%;
+  left: 7%;
+  z-index: 15;
+  opacity: 0.85;
+  transform: translate(15px, 8px) rotate(8deg);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+}
+.group:hover .series-detail-cover-stack .series-cover-middle,
+.series-detail-cover-stack:hover .series-cover-middle {
+  transform: translate(22px, 10px) rotate(12deg);
+  opacity: 0.95;
+}
+.series-detail-cover-stack .series-cover-back {
+  width: 82%;
+  height: 82%;
+  top: 9%;
+  left: 9%;
+  z-index: 10;
+  opacity: 0.65;
+  transform: translate(-20px, 10px) rotate(-12deg);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+.group:hover .series-detail-cover-stack .series-cover-back,
+.series-detail-cover-stack:hover .series-cover-back {
+  transform: translate(-30px, 12px) rotate(-16deg);
+  opacity: 0.8;
+}
+.series-detail-cover-stack .series-cover-back-two {
+  width: 88%;
+  height: 88%;
+  top: 6%;
+  left: 6%;
+  z-index: 10;
+  opacity: 0.8;
+  transform: translate(-12px, 6px) rotate(-6deg);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+}
+.group:hover .series-detail-cover-stack .series-cover-back-two,
+.series-detail-cover-stack:hover .series-cover-back-two {
+  transform: translate(-20px, 8px) rotate(-10deg);
+  opacity: 0.9;
+}
+
+/* Custom Utility Classes for Upload & Drag-and-Drop */
+.bg-black-500\/10 {
+  background-color: color-mix(in oklab, var(--color-black-500) 10%, transparent) !important;
+}
+.bg-black-500\/50 {
+  background-color: color-mix(in oklab, var(--color-black-500) 50%, transparent) !important;
+}
+.hover\:bg-black-500\/50:hover {
+  background-color: color-mix(in oklab, var(--color-black-500) 50%, transparent) !important;
+}
+.border-black-400\/30 {
+  border-color: color-mix(in oklab, var(--color-black-400) 30%, transparent) !important;
+}
+.border-black-400\/20 {
+  border-color: color-mix(in oklab, var(--color-black-400) 20%, transparent) !important;
+}
+.text-black-200 {
+  color: var(--color-black-200) !important;
+}
+
+#upload-dropzone {
+  transition: all 0.2s ease-in-out;
+}
+#upload-dropzone.dragover {
+  border-color: var(--color-accent) !important;
+  background-color: color-mix(in oklab, var(--color-accent) 8%, transparent) !important;
+  box-shadow: 0 0 16px color-mix(in oklab, var(--color-accent) 25%, transparent) !important;
+}
+
+/* Animated progress bar stripes */
+.progress-bar-animated {
+  background-image: linear-gradient(
+    45deg,
+    rgba(255, 255, 255, 0.15) 25%,
+    transparent 25%,
+    transparent 50%,
+    rgba(255, 255, 255, 0.15) 50%,
+    rgba(255, 255, 255, 0.15) 75%,
+    transparent 75%,
+    transparent
+  );
+  background-size: 1rem 1rem;
+  animation: progress-bar-stripes 1s linear infinite;
+}
+
+@keyframes progress-bar-stripes {
+  from {
+    background-position: 1rem 0;
+  }
+  to {
+    background-position: 0 0;
+  }
+}
+
+/* Upload page dropzone hover styles */
+.hover\:border-accent\/50 {
+  transition: border-color 0.2s ease-in-out;
+}
+.hover\:border-accent\/50:hover {
+  border-color: color-mix(in oklab, var(--color-accent) 50%, transparent) !important;
+}
+
+#upload-dropzone {
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+#upload-dropzone:hover {
+  border-color: color-mix(in oklab, var(--color-accent) 50%, transparent) !important;
+  background-color: color-mix(in oklab, var(--color-accent) 4%, transparent) !important;
+}
+
+#upload-dropzone.dragover {
+  border-color: var(--color-accent) !important;
+  background-color: color-mix(in oklab, var(--color-accent) 12%, transparent) !important;
+  box-shadow: 0 0 20px color-mix(in oklab, var(--color-accent) 30%, transparent) !important;
+  transform: scale(1.015);
+  animation: dropzone-pulse 1.5s infinite ease-in-out;
+}
+
+#upload-dropzone.dragover span.material-symbols {
+  animation: bounce-upload 1s infinite alternate ease-in-out;
+}
+
+@keyframes dropzone-pulse {
+  0%, 100% {
+    border-color: var(--color-accent) !important;
+    box-shadow: 0 0 20px color-mix(in oklab, var(--color-accent) 30%, transparent) !important;
+  }
+  50% {
+    border-color: color-mix(in oklab, var(--color-accent) 40%, transparent) !important;
+    box-shadow: 0 0 10px color-mix(in oklab, var(--color-accent) 15%, transparent) !important;
+  }
+}
+
+@keyframes bounce-upload {
+  0% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(-8px);
+  }
+}
+
+/* Progress bar enhancements */
+#upload-progress-bar {
+  box-shadow: 0 0 10px color-mix(in oklab, var(--color-accent) 50%, transparent);
+}
+
+/* Password visibility toggle styling */
+.password-wrapper .password-toggle-btn {
+  display: none;
+}
+.password-wrapper:hover .password-toggle-btn,
+.password-wrapper:focus-within .password-toggle-btn {
+  display: flex !important;
+}
+
+/* Ensure library grid items scale with the shelf sizing control slider */
+.library-grid .bookshelf-card {
+  width: var(--bookshelf-card-width, 120px) !important;
+  height: var(--bookshelf-card-height, 180px) !important;
+}
+
+.library-grid > .group {
+  width: 100% !important;
+  max-width: calc(var(--bookshelf-card-width, 120px) + 2rem) !important;
+}
+
+/* Sidebar Nav Items Transitions */
+#siderail-buttons-container a {
+  transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
+}
+
+/* Active indicator transition */
+.active-indicator {
+  transition: opacity 0.2s ease-in-out, transform 0.2s ease-in-out !important;
+  transform: scaleY(0);
+  opacity: 0;
+  width: 3px !important;
+  background-color: var(--color-accent, #f59e0b) !important;
+  display: block !important; /* Overrides hidden utility if needed */
+}
+
+/* When parent has class to show active */
+.active-indicator.active {
+  transform: scaleY(1) !important;
+  opacity: 1 !important;
+}
+
+/* Responsive Touch Active States for Interactive Navigation Elements */
+#siderail-buttons-container a:active {
+  background-color: var(--color-primary) !important;
+  opacity: 0.9;
+}
+
+#mobile-menu-btn:active,
+#mobile-search-btn:active,
+#library-dropdown-btn:active,
+#scan-library-btn:active,
+#header-logo-link:active,
+#customize-columns-btn:active,
+.btn-scan-lib:active,
+.btn-library-actions:active {
+  transform: scale(0.95);
+  opacity: 0.8;
+  transition: transform 0.1s ease, opacity 0.1s ease;
+}
