@@ -5981,4 +5981,66 @@ summary {
   max-width: calc(var(--bookshelf-card-width, 120px) + 2rem) !important;
 }
 
+/* Mobile Sidebar Drawer styling */
+@media (max-width: 767.98px) {
+  #sidebar {
+    position: fixed !important;
+    left: 0 !important;
+    top: 4rem !important; /* height of header (h-16 = 64px) */
+    bottom: 0 !important;
+    height: calc(100vh - 4rem) !important;
+    z-index: 50 !important;
+    transform: translateX(-100%);
+    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    display: flex !important; /* ensure it's flex even on mobile when open */
+    visibility: hidden;
+  }
+  
+  #sidebar.open {
+    transform: translateX(0) !important;
+    visibility: visible !important;
+    box-shadow: 4px 0 16px rgba(0, 0, 0, 0.6) !important;
+  }
+}
+
+/* Sidebar Backdrop for Mobile */
+#sidebar-backdrop {
+  position: fixed;
+  inset: 0;
+  top: 4rem; /* starts below header */
+  background-color: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(2px);
+  z-index: 40;
+  transition: opacity 0.2s linear;
+  opacity: 0;
+  pointer-events: none;
+}
+
+#sidebar-backdrop.show {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Sidebar Nav Items Transitions */
+#siderail-buttons-container a {
+  transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
+}
+
+/* Active indicator transition */
+.active-indicator {
+  transition: opacity 0.2s ease-in-out, transform 0.2s ease-in-out !important;
+  transform: scaleY(0);
+  opacity: 0;
+  width: 3px !important;
+  background-color: var(--color-accent, #f59e0b) !important;
+  display: block !important; /* Overrides hidden utility if needed */
+}
+
+/* When parent has class to show active */
+.active-indicator.active {
+  transform: scaleY(1) !important;
+  opacity: 1 !important;
+}
+
+
 
