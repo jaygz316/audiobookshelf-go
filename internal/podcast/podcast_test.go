@@ -66,7 +66,8 @@ func setupTestDB(t *testing.T, hasExtraColumns bool) *sql.DB {
 			episode TEXT,
 			episodeType TEXT,
 			publishedAt TEXT,
-			enclosureURL TEXT
+			enclosureURL TEXT,
+			imageURL TEXT
 		)`
 	} else {
 		episodeSchema = `CREATE TABLE podcastEpisodes (
@@ -139,6 +140,10 @@ const feedUTF8 = `<?xml version="1.0" encoding="UTF-8"?>
 		<pubDate>Mon, 08 Jun 2026 12:00:00 +0000</pubDate>
 		<enclosure url="http://example.com/ep1.mp3" length="12345" type="audio/mpeg" />
 		<itunes:duration>01:30:00</itunes:duration>
+		<itunes:season>3</itunes:season>
+		<itunes:episode>12</itunes:episode>
+		<itunes:episodeType>bonus</itunes:episodeType>
+		<itunes:image href="http://example.com/ep1-cover.jpg" />
 	</item>
 	<item>
 		<title>Episode 2</title>
@@ -215,6 +220,19 @@ func TestFetchFeed_UTF8(t *testing.T) {
 	}
 	if ep1.PublishedAt == "" {
 		t.Error("expected ep1 publishedAt to be parsed and formatted")
+	}
+
+	if ep1.Season != "3" {
+			t.Errorf("expected ep1 Season '3', got %q", ep1.Season)
+	}
+	if ep1.Episode != "12" {
+			t.Errorf("expected ep1 Episode '12', got %q", ep1.Episode)
+	}
+	if ep1.EpisodeType != "bonus" {
+			t.Errorf("expected ep1 EpisodeType 'bonus', got %q", ep1.EpisodeType)
+	}
+	if ep1.ImageURL != "http://example.com/ep1-cover.jpg" {
+			t.Errorf("expected ep1 ImageURL 'http://example.com/ep1-cover.jpg', got %q", ep1.ImageURL)
 	}
 
 	ep2 := feed.Episodes[1]

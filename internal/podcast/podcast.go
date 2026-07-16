@@ -37,6 +37,10 @@ type PodcastEpisode struct {
 	EnclosureURL string  `json:"enclosureUrl"`
 	PublishedAt  string  `json:"publishedAt"`
 	Duration     float64 `json:"duration"`
+	Season       string  `json:"season"`
+	Episode      string  `json:"episode"`
+	EpisodeType  string  `json:"episodeType"`
+	ImageURL     string  `json:"imageUrl"`
 }
 
 // PodcastManager coordinates podcast subscriptions, feed parsing, episode downloads, and background syncing.
@@ -493,6 +497,7 @@ func (m *PodcastManager) syncPodcastEpisodes(ctx context.Context, p podcastInfo,
 		hasPublishedAt := hasColumn(ctx, m.db, "podcastEpisodes", "publishedAt")
 		hasCreatedAt := hasColumn(ctx, m.db, "podcastEpisodes", "createdAt")
 		hasUpdatedAt := hasColumn(ctx, m.db, "podcastEpisodes", "updatedAt")
+		hasImageURL := hasColumn(ctx, m.db, "podcastEpisodes", "imageURL")
 
 		cols := []string{"id", "podcastId", "title", "audioFile"}
 		vals := []interface{}{epID, p.ID, ep.Title, audioFileJSON}
@@ -515,15 +520,19 @@ func (m *PodcastManager) syncPodcastEpisodes(ctx context.Context, p podcastInfo,
 		}
 		if hasSeason {
 			cols = append(cols, "season")
-			vals = append(vals, "")
+			vals = append(vals, ep.Season)
 		}
 		if hasEp {
 			cols = append(cols, "episode")
-			vals = append(vals, "")
+			vals = append(vals, ep.Episode)
 		}
 		if hasEpType {
 			cols = append(cols, "episodeType")
-			vals = append(vals, "")
+			vals = append(vals, ep.EpisodeType)
+		}
+		if hasImageURL {
+			cols = append(cols, "imageURL")
+			vals = append(vals, ep.ImageURL)
 		}
 		if hasCreatedAt {
 			cols = append(cols, "createdAt")
@@ -702,7 +711,9 @@ func parseRSS(xmlData []byte) (*PodcastFeed, error) {
 
 	var channelTitle, channelAuthor, channelDescription, channelITunesSummary strings.Builder
 	var itemTitle, itemDescription, itemContentEncoded, itemPubDate, itemDuration, itemITunesDuration strings.Builder
+	var itemSeason, itemEpisode, itemEpisodeType strings.Builder
 	var itemEnclosureURL string
+	var itemImageURL string
 
 	for {
 		t, err := decoder.Token()
@@ -726,6 +737,10 @@ func parseRSS(xmlData []byte) (*PodcastFeed, error) {
 				itemDuration.Reset()
 				itemITunesDuration.Reset()
 				itemEnclosureURL = ""
+				itemSeason.Reset()
+				itemEpisode.Reset()
+				itemEpisodeType.Reset()
+				itemImageURL = ""
 			}
 
 			if currentEp != nil && len(elementStack) >= 4 && elementStack[len(elementStack)-2] == "item" {
@@ -750,6 +765,12 @@ func parseRSS(xmlData []byte) (*PodcastFeed, error) {
 					if isAudio && urlVal != "" && itemEnclosureURL == "" {
 						itemEnclosureURL = urlVal
 					}
+				} else if localName == "image" {
+					for _, attr := range se.Attr {
+						if attr.Name.Local == "href" {
+							itemImageURL = attr.Value
+						}
+					}
 				}
 			}
 
@@ -771,6 +792,10 @@ func parseRSS(xmlData []byte) (*PodcastFeed, error) {
 				currentEp.EnclosureURL = strings.TrimSpace(itemEnclosureURL)
 				currentEp.PublishedAt = strings.TrimSpace(itemPubDate.String())
 				currentEp.Duration = durSec
+				currentEp.Season = strings.TrimSpace(itemSeason.String())
+				currentEp.Episode = strings.TrimSpace(itemEpisode.String())
+				currentEp.EpisodeType = strings.TrimSpace(itemEpisodeType.String())
+				currentEp.ImageURL = strings.TrimSpace(itemImageURL)
 
 				episodes = append(episodes, currentEp)
 				currentEp = nil
@@ -800,6 +825,12 @@ func parseRSS(xmlData []byte) (*PodcastFeed, error) {
 					itemPubDate.WriteString(val)
 				case "duration":
 					itemITunesDuration.WriteString(val)
+				case "season":
+					itemSeason.WriteString(val)
+				case "episode":
+					itemEpisode.WriteString(val)
+				case "episodeType":
+					itemEpisodeType.WriteString(val)
 				}
 			} else if grandParent == "channel" {
 				switch parent {
