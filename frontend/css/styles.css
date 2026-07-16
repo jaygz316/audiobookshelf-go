@@ -5389,6 +5389,11 @@ google-cast-launcher {
   --color-black-500: #f3f4f6;
   --color-black-600: #f9fafb;
   --color-black-700: #ffffff;
+  --bookshelf-plank-top: #e0cca3;
+  --bookshelf-plank-mid: #cfba93;
+  --bookshelf-plank-bottom: #ab9875;
+  --bookshelf-overlay: rgba(255, 255, 255, 0.45);
+  --bookshelf-reflect: below 4px linear-gradient(transparent, transparent 65%, rgba(255, 255, 255, 0.45));
 }
 
 :root[data-theme="sepia"] {
@@ -5405,6 +5410,11 @@ google-cast-launcher {
   --color-black-500: #f4ecd8;
   --color-black-600: #e9dfc4;
   --color-black-700: #dfd5be;
+  --bookshelf-plank-top: #cfc1aa;
+  --bookshelf-plank-mid: #bead97;
+  --bookshelf-plank-bottom: #9a8a73;
+  --bookshelf-overlay: rgba(184, 134, 11, 0.15);
+  --bookshelf-reflect: below 4px linear-gradient(transparent, transparent 65%, rgba(244, 236, 216, 0.45));
 }
 
 /* Specific component overrides for light/sepia themes */
@@ -5420,15 +5430,21 @@ google-cast-launcher {
   --bookshelf-card-width: 120px;
   --bookshelf-card-height: calc(var(--bookshelf-card-width) * 1.5);
   --bookshelf-row-height: calc(var(--bookshelf-card-height) + 50px);
+  --bookshelf-plank-top: #a3795a;
+  --bookshelf-plank-mid: rgb(122, 94, 68);
+  --bookshelf-plank-bottom: rgb(71, 48, 25);
+  --bookshelf-overlay: rgba(0, 0, 0, 0);
+  --bookshelf-reflect: below 4px linear-gradient(transparent, transparent 65%, rgba(0, 0, 0, 0.25));
 }
 
 .bookshelfRow {
   height: var(--bookshelf-row-height) !important;
   background-image: 
-    linear-gradient(to bottom, transparent 0px, transparent calc(var(--bookshelf-row-height) - 16px), #a3795a calc(var(--bookshelf-row-height) - 16px), #a3795a calc(var(--bookshelf-row-height) - 14px), rgb(122, 94, 68) calc(var(--bookshelf-row-height) - 14px), rgb(71, 48, 25) var(--bookshelf-row-height)),
+    linear-gradient(to bottom, transparent 0px, transparent calc(var(--bookshelf-row-height) - 16px), var(--bookshelf-plank-top) calc(var(--bookshelf-row-height) - 16px), var(--bookshelf-plank-top) calc(var(--bookshelf-row-height) - 14px), var(--bookshelf-plank-mid) calc(var(--bookshelf-row-height) - 14px), var(--bookshelf-plank-bottom) var(--bookshelf-row-height)),
+    linear-gradient(to bottom, var(--bookshelf-overlay), var(--bookshelf-overlay)),
     var(--bookshelf-texture-img) !important;
-  background-size: 100% var(--bookshelf-row-height), auto 100% !important;
-  background-repeat: no-repeat, repeat-x !important;
+  background-size: 100% var(--bookshelf-row-height), 100% 100%, auto 100% !important;
+  background-repeat: no-repeat, no-repeat, repeat-x !important;
 }
 
 .bookshelfRow > div {
@@ -5458,7 +5474,7 @@ google-cast-launcher {
   object-fit: cover;
   border-radius: 4px;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5), 0 2px 4px rgba(0, 0, 0, 0.4);
-  -webkit-box-reflect: below 4px linear-gradient(transparent, transparent 65%, rgba(0, 0, 0, 0.2));
+  -webkit-box-reflect: var(--bookshelf-reflect);
   transition: box-shadow 0.2s ease;
 }
 
@@ -5544,9 +5560,10 @@ input:checked + .abs-slider:before {
   gap: 0 1.5rem !important;
   padding: 1.5rem !important;
   background-image: 
-    linear-gradient(to bottom, transparent 0px, transparent calc(var(--bookshelf-row-height) - 16px), #a3795a calc(var(--bookshelf-row-height) - 16px), #a3795a calc(var(--bookshelf-row-height) - 14px), rgb(122, 94, 68) calc(var(--bookshelf-row-height) - 14px), rgb(71, 48, 25) var(--bookshelf-row-height)),
+    linear-gradient(to bottom, transparent 0px, transparent calc(var(--bookshelf-row-height) - 16px), var(--bookshelf-plank-top) calc(var(--bookshelf-row-height) - 16px), var(--bookshelf-plank-top) calc(var(--bookshelf-row-height) - 14px), var(--bookshelf-plank-mid) calc(var(--bookshelf-row-height) - 14px), var(--bookshelf-plank-bottom) var(--bookshelf-row-height)),
+    linear-gradient(to bottom, var(--bookshelf-overlay), var(--bookshelf-overlay)),
     var(--bookshelf-texture-img) !important;
-  background-size: 100% var(--bookshelf-row-height), auto var(--bookshelf-row-height) !important;
+  background-size: 100% var(--bookshelf-row-height), 100% var(--bookshelf-row-height), auto var(--bookshelf-row-height) !important;
   background-repeat: repeat !important;
   box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.6);
   border-radius: 8px;
@@ -5575,7 +5592,7 @@ input:checked + .abs-slider:before {
   object-fit: cover;
   border-radius: 4px;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5), 0 2px 4px rgba(0, 0, 0, 0.4);
-  -webkit-box-reflect: below 4px linear-gradient(transparent, transparent 65%, rgba(0, 0, 0, 0.2));
+  -webkit-box-reflect: var(--bookshelf-reflect);
   transition: box-shadow 0.2s ease;
 }
 
@@ -5614,11 +5631,14 @@ input:checked + .abs-slider:before {
 .series-cover-front {
   width: 90%;
   height: 90%;
+  top: 5%;
+  left: 5%;
   z-index: 20;
   box-shadow: 0 8px 16px rgba(0, 0, 0, 0.5), 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
-.group:hover .series-cover-front {
+.group:hover .series-cover-front,
+.series-cover-stack:hover .series-cover-front {
   transform: scale(1.05);
   box-shadow: 0 12px 24px rgba(0, 0, 0, 0.6), 0 4px 8px rgba(0, 0, 0, 0.4);
 }
@@ -5626,13 +5646,16 @@ input:checked + .abs-slider:before {
 .series-cover-middle {
   width: 86%;
   height: 86%;
+  top: 7%;
+  left: 7%;
   z-index: 15;
   opacity: 0.85;
   transform: translate(12px, 6px) rotate(8deg);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
 }
 
-.group:hover .series-cover-middle {
+.group:hover .series-cover-middle,
+.series-cover-stack:hover .series-cover-middle {
   transform: translate(18px, 8px) rotate(12deg);
   opacity: 0.95;
 }
@@ -5640,13 +5663,16 @@ input:checked + .abs-slider:before {
 .series-cover-back {
   width: 82%;
   height: 82%;
+  top: 9%;
+  left: 9%;
   z-index: 10;
   opacity: 0.65;
   transform: translate(-16px, 8px) rotate(-12deg);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
-.group:hover .series-cover-back {
+.group:hover .series-cover-back,
+.series-cover-stack:hover .series-cover-back {
   transform: translate(-24px, 10px) rotate(-16deg);
   opacity: 0.8;
 }
@@ -5654,13 +5680,16 @@ input:checked + .abs-slider:before {
 .series-cover-back-two {
   width: 88%;
   height: 88%;
+  top: 6%;
+  left: 6%;
   z-index: 10;
   opacity: 0.8;
   transform: translate(-10px, 4px) rotate(-6deg);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
 }
 
-.group:hover .series-cover-back-two {
+.group:hover .series-cover-back-two,
+.series-cover-stack:hover .series-cover-back-two {
   transform: translate(-16px, 6px) rotate(-10deg);
   opacity: 0.9;
 }
@@ -5762,6 +5791,8 @@ input:checked + .abs-slider:before {
 .series-detail-cover-stack .series-cover-front {
   width: 90%;
   height: 90%;
+  top: 5%;
+  left: 5%;
   z-index: 20;
   box-shadow: 0 8px 16px rgba(0, 0, 0, 0.5), 0 2px 4px rgba(0, 0, 0, 0.3);
 }
@@ -5773,6 +5804,8 @@ input:checked + .abs-slider:before {
 .series-detail-cover-stack .series-cover-middle {
   width: 86%;
   height: 86%;
+  top: 7%;
+  left: 7%;
   z-index: 15;
   opacity: 0.85;
   transform: translate(15px, 8px) rotate(8deg);
@@ -5786,6 +5819,8 @@ input:checked + .abs-slider:before {
 .series-detail-cover-stack .series-cover-back {
   width: 82%;
   height: 82%;
+  top: 9%;
+  left: 9%;
   z-index: 10;
   opacity: 0.65;
   transform: translate(-20px, 10px) rotate(-12deg);
@@ -5799,6 +5834,8 @@ input:checked + .abs-slider:before {
 .series-detail-cover-stack .series-cover-back-two {
   width: 88%;
   height: 88%;
+  top: 6%;
+  left: 6%;
   z-index: 10;
   opacity: 0.8;
   transform: translate(-12px, 6px) rotate(-6deg);

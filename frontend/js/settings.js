@@ -51,6 +51,16 @@ onEvent('playback_session_removed', (data) => {
 });
 
 export async function loadSettings() {
+  const user = window.currentUser || {};
+  if (user.type !== 'root' && user.type !== 'admin') {
+    if (window.navigateTo) {
+      window.navigateTo('/');
+    } else {
+      window.location.hash = '';
+    }
+    return;
+  }
+
   const opmlBtn = document.getElementById('opml-btn');
   if (opmlBtn) opmlBtn.classList.add('hidden');
 
