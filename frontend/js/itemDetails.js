@@ -456,6 +456,18 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
                   </div>
                 </div>
 
+                <!-- Skip intro and outro configurations -->
+                <div class="grid grid-cols-2 gap-2">
+                  <div class="flex flex-col space-y-1">
+                    <label for="podcast-details-skip-intro" class="text-[9px] font-bold text-black-50 uppercase tracking-wider">Skip Intro (seconds)</label>
+                    <input type="number" id="podcast-details-skip-intro" class="bg-black-500 text-white border border-black-300 rounded px-2 py-1 text-xs focus:outline-none focus:border-accent" value="${item.media.skipIntroDuration || 0}" min="0">
+                  </div>
+                  <div class="flex flex-col space-y-1">
+                    <label for="podcast-details-skip-outro" class="text-[9px] font-bold text-black-50 uppercase tracking-wider">Skip Outro (seconds)</label>
+                    <input type="number" id="podcast-details-skip-outro" class="bg-black-500 text-white border border-black-300 rounded px-2 py-1 text-xs focus:outline-none focus:border-accent" value="${item.media.skipOutroDuration || 0}" min="0">
+                  </div>
+                </div>
+
                 <div class="flex justify-end pt-1">
                   <button id="podcast-details-save-settings-btn" class="bg-accent hover:bg-accent-hover text-primary text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded transition-colors focus:outline-none">
                     Save Settings
@@ -883,6 +895,10 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
                   <button id="podcast-sync-feed-btn" class="flex items-center justify-center p-1.5 rounded-full hover:bg-black-400/50 text-accent transition-colors" title="Sync Feed">
                     <span class="material-symbols text-lg font-bold" id="podcast-sync-icon">sync</span>
                   </button>
+                  <button id="podcast-multi-select-toggle-btn" class="flex items-center justify-center px-2 py-1 rounded hover:bg-black-400/50 text-black-50 hover:text-white transition-colors border border-black-400/50 text-[11px]" title="Toggle Multi-select">
+                    <span class="material-symbols text-sm mr-1">checklist</span>
+                    <span id="multi-select-toggle-text">Select</span>
+                  </button>
                 </div>
                 <div class="flex flex-wrap items-center gap-2">
                   <!-- Search input -->
@@ -909,6 +925,32 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
               <!-- Episode list container -->
               <ul class="space-y-2.5 max-h-[500px] overflow-y-auto no-scroll border border-black-400/50 rounded-md p-3 bg-primary/20" id="podcast-episodes-list">
               </ul>
+
+              <!-- Batch Actions Toolbar -->
+              <div id="podcast-batch-actions-toolbar" class="hidden sticky bottom-0 bg-primary border-t border-black-400 p-3 mt-3 flex flex-wrap items-center justify-between gap-2 rounded-b-md shadow-lg z-30">
+                <div class="flex items-center space-x-2">
+                  <input type="checkbox" id="podcast-batch-select-all" class="w-4 h-4 rounded border-black-300 text-accent focus:ring-accent cursor-pointer">
+                  <label for="podcast-batch-select-all" class="text-xs text-white cursor-pointer select-none">Select All (<span id="batch-selected-count">0</span>)</label>
+                </div>
+                <div class="flex items-center space-x-2">
+                  <button id="batch-download-btn" class="bg-accent text-primary text-xs font-bold px-3 py-1.5 rounded hover:opacity-90 transition-opacity flex items-center space-x-1">
+                    <span class="material-symbols text-sm">download</span>
+                    <span>Download</span>
+                  </button>
+                  <button id="batch-played-btn" class="bg-black-400 hover:bg-black-300 text-white text-xs font-bold px-3 py-1.5 rounded transition-colors flex items-center space-x-1">
+                    <span class="material-symbols text-sm">check_circle</span>
+                    <span>Mark Played</span>
+                  </button>
+                  <button id="batch-unplayed-btn" class="bg-black-400 hover:bg-black-300 text-white text-xs font-bold px-3 py-1.5 rounded transition-colors flex items-center space-x-1">
+                    <span class="material-symbols text-sm">radio_button_unchecked</span>
+                    <span>Mark Unplayed</span>
+                  </button>
+                  <button id="batch-delete-btn" class="bg-red-600/20 hover:bg-red-600/30 border border-red-500/30 text-red-400 text-xs font-bold px-3 py-1.5 rounded transition-colors flex items-center space-x-1">
+                    <span class="material-symbols text-sm">delete</span>
+                    <span>Delete</span>
+                  </button>
+                </div>
+              </div>
             `;
 
             // Reference DOM elements
@@ -919,9 +961,15 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
             const sortSelect = document.getElementById('episodes-sort-select');
             const syncFeedBtn = document.getElementById('podcast-sync-feed-btn');
             const syncIcon = document.getElementById('podcast-sync-icon');
+            const multiSelectToggleBtn = document.getElementById('podcast-multi-select-toggle-btn');
+            const multiSelectToggleText = document.getElementById('multi-select-toggle-text');
 
             // Expanded items state
             const expandedEpisodes = new Set();
+
+            // Multi-select state
+            let multiSelectMode = false;
+            const selectedEpisodes = new Set();
 
             // Render episodes list
             const renderList = () => {
@@ -970,6 +1018,27 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
                   </div>
                 `;
                 return;
+              }
+
+              // Update batch actions toolbar visibility and checkboxes
+              const toolbar = document.getElementById('podcast-batch-actions-toolbar');
+              if (toolbar) {
+                if (multiSelectMode) {
+                  toolbar.classList.remove('hidden');
+                } else {
+                  toolbar.classList.add('hidden');
+                }
+              }
+
+              const selectedCountBadge = document.getElementById('batch-selected-count');
+              if (selectedCountBadge) {
+                selectedCountBadge.textContent = selectedEpisodes.size;
+              }
+
+              const selectAllCheckbox = document.getElementById('podcast-batch-select-all');
+              if (selectAllCheckbox) {
+                const allSelected = episodes.length > 0 && episodes.every(ep => selectedEpisodes.has(ep.id));
+                selectAllCheckbox.checked = allSelected;
               }
 
               episodesList.innerHTML = episodes.map((ep) => {
@@ -1029,22 +1098,52 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
 
                 const isExpanded = expandedEpisodes.has(ep.id);
 
+                // Episode-specific cover art or fallback
+                const imageUrl = ep.imageUrl || ep.imageURL;
+                const coverArtHtml = imageUrl
+                  ? `<img src="${escapeHtml(imageUrl)}" class="w-10 h-10 rounded border border-black-400 object-cover flex-shrink-0 mr-3" alt="">`
+                  : `<div class="w-10 h-10 bg-black-500 rounded border border-black-400 flex items-center justify-center flex-shrink-0 mr-3 text-black-200"><span class="material-symbols text-lg">podcasts</span></div>`;
+
+                // Season/Episode numbers string
+                let metaString = '';
+                if (ep.season) {
+                  metaString += `Season ${escapeHtml(ep.season)} `;
+                }
+                if (ep.episode) {
+                  metaString += `Episode ${escapeHtml(ep.episode)}`;
+                }
+                metaString = metaString.trim();
+
+                // Multi-select checkbox HTML
+                let checkboxHtml = '';
+                if (multiSelectMode) {
+                  const isChecked = selectedEpisodes.has(ep.id);
+                  checkboxHtml = `
+                    <input type="checkbox" class="episode-select-checkbox w-4 h-4 rounded border-black-300 text-accent focus:ring-accent mr-3 cursor-pointer" data-id="${ep.id}" ${isChecked ? 'checked' : ''} onclick="event.stopPropagation()">
+                  `;
+                }
+
                 return `
                   <li class="border border-black-400/30 hover:border-black-400/70 bg-black-500/10 hover:bg-black-500/30 rounded-md transition-all text-xs" data-episode-id="${ep.id}">
                     <!-- Header row (clickable to expand description) -->
                     <div class="flex items-start justify-between p-3 cursor-pointer select-none" data-action="toggle-expand" data-id="${ep.id}">
-                      <div class="flex-grow mr-4 min-w-0">
-                        <div class="flex items-center space-x-2">
-                          <span class="font-bold text-white text-xs hover:text-accent transition-colors truncate block max-w-md">${escapeHtml(ep.title)}</span>
-                          <!-- Badges -->
-                          <div class="flex items-center space-x-1.5 flex-shrink-0">
-                            ${statusBadge}
-                            ${downloadBadge}
+                      <div class="flex items-center flex-grow mr-4 min-w-0">
+                        ${checkboxHtml}
+                        ${coverArtHtml}
+                        <div class="min-w-0 flex-grow">
+                          <div class="flex items-center space-x-2">
+                            <span class="font-bold text-white text-xs hover:text-accent transition-colors truncate block max-w-md">${escapeHtml(ep.title)}</span>
+                            <!-- Badges -->
+                            <div class="flex items-center space-x-1.5 flex-shrink-0">
+                              ${statusBadge}
+                              ${downloadBadge}
+                            </div>
                           </div>
-                        </div>
-                        <div class="flex items-center space-x-3 text-[10px] text-black-100 mt-1">
-                          ${ep.pubDate ? `<span>${escapeHtml(ep.pubDate)}</span>` : ''}
-                          ${durationVal > 0 ? `<span>•</span><span>${formatDuration(durationVal)}</span>` : ''}
+                          <div class="flex items-center space-x-3 text-[10px] text-black-100 mt-1">
+                            ${ep.pubDate ? `<span>${escapeHtml(ep.pubDate)}</span>` : ''}
+                            ${durationVal > 0 ? `<span>•</span><span>${formatDuration(durationVal)}</span>` : ''}
+                            ${metaString ? `<span>•</span><span class="text-accent font-medium">${metaString}</span>` : ''}
+                          </div>
                         </div>
                       </div>
                       <!-- Play & Actions Buttons -->
@@ -1089,6 +1188,28 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
                   </li>
                 `;
               }).join('');
+
+              // Hook checkbox state changes
+              episodesList.querySelectorAll('.episode-select-checkbox').forEach(chk => {
+                chk.onchange = (e) => {
+                  const epId = chk.getAttribute('data-id');
+                  if (e.target.checked) {
+                    selectedEpisodes.add(epId);
+                  } else {
+                    selectedEpisodes.delete(epId);
+                  }
+                  // Update select-all check state and count
+                  const selectedCountBadge = document.getElementById('batch-selected-count');
+                  if (selectedCountBadge) {
+                    selectedCountBadge.textContent = selectedEpisodes.size;
+                  }
+                  const selectAllCheckbox = document.getElementById('podcast-batch-select-all');
+                  if (selectAllCheckbox) {
+                    const allSelected = episodes.length > 0 && episodes.every(ep => selectedEpisodes.has(ep.id));
+                    selectAllCheckbox.checked = allSelected;
+                  }
+                };
+              });
 
               // Hook play buttons
               episodesList.querySelectorAll('.episode-play-btn').forEach(btn => {
@@ -1259,6 +1380,177 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
               });
             };
 
+            // Toggle multi-select mode
+            if (multiSelectToggleBtn) {
+              multiSelectToggleBtn.onclick = () => {
+                multiSelectMode = !multiSelectMode;
+                if (multiSelectMode) {
+                  multiSelectToggleBtn.classList.add('bg-accent', 'text-primary');
+                  multiSelectToggleBtn.classList.remove('text-black-50');
+                  multiSelectToggleText.textContent = 'Cancel';
+                } else {
+                  multiSelectToggleBtn.classList.remove('bg-accent', 'text-primary');
+                  multiSelectToggleBtn.classList.add('text-black-50');
+                  multiSelectToggleText.textContent = 'Select';
+                  selectedEpisodes.clear();
+                }
+                renderList();
+              };
+            }
+
+            // Batch Select All
+            const selectAllCheckbox = document.getElementById('podcast-batch-select-all');
+            if (selectAllCheckbox) {
+              selectAllCheckbox.onclick = (e) => {
+                const episodes = [...(item.media.episodes || [])];
+                if (e.target.checked) {
+                  episodes.forEach(ep => selectedEpisodes.add(ep.id));
+                } else {
+                  selectedEpisodes.clear();
+                }
+                renderList();
+              };
+            }
+
+            // Batch Download Action
+            const batchDownloadBtn = document.getElementById('batch-download-btn');
+            if (batchDownloadBtn) {
+              batchDownloadBtn.onclick = async () => {
+                if (selectedEpisodes.size === 0) return;
+                const ids = Array.from(selectedEpisodes);
+                batchDownloadBtn.disabled = true;
+                try {
+                  await request('POST', `/api/podcasts/${item.mediaId || item.media.id}/download-episodes`, ids);
+                  showToast(`Queueing download for ${ids.length} episodes`, 'success');
+                  selectedEpisodes.clear();
+                  multiSelectMode = false;
+                  if (multiSelectToggleBtn) {
+                    multiSelectToggleBtn.classList.remove('bg-accent', 'text-primary');
+                    multiSelectToggleBtn.classList.add('text-black-50');
+                    multiSelectToggleText.textContent = 'Select';
+                  }
+                  renderList();
+                } catch (err) {
+                  showToast('Failed to queue downloads: ' + err.message, 'error');
+                } finally {
+                  batchDownloadBtn.disabled = false;
+                }
+              };
+            }
+
+            // Batch Mark Played Action
+            const batchPlayedBtn = document.getElementById('batch-played-btn');
+            if (batchPlayedBtn) {
+              batchPlayedBtn.onclick = async () => {
+                if (selectedEpisodes.size === 0) return;
+                const ids = Array.from(selectedEpisodes);
+                batchPlayedBtn.disabled = true;
+                try {
+                  let successCount = 0;
+                  await Promise.all(ids.map(async (epId) => {
+                    const ep = item.media.episodes.find(e => e.id === epId);
+                    if (!ep) return;
+                    const durationVal = ep.duration || (ep.audioFile && ep.audioFile.duration) || 0;
+                    const payload = {
+                      currentTime: durationVal,
+                      duration: durationVal,
+                      isFinished: true
+                    };
+                    await request('PATCH', `/api/me/progress/${item.id}/${epId}`, payload);
+                    progressMap[epId] = {
+                      episodeId: epId,
+                      currentTime: durationVal,
+                      duration: durationVal,
+                      isFinished: true,
+                      progress: 1.0
+                    };
+                    successCount++;
+                  }));
+                  showToast(`Marked ${successCount} episodes as played`, 'success');
+                  selectedEpisodes.clear();
+                  multiSelectMode = false;
+                  if (multiSelectToggleBtn) {
+                    multiSelectToggleBtn.classList.remove('bg-accent', 'text-primary');
+                    multiSelectToggleBtn.classList.add('text-black-50');
+                    multiSelectToggleText.textContent = 'Select';
+                  }
+                  renderList();
+                } catch (err) {
+                  showToast('Failed to mark episodes as played: ' + err.message, 'error');
+                } finally {
+                  batchPlayedBtn.disabled = false;
+                }
+              };
+            }
+
+            // Batch Mark Unplayed Action
+            const batchUnplayedBtn = document.getElementById('batch-unplayed-btn');
+            if (batchUnplayedBtn) {
+              batchUnplayedBtn.onclick = async () => {
+                if (selectedEpisodes.size === 0) return;
+                const ids = Array.from(selectedEpisodes);
+                batchUnplayedBtn.disabled = true;
+                try {
+                  let successCount = 0;
+                  await Promise.all(ids.map(async (epId) => {
+                    await request('DELETE', `/api/me/progress/${item.id}/${epId}`);
+                    delete progressMap[epId];
+                    successCount++;
+                  }));
+                  showToast(`Marked ${successCount} episodes as unplayed`, 'success');
+                  selectedEpisodes.clear();
+                  multiSelectMode = false;
+                  if (multiSelectToggleBtn) {
+                    multiSelectToggleBtn.classList.remove('bg-accent', 'text-primary');
+                    multiSelectToggleBtn.classList.add('text-black-50');
+                    multiSelectToggleText.textContent = 'Select';
+                  }
+                  renderList();
+                } catch (err) {
+                  showToast('Failed to mark episodes as unplayed: ' + err.message, 'error');
+                } finally {
+                  batchUnplayedBtn.disabled = false;
+                }
+              };
+            }
+
+            // Batch Delete Action (removes downloaded files)
+            const batchDeleteBtn = document.getElementById('batch-delete-btn');
+            if (batchDeleteBtn) {
+              batchDeleteBtn.onclick = async () => {
+                if (selectedEpisodes.size === 0) return;
+                if (!confirm(`Are you sure you want to delete local files for the ${selectedEpisodes.size} selected episodes?`)) return;
+                const ids = Array.from(selectedEpisodes);
+                batchDeleteBtn.disabled = true;
+                try {
+                  let successCount = 0;
+                  await Promise.all(ids.map(async (epId) => {
+                    const ep = item.media.episodes.find(e => e.id === epId);
+                    const isDownloaded = ep && ep.audioFile && ep.audioFile.metadata && ep.audioFile.metadata.path;
+                    if (!isDownloaded) return;
+                    await request('DELETE', `/api/podcasts/${item.mediaId || item.media.id}/episode/${epId}`);
+                    if (ep) {
+                      ep.audioFile = {};
+                    }
+                    successCount++;
+                  }));
+                  showToast(`Deleted files for ${successCount} episodes`, 'success');
+                  selectedEpisodes.clear();
+                  multiSelectMode = false;
+                  if (multiSelectToggleBtn) {
+                    multiSelectToggleBtn.classList.remove('bg-accent', 'text-primary');
+                    multiSelectToggleBtn.classList.add('text-black-50');
+                    multiSelectToggleText.textContent = 'Select';
+                  }
+                  renderList();
+                } catch (err) {
+                  showToast('Failed to delete episodes: ' + err.message, 'error');
+                } finally {
+                  batchDeleteBtn.disabled = false;
+                }
+              };
+            }
+
             // Hook filter and sort inputs
             searchInput.oninput = (e) => {
               searchQuery = e.target.value;
@@ -1323,13 +1615,18 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
           saveSettingsBtn.innerHTML = `<span class="animate-spin text-primary material-symbols text-xs">sync</span>`;
 
           try {
+            const skipIntro = parseInt(document.getElementById('podcast-details-skip-intro').value, 10) || 0;
+            const skipOutro = parseInt(document.getElementById('podcast-details-skip-outro').value, 10) || 0;
+            
             await request('PATCH', `/api/items/${item.id}`, {
               title: item.media.metadata.title,
               autoDownloadEpisodes: autoDownload,
               autoDeletePlayed: autoDeletePlayed,
               autoDownloadSchedule: autoDownloadSchedule,
               maxEpisodesToKeep: maxKeep,
-              maxNewEpisodesToDownload: maxNew
+              maxNewEpisodesToDownload: maxNew,
+              skipIntroDuration: skipIntro,
+              skipOutroDuration: skipOutro
             });
             showToast('Podcast settings saved successfully', 'success');
             // Update local state
@@ -1338,6 +1635,8 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
             item.media.autoDownloadSchedule = autoDownloadSchedule;
             item.media.maxEpisodesToKeep = maxKeep;
             item.media.maxNewEpisodesToDownload = maxNew;
+            item.media.skipIntroDuration = skipIntro;
+            item.media.skipOutroDuration = skipOutro;
           } catch (err) {
             console.error('Failed to save podcast settings:', err);
             showToast('Failed to save settings: ' + err.message, 'error');

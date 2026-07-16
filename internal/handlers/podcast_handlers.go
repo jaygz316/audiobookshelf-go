@@ -496,6 +496,38 @@ func handleParseOPML(db *sql.DB) http.HandlerFunc {
 	}
 }
 
+func handleExportOPML(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		userVal := r.Context().Value(core.UserContextKey)
+		if userVal == nil {
+			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
+			return
+		}
+		user := userVal.(*core.UserSession)
+		libraryID := r.URL.Query().Get("libraryId")
+		if libraryID == "" {
+			http.Error(w, `{"error": "libraryId parameter is required"}`, http.StatusBadRequest)
+			return
+		}
+		if !user.CanAccessLibrary(libraryID) {
+			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
+			return
+		}
+		initManagers(db)
+
+		opmlText, err := globalFeedManager.GenerateOPML(r.Context(), user.ID, libraryID)
+		if err != nil {
+			log.Errorf("[Feed] GenerateOPML failed: %v", err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/xml")
+		w.Header().Set("Content-Disposition", "attachment; filename=podcasts.opml")
+		w.Write([]byte(opmlText))
+	}
+}
+
 func handleBulkCreatePodcasts(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if globalPodcastManager == nil {
@@ -1257,6 +1289,12 @@ func handlePodcastsDispatch(db *sql.DB, cfg *core.Config) http.HandlerFunc {
 		if len(parts) >= 2 && parts[0] == "opml" && parts[1] == "parse" {
 			if r.Method == http.MethodPost {
 				AuthMiddlewareWrapper(db, handleParseOPML(db)).ServeHTTP(w, r)
+				return
+			}
+		}
+		if len(parts) >= 2 && parts[0] == "opml" && parts[1] == "export" {
+			if r.Method == http.MethodGet {
+				AuthMiddlewareWrapper(db, handleExportOPML(db)).ServeHTTP(w, r)
 				return
 			}
 		}
