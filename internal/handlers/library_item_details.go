@@ -353,16 +353,17 @@ func handleGetLibraryItemByID(db *sql.DB, itemID string) http.HandlerFunc {
 			var pTitle, pAuthor, pDescription, pLanguage, pPodcastType, pCoverPath sql.NullString
 			var pExplicit sql.NullInt64
 			var pTags, pGenres, pLockedFields []byte
-			var autoDownloadVal, maxKeepVal, maxNewVal, autoDeleteVal int
+			var autoDownloadVal, maxKeepVal, maxNewVal, autoDeleteVal, skipIntroVal, skipOutroVal int
 			var scheduleVal sql.NullString
 
 			err = db.QueryRow(`
 				SELECT title, author, description, language, podcastType, explicit, coverPath, tags, genres, lockedFields,
-				       autoDownloadEpisodes, autoDownloadSchedule, maxEpisodesToKeep, maxNewEpisodesToDownload, autoDeletePlayed
+				       autoDownloadEpisodes, autoDownloadSchedule, maxEpisodesToKeep, maxNewEpisodesToDownload, autoDeletePlayed,
+				       skipIntroDuration, skipOutroDuration
 				FROM podcasts WHERE id = ?
 			`, mediaID).Scan(
 				&pTitle, &pAuthor, &pDescription, &pLanguage, &pPodcastType, &pExplicit, &pCoverPath, &pTags, &pGenres, &pLockedFields,
-				&autoDownloadVal, &scheduleVal, &maxKeepVal, &maxNewVal, &autoDeleteVal,
+				&autoDownloadVal, &scheduleVal, &maxKeepVal, &maxNewVal, &autoDeleteVal, &skipIntroVal, &skipOutroVal,
 			)
 			if err == nil {
 				var tags []string
@@ -488,6 +489,8 @@ func handleGetLibraryItemByID(db *sql.DB, itemID string) http.HandlerFunc {
 					"maxEpisodesToKeep":        maxKeepVal,
 					"maxNewEpisodesToDownload": maxNewVal,
 					"autoDeletePlayed":         autoDeleteVal == 1,
+					"skipIntroDuration":        skipIntroVal,
+					"skipOutroDuration":        skipOutroVal,
 					"metadata": map[string]interface{}{
 						"title":                    pTitle.String,
 						"author":                   pAuthor.String,
@@ -502,6 +505,8 @@ func handleGetLibraryItemByID(db *sql.DB, itemID string) http.HandlerFunc {
 						"maxEpisodesToKeep":        maxKeepVal,
 						"maxNewEpisodesToDownload": maxNewVal,
 						"autoDeletePlayed":         autoDeleteVal == 1,
+						"skipIntroDuration":        skipIntroVal,
+						"skipOutroDuration":        skipOutroVal,
 					},
 				}
 			} else {
@@ -628,6 +633,8 @@ func handleUpdateLibraryItemByID(db *sql.DB, itemID string) http.HandlerFunc {
 			MaxEpisodesToKeep        *int     `json:"maxEpisodesToKeep"`
 			MaxNewEpisodesToDownload *int     `json:"maxNewEpisodesToDownload"`
 			AutoDeletePlayed         *bool    `json:"autoDeletePlayed"`
+			SkipIntroDuration        *int     `json:"skipIntroDuration"`
+			SkipOutroDuration        *int     `json:"skipOutroDuration"`
 		}
 
 		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
@@ -727,9 +734,9 @@ func handleUpdateLibraryItemByID(db *sql.DB, itemID string) http.HandlerFunc {
 			prefixes := idb.GetSortingPrefixes(db)
 			titleIgnorePrefix := getTitleIgnorePrefixGo(payload.Title, prefixes)
 
-			var currAutoDownload, currMaxKeep, currMaxNew, currAutoDelete int
+			var currAutoDownload, currMaxKeep, currMaxNew, currAutoDelete, currSkipIntro, currSkipOutro int
 			var currSchedule sql.NullString
-			_ = db.QueryRow("SELECT autoDownloadEpisodes, maxEpisodesToKeep, maxNewEpisodesToDownload, autoDeletePlayed, autoDownloadSchedule FROM podcasts WHERE id = ?", mediaID).Scan(&currAutoDownload, &currMaxKeep, &currMaxNew, &currAutoDelete, &currSchedule)
+			_ = db.QueryRow("SELECT autoDownloadEpisodes, maxEpisodesToKeep, maxNewEpisodesToDownload, autoDeletePlayed, autoDownloadSchedule, skipIntroDuration, skipOutroDuration FROM podcasts WHERE id = ?", mediaID).Scan(&currAutoDownload, &currMaxKeep, &currMaxNew, &currAutoDelete, &currSchedule, &currSkipIntro, &currSkipOutro)
 
 			autoDownloadVal := currAutoDownload
 			if payload.AutoDownloadEpisodes != nil {
@@ -751,14 +758,23 @@ func handleUpdateLibraryItemByID(db *sql.DB, itemID string) http.HandlerFunc {
 			if payload.AutoDownloadSchedule != nil {
 				scheduleVal = *payload.AutoDownloadSchedule
 			}
+			skipIntroVal := currSkipIntro
+			if payload.SkipIntroDuration != nil {
+				skipIntroVal = *payload.SkipIntroDuration
+			}
+			skipOutroVal := currSkipOutro
+			if payload.SkipOutroDuration != nil {
+				skipOutroVal = *payload.SkipOutroDuration
+			}
 
 			_, err = tx.Exec(`
 				UPDATE podcasts
 				SET title = ?, titleIgnorePrefix = ?, author = ?, description = ?, language = ?, explicit = ?, tags = ?, genres = ?, lockedFields = ?,
-				    autoDownloadEpisodes = ?, maxEpisodesToKeep = ?, maxNewEpisodesToDownload = ?, autoDeletePlayed = ?, autoDownloadSchedule = ?
+				    autoDownloadEpisodes = ?, maxEpisodesToKeep = ?, maxNewEpisodesToDownload = ?, autoDeletePlayed = ?, autoDownloadSchedule = ?,
+				    skipIntroDuration = ?, skipOutroDuration = ?
 				WHERE id = ?
 			`, payload.Title, titleIgnorePrefix, author, payload.Description, payload.Language, boolToInt(payload.Explicit), tagsJSON, genresJSON, lockedFieldsJSON,
-				autoDownloadVal, maxKeepVal, maxNewVal, autoDeleteVal, scheduleVal, mediaID)
+				autoDownloadVal, maxKeepVal, maxNewVal, autoDeleteVal, scheduleVal, skipIntroVal, skipOutroVal, mediaID)
 			if err != nil {
 				http.Error(w, "failed to update podcast: "+err.Error(), http.StatusInternalServerError)
 				return
