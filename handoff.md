@@ -1,23 +1,15 @@
-# Handoff: Audiobookshelf Go Port — UX Audit
+# Handoff: Audiobookshelf Go Port
 
-## Current Screen Under Audit
-- **Screen**: Settings & Administration / Library Grid (Series View)
-- **Status**: ✅ Complete
+## Targeted Task & Accomplishments
+- **Target Task**: Library List Count & Detail Badges Navigation
+- **Accomplishments**:
+  - Mirrored results count singular/plural rules for Books, Podcasts, Active Tasks, Collections, and Playlists.
+  - Restricted absolute path display in item details view to Admin users.
+  - Implemented toolbar clear-filter close button sync.
+  - Styled genre/tag badges in details screen as interactive filter links.
 
-## What Was Fixed This Run
-- **Settings User Boundary Check**: Verified that the client-side router checks permissions. Added client-side redirection in [settings.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/settings.js) `loadSettings` to ensure non-admin/non-root users are immediately redirected back to `/` to secure the administrative interface.
-- **Series Stack Positioning**: Formatted and added exact `top`/`left` alignment rules for fanned book card stack overlays in [styles.css](file:///home/jay/projects/audiobookshelf-go/frontend/css/styles.css) (covering both general library lists and series detail views) to make the fanning animation perfectly symmetric and avoid overlap anomalies.
-- **Audited Cover Reflection Filters**: Confirmed cover reflection properties and gradients scale correctly across dark, light, and sepia themes using theme-specific `--bookshelf-reflect` CSS custom properties.
+## Outstanding Work / Next Gaps
+- **Bookshelf Sizing Control alignment**: Ensure bookshelf rows, sorting controls and other views conform to all layout settings dynamically.
 
-## Remaining Issues on This Screen
-- None
-
-## Next Screen in Queue
-- **Priority 5 / 7 — Library Grid/List View & Item Detail Page**: Deep visual and structural audit of results header (item count, sort/filter layout) and details page metadata display sections.
-
-## Buttons/Controls Verified Working This Run
-- Client-side `/settings` navigation block (auto-redirects to `/` for non-admins).
-- Series Card Stack Hover/Fan animation trigger on `.series-cover-stack:hover` and `.series-detail-cover-stack:hover`.
-
-## Buttons/Controls Known Broken
-- None
+## Next Steps
+- Audit the main left sidebar navigation transitions and responsive touch indicators for mobile clients.
