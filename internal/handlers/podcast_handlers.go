@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -34,6 +35,28 @@ type opmlOutline struct {
 type opmlDocument struct {
 	XMLName  xml.Name      `xml:"opml"`
 	Outlines []opmlOutline `xml:"body>outline"`
+}
+
+type opmlExportDocument struct {
+	XMLName xml.Name          `xml:"opml"`
+	Version string            `xml:"version,attr"`
+	Head    opmlExportHead    `xml:"head"`
+	Body    opmlExportBody    `xml:"body"`
+}
+
+type opmlExportHead struct {
+	Title string `xml:"title"`
+}
+
+type opmlExportBody struct {
+	Outlines []opmlExportOutline `xml:"outline"`
+}
+
+type opmlExportOutline struct {
+	Text   string `xml:"text,attr"`
+	Title  string `xml:"title,attr"`
+	Type   string `xml:"type,attr"`
+	XMLURL string `xml:"xmlUrl,attr"`
 }
 
 func findFeeds(outlines []opmlOutline) []map[string]string {
@@ -1244,6 +1267,21 @@ func handlePodcastsDispatch(db *sql.DB, cfg *core.Config) http.HandlerFunc {
 			}
 		}
 
+		if len(parts) >= 3 && parts[1] == "episodes" && parts[2] == "progress" {
+			id := parts[0]
+			if r.Method == http.MethodPost || r.Method == http.MethodPatch {
+				AuthMiddlewareWrapper(db, handleBulkUpdateEpisodesProgress(db, id)).ServeHTTP(w, r)
+				return
+			}
+		}
+		if len(parts) >= 3 && parts[1] == "episodes" && parts[2] == "delete" {
+			id := parts[0]
+			if r.Method == http.MethodPost || r.Method == http.MethodDelete {
+				AuthMiddlewareWrapper(db, handleDeleteEpisodes(db, id)).ServeHTTP(w, r)
+				return
+			}
+		}
+
 		if len(parts) >= 2 {
 			id := parts[0]
 			action := parts[1]
@@ -1274,6 +1312,16 @@ func handlePodcastsDispatch(db *sql.DB, cfg *core.Config) http.HandlerFunc {
 					AuthMiddlewareWrapper(db, handleDownloadEpisodes(db, id)).ServeHTTP(w, r)
 					return
 				}
+			case "delete-episodes":
+				if r.Method == http.MethodPost || r.Method == http.MethodDelete {
+					AuthMiddlewareWrapper(db, handleDeleteEpisodes(db, id)).ServeHTTP(w, r)
+					return
+				}
+			case "progress-episodes":
+				if r.Method == http.MethodPost || r.Method == http.MethodPatch {
+					AuthMiddlewareWrapper(db, handleBulkUpdateEpisodesProgress(db, id)).ServeHTTP(w, r)
+					return
+				}
 			case "match-episodes":
 				if r.Method == http.MethodPost {
 					AuthMiddlewareWrapper(db, handleMatchEpisodes(db, id)).ServeHTTP(w, r)
@@ -1297,5 +1345,273 @@ func handlePodcastsDispatch(db *sql.DB, cfg *core.Config) http.HandlerFunc {
 		}
 
 		http.NotFound(w, r)
+	}
+}
+
+func handleExportOPML(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		userVal := r.Context().Value(core.UserContextKey)
+		if userVal == nil {
+			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
+			return
+		}
+		user := userVal.(*core.UserSession)
+		if !user.IsAdminOrUp() {
+			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
+			return
+		}
+
+		rows, err := db.QueryContext(r.Context(), "SELECT title, feedURL FROM podcasts WHERE feedURL IS NOT NULL AND feedURL != ''")
+		if err != nil {
+			log.Errorf("[ExportOPML] Failed to query podcasts: %v", err)
+			http.Error(w, `{"error": "Failed to query podcasts"}`, http.StatusInternalServerError)
+			return
+		}
+		defer rows.Close()
+
+		var outlines []opmlExportOutline
+		for rows.Next() {
+			var title, feedURL string
+			if err := rows.Scan(&title, &feedURL); err != nil {
+				log.Errorf("[ExportOPML] Failed to scan podcast row: %v", err)
+				http.Error(w, `{"error": "Failed to export OPML"}`, http.StatusInternalServerError)
+				return
+			}
+			outlines = append(outlines, opmlExportOutline{
+				Text:   title,
+				Title:  title,
+				Type:   "rss",
+				XMLURL: feedURL,
+			})
+		}
+		if err := rows.Err(); err != nil {
+			log.Errorf("[ExportOPML] Rows error: %v", err)
+			http.Error(w, `{"error": "Failed to export OPML"}`, http.StatusInternalServerError)
+			return
+		}
+
+		if outlines == nil {
+			outlines = []opmlExportOutline{}
+		}
+
+		doc := opmlExportDocument{
+			Version: "1.0",
+			Head: opmlExportHead{
+				Title: "Audiobookshelf Podcast Subscriptions",
+			},
+			Body: opmlExportBody{
+				Outlines: outlines,
+			},
+		}
+
+		xmlBytes, err := xml.MarshalIndent(doc, "", "  ")
+		if err != nil {
+			log.Errorf("[ExportOPML] XML marshal failed: %v", err)
+			http.Error(w, `{"error": "Failed to generate OPML XML"}`, http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/xml")
+		w.Header().Set("Content-Disposition", "attachment; filename=\"podcasts_opml.xml\"")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(xml.Header))
+		_, _ = w.Write(xmlBytes)
+	}
+}
+
+func handleDeleteEpisodes(db *sql.DB, id string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		userVal := r.Context().Value(core.UserContextKey)
+		if userVal == nil {
+			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
+			return
+		}
+		user := userVal.(*core.UserSession)
+		if !user.IsAdminOrUp() {
+			http.Error(w, `{"error": "Forbidden"}`, http.StatusForbidden)
+			return
+		}
+
+		var episodeIDs []string
+		if err := json.NewDecoder(r.Body).Decode(&episodeIDs); err != nil {
+			http.Error(w, `{"error": "Invalid request body"}`, http.StatusBadRequest)
+			return
+		}
+
+		hardDelete := r.URL.Query().Get("hard") == "1"
+
+		var podcastID, libraryItemID string
+		err := db.QueryRow(`
+			SELECT p.id, li.id
+			FROM podcasts p
+			JOIN libraryItems li ON li.mediaId = p.id AND li.mediaType = 'podcast'
+			WHERE p.id = ? OR li.id = ?
+		`, id, id).Scan(&podcastID, &libraryItemID)
+		if err != nil {
+			http.Error(w, `{"error": "Podcast not found"}`, http.StatusNotFound)
+			return
+		}
+
+		for _, episodeId := range episodeIDs {
+			var audioFileStr string
+			err = db.QueryRow("SELECT audioFile FROM podcastEpisodes WHERE id = ? AND podcastId = ?", episodeId, podcastID).Scan(&audioFileStr)
+			if err == nil && audioFileStr != "" {
+				var af map[string]interface{}
+				if json.Unmarshal([]byte(audioFileStr), &af) == nil && af != nil {
+					if meta, ok := af["metadata"].(map[string]interface{}); ok && meta != nil {
+						if path, ok := meta["path"].(string); ok && path != "" {
+							if utils.IsSafeFilePath(db, MetadataPath, path) {
+								if err := os.Remove(path); err != nil {
+									log.Errorf("[DeleteEpisode] Failed to remove file %s: %v", path, err)
+								}
+							} else {
+								log.Warnf("[DeleteEpisode] Deletion of unsafe path blocked: %s", path)
+							}
+						}
+					}
+				}
+			}
+
+			if hardDelete {
+				_, err = db.Exec("DELETE FROM podcastEpisodes WHERE id = ? AND podcastId = ?", episodeId, podcastID)
+			} else {
+				_, err = db.Exec("UPDATE podcastEpisodes SET audioFile = '{}' WHERE id = ? AND podcastId = ?", episodeId, podcastID)
+			}
+			if err != nil {
+				log.Errorf("[DeleteEpisode] Delete/Update failed for episode %s: %v", episodeId, err)
+			}
+		}
+
+		itemMin, err := idb.GetLibraryItemMinifiedByID(db, libraryItemID)
+		if err == nil && itemMin != nil {
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(itemMin)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"success":true}`))
+	}
+}
+
+func handleBulkUpdateEpisodesProgress(db *sql.DB, id string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		userVal := r.Context().Value(core.UserContextKey)
+		if userVal == nil {
+			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
+			return
+		}
+		user := userVal.(*core.UserSession)
+
+		var podcastID, libraryItemID string
+		err := db.QueryRow(`
+			SELECT p.id, li.id
+			FROM podcasts p
+			JOIN libraryItems li ON li.mediaId = p.id AND li.mediaType = 'podcast'
+			WHERE p.id = ? OR li.id = ?
+		`, id, id).Scan(&podcastID, &libraryItemID)
+		if err != nil {
+			http.Error(w, `{"error": "Podcast not found"}`, http.StatusNotFound)
+			return
+		}
+
+		bodyBytes, err := io.ReadAll(r.Body)
+		if err != nil {
+			http.Error(w, `{"error": "Failed to read request body"}`, http.StatusBadRequest)
+			return
+		}
+
+		var episodeIDs []string
+		var isFinishedVal bool = true
+		var currentTimeVal float64 = 0
+		var durationVal float64 = 0
+
+		var objReq struct {
+			EpisodeIDs  []string `json:"episodeIds"`
+			IsFinished  *bool    `json:"isFinished"`
+			CurrentTime *float64 `json:"currentTime"`
+			Progress    *float64 `json:"progress"`
+			Duration    *float64 `json:"duration"`
+		}
+		if json.Unmarshal(bodyBytes, &objReq) == nil && len(objReq.EpisodeIDs) > 0 {
+			episodeIDs = objReq.EpisodeIDs
+			if objReq.IsFinished != nil {
+				isFinishedVal = *objReq.IsFinished
+			}
+			if objReq.CurrentTime != nil {
+				currentTimeVal = *objReq.CurrentTime
+			}
+			if objReq.Duration != nil {
+				durationVal = *objReq.Duration
+			}
+		} else {
+			var arrReq []string
+			if json.Unmarshal(bodyBytes, &arrReq) == nil && len(arrReq) > 0 {
+				episodeIDs = arrReq
+			} else {
+				http.Error(w, `{"error": "Invalid request body"}`, http.StatusBadRequest)
+				return
+			}
+		}
+
+		nowStr := idb.TimeToDBStr(time.Now())
+
+		for _, epID := range episodeIDs {
+			var count int
+			_ = db.QueryRowContext(r.Context(), "SELECT count(*) FROM podcastEpisodes WHERE id = ? AND podcastId = ?", epID, podcastID).Scan(&count)
+			if count == 0 {
+				continue
+			}
+
+			currDuration := durationVal
+			if currDuration == 0 {
+				var audioFileStr string
+				_ = db.QueryRowContext(r.Context(), "SELECT audioFile FROM podcastEpisodes WHERE id = ?", epID).Scan(&audioFileStr)
+				if audioFileStr != "" {
+					var af map[string]interface{}
+					if json.Unmarshal([]byte(audioFileStr), &af) == nil && af != nil {
+						if dur, ok := af["duration"].(float64); ok {
+							currDuration = dur
+						}
+					}
+				}
+			}
+
+			var progressID string
+			err = db.QueryRowContext(r.Context(), "SELECT id FROM mediaProgresses WHERE userId = ? AND mediaItemId = ?", user.ID, epID).Scan(&progressID)
+			if err == sql.ErrNoRows {
+				progressID = uuid.New().String()
+				query := `INSERT INTO mediaProgresses (id, userId, mediaItemId, mediaItemType, duration, currentTime, isFinished, hideFromContinueListening, ebookLocation, ebookProgress, finishedAt, extraData, podcastId, createdAt, updatedAt)
+					VALUES (?, ?, ?, 'podcastEpisode', ?, ?, ?, 0, NULL, NULL, ?, NULL, ?, ?, ?)`
+				var finishedAtVal interface{} = nil
+				if isFinishedVal {
+					finishedAtVal = nowStr
+				}
+				_, err = db.ExecContext(r.Context(), query, progressID, user.ID, epID, currDuration, currentTimeVal, explicitInt(isFinishedVal), finishedAtVal, podcastID, nowStr, nowStr)
+				if err != nil {
+					log.Errorf("[BulkProgress] Insert failed: %v", err)
+				}
+			} else if err == nil {
+				query := `UPDATE mediaProgresses SET duration = ?, currentTime = ?, isFinished = ?, finishedAt = ?, updatedAt = ? WHERE id = ?`
+				var finishedAtVal interface{} = nil
+				if isFinishedVal {
+					finishedAtVal = nowStr
+				}
+				_, err = db.ExecContext(r.Context(), query, currDuration, currentTimeVal, explicitInt(isFinishedVal), finishedAtVal, nowStr, progressID)
+				if err != nil {
+					log.Errorf("[BulkProgress] Update failed: %v", err)
+				}
+			}
+		}
+
+		itemMin, err := idb.GetLibraryItemMinifiedByID(db, libraryItemID)
+		if err == nil && itemMin != nil {
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(itemMin)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"success":true}`))
 	}
 }
