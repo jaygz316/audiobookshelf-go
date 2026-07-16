@@ -1,0 +1,14 @@
+/* Specific component overrides for light/sepia themes */
+[data-theme="light"] select, [data-theme="light"] input, [data-theme="light"] textarea {
+  color: #111827 !important;
+}
+[data-theme="sepia"] select, [data-theme="sepia"] input, [data-theme="sepia"] textarea {
+  color: #5b4636 !important;
+}
+
+summary::-webkit-details-marker {
+  display: none !important;
+}
+summary {
+  list-style: none !important;
+}
