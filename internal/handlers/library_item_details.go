@@ -637,6 +637,8 @@ func handleUpdateLibraryItemByID(db *sql.DB, itemID string) http.HandlerFunc {
 			return
 		}
 
+		prefixes := idb.GetSortingPrefixes(db)
+
 		tx, err := db.Begin()
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -659,7 +661,6 @@ func handleUpdateLibraryItemByID(db *sql.DB, itemID string) http.HandlerFunc {
 			genresJSON, _ := json.Marshal(payload.Genres)
 			lockedFieldsJSON, _ := json.Marshal(payload.LockedFields)
 
-			prefixes := idb.GetSortingPrefixes(db)
 			titleIgnorePrefix := getTitleIgnorePrefixGo(payload.Title, prefixes)
 
 			_, err = tx.Exec(`
@@ -726,12 +727,11 @@ func handleUpdateLibraryItemByID(db *sql.DB, itemID string) http.HandlerFunc {
 				author = payload.Authors[0]
 			}
 
-			prefixes := idb.GetSortingPrefixes(db)
 			titleIgnorePrefix := getTitleIgnorePrefixGo(payload.Title, prefixes)
 
 			var currAutoDownload, currMaxKeep, currMaxNew, currAutoDelete, currSkipIntro, currSkipOutro int
 			var currSchedule sql.NullString
-			_ = db.QueryRow("SELECT autoDownloadEpisodes, maxEpisodesToKeep, maxNewEpisodesToDownload, autoDeletePlayed, autoDownloadSchedule, skipIntroDuration, skipOutroDuration FROM podcasts WHERE id = ?", mediaID).Scan(&currAutoDownload, &currMaxKeep, &currMaxNew, &currAutoDelete, &currSchedule, &currSkipIntro, &currSkipOutro)
+			_ = tx.QueryRowContext(r.Context(), "SELECT autoDownloadEpisodes, maxEpisodesToKeep, maxNewEpisodesToDownload, autoDeletePlayed, autoDownloadSchedule, skipIntroDuration, skipOutroDuration FROM podcasts WHERE id = ?", mediaID).Scan(&currAutoDownload, &currMaxKeep, &currMaxNew, &currAutoDelete, &currSchedule, &currSkipIntro, &currSkipOutro)
 
 			autoDownloadVal := currAutoDownload
 			if payload.AutoDownloadEpisodes != nil {
