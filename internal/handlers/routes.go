@@ -285,6 +285,14 @@ func registerLibraryRoutes(mux *http.ServeMux, cfg *core.Config, db *sql.DB) {
 }
 
 func registerPodcastRoutes(mux *http.ServeMux, cfg *core.Config, db *sql.DB) {
+	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/podcasts/opml/export"), func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			AuthMiddlewareWrapper(db, handleExportOPML(db)).ServeHTTP(w, r)
+		} else {
+			http.Error(w, `{"error": "Method Not Allowed"}`, http.StatusMethodNotAllowed)
+		}
+	})
+
 	mux.HandleFunc(joinPath(cfg.RouterBasePath, "/api/podcasts"), func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPost {
 			AuthMiddlewareWrapper(db, handleCreatePodcast(db)).ServeHTTP(w, r)
