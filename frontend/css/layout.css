@@ -1,0 +1,125 @@
+/* Responsive auto-fill library grid matching original Audiobookshelf */
+.library-grid {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fill, minmax(var(--bookshelf-card-width, 120px), 1fr)) !important;
+  gap: 1.5rem !important;
+  padding: 1.5rem !important;
+  justify-items: center !important;
+}
+
+/* Library Bookshelf Wrap-Around Grid Layout */
+.library-shelf-grid {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fill, minmax(var(--bookshelf-card-width, 120px), 1fr)) !important;
+  grid-auto-rows: var(--bookshelf-row-height) !important;
+  gap: 0 1.5rem !important;
+  padding: 1.5rem !important;
+  background-image: 
+    linear-gradient(to bottom, transparent 0px, transparent calc(var(--bookshelf-row-height) - 16px), var(--bookshelf-plank-top) calc(var(--bookshelf-row-height) - 16px), var(--bookshelf-plank-top) calc(var(--bookshelf-row-height) - 14px), var(--bookshelf-plank-mid) calc(var(--bookshelf-row-height) - 14px), var(--bookshelf-plank-bottom) var(--bookshelf-row-height)),
+    linear-gradient(to bottom, var(--bookshelf-overlay), var(--bookshelf-overlay)),
+    var(--bookshelf-texture-img) !important;
+  background-size: 100% var(--bookshelf-row-height), 100% var(--bookshelf-row-height), auto var(--bookshelf-row-height) !important;
+  background-repeat: repeat !important;
+  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.6);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.library-shelf-grid > .bookshelf-card,
+.library-shelf-grid > .group {
+  align-self: end !important;
+  margin-bottom: 20px !important;
+  width: var(--bookshelf-card-width) !important;
+  height: var(--bookshelf-card-height) !important;
+  overflow: visible !important;
+  transition: transform 0.2s ease !important;
+}
+
+.library-shelf-grid > .bookshelf-card:hover,
+.library-shelf-grid > .group:hover {
+  transform: translateY(-6px) !important;
+}
+
+.library-shelf-grid > .bookshelf-card img,
+.library-shelf-grid > .group img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover;
+  border-radius: 4px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5), 0 2px 4px rgba(0, 0, 0, 0.4);
+  -webkit-box-reflect: var(--bookshelf-reflect);
+  transition: box-shadow 0.2s ease;
+}
+
+.library-shelf-grid > .bookshelf-card:hover img,
+.library-shelf-grid > .group:hover img {
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.65), 0 4px 10px rgba(0, 0, 0, 0.45);
+}
+
+.library-shelf-grid > .bookshelf-card .absolute.inset-0,
+.library-shelf-grid > .group .absolute.inset-0 {
+  border-radius: 4px;
+  overflow: hidden;
+  height: 100% !important;
+  width: 100% !important;
+}
+
+/* Mobile Search Overlay styling */
+@media (max-width: 767px) {
+  #global-search-container.mobile-active {
+    display: flex !important;
+    position: absolute !important;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    margin: 0 !important;
+    background-color: var(--color-primary, #111111);
+    z-index: 100;
+    padding: 0 1rem;
+    align-items: center;
+  }
+  #global-search-container.mobile-active > div {
+    width: 100%;
+  }
+}
+
+/* Mobile Sidebar Drawer styling */
+@media (max-width: 767.98px) {
+  #sidebar {
+    position: fixed !important;
+    left: 0 !important;
+    top: 4rem !important; /* height of header (h-16 = 64px) */
+    bottom: 0 !important;
+    height: calc(100vh - 4rem) !important;
+    z-index: 50 !important;
+    transform: translateX(-100%);
+    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    display: flex !important; /* ensure it's flex even on mobile when open */
+    visibility: hidden;
+  }
+  
+  #sidebar.open {
+    transform: translateX(0) !important;
+    visibility: visible !important;
+    box-shadow: 4px 0 16px rgba(0, 0, 0, 0.6) !important;
+  }
+}
+
+/* Sidebar Backdrop for Mobile */
+#sidebar-backdrop {
+  position: fixed;
+  inset: 0;
+  top: 4rem; /* starts below header */
+  background-color: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(2px);
+  z-index: 40;
+  transition: opacity 0.2s linear;
+  opacity: 0;
+  pointer-events: none;
+}
+
+#sidebar-backdrop.show {
+  opacity: 1;
+  pointer-events: auto;
+}
