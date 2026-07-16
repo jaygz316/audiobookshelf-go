@@ -20,7 +20,9 @@ export async function loadCollections(libraryId) {
     const res = await request('GET', `/api/libraries/${libraryId}/collections`);
     const collections = res.results || [];
 
-    if (bookCount) bookCount.textContent = `${collections.length} Collections`;
+    if (bookCount) {
+      bookCount.textContent = collections.length === 1 ? '1 Collection' : `${collections.length} Collections`;
+    }
 
     container.innerHTML = `
       <div class="p-6 space-y-6">

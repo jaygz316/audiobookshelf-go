@@ -602,11 +602,14 @@
             </button>
             
             <!-- Custom Filter Dropdown -->
-            <div class="relative">
+            <div class="relative flex items-center space-x-1">
               <button id="filter-dropdown-btn" class="flex items-center space-x-1 bg-black-600/40 hover:bg-black-500 px-2.5 py-1 rounded border border-black-300/30 text-black-50 hover:text-white transition duration-150 focus:outline-none">
                 <span class="material-symbols text-[14px]">filter_list</span>
                 <span id="filter-selected-label">Filter: All</span>
                 <span class="material-symbols text-[12px] text-black-100">keyboard_arrow_down</span>
+              </button>
+              <button id="filter-clear-btn" class="hidden flex items-center justify-center p-1 rounded-full text-black-100 hover:text-red-400 hover:bg-black-500 focus:outline-none" title="Clear Filter">
+                <span class="material-symbols text-[16px]">close</span>
               </button>
               <div id="filter-dropdown-menu" class="absolute right-0 mt-1.5 w-44 bg-primary border border-black-400/50 rounded shadow-2xl py-1 hidden z-50 transform origin-top-right transition-all scale-95 opacity-0 duration-150">
                 <!-- Dynamic categories loaded in app.js -->

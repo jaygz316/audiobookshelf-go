@@ -110,7 +110,13 @@ export async function loadDashboard(libraryId, isHomeOnly = false, filterBy = ''
     const searchInput = document.getElementById('global-search-input');
     const searchTerm = searchInput ? searchInput.value.trim() : '';
 
-    let activeFilter = filterBy || localStorage.getItem('library-filterBy') || '';
+    if (arguments.length > 2 && filterBy !== undefined) {
+      localStorage.setItem('library-filterBy', filterBy);
+      if (window.updateFilterLabelGlobal) {
+        window.updateFilterLabelGlobal(filterBy);
+      }
+    }
+    let activeFilter = localStorage.getItem('library-filterBy') || '';
     let activeSort = localStorage.getItem('library-sortBy') || 'media.metadata.title';
     let activeSortDesc = localStorage.getItem('library-sortDesc') === 'true';
 
@@ -142,7 +148,12 @@ export async function loadDashboard(libraryId, isHomeOnly = false, filterBy = ''
     // Update count in toolbar
     const bookCountEl = document.getElementById('book-count');
     if (bookCountEl) {
-      const unit = lib.mediaType === 'podcast' ? 'Podcasts' : 'Books';
+      let unit = '';
+      if (lib.mediaType === 'podcast') {
+        unit = totalItems === 1 ? 'Podcast' : 'Podcasts';
+      } else {
+        unit = totalItems === 1 ? 'Book' : 'Books';
+      }
       bookCountEl.textContent = `${totalItems} ${unit}`;
     }
 

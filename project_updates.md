@@ -118,7 +118,16 @@
   - Rebuilt assets and verified that Go unit, integration, and vet test suites pass.
 - **Audio Player Keyboard Controls & MediaSession Integration**:
   - Implemented global keyboard shortcuts (Space to toggle play/pause, ArrowLeft/Right to seek back and forward) that bypass triggering when focus is in input fields or textareas.
-  - Added support for the browser's native MediaSession API, enabling system-level/lock screen controls, headphone controls, and status sync.
+  - Added support for the browser's expansion of MediaSession API, enabling system-level/lock screen controls, headphone controls, and status sync.
   - Exposed media control handlers in `player.js` to handle play, pause, seek backward, seek forward, previous chapter, and next chapter/queue transitions.
   - Automatically updates the OS media session metadata (title, artist/author, album, cover image) and playbackState ('playing', 'paused', 'none') dynamically on playback events.
   - Built WebAssembly assets and verified backend tests successfully.
+- **Results Header Count Pluralization & Admin Paths**:
+  - Audited the results header and corrected item count pluralization logic across `dashboard.js`, `podcasts.js`, `collections.js`, and `playlists.js` so that counts correctly use singular forms (e.g. `1 Book`, `1 Active Task`, `1 Collection`, `1 Playlist`) instead of forced plurals.
+  - Enhanced the Item Details metadata grid in `itemDetails.js` to display the absolute file/folder path on disk when the logged-in user is an administrator (`isAdmin` context flag).
+  - Added `//go:build js && wasm` build tag to `frontend/go/main.go` to cleanly segregate WebAssembly dependencies during native environment test execution and compilation runs.
+- **Library Toolbar Filter & Item Details Badges Navigation**:
+  - Implemented an interactive inline "Clear Filter" close icon button next to the filter dropdown button in the main library toolbar, toggling visibility based on active filter state.
+  - Exposed `window.updateFilterLabelGlobal` in `app.js` and updated `loadDashboard` in `dashboard.js` to save filter settings to local storage when dynamically navigated and update the toolbar labels automatically.
+  - Styled genre and tag badges on the Item Details page as interactive links with transition properties, binding them to trigger custom events filtering the main dashboard view.
+

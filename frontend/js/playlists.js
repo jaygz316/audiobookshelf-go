@@ -20,7 +20,9 @@ export async function loadPlaylists(libraryId) {
     const res = await request('GET', `/api/libraries/${libraryId}/playlists`);
     const playlists = res.results || [];
 
-    if (bookCount) bookCount.textContent = `${playlists.length} Playlists`;
+    if (bookCount) {
+      bookCount.textContent = playlists.length === 1 ? '1 Playlist' : `${playlists.length} Playlists`;
+    }
 
     container.innerHTML = `
       <div class="p-6 space-y-6">

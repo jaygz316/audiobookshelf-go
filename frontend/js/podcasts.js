@@ -329,7 +329,9 @@ export async function loadPodcastDownloadQueueView(libraryId) {
       const res = await request('GET', '/api/tasks?include=queue');
       const tasks = res.tasks || [];
       
-      if (bookCount) bookCount.textContent = `${tasks.length} Active Tasks`;
+      if (bookCount) {
+        bookCount.textContent = tasks.length === 1 ? '1 Active Task' : `${tasks.length} Active Tasks`;
+      }
 
       if (tasks.length === 0) {
         container.innerHTML = `

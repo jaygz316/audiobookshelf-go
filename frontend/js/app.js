@@ -781,6 +781,18 @@ function setupEventHandlers() {
     const updateFilterLabel = (val, filterData) => {
       const labelEl = document.getElementById('filter-selected-label');
       if (labelEl) labelEl.textContent = getFriendlyFilterLabel(val, filterData);
+      const clearBtn = document.getElementById('filter-clear-btn');
+      if (clearBtn) {
+        if (val) {
+          clearBtn.classList.remove('hidden');
+        } else {
+          clearBtn.classList.add('hidden');
+        }
+      }
+    };
+
+    window.updateFilterLabelGlobal = (val) => {
+      updateFilterLabel(val, cachedFilterData);
     };
 
     const renderSubmenuItems = (filterText = '') => {
@@ -1037,6 +1049,18 @@ function setupEventHandlers() {
     }
     if (searchInput) {
       searchInput.oninput = (e) => renderSubmenuItems(e.target.value);
+    }
+    const filterClearBtn = document.getElementById('filter-clear-btn');
+    if (filterClearBtn) {
+      filterClearBtn.onclick = (e) => {
+        e.stopPropagation();
+        localStorage.setItem('library-filterBy', '');
+        updateFilterLabel('', cachedFilterData);
+        closeFilter();
+        closeSubmenu();
+        const activeLibId = getActiveLibraryId();
+        if (activeLibId) loadDashboard(activeLibId);
+      };
     }
 
     const initialActiveLibId = getActiveLibraryId();
