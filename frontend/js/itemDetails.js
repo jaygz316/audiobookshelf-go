@@ -362,6 +362,12 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
                   <p class="text-white mt-0.5 text-sm">${abridged ? 'Yes' : 'No'}</p>
                 </div>
               ` : ''}
+              ${isAdmin && item.path ? `
+                <div class="col-span-2 md:col-span-3">
+                  <p class="text-black-100 uppercase font-semibold">Path</p>
+                  <p class="text-white mt-0.5 text-xs font-mono break-all select-all">${escapeHtml(item.path)}</p>
+                </div>
+              ` : ''}
             </div>
 
             <!-- Genres & Tags -->
@@ -370,7 +376,7 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
                 <div class="space-y-1">
                   <h4 class="text-xs uppercase font-semibold text-black-100">Genres</h4>
                   <div class="flex flex-wrap gap-2">
-                    ${genres.map(g => `<span class="bg-black-500 border border-black-300 text-black-50 px-2.5 py-0.5 rounded-full text-xs font-medium">${escapeHtml(g)}</span>`).join('')}
+                    ${genres.map(g => `<span class="genre-link bg-black-500 border border-black-300 text-black-50 px-2.5 py-0.5 rounded-full text-xs font-medium cursor-pointer hover:text-accent hover:border-accent/40 hover:bg-black-500/80 transition-all" data-name="${escapeHtml(g)}">${escapeHtml(g)}</span>`).join('')}
                   </div>
                 </div>
               ` : ''}
@@ -379,7 +385,7 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
                 <div class="space-y-1">
                   <h4 class="text-xs uppercase font-semibold text-black-100">Tags</h4>
                   <div class="flex flex-wrap gap-2">
-                    ${tags.map(t => `<span class="bg-accent/10 border border-accent/20 text-accent px-2.5 py-0.5 rounded-full text-xs font-medium">${escapeHtml(t)}</span>`).join('')}
+                    ${tags.map(t => `<span class="tag-link bg-accent/10 border border-accent/20 text-accent px-2.5 py-0.5 rounded-full text-xs font-medium cursor-pointer hover:text-white hover:border-accent/60 hover:bg-accent/20 transition-all" data-name="${escapeHtml(t)}">${escapeHtml(t)}</span>`).join('')}
                   </div>
                 </div>
               ` : ''}
@@ -650,6 +656,32 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
           detail: {
             filterBy: `narrators.${encodedName}`,
             filterLabel: `Narrator: ${link.dataset.name}`
+          }
+        }));
+      };
+    });
+
+    container.querySelectorAll('.genre-link').forEach(link => {
+      link.onclick = (e) => {
+        e.preventDefault();
+        const encodedName = btoa(unescape(encodeURIComponent(link.dataset.name)));
+        window.dispatchEvent(new CustomEvent('navigate-to-dashboard', {
+          detail: {
+            filterBy: `genres.${encodedName}`,
+            filterLabel: `Genre: ${link.dataset.name}`
+          }
+        }));
+      };
+    });
+
+    container.querySelectorAll('.tag-link').forEach(link => {
+      link.onclick = (e) => {
+        e.preventDefault();
+        const encodedName = btoa(unescape(encodeURIComponent(link.dataset.name)));
+        window.dispatchEvent(new CustomEvent('navigate-to-dashboard', {
+          detail: {
+            filterBy: `tags.${encodedName}`,
+            filterLabel: `Tag: ${link.dataset.name}`
           }
         }));
       };
