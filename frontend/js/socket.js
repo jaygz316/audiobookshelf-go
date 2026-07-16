@@ -1,6 +1,10 @@
 // js/socket.js
 
-import { resolvePath } from './api.js';
+import { resolvePath, ROUTER_BASE_PATH } from './api.js';
+import { getActiveLibraryId } from './library.js';
+import { isDashboardActive } from './router.js';
+import { loadDashboard } from './dashboard.js';
+import { showToast } from './toast.js';
 
 let ws = null;
 let pingIntervalId = null;
@@ -120,4 +124,64 @@ function stopHeartbeat() {
     clearInterval(pingIntervalId);
     pingIntervalId = null;
   }
+}
+
+export function registerAppSocketListeners() {
+  // Register listener for progress syncing across devices
+  onEvent('user_item_progress_updated', (data) => {
+    console.log('[Socket] progress updated:', data);
+    const activeLibId = getActiveLibraryId();
+    if (activeLibId && isDashboardActive()) {
+      let pathName = window.location.pathname;
+      if (typeof ROUTER_BASE_PATH !== 'undefined' && ROUTER_BASE_PATH && pathName.startsWith(ROUTER_BASE_PATH)) {
+        pathName = pathName.substring(ROUTER_BASE_PATH.length);
+      }
+      if (!pathName.startsWith('/')) {
+        pathName = '/' + pathName;
+      }
+      loadDashboard(activeLibId, pathName === '/');
+    }
+  });
+
+  onEvent('user_updated', (data) => {
+    console.log('[Socket] user updated:', data);
+    const activeLibId = getActiveLibraryId();
+    if (activeLibId && isDashboardActive()) {
+      let pathName = window.location.pathname;
+      if (typeof ROUTER_BASE_PATH !== 'undefined' && ROUTER_BASE_PATH && pathName.startsWith(ROUTER_BASE_PATH)) {
+        pathName = pathName.substring(ROUTER_BASE_PATH.length);
+      }
+      if (!pathName.startsWith('/')) {
+        pathName = '/' + pathName;
+      }
+      loadDashboard(activeLibId, pathName === '/');
+    }
+  });
+
+  // Scan WebSocket Listeners
+  onEvent('library_scan_started', (libraryId) => {
+    if (libraryId === getActiveLibraryId()) {
+      const icon = document.getElementById('scan-btn-icon');
+      if (icon) icon.classList.add('animate-spin');
+      showToast('Library scan started', 'info');
+    }
+  });
+
+  onEvent('library_scan_complete', (libraryId) => {
+    if (libraryId === getActiveLibraryId()) {
+      const icon = document.getElementById('scan-btn-icon');
+      if (icon) icon.classList.remove('animate-spin');
+      showToast('Library scan completed', 'success');
+      if (isDashboardActive()) {
+        let pathName = window.location.pathname;
+        if (typeof ROUTER_BASE_PATH !== 'undefined' && ROUTER_BASE_PATH && pathName.startsWith(ROUTER_BASE_PATH)) {
+          pathName = pathName.substring(ROUTER_BASE_PATH.length);
+        }
+        if (!pathName.startsWith('/')) {
+          pathName = '/' + pathName;
+        }
+        loadDashboard(libraryId, pathName === '/');
+      }
+    }
+  });
 }
