@@ -1,15 +1,25 @@
-# Handoff: Audiobookshelf Go Port
+# Handoff: Audiobookshelf Go Port — UX Audit
 
-## Targeted Task & Accomplishments
-- **Target Task**: Settings Screens Visual Parity & Toast Alignment Audit
-- **Accomplishments**:
-  - Replaced all remaining native browser `alert()` popups with premium `showToast(...)` success, warning, and error notifications across all 16 settings tabs in `settings.js`.
-  - Audited and integrated inline Material Symbol icons into all settings action buttons and row controls to perfectly align with the original client layout (e.g. `save`, `close`, `check`, `content_copy`, `delete_sweep`, `settings_backup_restore`, `download`, `delete`, `link_off`, `add`, `vpn_key`, `sync`).
-  - Polished settings modal dialogue buttons (Cancel / Save / Create) with responsive hover indicators and transitions.
-  - Verified compilation and test suite correctness using the native WASM task runner, pushed the changes to `main`, and deployed the compiled image to `jaygz/audiobookshelf-go:latest`.
+## Current Screen Under Audit
+- **Screen**: Library Grid/List View
+- **Status**: ✅ Complete
 
-## Outstanding Work / Next Gaps
-- **Refinement of library grids**: Audit and align grid sorting/filter indicators and headers under `/library` to match original Audiobookshelf styling.
+## What Was Fixed This Run
+- Removed `font-mono` typography classes from the toolbar results count label (`#book-count`) and separators (`#view-title-separator`) in `frontend/index.html` to match the clean, sans-serif design of the original client.
+- Corrected dropdown option hover highlights in `frontend/js/app.js` from `hover:bg-black-500` to `hover:bg-black-400` to ensure the highlighted option is visually distinct against the `#232323` primary container background.
+- Aligned global styles in `frontend/css/styles.css` by updating the core theme variables (`--color-bg` to `#2c2c2c` for dark charcoal layout backgrounds, and `--color-accent` to `#e5a93b` for gold highlights) to match the brand identity of the original Audiobookshelf.
 
-## Next Steps
-- Verify visual consistency of results count headers and filter selectors on library grid views.
+## Remaining Issues on This Screen
+- None.
+
+## Next Screen in Queue
+- Priority 6 — Series View (Cascading stacked cards rendering and progression checks).
+
+## Buttons/Controls Verified Working This Run
+- Filter dropdown button and nested category flyout menus.
+- Sort dropdown selection buttons.
+- Sort direction ascending/descending toggle.
+- Customize columns dropdown list items and checklist inputs.
+
+## Buttons/Controls Known Broken
+- None.
