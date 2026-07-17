@@ -179,7 +179,7 @@ async function triggerUserModal(user = null, currentUser, onSaveSuccess) {
   }
 
   const modal = document.createElement('div');
-  modal.className = 'fixed inset-0 bg-black-900/80 z-50 flex items-center justify-center p-4 overflow-y-auto';
+  modal.className = 'fixed inset-0 bg-black-900/80 z-50 flex items-center justify-center p-4';
 
   const perms = user?.permissions || {
     download: true,
@@ -195,10 +195,11 @@ async function triggerUserModal(user = null, currentUser, onSaveSuccess) {
   const selectedTagsNotAccessible = perms.selectedTagsNotAccessible === true;
 
   modal.innerHTML = `
-    <div class="bg-primary border border-black-300 w-full max-w-lg p-6 rounded-md shadow-lg space-y-4 my-8">
-      <h3 class="text-lg font-bold border-b border-black-400 pb-2">${isEdit ? 'Edit User' : 'Add User'}</h3>
+    <div class="bg-primary border border-black-300 w-full max-w-lg p-6 rounded-md shadow-lg space-y-4 flex flex-col max-h-[90vh]">
+      <h3 class="text-lg font-bold border-b border-black-400 pb-2 flex-shrink-0">${isEdit ? 'Edit User' : 'Add User'}</h3>
       
-      <form id="user-form" class="space-y-4">
+      <form id="user-form" class="space-y-4 flex flex-col flex-grow overflow-hidden">
+        <div class="flex-grow overflow-y-auto pr-1 no-scroll space-y-4">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label class="block text-xs text-black-100 mb-1">Username</label>
@@ -349,8 +350,9 @@ async function triggerUserModal(user = null, currentUser, onSaveSuccess) {
             </div>
           </div>
         </div>
+        </div>
 
-        <div class="flex justify-end space-x-3 pt-2">
+        <div class="flex justify-end space-x-3 pt-2 border-t border-black-400 flex-shrink-0">
           <button type="button" id="close-user-modal-btn" class="bg-black-400 hover:bg-black-300 text-white px-4 py-2 rounded text-xs font-semibold transition-colors flex items-center space-x-1">
             <span class="material-symbols text-sm">close</span>
             <span>Cancel</span>

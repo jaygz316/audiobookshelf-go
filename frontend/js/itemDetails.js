@@ -122,7 +122,7 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
     }
 
     container.innerHTML = `
-      <div class="p-6 space-y-6 max-w-5xl mx-auto">
+      <div class="p-4 sm:p-6 md:p-8 space-y-6 max-w-6xl mx-auto">
         <!-- Navigation Header -->
         <div class="flex items-center justify-between border-b border-black-600/50 pb-4">
           <button id="details-back-btn" class="flex items-center space-x-1 px-3 py-1.5 rounded-md text-xs font-semibold text-white bg-black-400 hover:bg-black-300 border border-black-300 shadow transition-all duration-150 focus:outline-none cursor-pointer">
@@ -148,9 +148,9 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
         </div>
 
         <!-- Main Grid Layout -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div class="grid grid-cols-1 md:grid-cols-[240px_1fr] gap-6 md:gap-8">
           <!-- Left Column: Cover & Core Actions -->
-          <div class="flex flex-col items-center space-y-4">
+          <div class="w-full flex flex-col items-center md:items-start space-y-4">
             <div id="details-cover-container" class="w-56 h-80 bg-black-500 rounded border border-black-400 overflow-hidden shadow-2xl flex-shrink-0 flex items-center justify-center relative group select-none cursor-pointer">
               <img src="${coverUrl}" alt="${escapeHtml(title)}" class="w-full h-full object-cover" onerror="this.onerror=null; this.src='assets/images/logo.png'">
               <div class="book-spine-crease"></div>
@@ -163,38 +163,38 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
             </div>
             
             <!-- Core Play/Read Buttons -->
-            <div class="w-full space-y-2 max-w-xs">
+            <div class="w-full grid grid-cols-2 gap-2 sm:flex sm:flex-col sm:space-y-2 max-w-xs md:max-w-none">
               ${hasAudio ? `
-                <button id="details-play-action-btn" class="w-full bg-accent hover:opacity-90 text-primary font-bold py-2.5 px-4 rounded-md transition-all flex items-center justify-center space-x-2 text-sm shadow hover:scale-[1.02] duration-200 cursor-pointer">
+                <button id="details-play-action-btn" class="col-span-2 sm:col-span-1 w-full bg-accent hover:opacity-90 text-primary font-bold py-2.5 px-4 rounded-md transition-all flex items-center justify-center space-x-2 text-sm shadow hover:scale-[1.02] duration-200 cursor-pointer">
                   <span class="material-symbols text-lg font-bold">play_arrow</span>
                   <span>Play Audiobook</span>
                 </button>
-                <button id="details-queue-action-btn" class="w-full bg-black-400 hover:bg-black-300 border border-black-300 text-white font-semibold py-2 px-4 rounded-md transition-all flex items-center justify-center space-x-2 text-xs shadow hover:scale-[1.02] duration-200 mt-2 cursor-pointer">
+                <button id="details-queue-action-btn" class="w-full bg-black-400 hover:bg-black-300 border border-black-300 text-white font-semibold py-2 px-4 rounded-md transition-all flex items-center justify-center space-x-2 text-xs shadow hover:scale-[1.02] duration-200 cursor-pointer">
                   <span class="material-symbols text-sm">playlist_add</span>
                   <span>Add to Queue</span>
                 </button>
               ` : ''}
               
               ${hasEbook ? `
-                <button id="details-read-action-btn" class="w-full bg-black-400 hover:bg-black-300 border border-black-300 text-white font-bold py-2.5 px-4 rounded-md transition-all flex items-center justify-center space-x-2 text-sm shadow hover:scale-[1.02] duration-200 cursor-pointer">
+                <button id="details-read-action-btn" class="col-span-2 sm:col-span-1 w-full bg-black-400 hover:bg-black-300 border border-black-300 text-white font-bold py-2.5 px-4 rounded-md transition-all flex items-center justify-center space-x-2 text-sm shadow hover:scale-[1.02] duration-200 cursor-pointer">
                   <span class="material-symbols text-lg font-bold">menu_book</span>
                   <span>Read Book</span>
                 </button>
-                <button id="details-send-device-btn" class="w-full bg-black-400 hover:bg-black-300 border border-black-300 text-white font-semibold py-2 px-4 rounded-md transition-all flex items-center justify-center space-x-2 text-xs shadow hover:scale-[1.02] duration-200 mt-2 cursor-pointer">
+                <button id="details-send-device-btn" class="w-full bg-black-400 hover:bg-black-300 border border-black-300 text-white font-semibold py-2 px-4 rounded-md transition-all flex items-center justify-center space-x-2 text-xs shadow hover:scale-[1.02] duration-200 cursor-pointer">
                   <span class="material-symbols text-sm">send_to_mobile</span>
                   <span>Send to Device</span>
                 </button>
               ` : ''}
 
               <!-- Playlist Button -->
-              <button id="details-playlist-action-btn" class="w-full bg-black-400 hover:bg-black-300 border border-black-300 text-white font-semibold py-2 px-4 rounded-md transition-all flex items-center justify-center space-x-2 text-xs shadow hover:scale-[1.02] duration-200 mt-2 cursor-pointer">
+              <button id="details-playlist-action-btn" class="w-full bg-black-400 hover:bg-black-300 border border-black-300 text-white font-semibold py-2 px-4 rounded-md transition-all flex items-center justify-center space-x-2 text-xs shadow hover:scale-[1.02] duration-200 cursor-pointer">
                 <span class="material-symbols text-sm">playlist_add</span>
                 <span>Add to Playlist</span>
               </button>
 
               <!-- Download Button -->
               ${(user && user.permissions?.download) || isAdmin ? `
-                <button id="details-download-action-btn" class="w-full bg-black-400 hover:bg-black-300 border border-black-300 text-white font-semibold py-2 px-4 rounded-md transition-all flex items-center justify-center space-x-2 text-xs shadow hover:scale-[1.02] duration-200 mt-2 cursor-pointer">
+                <button id="details-download-action-btn" class="w-full bg-black-400 hover:bg-black-300 border border-black-300 text-white font-semibold py-2 px-4 rounded-md transition-all flex items-center justify-center space-x-2 text-xs shadow hover:scale-[1.02] duration-200 cursor-pointer">
                   <span class="material-symbols text-sm">download</span>
                   <span>Download</span>
                 </button>
@@ -205,17 +205,17 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
                   <span class="material-symbols text-sm">image</span>
                   <span>${item.media?.coverPath ? 'Change Cover' : 'Get Cover Art'}</span>
                 </button>
-                <button id="details-embed-metadata-btn" class="w-full bg-black-400 hover:bg-black-300 border border-black-300 text-white font-semibold py-2 px-4 rounded-md transition-all flex items-center justify-center space-x-2 text-xs shadow hover:scale-[1.02] duration-200 mt-2 cursor-pointer">
+                <button id="details-embed-metadata-btn" class="col-span-2 sm:col-span-1 w-full bg-black-400 hover:bg-black-300 border border-black-300 text-white font-semibold py-2 px-4 rounded-md transition-all flex items-center justify-center space-x-2 text-xs shadow hover:scale-[1.02] duration-200 cursor-pointer">
                   <span class="material-symbols text-sm">settings_suggest</span>
                   <span>Embed Metadata</span>
                 </button>
                 ${item.media?.audioFiles && item.media.audioFiles.length > 1 ? `
-                  <button id="details-merge-audio-btn" class="w-full bg-black-400 hover:bg-black-300 border border-black-300 text-white font-semibold py-2 px-4 rounded-md transition-all flex items-center justify-center space-x-2 text-xs shadow hover:scale-[1.02] duration-200 mt-2 cursor-pointer">
+                  <button id="details-merge-audio-btn" class="col-span-2 sm:col-span-1 w-full bg-black-400 hover:bg-black-300 border border-black-300 text-white font-semibold py-2 px-4 rounded-md transition-all flex items-center justify-center space-x-2 text-xs shadow hover:scale-[1.02] duration-200 cursor-pointer">
                     <span class="material-symbols text-sm">call_merge</span>
                     <span>Merge Audio Files</span>
                   </button>
                 ` : ''}
-                <button id="details-share-btn" class="w-full bg-black-400 hover:bg-black-300 border border-black-300 text-white font-semibold py-2 px-4 rounded-md transition-all flex items-center justify-center space-x-2 text-xs shadow hover:scale-[1.02] duration-200 mt-2 cursor-pointer">
+                <button id="details-share-btn" class="col-span-2 sm:col-span-1 w-full bg-black-400 hover:bg-black-300 border border-black-300 text-white font-semibold py-2 px-4 rounded-md transition-all flex items-center justify-center space-x-2 text-xs shadow hover:scale-[1.02] duration-200 cursor-pointer">
                   <span class="material-symbols text-sm">share</span>
                   <span>Share Link</span>
                 </button>
@@ -223,7 +223,7 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
             </div>
 
             <!-- Progress Section -->
-            <div id="details-progress-section" class="w-full max-w-xs border border-black-400/50 bg-primary/20 rounded-md p-3.5 space-y-3 text-xs text-left hidden">
+            <div id="details-progress-section" class="w-full max-w-xs md:max-w-none border border-black-400/50 bg-primary/20 rounded-md p-3.5 space-y-3 text-xs text-left hidden">
               <div class="flex items-center justify-between border-b border-black-500 pb-2">
                 <span class="font-bold text-white uppercase tracking-wider">Your Progress</span>
                 <span id="progress-status-badge" class="px-2 py-0.5 rounded text-[0.65rem] font-bold uppercase tracking-wide bg-black-500 text-black-100">Not Started</span>
@@ -253,7 +253,7 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
             </div>
 
             <!-- RSS Feed Status & Management Section -->
-            <div id="details-rss-section" class="w-full max-w-xs border border-black-400/50 bg-primary/20 rounded-md p-3.5 space-y-3 text-xs text-left">
+            <div id="details-rss-section" class="w-full max-w-xs md:max-w-none border border-black-400/50 bg-primary/20 rounded-md p-3.5 space-y-3 text-xs text-left">
               <div class="flex items-center justify-between border-b border-black-500 pb-2">
                 <span class="font-bold text-white uppercase tracking-wider">RSS Feed</span>
                 <span id="rss-status-badge" class="px-2 py-0.5 rounded text-[0.65rem] font-bold uppercase tracking-wide bg-black-500 text-black-100">Closed</span>
@@ -265,7 +265,7 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
 
             <!-- Playback History Section -->
             ${hasAudio ? `
-              <div id="details-history-section" class="w-full max-w-xs border border-black-400/50 bg-primary/20 rounded-md p-3.5 space-y-3 text-xs text-left">
+              <div id="details-history-section" class="w-full max-w-xs md:max-w-none border border-black-400/50 bg-primary/20 rounded-md p-3.5 space-y-3 text-xs text-left">
                 <div class="flex items-center justify-between border-b border-black-500 pb-2">
                   <span class="font-bold text-white uppercase tracking-wider">Playback History</span>
                   <span id="history-total-badge" class="px-2 py-0.5 rounded text-[0.65rem] font-bold uppercase tracking-wide bg-black-500 text-black-100">0 sessions</span>
@@ -958,22 +958,22 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
                   <input type="checkbox" id="podcast-batch-select-all" class="w-4 h-4 rounded border-black-300 text-accent focus:ring-accent cursor-pointer">
                   <label for="podcast-batch-select-all" class="text-xs text-white cursor-pointer select-none">Select All (<span id="batch-selected-count">0</span>)</label>
                 </div>
-                <div class="flex items-center space-x-2">
-                  <button id="batch-download-btn" class="bg-accent text-primary text-xs font-bold px-3 py-1.5 rounded hover:opacity-90 transition-opacity flex items-center space-x-1">
+                <div class="flex flex-wrap items-center gap-2">
+                  <button id="batch-download-btn" title="Download" class="bg-accent text-primary text-xs font-bold px-3 py-1.5 rounded hover:opacity-90 transition-opacity flex items-center space-x-1">
                     <span class="material-symbols text-sm">download</span>
-                    <span>Download</span>
+                    <span class="hidden sm:inline">Download</span>
                   </button>
-                  <button id="batch-played-btn" class="bg-black-400 hover:bg-black-300 text-white text-xs font-bold px-3 py-1.5 rounded transition-colors flex items-center space-x-1">
+                  <button id="batch-played-btn" title="Mark Played" class="bg-black-400 hover:bg-black-300 text-white text-xs font-bold px-3 py-1.5 rounded transition-colors flex items-center space-x-1">
                     <span class="material-symbols text-sm">check_circle</span>
-                    <span>Mark Played</span>
+                    <span class="hidden sm:inline">Mark Played</span>
                   </button>
-                  <button id="batch-unplayed-btn" class="bg-black-400 hover:bg-black-300 text-white text-xs font-bold px-3 py-1.5 rounded transition-colors flex items-center space-x-1">
+                  <button id="batch-unplayed-btn" title="Mark Unplayed" class="bg-black-400 hover:bg-black-300 text-white text-xs font-bold px-3 py-1.5 rounded transition-colors flex items-center space-x-1">
                     <span class="material-symbols text-sm">radio_button_unchecked</span>
-                    <span>Mark Unplayed</span>
+                    <span class="hidden sm:inline">Mark Unplayed</span>
                   </button>
-                  <button id="batch-delete-btn" class="bg-black-400 hover:bg-red-900/40 border border-red-500/30 text-error hover:text-white hover:border-red-500/50 text-xs font-bold px-3 py-1.5 rounded transition-colors flex items-center space-x-1 cursor-pointer">
+                  <button id="batch-delete-btn" title="Delete" class="bg-black-400 hover:bg-red-900/40 border border-red-500/30 text-error hover:text-white hover:border-red-500/50 text-xs font-bold px-3 py-1.5 rounded transition-colors flex items-center space-x-1 cursor-pointer">
                     <span class="material-symbols text-sm">delete</span>
-                    <span>Delete</span>
+                    <span class="hidden sm:inline">Delete</span>
                   </button>
                 </div>
               </div>
@@ -1104,9 +1104,9 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
                     btnIcon = 'replay';
                   }
                   playBtn = `
-                    <button class="episode-play-btn flex items-center space-x-1 bg-accent text-primary px-2.5 py-1 rounded font-bold hover:opacity-90 transition-opacity" data-id="${ep.id}">
+                    <button class="episode-play-btn flex items-center space-x-1 bg-accent text-primary px-2.5 py-1 rounded font-bold hover:opacity-90 transition-opacity" data-id="${ep.id}" title="${btnText}">
                       <span class="material-symbols text-sm font-bold">${btnIcon}</span>
-                      <span>${btnText}</span>
+                      <span class="hidden sm:inline">${btnText}</span>
                     </button>
                   `;
                 }
@@ -1115,9 +1115,9 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
                 let downloadActionBtn = '';
                 if (!isDownloaded) {
                   downloadActionBtn = `
-                    <button class="episode-download-btn flex items-center space-x-1 bg-black-400 hover:bg-black-300 border border-black-300 text-white px-2.5 py-1 rounded font-bold transition-colors" data-id="${ep.id}">
+                    <button class="episode-download-btn flex items-center space-x-1 bg-black-400 hover:bg-black-300 border border-black-300 text-white px-2.5 py-1 rounded font-bold transition-colors" data-id="${ep.id}" title="Download">
                       <span class="material-symbols text-sm">download</span>
-                      <span>Download</span>
+                      <span class="hidden sm:inline">Download</span>
                     </button>
                   `;
                 }

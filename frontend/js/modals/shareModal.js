@@ -5,7 +5,7 @@ export function triggerShareLinkModal(item) {
   const title = media.title || item.title || 'Unknown Item';
 
   const modal = document.createElement('div');
-  modal.className = 'fixed inset-0 bg-black-900/80 z-50 flex items-center justify-center p-4 select-none';
+  modal.className = 'fixed inset-0 bg-black-900/80 z-50 flex items-center justify-center p-4';
   modal.innerHTML = `
     <div class="bg-primary border border-black-300 w-full max-w-md p-6 rounded-md shadow-2xl space-y-4 flex flex-col">
       <!-- Header -->

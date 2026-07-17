@@ -40,78 +40,78 @@ export async function loadSettings() {
       <div role="tablist" aria-label="Settings categories" class="w-full md:w-64 flex-shrink-0 bg-primary/50 border border-black-400/50 rounded-lg p-2 flex flex-row md:flex-col overflow-x-auto md:overflow-x-visible space-x-1 md:space-x-0 space-y-0 md:space-y-1 h-fit scrollbar-none" id="settings-tabs">
         <!-- SERVER GROUP -->
         <div class="hidden md:block text-[10px] font-bold text-accent uppercase tracking-wider px-3 py-1 mt-2 mb-1">Server</div>
-        <button role="tab" aria-selected="true" class="flex-shrink-0 w-auto md:w-full text-left px-3 py-2 rounded-md md:rounded-l-none md:rounded-r-md font-semibold text-sm transition-all text-accent bg-black-500/80 flex items-center space-x-2 border-b-2 border-b-accent md:border-b-0 md:border-l-4 md:border-l-accent" data-tab="libraries">
+        <button role="tab" aria-selected="true" class="settings-tab-btn" data-tab="libraries">
           <span class="material-symbols text-lg">local_library</span>
           <span>Libraries</span>
         </button>
-        <button role="tab" aria-selected="false" class="flex-shrink-0 w-auto md:w-full text-left px-3 py-2 rounded-md md:rounded-l-none md:rounded-r-md font-semibold text-sm transition-all text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2 border-b-2 border-b-transparent md:border-b-0 md:border-l-4 md:border-l-transparent" data-tab="users">
+        <button role="tab" aria-selected="false" class="settings-tab-btn" data-tab="users">
           <span class="material-symbols text-lg">group</span>
           <span>Users</span>
         </button>
-        <button role="tab" aria-selected="false" class="flex-shrink-0 w-auto md:w-full text-left px-3 py-2 rounded-md md:rounded-l-none md:rounded-r-md font-semibold text-sm transition-all text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2 border-b-2 border-b-transparent md:border-b-0 md:border-l-4 md:border-l-transparent" data-tab="listening-sessions">
+        <button role="tab" aria-selected="false" class="settings-tab-btn" data-tab="listening-sessions">
           <span class="material-symbols text-lg">insights</span>
           <span>Playback Sessions</span>
         </button>
-        <button role="tab" aria-selected="false" class="flex-shrink-0 w-auto md:w-full text-left px-3 py-2 rounded-md md:rounded-l-none md:rounded-r-md font-semibold text-sm transition-all text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2 border-b-2 border-b-transparent md:border-b-0 md:border-l-4 md:border-l-transparent" data-tab="backups">
+        <button role="tab" aria-selected="false" class="settings-tab-btn" data-tab="backups">
           <span class="material-symbols text-lg">backup</span>
           <span>Backups</span>
         </button>
-        <button role="tab" aria-selected="false" class="flex-shrink-0 w-auto md:w-full text-left px-3 py-2 rounded-md md:rounded-l-none md:rounded-r-md font-semibold text-sm transition-all text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2 border-b-2 border-b-transparent md:border-b-0 md:border-l-4 md:border-l-transparent" data-tab="providers">
+        <button role="tab" aria-selected="false" class="settings-tab-btn" data-tab="providers">
           <span class="material-symbols text-lg">api</span>
           <span>Custom Metadata Providers</span>
         </button>
-        <button role="tab" aria-selected="false" class="flex-shrink-0 w-auto md:w-full text-left px-3 py-2 rounded-md md:rounded-l-none md:rounded-r-md font-semibold text-sm transition-all text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2 border-b-2 border-b-transparent md:border-b-0 md:border-l-4 md:border-l-transparent" data-tab="logs">
+        <button role="tab" aria-selected="false" class="settings-tab-btn" data-tab="logs">
           <span class="material-symbols text-lg">description</span>
           <span>System Logs</span>
         </button>
- 
+
         <!-- CONFIGURATION GROUP -->
         <div class="hidden md:block text-[10px] font-bold text-accent uppercase tracking-wider px-3 py-1 mt-4 mb-1 border-t border-black-400/30 pt-3">Configuration</div>
-        <button role="tab" aria-selected="false" class="flex-shrink-0 w-auto md:w-full text-left px-3 py-2 rounded-md md:rounded-l-none md:rounded-r-md font-semibold text-sm transition-all text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2 border-b-2 border-b-transparent md:border-b-0 md:border-l-4 md:border-l-transparent" data-tab="server">
+        <button role="tab" aria-selected="false" class="settings-tab-btn" data-tab="server">
           <span class="material-symbols text-lg">dns</span>
           <span>Server Settings</span>
         </button>
-        <button role="tab" aria-selected="false" class="flex-shrink-0 w-auto md:w-full text-left px-3 py-2 rounded-md md:rounded-l-none md:rounded-r-md font-semibold text-sm transition-all text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2 border-b-2 border-b-transparent md:border-b-0 md:border-l-4 md:border-l-transparent" data-tab="auth">
+        <button role="tab" aria-selected="false" class="settings-tab-btn" data-tab="auth">
           <span class="material-symbols text-lg">security</span>
           <span>Authentication</span>
         </button>
-        <button role="tab" aria-selected="false" class="flex-shrink-0 w-auto md:w-full text-left px-3 py-2 rounded-md md:rounded-l-none md:rounded-r-md font-semibold text-sm transition-all text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2 border-b-2 border-b-transparent md:border-b-0 md:border-l-4 md:border-l-transparent" data-tab="notifications">
+        <button role="tab" aria-selected="false" class="settings-tab-btn" data-tab="notifications">
           <span class="material-symbols text-lg">notifications</span>
           <span>Notifications</span>
         </button>
-        <button role="tab" aria-selected="false" class="flex-shrink-0 w-auto md:w-full text-left px-3 py-2 rounded-md md:rounded-l-none md:rounded-r-md font-semibold text-sm transition-all text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2 border-b-2 border-b-transparent md:border-b-0 md:border-l-4 md:border-l-transparent" data-tab="emails">
+        <button role="tab" aria-selected="false" class="settings-tab-btn" data-tab="emails">
           <span class="material-symbols text-lg">mail</span>
           <span>E-Reader Email</span>
         </button>
-        <button role="tab" aria-selected="false" class="flex-shrink-0 w-auto md:w-full text-left px-3 py-2 rounded-md md:rounded-l-none md:rounded-r-md font-semibold text-sm transition-all text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2 border-b-2 border-b-transparent md:border-b-0 md:border-l-4 md:border-l-transparent" data-tab="feeds">
+        <button role="tab" aria-selected="false" class="settings-tab-btn" data-tab="feeds">
           <span class="material-symbols text-lg">rss_feed</span>
           <span>RSS Feeds</span>
         </button>
- 
+
         <!-- TOOLS GROUP -->
         <div class="hidden md:block text-[10px] font-bold text-accent uppercase tracking-wider px-3 py-1 mt-4 mb-1 border-t border-black-400/30 pt-3">Tools</div>
-        <button role="tab" aria-selected="false" class="flex-shrink-0 w-auto md:w-full text-left px-3 py-2 rounded-md md:rounded-l-none md:rounded-r-md font-semibold text-sm transition-all text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2 border-b-2 border-b-transparent md:border-b-0 md:border-l-4 md:border-l-transparent" data-tab="apikeys">
+        <button role="tab" aria-selected="false" class="settings-tab-btn" data-tab="apikeys">
           <span class="material-symbols text-lg">vpn_key</span>
           <span>API Keys</span>
         </button>
-        <button role="tab" aria-selected="false" class="flex-shrink-0 w-auto md:w-full text-left px-3 py-2 rounded-md md:rounded-l-none md:rounded-r-md font-semibold text-sm transition-all text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2 border-b-2 border-b-transparent md:border-b-0 md:border-l-4 md:border-l-transparent" data-tab="login-sessions">
+        <button role="tab" aria-selected="false" class="settings-tab-btn" data-tab="login-sessions">
           <span class="material-symbols text-lg">devices</span>
           <span>Login Sessions</span>
         </button>
-        <button role="tab" aria-selected="false" class="flex-shrink-0 w-auto md:w-full text-left px-3 py-2 rounded-md md:rounded-l-none md:rounded-r-md font-semibold text-sm transition-all text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2 border-b-2 border-b-transparent md:border-b-0 md:border-l-4 md:border-l-transparent" data-tab="upload">
+        <button role="tab" aria-selected="false" class="settings-tab-btn" data-tab="upload">
           <span class="material-symbols text-lg">upload</span>
           <span>Uploads</span>
         </button>
-        <button role="tab" aria-selected="false" class="flex-shrink-0 w-auto md:w-full text-left px-3 py-2 rounded-md md:rounded-l-none md:rounded-r-md font-semibold text-sm transition-all text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2 border-b-2 border-b-transparent md:border-b-0 md:border-l-4 md:border-l-transparent" data-tab="shares">
+        <button role="tab" aria-selected="false" class="settings-tab-btn" data-tab="shares">
           <span class="material-symbols text-lg">share</span>
           <span>Shares</span>
         </button>
-        <button role="tab" aria-selected="false" class="flex-shrink-0 w-auto md:w-full text-left px-3 py-2 rounded-md md:rounded-l-none md:rounded-r-md font-semibold text-sm transition-all text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2 border-b-2 border-b-transparent md:border-b-0 md:border-l-4 md:border-l-transparent" data-tab="tasks">
+        <button role="tab" aria-selected="false" class="settings-tab-btn" data-tab="tasks">
           <span class="material-symbols text-lg">downloading</span>
           <span>Tasks & Downloads</span>
         </button>
       </div>
- 
+
       <!-- Right Content Column -->
       <div class="flex-grow bg-primary/20 border border-black-400/50 rounded-lg p-4 md:p-6 min-w-0" id="settings-tab-content">
         <div id="tab-libraries" class="space-y-6" role="tabpanel" aria-label="Libraries"></div>
@@ -133,7 +133,7 @@ export async function loadSettings() {
       </div>
     </div>
   `;
- 
+
   // Attach tab switcher click handlers
   const tabs = document.querySelectorAll('#settings-tabs button');
   tabs.forEach(tab => {
@@ -141,12 +141,10 @@ export async function loadSettings() {
       const activeTabId = tab.dataset.tab;
       const updateTabs = () => {
         tabs.forEach(t => {
-          t.className = 'flex-shrink-0 w-auto md:w-full text-left px-3 py-2 rounded-md md:rounded-l-none md:rounded-r-md font-semibold text-sm transition-all text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2 border-b-2 border-b-transparent md:border-b-0 md:border-l-4 md:border-l-transparent';
           t.setAttribute('aria-selected', 'false');
         });
-        tab.className = 'flex-shrink-0 w-auto md:w-full text-left px-3 py-2 rounded-md md:rounded-l-none md:rounded-r-md font-semibold text-sm transition-all text-accent bg-black-500/80 flex items-center space-x-2 border-b-2 border-b-accent md:border-b-0 md:border-l-4 md:border-l-accent';
         tab.setAttribute('aria-selected', 'true');
- 
+
         document.querySelectorAll('#settings-tab-content > div').forEach(content => {
           if (content.id === `tab-${activeTabId}`) {
             content.classList.remove('hidden');

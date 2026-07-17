@@ -3,7 +3,7 @@ import { escapeHtml } from '../itemDetails.js';
 
 export function triggerCoverEditorModal(item, libraryId, onSaveSuccess) {
   const modal = document.createElement('div');
-  modal.className = 'fixed inset-0 bg-black-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 select-none';
+  modal.className = 'fixed inset-0 bg-black-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4';
   
   const mediaType = item.mediaType || 'book';
   const currentTitle = item.media?.metadata?.title || '';
@@ -26,7 +26,7 @@ export function triggerCoverEditorModal(item, libraryId, onSaveSuccess) {
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6 overflow-y-auto py-4 flex-grow no-scroll">
         <!-- Left: Canvas Area & Crop Controls -->
         <div class="flex flex-col space-y-4">
-          <div class="border border-black-400 rounded bg-black-900 p-2 flex items-center justify-center h-[360px] relative overflow-hidden">
+          <div class="border border-black-400 rounded bg-black-900 p-2 flex items-center justify-center h-[360px] relative overflow-hidden select-none">
             <canvas id="editor-canvas" class="max-w-full max-h-full cursor-crosshair"></canvas>
             <div id="editor-empty-state" class="absolute inset-0 flex flex-col items-center justify-center text-black-200 text-xs pointer-events-none">
               <span class="material-symbols text-4xl mb-2">image</span>

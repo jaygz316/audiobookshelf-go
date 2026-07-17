@@ -30,6 +30,41 @@
 *This log is updated by developers/agents whenever an API, design pattern, or library is deprecated or updated.*
 
 ### 2026-07-17
+- **Library Layout Columns & Mobile Form Polish**:
+  - Refactored [itemDetails.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/itemDetails.js) container padding to responsive `p-4 sm:p-6 md:p-8` and increased maximum width constraint to `max-w-6xl` to align with the main application grid.
+  - Upgraded details layout grid on desktop from a hardcoded 3-column split to a customized 2-column layout (`grid-cols-1 md:grid-cols-[240px_1fr]`) to reserve a precise 240px left-hand control rail.
+  - Configured core left-rail widgets (Play/Read buttons block, progress summary, RSS status cards, playback history block) to expand dynamically to fill the column width on desktop (`md:max-w-none`) while remaining compact (`max-w-xs`) and centered on mobile viewports.
+  - Aligned [authors.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/authors.js) author and series details views with standard details page responsive margins (`p-4 sm:p-6 md:p-8 max-w-6xl`).
+  - Refactored `triggerUserModal` in [users.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/settings/users.js) to enforce scroll containment on small screens (using a standard flex layout container with `max-h-[90vh] flex flex-col` and a nested scrollable field wrapper `.flex-grow.overflow-y-auto.no-scroll.pr-1`).
+  - Added a clean top divider border and kept actions footer fixed visually at the bottom of the modal, ensuring user forms do not bleed past the viewport bottom on mobile.
+- **Mobile Dropdown Drill-Down & Accessibility Audit**:
+  - Enhanced the filter submenu UX in [app.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/app.js) on mobile viewports by hiding the parent categories filter dropdown menu when the submenu is active. Clicking "Back to Categories" within the submenu restores the parent menu visibility. This mimics native navigation stacks and avoids overlapping semi-transparent glassmorphic overlays.
+  - Increased the touch target size of metadata lock buttons (`metadata-lock-btn`) in [editDetailsModal.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/modals/editDetailsModal.js) by adding padding (`p-2`), standard sizing (`w-8 h-8 flex items-center justify-center`), and hover/focus highlights within a rounded-full layout.
+  - Modified the lock click binding in [editDetailsModal.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/modals/editDetailsModal.js) to toggle specific color classes using `classList` rather than overriding the entire `className`, preserving the custom layout styles and preventing tap target collapse on interaction.
+  - Configured long-text secondary buttons (Embed Metadata, Merge Audio Files, and Share Link) on the item details page in [itemDetails.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/itemDetails.js) to span the full 2 columns (`col-span-2 sm:col-span-1`) on mobile viewports. This prevents narrow text wrapping and ensures perfectly balanced button rows with no orphaned cells.
+- **Mobile Details Action Button Grid & Toolbar Dropdown Enhancements**:
+  - Refactored the item details page action buttons list in [itemDetails.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/itemDetails.js) to display as a clean 2-column grid (`grid grid-cols-2 gap-2`) on mobile viewports with primary play and read buttons spanning both columns, replacing a long vertical stack of buttons and removing hardcoded top margins.
+  - Optimized the filter submenu flyout positioning in [app.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/app.js) to overlay on top of the main filter category menu on mobile viewports (`right: 0px`, `top: 100%`, `width: 192px`), and added a sticky "Back to Categories" header action button to return to the category selection drawer.
+  - Increased the width of main filter and sort dropdowns in [index.html](file:///home/jay/projects/audiobookshelf-go/frontend/index.html) on narrow screens (`w-48 sm:w-44`) to enlarge touch targets and minimize title text truncation.
+- **Modal Text Selection and Inputs Fix**:
+  - Removed `select-none` from the modal wrapper divs across all dynamic modals (`bookmarksModal.js`, `editDetailsModal.js`, `matchBookModal.js`, `shareModal.js`, `chaptersModal.js`, `coverEditorModal.js`) to allow text highlight, select, and copy/paste within forms.
+  - Added targeted `select-none` wrappers specifically to crop canvas and timelines inside those modals (e.g. cover editor canvas container) to prevent accidental text highlight during drag interactions.
+- **Podcast Episodes List Mobile Layout Audit**:
+  - Implemented responsive wrapping and text truncation on individual episode buttons (Play, Resume, Replay, Download) by hiding button text (`hidden sm:inline`) on narrow viewports while maintaining descriptive titles for screen readers.
+  - Wrapped batch actions toolbar in flex-wrap and adjusted button layout to prevent viewport overflow on small screens.
+- **Smooth Details Transitions**:
+  - Added smooth CSS Grid transition rules (`grid-template-rows 0.25s ease-out`) on details dropdown elements (`details.group > div`) to enable premium accordion-style expand and collapse animations.
+- **Chapters Timeline Touch Optimization**:
+  - Implemented touch event listeners (`touchstart`, `touchmove`, `touchend`, `touchcancel`) on the interactive timeline handles in [chaptersModal.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/modals/chaptersModal.js).
+  - Added `moveEvent.preventDefault()` inside touch move handlers to prevent default screen panning and scrolling when adjusting chapter boundaries on mobile.
+- **Bookshelf and Layout Scroll Physics**:
+  - Audited and verified smooth momentum scrolling (`-webkit-overflow-scrolling: touch`) and smooth scroll behavior (`scroll-behavior: smooth`) on all custom horizontal bookshelf rows (`.bookshelfRow`) in [components.css](file:///home/jay/projects/audiobookshelf-go/frontend/css/components.css).
+- **Settings Screen Visual Parity**:
+  - Verified visual consistency of layout forms, input fields, and green/gray switch toggles (`#10b981` when active).
+  - Aligned library lists with left accent orange border (`border-l-accent` / `#e88024` border-left highlight) on selected items, custom styled scan buttons, and active drag handle grab states.
+- **Interactive Waveform Chapters Timeline Editor**:
+  - Implemented a complete interactive visual waveform timeline for the `Edit Chapters` modal, featuring Zoom controls (1x to 10x), ruler ticks based on duration, and draggable chapter segments to adjust chapter start/end times.
+  - Added seamless state synchronization between the chapters list and the visual segments, split/delete actions, ASIN warnings/validations, and loading state indicators.
 - **Fullscreen Rotating Circular Cover Art**:
   - Upgraded the cover art in the fullscreen overlay player to be circular (`rounded-full` with a defined border) across all media types.
   - Implemented a smooth spin animation (`animate-spin-slow`) when playback is active, which seamlessly pauses/resumes in place using a toggleable `.animation-paused` class.

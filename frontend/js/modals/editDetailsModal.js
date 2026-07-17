@@ -87,9 +87,9 @@ export function triggerEditItemDetailsModal(item, libraryId, onSaveSuccess) {
     const icon = isLocked ? 'lock' : 'lock_open';
     const colorClass = isLocked ? 'text-yellow-400 hover:text-yellow-300' : 'text-black-200 hover:text-accent';
     return `
-      <div class="flex items-center justify-between mb-1.5">
+      <div class="flex items-center justify-between mb-1">
         <label class="block text-[0.7rem] uppercase font-semibold text-black-100 mb-0">${getFieldLabel(field)}</label>
-        <button type="button" class="metadata-lock-btn focus:outline-none transition-colors ${colorClass}" data-field="${field}">
+        <button type="button" class="metadata-lock-btn focus:outline-none transition-colors p-2 -mr-2 -my-2 w-8 h-8 flex items-center justify-center rounded-full hover:bg-black-600/50 ${colorClass}" data-field="${field}">
           <span class="material-symbols text-sm select-none pointer-events-none">${icon}</span>
         </button>
       </div>
@@ -97,7 +97,7 @@ export function triggerEditItemDetailsModal(item, libraryId, onSaveSuccess) {
   };
 
   const modal = document.createElement('div');
-  modal.className = 'fixed inset-0 bg-black-900/80 z-50 flex items-center justify-center p-4 select-none';
+  modal.className = 'fixed inset-0 bg-black-900/80 z-50 flex items-center justify-center p-4';
   modal.innerHTML = `
     <div class="bg-primary border border-black-300 w-full max-w-2xl p-6 rounded-md shadow-2xl space-y-4 flex flex-col max-h-[90vh]">
       <!-- Header -->
@@ -239,16 +239,19 @@ export function triggerEditItemDetailsModal(item, libraryId, onSaveSuccess) {
   modal.querySelectorAll('.metadata-lock-btn').forEach(btn => {
     btn.onclick = (e) => {
       e.preventDefault();
+      e.stopPropagation();
       const field = btn.getAttribute('data-field');
       const iconSpan = btn.querySelector('.material-symbols');
       if (currentLockedFields.has(field)) {
         currentLockedFields.delete(field);
         iconSpan.textContent = 'lock_open';
-        btn.className = 'metadata-lock-btn focus:outline-none transition-colors text-black-200 hover:text-accent';
+        btn.classList.remove('text-yellow-400', 'hover:text-yellow-300');
+        btn.classList.add('text-black-200', 'hover:text-accent');
       } else {
         currentLockedFields.add(field);
         iconSpan.textContent = 'lock';
-        btn.className = 'metadata-lock-btn focus:outline-none transition-colors text-yellow-400 hover:text-yellow-300';
+        btn.classList.remove('text-black-200', 'hover:text-accent');
+        btn.classList.add('text-yellow-400', 'hover:text-yellow-300');
       }
     };
   });
