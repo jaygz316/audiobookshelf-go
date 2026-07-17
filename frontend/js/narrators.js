@@ -59,9 +59,9 @@ async function renderNarratorsView(container, libraryId) {
           <div class="relative flex-grow max-w-md">
             <span class="material-symbols absolute left-3 top-2.5 text-black-200 text-lg">search</span>
             <input type="text" id="narrators-search" placeholder="Search narrators..." value="${escapeHtml(currentSearch)}"
-              class="w-full bg-black-500 text-white pl-10 pr-10 py-2 rounded-lg border border-black-300 focus:outline-none focus:border-accent text-sm transition-colors">
+              class="w-full bg-black-400 text-white pl-10 pr-10 py-2 rounded-lg border border-black-300 focus:outline-none focus:border-accent text-sm transition-colors">
             ${currentSearch ? `
-              <button id="narrators-search-clear-btn" class="absolute right-3 top-2.5 text-black-200 hover:text-white transition-colors focus:outline-none" title="Clear Search">
+              <button id="narrators-search-clear-btn" class="absolute right-3 top-2.5 text-black-200 hover:text-white transition-colors focus:outline-none cursor-pointer" title="Clear Search">
                 <span class="material-symbols text-lg">close</span>
               </button>
             ` : ''}
@@ -70,11 +70,11 @@ async function renderNarratorsView(container, libraryId) {
           <!-- Sort and Order controls -->
           <div class="flex items-center gap-3">
             <label class="text-xs font-semibold text-black-100 uppercase tracking-wider">Sort by:</label>
-            <select id="narrators-sort-select" class="bg-black-500 border border-black-300 text-white text-xs rounded px-3 py-1.5 focus:outline-none cursor-pointer">
+            <select id="narrators-sort-select" class="bg-black-400 border border-black-300 text-white text-xs rounded px-3 py-1.5 focus:outline-none cursor-pointer">
               <option value="name" ${currentSort === 'name' ? 'selected' : ''}>Name</option>
               <option value="numBooks" ${currentSort === 'numBooks' ? 'selected' : ''}>Book Count</option>
             </select>
-            <button id="narrators-direction-btn" class="p-1.5 bg-black-500 hover:bg-black-400 border border-black-300 rounded text-white flex items-center justify-center transition-colors" title="Toggle Sort Order">
+            <button id="narrators-direction-btn" class="p-1.5 bg-black-400 hover:bg-black-300 border border-black-300 rounded text-white flex items-center justify-center transition-colors cursor-pointer" title="Toggle Sort Order">
               <span class="material-symbols text-lg">${currentDesc ? 'arrow_downward' : 'arrow_upward'}</span>
             </button>
           </div>
@@ -162,6 +162,10 @@ function createNarratorCard(narrator) {
 
   const numBooks = narrator.numBooks || 0;
 
+  card.setAttribute('tabindex', '0');
+  card.setAttribute('role', 'button');
+  card.setAttribute('aria-label', `Narrator: ${narrator.name || 'Unknown'}, ${numBooks} book${numBooks !== 1 ? 's' : ''}`);
+
   card.innerHTML = `
     <div class="w-2/3 aspect-square rounded-full bg-gradient-to-tr from-black-600 to-black-400 mb-3 flex items-center justify-center flex-shrink-0 group-hover:from-accent/20 group-hover:to-accent/5 transition-all">
       <span class="material-symbols text-3xl text-black-100 group-hover:text-accent transition-colors">record_voice_over</span>
@@ -179,6 +183,13 @@ function createNarratorCard(narrator) {
       }
     }));
   };
+
+  card.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      card.click();
+    }
+  });
 
   return card;
 }

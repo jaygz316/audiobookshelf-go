@@ -2328,6 +2328,20 @@ function setupFocusTrap(modal) {
   }, 100);
 
   const handleKeydown = (e) => {
+    if (e.key === 'Escape') {
+      const top = focusStack[focusStack.length - 1];
+      if (!top || top.modal !== modal) return;
+      e.preventDefault();
+      // Try to find a cancel/close button and trigger it, otherwise fallback to remove
+      const closeBtn = modal.querySelector('button[id*="close"], button[id*="cancel"], button[class*="close"], button[class*="cancel"], [data-dismiss="modal"]');
+      if (closeBtn) {
+        closeBtn.click();
+      } else {
+        modal.remove();
+      }
+      return;
+    }
+
     if (e.key !== 'Tab') return;
     
     const top = focusStack[focusStack.length - 1];

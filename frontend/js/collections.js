@@ -460,8 +460,8 @@ export async function loadCollectionDetails(collectionId, libraryId) {
     container.innerHTML = `
       <div class="p-6 space-y-6 max-w-3xl mx-auto">
         <div class="flex items-center space-x-2">
-          <button id="back-collections-btn" class="flex items-center space-x-1 text-sm text-black-50 hover:text-white">
-            <span class="material-symbols">arrow_back</span>
+          <button id="back-collections-btn" class="flex items-center space-x-1.5 text-sm text-black-100 hover:text-white transition-colors cursor-pointer">
+            <span class="material-symbols text-sm">arrow_back</span>
             <span>Back to Collections</span>
           </button>
         </div>
@@ -477,8 +477,14 @@ export async function loadCollectionDetails(collectionId, libraryId) {
               <p class="text-xs text-black-100">Created: ${window.formatDateTime ? window.formatDateTime(collection.createdAt) : new Date(collection.createdAt).toLocaleString()}</p>
             </div>
             <div class="space-x-2 flex-shrink-0 flex items-center w-full sm:w-auto justify-end sm:justify-start">
-              <button id="edit-coll-btn" class="bg-black-400 hover:bg-black-300 border border-black-300 text-white font-semibold px-3 py-1.5 rounded text-xs">Edit Details</button>
-              <button id="delete-coll-btn" class="bg-red-900 hover:bg-red-800 text-red-200 font-semibold px-3 py-1.5 rounded text-xs">Delete</button>
+              <button id="edit-coll-btn" class="bg-black-400 hover:bg-black-300 border border-black-300 text-white font-semibold px-3 py-1.5 rounded text-xs flex items-center space-x-1 transition-colors cursor-pointer">
+                <span class="material-symbols text-xs">edit</span>
+                <span>Edit Details</span>
+              </button>
+              <button id="delete-coll-btn" class="bg-black-400 hover:bg-red-900/40 border border-red-500/30 text-error hover:text-white hover:border-red-500/50 font-semibold px-3 py-1.5 rounded text-xs flex items-center space-x-1 transition-colors cursor-pointer">
+                <span class="material-symbols text-xs">delete</span>
+                <span>Delete</span>
+              </button>
             </div>
           </div>
 

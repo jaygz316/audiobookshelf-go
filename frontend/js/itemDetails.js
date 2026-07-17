@@ -125,21 +125,21 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
       <div class="p-6 space-y-6 max-w-5xl mx-auto">
         <!-- Navigation Header -->
         <div class="flex items-center justify-between border-b border-black-600/50 pb-4">
-          <button id="details-back-btn" class="flex items-center space-x-1.5 text-sm text-black-50 hover:text-white transition-colors">
-            <span class="material-symbols">arrow_back</span>
+          <button id="details-back-btn" class="flex items-center space-x-1 px-3 py-1.5 rounded-md text-xs font-semibold text-white bg-black-400 hover:bg-black-300 border border-black-300 shadow transition-all duration-150 focus:outline-none cursor-pointer">
+            <span class="material-symbols text-sm">arrow_back</span>
             <span>Back</span>
           </button>
           ${isAdmin ? `
             <div class="flex items-center space-x-2">
-              <button id="details-match-btn" class="bg-black-500 hover:bg-black-400 border border-black-300 text-white font-semibold px-3 py-1.5 rounded text-xs flex items-center space-x-1 transition-colors" title="Match Item">
+              <button id="details-match-btn" class="bg-black-400 hover:bg-black-300 border border-black-300 text-white font-semibold px-3 py-1.5 rounded text-xs flex items-center space-x-1 transition-colors cursor-pointer" title="Match Item">
                 <span class="material-symbols text-sm">find_replace</span>
                 <span class="hidden sm:inline">Match</span>
               </button>
-              <button id="details-edit-btn" class="bg-black-500 hover:bg-black-400 border border-black-300 text-white font-semibold px-3 py-1.5 rounded text-xs flex items-center space-x-1 transition-colors" title="Edit Details">
+              <button id="details-edit-btn" class="bg-black-400 hover:bg-black-300 border border-black-300 text-white font-semibold px-3 py-1.5 rounded text-xs flex items-center space-x-1 transition-colors cursor-pointer" title="Edit Details">
                 <span class="material-symbols text-sm">edit</span>
                 <span class="hidden sm:inline">Edit Details</span>
               </button>
-              <button id="details-delete-item-btn" class="bg-black-500 hover:bg-red-950 border border-black-300 text-error hover:text-white font-semibold px-3 py-1.5 rounded text-xs flex items-center space-x-1 transition-colors" title="Delete Item">
+              <button id="details-delete-item-btn" class="bg-black-400 hover:bg-red-900/40 border border-red-500/30 text-error hover:text-white hover:border-red-500/50 font-semibold px-3 py-1.5 rounded text-xs flex items-center space-x-1 transition-colors cursor-pointer" title="Delete Item">
                 <span class="material-symbols text-sm">delete</span>
                 <span class="hidden sm:inline">Delete</span>
               </button>
@@ -165,57 +165,57 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
             <!-- Core Play/Read Buttons -->
             <div class="w-full space-y-2 max-w-xs">
               ${hasAudio ? `
-                <button id="details-play-action-btn" class="w-full bg-accent hover:opacity-90 text-primary font-bold py-2.5 px-4 rounded-md transition-all flex items-center justify-center space-x-2 text-sm shadow hover:scale-[1.02] duration-200">
+                <button id="details-play-action-btn" class="w-full bg-accent hover:opacity-90 text-primary font-bold py-2.5 px-4 rounded-md transition-all flex items-center justify-center space-x-2 text-sm shadow hover:scale-[1.02] duration-200 cursor-pointer">
                   <span class="material-symbols text-lg font-bold">play_arrow</span>
                   <span>Play Audiobook</span>
                 </button>
-                <button id="details-queue-action-btn" class="w-full bg-black-500 hover:bg-black-400 border border-black-300 text-white font-semibold py-2 px-4 rounded-md transition-all flex items-center justify-center space-x-2 text-xs shadow hover:scale-[1.02] duration-200 mt-2">
+                <button id="details-queue-action-btn" class="w-full bg-black-400 hover:bg-black-300 border border-black-300 text-white font-semibold py-2 px-4 rounded-md transition-all flex items-center justify-center space-x-2 text-xs shadow hover:scale-[1.02] duration-200 mt-2 cursor-pointer">
                   <span class="material-symbols text-sm">playlist_add</span>
                   <span>Add to Queue</span>
                 </button>
               ` : ''}
               
               ${hasEbook ? `
-                <button id="details-read-action-btn" class="w-full bg-black-500 hover:bg-black-400 border border-black-300 text-white font-bold py-2.5 px-4 rounded-md transition-all flex items-center justify-center space-x-2 text-sm shadow hover:scale-[1.02] duration-200">
+                <button id="details-read-action-btn" class="w-full bg-black-400 hover:bg-black-300 border border-black-300 text-white font-bold py-2.5 px-4 rounded-md transition-all flex items-center justify-center space-x-2 text-sm shadow hover:scale-[1.02] duration-200 cursor-pointer">
                   <span class="material-symbols text-lg font-bold">menu_book</span>
                   <span>Read Book</span>
                 </button>
-                <button id="details-send-device-btn" class="w-full bg-black-500 hover:bg-black-400 border border-black-300 text-white font-semibold py-2 px-4 rounded-md transition-all flex items-center justify-center space-x-2 text-xs shadow hover:scale-[1.02] duration-200 mt-2">
+                <button id="details-send-device-btn" class="w-full bg-black-400 hover:bg-black-300 border border-black-300 text-white font-semibold py-2 px-4 rounded-md transition-all flex items-center justify-center space-x-2 text-xs shadow hover:scale-[1.02] duration-200 mt-2 cursor-pointer">
                   <span class="material-symbols text-sm">send_to_mobile</span>
                   <span>Send to Device</span>
                 </button>
               ` : ''}
 
               <!-- Playlist Button -->
-              <button id="details-playlist-action-btn" class="w-full bg-black-500 hover:bg-black-400 border border-black-300 text-white font-semibold py-2 px-4 rounded-md transition-all flex items-center justify-center space-x-2 text-xs shadow hover:scale-[1.02] duration-200 mt-2">
+              <button id="details-playlist-action-btn" class="w-full bg-black-400 hover:bg-black-300 border border-black-300 text-white font-semibold py-2 px-4 rounded-md transition-all flex items-center justify-center space-x-2 text-xs shadow hover:scale-[1.02] duration-200 mt-2 cursor-pointer">
                 <span class="material-symbols text-sm">playlist_add</span>
                 <span>Add to Playlist</span>
               </button>
 
               <!-- Download Button -->
               ${(user && user.permissions?.download) || isAdmin ? `
-                <button id="details-download-action-btn" class="w-full bg-black-500 hover:bg-black-400 border border-black-300 text-white font-semibold py-2 px-4 rounded-md transition-all flex items-center justify-center space-x-2 text-xs shadow hover:scale-[1.02] duration-200 mt-2">
+                <button id="details-download-action-btn" class="w-full bg-black-400 hover:bg-black-300 border border-black-300 text-white font-semibold py-2 px-4 rounded-md transition-all flex items-center justify-center space-x-2 text-xs shadow hover:scale-[1.02] duration-200 mt-2 cursor-pointer">
                   <span class="material-symbols text-sm">download</span>
                   <span>Download</span>
                 </button>
               ` : ''}
               
               ${isAdmin ? `
-                <button id="details-match-cover-btn" class="w-full bg-black-500 hover:bg-black-400 border border-black-300 text-white font-semibold py-2 px-4 rounded-md transition-all flex items-center justify-center space-x-2 text-xs shadow hover:scale-[1.02] duration-200">
+                <button id="details-match-cover-btn" class="w-full bg-black-400 hover:bg-black-300 border border-black-300 text-white font-semibold py-2 px-4 rounded-md transition-all flex items-center justify-center space-x-2 text-xs shadow hover:scale-[1.02] duration-200 cursor-pointer">
                   <span class="material-symbols text-sm">image</span>
                   <span>${item.media?.coverPath ? 'Change Cover' : 'Get Cover Art'}</span>
                 </button>
-                <button id="details-embed-metadata-btn" class="w-full bg-black-500 hover:bg-black-400 border border-black-300 text-white font-semibold py-2 px-4 rounded-md transition-all flex items-center justify-center space-x-2 text-xs shadow hover:scale-[1.02] duration-200 mt-2">
+                <button id="details-embed-metadata-btn" class="w-full bg-black-400 hover:bg-black-300 border border-black-300 text-white font-semibold py-2 px-4 rounded-md transition-all flex items-center justify-center space-x-2 text-xs shadow hover:scale-[1.02] duration-200 mt-2 cursor-pointer">
                   <span class="material-symbols text-sm">settings_suggest</span>
                   <span>Embed Metadata</span>
                 </button>
                 ${item.media?.audioFiles && item.media.audioFiles.length > 1 ? `
-                  <button id="details-merge-audio-btn" class="w-full bg-black-500 hover:bg-black-400 border border-black-300 text-white font-semibold py-2 px-4 rounded-md transition-all flex items-center justify-center space-x-2 text-xs shadow hover:scale-[1.02] duration-200 mt-2">
+                  <button id="details-merge-audio-btn" class="w-full bg-black-400 hover:bg-black-300 border border-black-300 text-white font-semibold py-2 px-4 rounded-md transition-all flex items-center justify-center space-x-2 text-xs shadow hover:scale-[1.02] duration-200 mt-2 cursor-pointer">
                     <span class="material-symbols text-sm">call_merge</span>
                     <span>Merge Audio Files</span>
                   </button>
                 ` : ''}
-                <button id="details-share-btn" class="w-full bg-black-500 hover:bg-black-400 border border-black-300 text-white font-semibold py-2 px-4 rounded-md transition-all flex items-center justify-center space-x-2 text-xs shadow hover:scale-[1.02] duration-200 mt-2">
+                <button id="details-share-btn" class="w-full bg-black-400 hover:bg-black-300 border border-black-300 text-white font-semibold py-2 px-4 rounded-md transition-all flex items-center justify-center space-x-2 text-xs shadow hover:scale-[1.02] duration-200 mt-2 cursor-pointer">
                   <span class="material-symbols text-sm">share</span>
                   <span>Share Link</span>
                 </button>

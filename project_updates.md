@@ -38,6 +38,12 @@
   - Redesigned the mobile navigation sidebar drawer (`#sidebar`) to be a widescreen (16rem / 256px wide) slide-out panel matching standard native drawer menus.
   - Formatted sidebar navigation link items horizontally on mobile viewports, displaying the page icon and text label side-by-side with improved text sizes and alignment.
   - Adjusted the mobile sidebar drawer's footer (help, version, and source buttons) to layout as a clean horizontal flex row with subtle styling.
+- **Details Page Header & Action Controls Styling**:
+  - Updated the Back button, administrator action buttons (Match, Edit Details, Delete), and all core action buttons (Queue, Send to Device, Playlist, Download, cover/metadata updates, etc.) on the item detail view in [itemDetails.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/itemDetails.js) to utilize consistent, premium dark grey colors and layouts (`bg-black-400 hover:bg-black-300 border border-black-300`).
+- **Sidebar Navigation Accessibility & Tooltips**:
+  - Added descriptive `title` attributes to all sidetrack/sidebar navigation link buttons in [index.html](file:///home/jay/projects/audiobookshelf-go/frontend/index.html) to support standard responsive side-rail hover tooltips.
+- **Search & Sort Toolbar Controls Polishing**:
+  - Styled search and sort controls in Authors, Series, and Narrators views in [authors.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/authors.js) and [narrators.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/narrators.js) with premium dark grey selectors and inputs (`bg-black-400 border border-black-300`).
 
 ### 2026-07-14
 - **Established Project Updates Tracker**: Created `project_updates.md` and integrated it into the startup check of `AGENTS.md`, `scheduled_prompt.md`, and `ux_scheduled_prompt.md`.
@@ -276,6 +282,9 @@
   - Fixed cover reflection clipping under `.bookshelfRow` and `.library-shelf-grid` by dynamically terminating the reflection gradient at `--bookshelf-plank-height` and setting the row container's `padding-bottom` to match.
   - Polished the floating `#shelf-size-slider` range input to render with a custom track and a gold/orange thumb that highlights/glows on hover using brand accent colors.
 
-
-
-
+- **Unified Details Views Back Navigation & Action Styling**:
+  - Aligned detail views back navigation links (Series, Collections, Playlists, Authors) to use high-contrast `text-black-100` and hover `text-white` with `transition-colors cursor-pointer` and Material Symbols back arrow icons.
+  - Replaced legacy color styling of administrative action buttons (Edit, Match, Auto-Number, Play, Delete) on Series, Collections, and Playlists detail screens with premium dark-grey variables (`bg-black-400 hover:bg-black-300 border border-black-300 text-white font-semibold rounded text-xs flex items-center space-x-1 transition-colors cursor-pointer`).
+  - Styled delete confirmation buttons with red border details and low opacity red background highlights (`bg-black-400 hover:bg-red-900/40 border border-red-500/30 text-error hover:text-white hover:border-red-500/50`) matching the main item details view delete buttons.
+  - Added clean inline Material Symbols icons (`edit`, `delete`, `find_replace`, `play_arrow`, `format_list_numbered`) to detail action controls for a premium look and feel.
+  - Aligned Podcast Download Queue cancel/pause/resume buttons with identical premium button classes and added `cursor-pointer` to episode play/download items.
