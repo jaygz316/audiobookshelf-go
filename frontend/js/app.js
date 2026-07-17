@@ -736,10 +736,10 @@ function setupEventHandlers() {
       const filterBtn = document.getElementById('filter-dropdown-btn');
       if (filterBtn) {
         if (val) {
-          filterBtn.classList.add('text-accent');
+          filterBtn.classList.add('text-accent', 'filter-active');
           filterBtn.classList.remove('text-black-50');
         } else {
-          filterBtn.classList.remove('text-accent');
+          filterBtn.classList.remove('text-accent', 'filter-active');
           filterBtn.classList.add('text-black-50');
         }
       }
@@ -1255,7 +1255,7 @@ function setupEventHandlers() {
   const updateStyleSwitcherUI = (activeStyle) => {
     [styleBtnShelf, styleBtnGrid, styleBtnList].forEach(btn => {
       if (!btn) return;
-      btn.classList.remove('text-accent', 'bg-black-500');
+      btn.classList.remove('text-accent', 'bg-black-500', 'active-style-btn');
       btn.classList.add('text-black-100');
     });
 
@@ -1265,7 +1265,7 @@ function setupEventHandlers() {
 
     if (activeBtn) {
       activeBtn.classList.remove('text-black-100');
-      activeBtn.classList.add('text-accent', 'bg-black-500');
+      activeBtn.classList.add('text-accent', 'active-style-btn');
     }
   };
 
