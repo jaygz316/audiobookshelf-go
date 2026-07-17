@@ -41,6 +41,27 @@
   --bookshelf-reflect: below 2px linear-gradient(to bottom, rgba(244, 236, 216, 0.2) 0px, transparent var(--bookshelf-plank-height));
 }
 
+:root[data-theme="dark"] {
+  --color-bg: #2c2c2c;
+  --color-primary: #232323;
+  --color-accent: #e5a93b;
+  --color-white: #ffffff;
+  --color-black: #000000;
+  --color-black-50: #bbbbbb;
+  --color-black-100: #666666;
+  --color-black-200: #555555;
+  --color-black-300: #444444;
+  --color-black-400: #333333;
+  --color-black-500: #222222;
+  --color-black-600: #111111;
+  --color-black-700: #101010;
+  --bookshelf-plank-top: #a3795a;
+  --bookshelf-plank-mid: rgb(122, 94, 68);
+  --bookshelf-plank-bottom: rgb(71, 48, 25);
+  --bookshelf-overlay: rgba(0, 0, 0, 0);
+  --bookshelf-reflect: below 2px linear-gradient(to bottom, rgba(0, 0, 0, 0.25) 0px, transparent var(--bookshelf-plank-height));
+}
+
 /* Enhanced Dynamic Bookshelf Sizing, Shadows and Cover Reflections */
 :root {
   --bookshelf-card-width: 120px;

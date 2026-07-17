@@ -1,15 +1,15 @@
 # Handoff: Audiobookshelf Go Port
 
 ## Targeted Task & Accomplishments
-- **Target Task**: Player Timeline Chapter Ticks & Hover Tooltips
+- **Target Task**: Left Sidebar Navigation Icons & Selected Library Borders Parity
 - **Accomplishments**:
-  - **Visual Chapter Tick-marks**: Integrated distinct vertical lines for chapters onto both the fallback flat timeline (`#111827`, 1.5px) and the waveform timeline (`rgba(0, 0, 0, 0.45)`, 2px) inside `frontend/js/player/ui.js` to clearly mark chapter boundaries on the track.
-  - **Rich Hover Tooltips**: Upgraded the player timeline hover tooltips to render full HTML showing the active chapter index, chapter title, and formatted timestamp with premium styling in `frontend/js/player/ui.js`.
-  - **Rebuild and Test Integration**: Recompiled the Go WebAssembly SPA frontend (`frontend/main.wasm`) and successfully ran and verified all backend tests.
+  - **Left Sidebar Navigation Icon Update**: Changed the **Series** sidebar navigation icon in `frontend/index.html` from `view_column` to `layers` to match the fanned/stacked design language and the original ABS client.
+  - **Theme-Aware Selected Library Borders**: Updated the selected library row border highlight (`.library-row.border-accent`) in `frontend/css/components.css` to use `var(--color-accent)` instead of hardcoded hex values, ensuring alignment with active Dark, Light, and Sepia themes.
+  - **Rebuild and Test Integration**: Recompiled the Go WebAssembly SPA frontend (`frontend/main.wasm`) and successfully ran and verified that all backend tests pass.
 
 ## Outstanding Work / Next Gaps
-- **Layout & Cover Styling**: Verify cover overlays (3D depth border-radius and shadow settings) and card hover shadow/reflection styles match the original Audiobookshelf bookshelf view.
 - **Series Stack Cascading Cards**: Implement overlapping series covers stacked with a count badge.
+- **Visual Refinements**: Continuous review of layout details to match the original Vue.js client.
 
 ## Next Steps
-- Audit the wooden bookshelf theme and card grid layout to align spacing, padding, and hover/reflection styling.
+- Implement series stack cascading/fanned card layouts in `frontend/js/authors.js` and CSS.

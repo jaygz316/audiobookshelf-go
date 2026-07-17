@@ -30,6 +30,14 @@
 *This log is updated by developers/agents whenever an API, design pattern, or library is deprecated or updated.*
 
 ### 2026-07-17
+- **3D Bookshelf Side Borders, Theme-Aware Planks & Premium Sizing Slider**:
+  - Implemented left and right vertical wooden side panels on `.library-shelf-grid` to complete the premium wooden bookshelf aesthetic across all themes.
+  - Integrated theme-aware overlays (`--bookshelf-overlay`) into `.bookshelfDividerCategorized` backgrounds, ensuring sepia and light themes dynamically tint the planks correctly.
+  - Custom-styled the `#shelf-size-slider` runnable track and thumb with dedicated hover scale effects, consistent borders, and cross-browser (Webkit/Firefox) support.
+  - Defined explicit `:root[data-theme="dark"]` stylesheet variables in [variables.css](file:///home/jay/projects/audiobookshelf-go/frontend/css/variables.css) to guarantee clean, robust variables overriding during theme toggling.
+- **Verification of Timeline Bar Chapters & Cover UX**:
+  - Performed a visual audit on the player timeline chapter marks (tick-marks and tooltip titles) and book cover overlays (spine crease, shadow elevation, and reflections), confirming complete parity and functional integration with the WebAssembly and API backends.
+  - Verified compilation and build compatibility using the unified Go task runner build parameters (`go run run.go run_commands.go build` and `test`), ensuring all backend test suites pass with 100% compliance.
 - **Smooth SPA View & Settings Tab Transitions**:
   - Implemented the modern CSS View Transitions API in [router.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/router.js) and [settings.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/settings.js), wrapping page switching and Settings tab navigation view updates. This replaces abrupt route and tab jumps with beautiful, hardware-accelerated transitions that match the premium visual standards of Vue.js frameworks.
 - **Library Dropdown Polishing and Active Highlighting**:
