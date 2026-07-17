@@ -221,6 +221,10 @@ function renderCollectionsGrid(collections, libraryId) {
     
     const bookIds = c.books || c.itemIds || [];
     const count = bookIds.length;
+
+    card.setAttribute('tabindex', '0');
+    card.setAttribute('role', 'button');
+    card.setAttribute('aria-label', `${c.isSmart ? 'Smart ' : ''}Collection: ${c.name || 'Untitled'}, ${count} book${count !== 1 ? 's' : ''}`);
     
     card.innerHTML = `
       <div class="space-y-2">
@@ -245,7 +249,6 @@ function renderCollectionsGrid(collections, libraryId) {
       </div>
     `;
 
-    // Click card navigates to details
     card.onclick = (e) => {
       if (e.target.closest('.delete-btn')) return;
       if (window.navigateTo) {
@@ -254,6 +257,14 @@ function renderCollectionsGrid(collections, libraryId) {
         loadCollectionDetails(c.id, libraryId);
       }
     };
+
+    card.addEventListener('keydown', (e) => {
+      if (e.target.closest('.delete-btn')) return;
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        card.click();
+      }
+    });
 
     card.querySelector('.delete-btn').onclick = async (e) => {
       e.stopPropagation();

@@ -309,6 +309,10 @@ function createAuthorCard(author) {
 
   const numBooks = author.numBooks !== undefined ? author.numBooks : (author.bookCount || 0);
 
+  card.setAttribute('tabindex', '0');
+  card.setAttribute('role', 'button');
+  card.setAttribute('aria-label', `Author: ${author.name || 'Unknown'}, ${numBooks} book${numBooks !== 1 ? 's' : ''}`);
+
   card.innerHTML = `
     <div class="w-2/3 aspect-square rounded-full overflow-hidden bg-black-400 mb-2 flex items-center justify-center flex-shrink-0 relative">
       <img src="${imageUrl}" alt="${escapeHtml(author.name)}" class="w-full h-full object-cover">
@@ -338,6 +342,13 @@ function createAuthorCard(author) {
     }));
   };
 
+  card.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      card.click();
+    }
+  });
+
   return card;
 }
 
@@ -346,6 +357,10 @@ function createSeriesCard(series) {
   card.className = 'flex flex-col items-center p-4 bg-primary/45 border border-black-400/40 rounded-lg hover:bg-black-500/50 cursor-pointer transition-all duration-300 relative select-none hover:-translate-y-1 shadow-lg group';
 
   const numBooks = series.numBooks !== undefined ? series.numBooks : (series.books?.length || 0);
+
+  card.setAttribute('tabindex', '0');
+  card.setAttribute('role', 'button');
+  card.setAttribute('aria-label', `Series: ${series.name || 'Unknown'}, ${numBooks} book${numBooks !== 1 ? 's' : ''}`);
 
   let coversHtml = '';
   const token = localStorage.getItem('token');
@@ -416,6 +431,13 @@ function createSeriesCard(series) {
       }
     }));
   };
+
+  card.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      card.click();
+    }
+  });
 
   // Pre-populate progressCache with any userProgress returned in bulk from backend
   if (series.books) {

@@ -37,7 +37,9 @@
   transition: transform 0.2s ease !important;
 }
 
-.bookshelf-card:hover {
+.bookshelf-card:hover,
+.bookshelf-card:focus-visible,
+.bookshelf-card:focus-within {
   transform: translateY(-6px) !important;
 }
 
@@ -50,8 +52,23 @@
   transition: box-shadow 0.2s ease;
 }
 
-.bookshelf-card:hover .book-cover-wrapper {
+.bookshelf-card:hover .book-cover-wrapper,
+.bookshelf-card:focus-visible .book-cover-wrapper,
+.bookshelf-card:focus-within .book-cover-wrapper {
   box-shadow: 0 12px 24px rgba(0, 0, 0, 0.65), 0 4px 10px rgba(0, 0, 0, 0.45);
+}
+
+.bookshelf-card:focus-within .group-hover\:opacity-100,
+.bookshelf-card:focus-visible .group-hover\:opacity-100 {
+  opacity: 1 !important;
+}
+
+/* Focus transitions and elevations for other grid cards (authors, series, playlists, collections) */
+div[tabindex="0"].cursor-pointer:focus-visible,
+div[tabindex="0"].cursor-pointer:focus-within {
+  transform: translateY(-4px) !important;
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.35) !important;
+  border-color: var(--color-accent, #e5a93b) !important;
 }
 
 .bookshelf-card img {
@@ -1029,7 +1046,8 @@ div[class*="fixed"][class*="z-50"] textarea:focus,
 button:focus-visible,
 a:focus-visible,
 input[type="checkbox"]:focus-visible,
-input[type="radio"]:focus-visible {
+input[type="radio"]:focus-visible,
+[tabindex="0"]:focus-visible {
   outline: 2px solid var(--color-accent, #e5a93b) !important;
   outline-offset: 2px !important;
 }
@@ -1122,6 +1140,23 @@ input[type="radio"]:focus-visible {
   letter-spacing: 0.05em !important;
   color: var(--color-accent, #e5a93b) !important;
   border-bottom: none !important;
+}
+
+/* List view row keyboard focus */
+.library-list-table tr[tabindex="0"]:focus-visible {
+  outline: 2px solid var(--color-accent, #e5a93b) !important;
+  outline-offset: -2px !important;
+  background-color: rgba(229, 169, 59, 0.15) !important;
+}
+
+/* Dropdown menu items keyboard focus */
+.sort-option-btn:focus-visible,
+.filter-option-btn:focus-visible,
+.filter-cat-row-btn:focus-visible,
+.filter-submenu-option-btn:focus-visible {
+  background-color: var(--color-black-400, #333333) !important;
+  color: #ffffff !important;
+  outline: none !important;
 }
 
 

@@ -540,6 +540,13 @@ function setupEventHandlers() {
 
     if (!filterBtn || !filterMenu || !sortBtn || !sortMenu) return;
 
+    filterBtn.setAttribute('aria-haspopup', 'menu');
+    filterBtn.setAttribute('aria-expanded', 'false');
+    sortBtn.setAttribute('aria-haspopup', 'menu');
+    sortBtn.setAttribute('aria-expanded', 'false');
+    filterMenu.setAttribute('role', 'menu');
+    sortMenu.setAttribute('role', 'menu');
+
     // Toggles for Filter
     let filterOpen = false;
     filterMenu.classList.add('transition-all', 'duration-150', 'ease-out', 'transform', 'scale-95', 'opacity-0');
@@ -547,6 +554,7 @@ function setupEventHandlers() {
     const closeFilter = () => {
       if (!filterOpen) return;
       filterOpen = false;
+      filterBtn.setAttribute('aria-expanded', 'false');
       filterMenu.classList.remove('scale-100', 'opacity-100');
       filterMenu.classList.add('scale-95', 'opacity-0');
       const handleTransitionEnd = (e) => {
@@ -566,6 +574,7 @@ function setupEventHandlers() {
         closeFilter();
       } else {
         filterOpen = true;
+        filterBtn.setAttribute('aria-expanded', 'true');
         filterMenu.classList.remove('hidden');
         filterMenu.offsetHeight; // reflow
         filterMenu.classList.remove('scale-95', 'opacity-0');
@@ -582,6 +591,7 @@ function setupEventHandlers() {
     const closeSort = () => {
       if (!sortOpen) return;
       sortOpen = false;
+      sortBtn.setAttribute('aria-expanded', 'false');
       sortMenu.classList.remove('scale-100', 'opacity-100');
       sortMenu.classList.add('scale-95', 'opacity-0');
       const handleTransitionEnd = (e) => {
@@ -600,6 +610,7 @@ function setupEventHandlers() {
         closeSort();
       } else {
         sortOpen = true;
+        sortBtn.setAttribute('aria-expanded', 'true');
         sortMenu.classList.remove('hidden');
         sortMenu.offsetHeight; // reflow
         sortMenu.classList.remove('scale-95', 'opacity-0');
@@ -849,6 +860,7 @@ function setupEventHandlers() {
       }
 
       renderSubmenuItems();
+      submenu.setAttribute('role', 'menu');
 
       const rect = btnEl.getBoundingClientRect();
       const parentRect = btnEl.offsetParent.getBoundingClientRect();
@@ -943,6 +955,7 @@ function setupEventHandlers() {
         filterMenu.querySelectorAll('.filter-cat-row-btn').forEach(btn => {
           const cat = btn.getAttribute('data-cat');
           btn.onmouseenter = () => openSubmenu(cat, data, btn);
+          btn.onfocus = () => openSubmenu(cat, data, btn);
           btn.onclick = (e) => {
             e.stopPropagation();
             openSubmenu(cat, data, btn);
@@ -1731,6 +1744,15 @@ function bootstrapApp(payload) {
         globalSearchResultsList.innerHTML = `<li class="text-center py-4 text-gray-400 select-none">No results found</li>`;
       }
 
+      const announcementEl = document.getElementById('global-search-announcement');
+      if (announcementEl) {
+        if (totalResults === 0) {
+          announcementEl.textContent = 'No search results found';
+        } else {
+          announcementEl.textContent = `Found ${totalResults} search results for ${query}`;
+        }
+      }
+
       // Wire up clicks on items
       globalSearchResultsList.querySelectorAll('li[data-type]').forEach(el => {
         el.onclick = (e) => {
@@ -1819,6 +1841,10 @@ function bootstrapApp(payload) {
           console.error('Search error:', err);
           if (query === globalSearchInput.value.trim()) {
             globalSearchResultsList.innerHTML = `<li class="text-center py-4 text-error select-none">Error loading results</li>`;
+            const announcementEl = document.getElementById('global-search-announcement');
+            if (announcementEl) {
+              announcementEl.textContent = 'Error loading search results';
+            }
           }
         }
 
