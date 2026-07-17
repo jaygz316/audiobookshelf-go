@@ -255,6 +255,11 @@
     - Set the cover art image container to scale dynamically based on viewport height (`max-h-[30vh] max-w-[30vh] aspect-square`) to prevent vertical layout overflow.
     - Switched dialog padding, container margins, and inner layout spacing from static large spacing to responsive sizing (`p-4 sm:p-6`, `py-4 sm:py-6`, `space-y-4 sm:space-y-6`).
     - Adjusted font sizes (`text-lg sm:text-xl` for titles, `text-xs sm:text-sm` for author, `text-[10px] sm:text-xs` for chapters) and icon sizes (`text-base sm:text-lg` for secondary buttons) to remain perfectly proportional on mobile.
+- **Dynamic Bookshelf & Card Reflection Scaling (Regression Audit)**:
+  - Replaced hardcoded `20px` values for wood shelf planks with a dynamic CSS variable `--bookshelf-plank-height` calculated directly from the card width.
+  - Calculated `--bookshelf-row-height` dynamically as a function of card height, plank height, and padding bounds, allowing home shelf rows to scale seamlessly without overflow.
+  - Fixed cover reflection clipping under `.bookshelfRow` and `.library-shelf-grid` by dynamically terminating the reflection gradient at `--bookshelf-plank-height` and setting the row container's `padding-bottom` to match.
+  - Polished the floating `#shelf-size-slider` range input to render with a custom track and a gold/orange thumb that highlights/glows on hover using brand accent colors.
 
 
 

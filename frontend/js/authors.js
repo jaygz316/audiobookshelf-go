@@ -305,12 +305,14 @@ function createAuthorCard(author) {
 
   const token = localStorage.getItem('token');
   const imageUrl = resolvePath(`/api/authors/${author.id}/image?token=${token}`);
+  const authorInitials = author.name ? author.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : '';
 
   const numBooks = author.numBooks !== undefined ? author.numBooks : (author.bookCount || 0);
 
   card.innerHTML = `
-    <div class="w-2/3 aspect-square rounded-full overflow-hidden bg-black-400 mb-2 flex items-center justify-center flex-shrink-0">
+    <div class="w-2/3 aspect-square rounded-full overflow-hidden bg-black-400 mb-2 flex items-center justify-center flex-shrink-0 relative">
       <img src="${imageUrl}" alt="${escapeHtml(author.name)}" class="w-full h-full object-cover">
+      <div class="author-initials-fallback absolute inset-0 bg-accent text-primary font-bold text-base flex items-center justify-center select-none hidden">${escapeHtml(authorInitials)}</div>
     </div>
     <p class="text-xs font-semibold text-white text-center leading-tight truncate w-full" title="${escapeHtml(author.name)}">${escapeHtml(author.name)}</p>
     <p class="text-[10px] text-black-100 mt-0.5">${numBooks} book${numBooks !== 1 ? 's' : ''}</p>
@@ -319,9 +321,10 @@ function createAuthorCard(author) {
   const img = card.querySelector('img');
   if (img) {
     img.addEventListener('error', function() {
-      const parent = this.parentElement;
-      if (parent) {
-        parent.innerHTML = '<span class="material-symbols text-4xl text-black-100">person</span>';
+      this.style.display = 'none';
+      const fallback = this.nextElementSibling;
+      if (fallback) {
+        fallback.classList.remove('hidden');
       }
     });
   }
@@ -378,7 +381,7 @@ function createSeriesCard(series) {
     }
     coversHtml = `
       <div class="series-cover-stack">
-        <div class="absolute -top-1.5 -right-1.5 bg-accent text-primary text-[10px] font-bold px-2 py-0.5 rounded-full z-30 shadow-md border border-accent/20">
+        <div class="absolute top-[3%] right-[3%] bg-accent text-primary text-[10px] font-bold px-2 py-0.5 rounded-full z-30 shadow-md border border-accent/20">
           ${numBooks}
         </div>
         ${imagesHtml}
@@ -391,7 +394,7 @@ function createSeriesCard(series) {
   } else {
     coversHtml = `
       <div class="series-cover-stack bg-black-400/30 rounded-md text-black-100">
-        <div class="absolute -top-1.5 -right-1.5 bg-accent text-primary text-[10px] font-bold px-2 py-0.5 rounded-full z-30 shadow-md border border-accent/20">
+        <div class="absolute top-[3%] right-[3%] bg-accent text-primary text-[10px] font-bold px-2 py-0.5 rounded-full z-30 shadow-md border border-accent/20">
           ${numBooks}
         </div>
         <span class="material-symbols text-4xl">layers</span>
@@ -522,8 +525,9 @@ export async function loadAuthorDetails(authorId) {
         </div>
         <!-- Author Info Header -->
         <div class="flex flex-col md:flex-row gap-6 bg-black-600 p-6 rounded-lg border border-black-400">
-          <div class="w-32 h-32 md:w-40 md:h-40 rounded-full overflow-hidden bg-black-400 flex items-center justify-center flex-shrink-0 mx-auto md:mx-0">
+          <div class="w-32 h-32 md:w-40 md:h-40 rounded-full overflow-hidden bg-black-400 flex items-center justify-center flex-shrink-0 mx-auto md:mx-0 relative">
             <img id="author-detail-img" src="${imageUrl}" alt="${escapeHtml(name)}" class="w-full h-full object-cover">
+            <div id="author-detail-fallback" class="absolute inset-0 bg-accent text-primary font-bold text-3xl md:text-4xl flex items-center justify-center select-none hidden">${escapeHtml(name ? name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : '')}</div>
           </div>
           <div class="flex-grow flex flex-col justify-between text-center md:text-left">
             <div>
@@ -567,9 +571,10 @@ export async function loadAuthorDetails(authorId) {
     const detailImg = document.getElementById('author-detail-img');
     if (detailImg) {
       detailImg.addEventListener('error', function() {
-        const parent = this.parentElement;
-        if (parent) {
-          parent.innerHTML = '<span class="material-symbols text-6xl text-black-100">person</span>';
+        this.style.display = 'none';
+        const fallback = document.getElementById('author-detail-fallback');
+        if (fallback) {
+          fallback.classList.remove('hidden');
         }
       });
     }

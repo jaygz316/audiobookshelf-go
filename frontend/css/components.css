@@ -6,17 +6,17 @@
     /* 2. 3D shelf plank highlights and shadows (drawn on top of the wood texture) */
     linear-gradient(to bottom,
       transparent 0px,
-      transparent calc(var(--bookshelf-row-height) - 20px),
-      rgba(255, 255, 255, 0.2) calc(var(--bookshelf-row-height) - 20px),
-      rgba(255, 255, 255, 0.05) calc(var(--bookshelf-row-height) - 18px),
-      rgba(0, 0, 0, 0.15) calc(var(--bookshelf-row-height) - 18px),
+      transparent calc(var(--bookshelf-row-height) - var(--bookshelf-plank-height)),
+      rgba(255, 255, 255, 0.2) calc(var(--bookshelf-row-height) - var(--bookshelf-plank-height)),
+      rgba(255, 255, 255, 0.05) calc(var(--bookshelf-row-height) - var(--bookshelf-plank-height) + 2px),
+      rgba(0, 0, 0, 0.15) calc(var(--bookshelf-row-height) - var(--bookshelf-plank-height) + 2px),
       rgba(0, 0, 0, 0.35) var(--bookshelf-row-height)
     ),
     /* 3. Solid back wall color covering the wood texture, and overlay tint on the plank */
     linear-gradient(to bottom,
       var(--color-bg) 0px,
-      var(--color-bg) calc(var(--bookshelf-row-height) - 20px),
-      var(--bookshelf-overlay) calc(var(--bookshelf-row-height) - 20px),
+      var(--color-bg) calc(var(--bookshelf-row-height) - var(--bookshelf-plank-height)),
+      var(--bookshelf-overlay) calc(var(--bookshelf-row-height) - var(--bookshelf-plank-height)),
       var(--bookshelf-overlay) var(--bookshelf-row-height)
     ),
     /* 4. The underlying wood grain texture */
@@ -27,25 +27,65 @@
 
 .bookshelfRow > div {
   align-items: flex-end !important;
-  padding-bottom: 20px !important; /* leaves room for cover reflection to draw on top of the 20px divider plank */
+  padding-bottom: var(--bookshelf-plank-height) !important; /* leaves room for cover reflection to draw on top of the divider plank */
 }
 
+/* Base Media/Book Card Styling - Applies globally to match premium aesthetics */
+.bookshelf-card {
+  position: relative;
+  overflow: visible !important;
+  transition: transform 0.2s ease !important;
+}
+
+.bookshelf-card:hover {
+  transform: translateY(-6px) !important;
+}
+
+.bookshelf-card .book-cover-wrapper {
+  width: 100% !important;
+  height: 100% !important;
+  border-radius: 4px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5), 0 2px 4px rgba(0, 0, 0, 0.4);
+  -webkit-box-reflect: var(--bookshelf-reflect);
+  transition: box-shadow 0.2s ease;
+}
+
+.bookshelf-card:hover .book-cover-wrapper {
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.65), 0 4px 10px rgba(0, 0, 0, 0.45);
+}
+
+.bookshelf-card img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover;
+  border-radius: 4px;
+}
+
+.bookshelf-card .absolute.inset-0 {
+  border-radius: 4px;
+  overflow: hidden;
+  height: 100% !important;
+  width: 100% !important;
+}
+
+/* Row-scoped specific overrides and group styles */
 .bookshelfRow .bookshelf-card,
 .bookshelfRow .group {
   width: var(--bookshelf-card-width) !important;
   height: var(--bookshelf-card-height) !important;
   margin-right: 2rem !important;
-  overflow: visible !important;
+}
+
+.bookshelfRow .group {
   position: relative;
+  overflow: visible !important;
   transition: transform 0.2s ease !important;
 }
 
-.bookshelfRow .bookshelf-card:hover,
 .bookshelfRow .group:hover {
   transform: translateY(-6px) !important;
 }
 
-.bookshelfRow .bookshelf-card .book-cover-wrapper,
 .bookshelfRow .group .book-cover-wrapper {
   width: 100% !important;
   height: 100% !important;
@@ -55,17 +95,22 @@
   transition: box-shadow 0.2s ease;
 }
 
-.bookshelfRow .bookshelf-card:hover .book-cover-wrapper,
 .bookshelfRow .group:hover .book-cover-wrapper {
   box-shadow: 0 12px 24px rgba(0, 0, 0, 0.65), 0 4px 10px rgba(0, 0, 0, 0.45);
 }
 
-.bookshelfRow .bookshelf-card img,
 .bookshelfRow .group img {
   width: 100% !important;
   height: 100% !important;
   object-fit: cover;
   border-radius: 4px;
+}
+
+.bookshelfRow .group .absolute.inset-0 {
+  border-radius: 4px;
+  overflow: hidden;
+  height: 100% !important;
+  width: 100% !important;
 }
 
 /* 3D Book Cover Spine Crease & Shading */
@@ -81,6 +126,7 @@
 }
 
 .bookshelfDividerCategorized {
+  height: var(--bookshelf-plank-height) !important;
   background-image: 
     linear-gradient(to bottom,
       rgba(255, 255, 255, 0.25) 0px,
@@ -92,15 +138,6 @@
   background-size: 100% 100%, auto 100% !important;
   background-repeat: no-repeat, repeat-x !important;
   box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.6) !important;
-}
-
-/* Keep hover details matching card dimensions */
-.bookshelfRow .bookshelf-card .absolute.inset-0,
-.bookshelfRow .group .absolute.inset-0 {
-  border-radius: 4px;
-  overflow: hidden;
-  height: 100% !important;
-  width: 100% !important;
 }
 
 /* Sliding Pill Switch / Toggle */
@@ -977,4 +1014,84 @@ div[class*="fixed"][class*="z-50"] textarea:focus {
   box-shadow: 0 0 0 2px rgba(229, 169, 59, 0.25) !important;
   outline: none !important;
 }
+
+/* Premium Range Slider for Bookshelf Card Sizing */
+#shelf-size-slider {
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  background: var(--color-black-400, #333333) !important;
+  height: 4px !important;
+  border-radius: 2px !important;
+  outline: none !important;
+  transition: background 0.15s ease !important;
+}
+
+#shelf-size-slider::-webkit-slider-thumb {
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  width: 14px !important;
+  height: 14px !important;
+  border-radius: 50% !important;
+  background: var(--color-accent, #e5a93b) !important;
+  cursor: pointer !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5) !important;
+  transition: transform 0.1s ease, background-color 0.15s ease, box-shadow 0.15s ease !important;
+}
+
+#shelf-size-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.25) !important;
+  background: color-mix(in oklab, var(--color-accent, #e5a93b) 85%, white) !important;
+  box-shadow: 0 0 8px var(--color-accent, #e5a93b) !important;
+}
+
+#shelf-size-slider::-moz-range-thumb {
+  width: 14px !important;
+  height: 14px !important;
+  border-radius: 50% !important;
+  background: var(--color-accent, #e5a93b) !important;
+  border: none !important;
+  cursor: pointer !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5) !important;
+  transition: transform 0.1s ease, background-color 0.15s ease, box-shadow 0.15s ease !important;
+}
+
+#shelf-size-slider::-moz-range-thumb:hover {
+  transform: scale(1.25) !important;
+  background: color-mix(in oklab, var(--color-accent, #e5a93b) 85%, white) !important;
+  box-shadow: 0 0 8px var(--color-accent, #e5a93b) !important;
+}
+
+/* Premium Search Results Dropdown List Styles */
+#global-search-results-list {
+  padding: 4px 0 !important;
+}
+
+#global-search-results-list li[data-type] {
+  border-radius: 6px !important;
+  margin: 2px 4px !important;
+  border-bottom: none !important;
+  transition: all 0.15s ease !important;
+}
+
+#global-search-results-list li[data-type]:hover {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+  color: #ffffff !important;
+}
+
+#global-search-results-list li[data-type].bg-black-300 {
+  background-color: rgba(255, 255, 255, 0.12) !important;
+  color: var(--color-accent, #e5a93b) !important;
+}
+
+#global-search-results-list li:not([data-type]) {
+  background-color: transparent !important;
+  padding-top: 8px !important;
+  padding-bottom: 4px !important;
+  font-size: 0.7rem !important;
+  letter-spacing: 0.05em !important;
+  color: var(--color-accent, #e5a93b) !important;
+  border-bottom: none !important;
+}
+
+
 

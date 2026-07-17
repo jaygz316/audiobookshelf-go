@@ -20,17 +20,17 @@
     /* 2. 3D shelf plank highlights and shadows (drawn on top of the wood texture) */
     linear-gradient(to bottom,
       transparent 0px,
-      transparent calc(var(--bookshelf-row-height) - 20px),
-      rgba(255, 255, 255, 0.2) calc(var(--bookshelf-row-height) - 20px),
-      rgba(255, 255, 255, 0.05) calc(var(--bookshelf-row-height) - 18px),
-      rgba(0, 0, 0, 0.15) calc(var(--bookshelf-row-height) - 18px),
+      transparent calc(var(--bookshelf-row-height) - var(--bookshelf-plank-height)),
+      rgba(255, 255, 255, 0.2) calc(var(--bookshelf-row-height) - var(--bookshelf-plank-height)),
+      rgba(255, 255, 255, 0.05) calc(var(--bookshelf-row-height) - var(--bookshelf-plank-height) + 2px),
+      rgba(0, 0, 0, 0.15) calc(var(--bookshelf-row-height) - var(--bookshelf-plank-height) + 2px),
       rgba(0, 0, 0, 0.35) var(--bookshelf-row-height)
     ),
     /* 3. Solid back wall color covering the wood texture, and overlay tint on the plank */
     linear-gradient(to bottom,
       var(--color-bg) 0px,
-      var(--color-bg) calc(var(--bookshelf-row-height) - 20px),
-      var(--bookshelf-overlay) calc(var(--bookshelf-row-height) - 20px),
+      var(--color-bg) calc(var(--bookshelf-row-height) - var(--bookshelf-plank-height)),
+      var(--bookshelf-overlay) calc(var(--bookshelf-row-height) - var(--bookshelf-plank-height)),
       var(--bookshelf-overlay) var(--bookshelf-row-height)
     ),
     /* 4. The underlying wood grain texture */
@@ -45,19 +45,22 @@
 .library-shelf-grid > .bookshelf-card,
 .library-shelf-grid > .group {
   align-self: end !important;
-  margin-bottom: 20px !important;
+  margin-bottom: var(--bookshelf-plank-height) !important;
   width: var(--bookshelf-card-width) !important;
   height: var(--bookshelf-card-height) !important;
+}
+
+/* Scoped override for group elements in library shelf grid */
+.library-shelf-grid > .group {
+  position: relative;
   overflow: visible !important;
   transition: transform 0.2s ease !important;
 }
 
-.library-shelf-grid > .bookshelf-card:hover,
 .library-shelf-grid > .group:hover {
   transform: translateY(-6px) !important;
 }
 
-.library-shelf-grid > .bookshelf-card .book-cover-wrapper,
 .library-shelf-grid > .group .book-cover-wrapper {
   width: 100% !important;
   height: 100% !important;
@@ -67,12 +70,10 @@
   transition: box-shadow 0.2s ease;
 }
 
-.library-shelf-grid > .bookshelf-card:hover .book-cover-wrapper,
 .library-shelf-grid > .group:hover .book-cover-wrapper {
   box-shadow: 0 12px 24px rgba(0, 0, 0, 0.65), 0 4px 10px rgba(0, 0, 0, 0.45);
 }
 
-.library-shelf-grid > .bookshelf-card img,
 .library-shelf-grid > .group img {
   width: 100% !important;
   height: 100% !important;
@@ -80,7 +81,6 @@
   border-radius: 4px;
 }
 
-.library-shelf-grid > .bookshelf-card .absolute.inset-0,
 .library-shelf-grid > .group .absolute.inset-0 {
   border-radius: 4px;
   overflow: hidden;

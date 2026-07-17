@@ -17,7 +17,7 @@
   --bookshelf-plank-mid: #cfba93;
   --bookshelf-plank-bottom: #ab9875;
   --bookshelf-overlay: rgba(255, 255, 255, 0.45);
-  --bookshelf-reflect: below 4px linear-gradient(to bottom, rgba(255, 255, 255, 0.3) 0%, transparent 25%);
+  --bookshelf-reflect: below 2px linear-gradient(to bottom, rgba(255, 255, 255, 0.2) 0px, transparent var(--bookshelf-plank-height));
 }
 
 :root[data-theme="sepia"] {
@@ -38,17 +38,18 @@
   --bookshelf-plank-mid: #bead97;
   --bookshelf-plank-bottom: #9a8a73;
   --bookshelf-overlay: rgba(184, 134, 11, 0.15);
-  --bookshelf-reflect: below 4px linear-gradient(to bottom, rgba(244, 236, 216, 0.3) 0%, transparent 25%);
+  --bookshelf-reflect: below 2px linear-gradient(to bottom, rgba(244, 236, 216, 0.2) 0px, transparent var(--bookshelf-plank-height));
 }
 
 /* Enhanced Dynamic Bookshelf Sizing, Shadows and Cover Reflections */
 :root {
   --bookshelf-card-width: 120px;
   --bookshelf-card-height: calc(var(--bookshelf-card-width) * 1.5);
-  --bookshelf-row-height: calc(var(--bookshelf-card-height) + 50px);
+  --bookshelf-plank-height: calc(var(--bookshelf-card-width) * 0.15 + 6px);
+  --bookshelf-row-height: calc(var(--bookshelf-card-height) + var(--bookshelf-plank-height) + 30px);
   --bookshelf-plank-top: #a3795a;
   --bookshelf-plank-mid: rgb(122, 94, 68);
   --bookshelf-plank-bottom: rgb(71, 48, 25);
   --bookshelf-overlay: rgba(0, 0, 0, 0);
-  --bookshelf-reflect: below 4px linear-gradient(to bottom, rgba(0, 0, 0, 0.35) 0%, transparent 25%);
+  --bookshelf-reflect: below 2px linear-gradient(to bottom, rgba(0, 0, 0, 0.25) 0px, transparent var(--bookshelf-plank-height));
 }
