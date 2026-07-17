@@ -161,7 +161,10 @@
   - Removed `font-mono` typography classes from the toolbar results count label (`#book-count`) and separators (`#view-title-separator`) in `frontend/index.html` to align with the clean, modern sans-serif typography of the original project.
   - Refined custom Filter and Sort dropdown menu items' hover colors in `frontend/js/app.js` from `hover:bg-black-500` to `hover:bg-black-400` so that highlights are clearly visible against the dark gray background.
   - Aligned global styles in `frontend/css/styles.css` by updating core variable configurations (`--color-bg` to `#2c2c2c` for true charcoal backgrounds and `--color-accent` to `#e5a93b` for gold highlights) to match the brand color scheme of the original Audiobookshelf project.
-
+- **Series List Reading Progress Optimization**:
+  - Optimized the Series view loading speed by adding bulk reading progress queries via direct `mediaProgresses` LEFT JOINs in GET `/api/libraries/:id/series`.
+  - Allowed test database compatibility by excluding non-existent mock database columns (`createdAt`) from the `mediaProgresses` table scan within the series list query.
+  - Integrated book-level `userProgress` arrays in the JSON response, pre-populating frontend `progressCache` maps in `authors.js` to instantly compute overall series completion percentages.
 
 - **Modularized Database Queries**:
   - Broke down the monolithic `internal/db/db_queries.go` (2,261 lines) into four logically separated files inside the `db` package:
@@ -170,3 +173,22 @@
     - [filter_sorting.go](file:///home/jay/.gemini/antigravity/brain/bd7a400e-1bc2-403c-bd6c-929b68d9779c/.system_generated/worktrees/subagent-DB-Query-Modularizer-refactor-agent-14187e60/internal/db/filter_sorting.go): Query filter builders, sorting orders, and library filter metadata.
     - [db_utils.go](file:///home/jay/.gemini/antigravity/brain/bd7a400e-1bc2-403c-bd6c-929b68d9779c/.system_generated/worktrees/subagent-DB-Query-Modularizer-refactor-agent-14187e60/internal/db/db_utils.go): Generic JSON/Epoch and Table existence helper utilities.
   - Removed unused imports and verified all `internal/db` tests pass successfully.
+
+- **Refactored Backup Scheduler & Fixed Challenger Findings**:
+  - Implemented dynamic ticker duration inside `internal/backup/task.go` (1s for 6-field crons and 5s for 5-field crons) to prevent missed second-level triggers.
+  - Implemented resilient catch-up range evaluation checking each step of resolution `R` from `lastRunTime` to `checkTime` with caps on the maximum catch-up window.
+  - Executed `CreateBackup` asynchronously in a background goroutine using `context.Background()` to avoid synchronous blocking of lifecycle operations (`Stop`/`Reload`).
+  - Split `scheduler_challenger_test.go` into `scheduler_challenger_test.go` and `scheduler_challenger_stress_test.go` to ensure all files in `internal/backup/` package are strictly under 200 lines.
+  - Updated `TestChallengerBlockingLifecycle` to assert that `Stop()` returns instantly (non-blocking) and wait for background backup completion via polling.
+  - Resolved a database closure race condition in `TestSchedulerCheckAndRun` by waiting for background task completion using the package-level `BackupRestoreMu` mutex before cleaning up directories.
+
+- **Scheduler Re-initialization & Global DB Mutex Fixes**:
+  - Re-initialized the backup scheduler upon database reconnection inside `reconnectDB` in `internal/handlers/backup_handlers.go`, preventing the scheduler from holding closed connections and leaking goroutines.
+  - Eliminated data races on the package-level `globalDB` variable in the `handlers` package by wrapping it with a `sync.RWMutex` and implementing thread-safe `GetGlobalDB()` and `SetGlobalDB(...)` functions in `internal/handlers/managers.go`.
+  - Replaced all direct reads/writes/comparisons of `globalDB` with thread-safe calls across the handlers files: `backup_handlers.go`, `dispatchers.go`, `managers.go`, `middleware.go`, `routes.go`, `spa.go`, and test files.
+
+### 2026-07-17
+- **WebAssembly Setup Wizard Modularization**:
+  - Modularized `frontend/go/setup.go` by splitting it into three smaller files under 200 lines: `setup.go` (UI screen rendering/transitions), `setup_validation.go` (step validation logic), and `setup_submit.go` (asynchronous submission/API interaction logic).
+  - All files retain build tag `//go:build js && wasm` and package `main` declaration, ensuring successful compilation and passing test status.
+

@@ -149,3 +149,11 @@ export function castPlayItem(item, startTime = 0, clientPlaylistUri) {
     }
   );
 }
+
+export function getCastContext() {
+  return castContext;
+}
+
+export function getRemotePlayerController() {
+  return remotePlayerController;
+}

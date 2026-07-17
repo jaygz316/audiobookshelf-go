@@ -127,6 +127,56 @@ function stopHeartbeat() {
 }
 
 export function registerAppSocketListeners() {
+  if (!window.activePlaybackSessions) {
+    window.activePlaybackSessions = new Map();
+  }
+
+  // Socket init event
+  onEvent('init', (data) => {
+    console.log('[Socket] init received:', data);
+    window.activePlaybackSessions.clear();
+    if (data && data.playbackSessions && Array.isArray(data.playbackSessions)) {
+      data.playbackSessions.forEach(s => {
+        window.activePlaybackSessions.set(s.id, s);
+      });
+    }
+    if (data && data.usersOnline && Array.isArray(data.usersOnline)) {
+      data.usersOnline.forEach(u => {
+        if (u.playbackSessions && Array.isArray(u.playbackSessions)) {
+          u.playbackSessions.forEach(s => {
+            window.activePlaybackSessions.set(s.id, s);
+          });
+        }
+      });
+    }
+    document.dispatchEvent(new CustomEvent('presence-updated'));
+  });
+
+  // Playback session state sync
+  onEvent('playback_session_added', (session) => {
+    console.log('[Socket] global playback_session_added:', session);
+    if (session && session.id) {
+      window.activePlaybackSessions.set(session.id, session);
+      document.dispatchEvent(new CustomEvent('presence-updated'));
+    }
+  });
+
+  onEvent('playback_session_updated', (session) => {
+    console.log('[Socket] global playback_session_updated:', session);
+    if (session && session.id) {
+      window.activePlaybackSessions.set(session.id, session);
+      document.dispatchEvent(new CustomEvent('presence-updated'));
+    }
+  });
+
+  onEvent('playback_session_removed', (data) => {
+    console.log('[Socket] global playback_session_removed:', data);
+    if (data && data.id) {
+      window.activePlaybackSessions.delete(data.id);
+      document.dispatchEvent(new CustomEvent('presence-updated'));
+    }
+  });
+
   // Register listener for progress syncing across devices
   onEvent('user_item_progress_updated', (data) => {
     console.log('[Socket] progress updated:', data);

@@ -1,5 +1,5 @@
 import { request } from '../api.js';
-import { showToast } from '../app.js';
+import { showToast } from '../toast.js';
 import { getLibrariesList } from '../library.js';
 
 function escapeHtml(str) {

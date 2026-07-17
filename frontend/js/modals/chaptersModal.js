@@ -1,5 +1,5 @@
 import { request } from '../api.js';
-import { formatDuration } from '../itemDetails.js';
+import { formatDuration, escapeHtml, parseDuration } from '../itemDetails.js';
 
 export function triggerEditChaptersModal(item, onSaveSuccess) {
   const modal = document.createElement('div');

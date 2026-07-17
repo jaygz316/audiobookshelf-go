@@ -11,6 +11,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang-jwt/jwt/v5"
+
 	"audiobookshelf/internal/core"
 )
 
@@ -321,5 +323,138 @@ func TestAdversarial_TrailingSlashAndDeleteNonExistent(t *testing.T) {
 		} else {
 			t.Logf("Pass: DELETE with trailing slash successfully deleted key from DB")
 		}
+	}
+}
+
+func TestAdversarial_DeactivatedUserAPIKey(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	// 1. Insert a deactivated user (isActive = 0)
+	_, err := db.Exec(`INSERT INTO users (id, username, type, isActive, permissions) VALUES ('user_deactivated', 'deactivated_user', 'admin', 0, '{}')`)
+	if err != nil {
+		t.Fatalf("Failed to insert test user: %v", err)
+	}
+
+	// 2. Insert an active API key for this deactivated user
+	token := "deactivateduser1234567890abcdef1234567890abcdef"
+	_, err = db.Exec(`
+		INSERT INTO apiKeys (id, isActive, expiresAt, userId, name, createdAt)
+		VALUES (?, 1, '', 'user_deactivated', 'Deactivated Key', '2026-06-19T00:00:00Z')
+	`, token)
+	if err != nil {
+		t.Fatalf("Failed to insert API key: %v", err)
+	}
+
+	// 3. Try to authenticate using the deactivated user's API key
+	nextHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+	mw := AuthMiddleware(db, "secret", nextHandler)
+
+	req := httptest.NewRequest("GET", "/api/me", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	rr := httptest.NewRecorder()
+
+	mw.ServeHTTP(rr, req)
+
+	// Since we are validating security, deactivated users must be rejected (401 Unauthorized)
+	if rr.Code != http.StatusUnauthorized {
+		t.Errorf("Expected status 401 Unauthorized for deactivated user direct API key flow, got %d", rr.Code)
+	} else {
+		t.Logf("Pass: Deactivated user's API key correctly rejected with 401 Unauthorized")
+	}
+}
+
+func TestAdversarial_DeactivatedUserAPIKeyClaims(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	// 1. Insert a deactivated user (isActive = 0)
+	_, err := db.Exec(`INSERT INTO users (id, username, type, isActive, permissions) VALUES ('user_deactivated', 'deactivated_user', 'admin', 0, '{}')`)
+	if err != nil {
+		t.Fatalf("Failed to insert test user: %v", err)
+	}
+
+	// 2. Insert an active API key for this deactivated user
+	apiKeyID := "deactivateduser1234567890abcdef1234567890abcdef"
+	_, err = db.Exec(`
+		INSERT INTO apiKeys (id, isActive, expiresAt, userId, name, createdAt)
+		VALUES (?, 1, '', 'user_deactivated', 'Deactivated Key', '2026-06-19T00:00:00Z')
+	`, apiKeyID)
+	if err != nil {
+		t.Fatalf("Failed to insert API key: %v", err)
+	}
+
+	// 3. Create a JWT claims token of type "api" pointing to this key
+	claims := &core.AuthClaims{
+		KeyID: apiKeyID,
+		Type:  "api",
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour)),
+		},
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	tokenStr, err := token.SignedString([]byte("secret"))
+	if err != nil {
+		t.Fatalf("Failed to sign token: %v", err)
+	}
+
+	// 4. Try to authenticate using the claims JWT
+	nextHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+	mw := AuthMiddleware(db, "secret", nextHandler)
+
+	req := httptest.NewRequest("GET", "/api/me", nil)
+	req.Header.Set("Authorization", "Bearer "+tokenStr)
+	rr := httptest.NewRecorder()
+
+	mw.ServeHTTP(rr, req)
+
+	// Since we are validating security, deactivated users must be rejected (401 Unauthorized)
+	if rr.Code != http.StatusUnauthorized {
+		t.Errorf("Expected status 401 Unauthorized for deactivated user API key claims flow, got %d", rr.Code)
+	} else {
+		t.Logf("Pass: Deactivated user's API key claims correctly rejected with 401 Unauthorized")
+	}
+}
+
+func TestAdversarial_MalformedExpiration(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	// Insert active user
+	_, err := db.Exec(`INSERT INTO users (id, username, type, isActive, permissions) VALUES ('user1', 'testuser', 'admin', 1, '{}')`)
+	if err != nil {
+		t.Fatalf("Failed to insert test user: %v", err)
+	}
+
+	// Insert API key with malformed expiresAt date
+	token := "malformedexp1234567890abcdef1234567890abcdef"
+	_, err = db.Exec(`
+		INSERT INTO apiKeys (id, isActive, expiresAt, userId, name, createdAt)
+		VALUES (?, 1, 'invalid-date-format', 'user1', 'Malformed Exp Key', '2026-06-19T00:00:00Z')
+	`, token)
+	if err != nil {
+		t.Fatalf("Failed to insert API key: %v", err)
+	}
+
+	// Try to authenticate using this API key
+	nextHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+	mw := AuthMiddleware(db, "secret", nextHandler)
+
+	req := httptest.NewRequest("GET", "/api/me", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	rr := httptest.NewRecorder()
+
+	mw.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusUnauthorized {
+		t.Errorf("Expected status 401 Unauthorized for malformed expiration API Key, got %d", rr.Code)
+	} else {
+		t.Logf("Pass: AuthMiddleware successfully rejected request using API Key with malformed expiration (status: 401)")
 	}
 }

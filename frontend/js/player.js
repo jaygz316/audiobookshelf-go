@@ -6,7 +6,9 @@ import {
   castPlayItem,
   isCasting,
   getRemotePlayer,
-  setupCastCallbacks
+  setupCastCallbacks,
+  getCastContext,
+  getRemotePlayerController
 } from './player/cast.js';
 
 import {
@@ -19,6 +21,9 @@ import {
   updateQueueUI
 } from './player/queue.js';
 
+export { addToQueue } from './player/queue.js';
+
+
 import {
   setPlayerController,
   updateTimelineUI,
@@ -28,7 +33,9 @@ import {
   updateSkipButtonsUI,
   updatePlaybackControlsUI,
   showNotification,
-  updateSleepTimerUI
+  updateSleepTimerUI,
+  setupUIEventListeners,
+  drawWaveform
 } from './player/ui.js';
 
 
@@ -82,7 +89,7 @@ function initAudio() {
   audio.addEventListener('durationchange', updateTimelineUI);
   audio.addEventListener('ended', onPlaybackEnded);
   audio.addEventListener('play', () => {
-    if (remotePlayer && remotePlayer.isConnected) return;
+    if (isCasting()) return;
     updatePlayPauseButton(true);
     if ('mediaSession' in navigator) {
       navigator.mediaSession.playbackState = 'playing';
@@ -92,9 +99,13 @@ function initAudio() {
     if (sleepTimerAutoRestart && sleepTimerType !== 'off' && !isSleepTimerActive) {
       startSleepTimer(sleepTimerType);
     }
+    
+    document.dispatchEvent(new CustomEvent('playback-state-changed', {
+      detail: { itemId: currentItem?.id, isPlaying: true }
+    }));
   });
   audio.addEventListener('pause', () => {
-    if (remotePlayer && remotePlayer.isConnected) return;
+    if (isCasting()) return;
     updatePlayPauseButton(false);
     if ('mediaSession' in navigator) {
       navigator.mediaSession.playbackState = 'paused';
@@ -104,6 +115,10 @@ function initAudio() {
     if (isSleepTimerActive) {
       stopSleepTimer(false); // false means don't clear the saved type
     }
+    
+    document.dispatchEvent(new CustomEvent('playback-state-changed', {
+      detail: { itemId: currentItem?.id, isPlaying: false }
+    }));
   });
   
   setupUIEventListeners();
@@ -139,6 +154,19 @@ export async function playItems(items, startIndex = 0) {
   const itemToPlay = items[startIndex];
   updateQueueUI();
   await playItem(itemToPlay);
+}
+
+export function pauseItem() {
+  if (isCasting()) {
+    const session = getCastContext()?.getCurrentSession();
+    if (session) {
+      getRemotePlayerController()?.playOrPause();
+    }
+  } else {
+    if (audio) {
+      audio.pause();
+    }
+  }
 }
 
 export async function playItem(item, startTime = 0) {
@@ -218,7 +246,7 @@ export async function playItem(item, startTime = 0) {
     // Set metadata on UI
     updateMetadataUI(itemObj);
     
-    if (remotePlayer && remotePlayer.isConnected) {
+    if (isCasting()) {
       if (audio) {
         audio.pause();
         audio.src = '';
@@ -316,9 +344,10 @@ async function reportProgress(isFinished = false) {
   
   let currentTime = 0;
   let duration = 0;
-  if (remotePlayer && remotePlayer.isConnected) {
-    currentTime = remotePlayer.currentTime || 0;
-    duration = remotePlayer.duration || 0;
+  if (isCasting()) {
+    const rp = getRemotePlayer();
+    currentTime = rp.currentTime || 0;
+    duration = rp.duration || 0;
   } else {
     if (!audio) return;
     currentTime = audio.currentTime || 0;
@@ -365,9 +394,9 @@ async function onPlaybackEnded() {
 }
 
 export function seekTo(seconds) {
-  if (remotePlayer && remotePlayer.isConnected) {
-    remotePlayer.currentTime = seconds;
-    remotePlayerController.seek();
+  if (isCasting()) {
+    getRemotePlayer().currentTime = seconds;
+    getRemotePlayerController().seek();
   } else {
     if (!audio) return;
     audio.currentTime = seconds;
@@ -392,14 +421,18 @@ function destroyPlayer() {
     hls.destroy();
     hls = null;
   }
-  if (remotePlayer && remotePlayer.isConnected && castContext) {
-    const session = castContext.getCurrentSession();
+  if (isCasting() && getCastContext()) {
+    const session = getCastContext().getCurrentSession();
     if (session) {
       session.endSession(true);
     }
   }
   currentItem = null;
   currentPlaylistUri = null;
+  
+  document.dispatchEvent(new CustomEvent('playback-state-changed', {
+    detail: { itemId: null, isPlaying: false }
+  }));
   
   const playerBar = document.getElementById('player-bar');
   if (playerBar) {
@@ -449,8 +482,8 @@ export function getCurrentPlayingItem() {
 }
 
 export function getCurrentPlaybackTime() {
-  if (remotePlayer && remotePlayer.isConnected) {
-    return remotePlayer.currentTime || 0;
+  if (isCasting()) {
+    return getRemotePlayer().currentTime || 0;
   }
   return audio ? audio.currentTime : 0;
 }

@@ -391,7 +391,9 @@ export async function openEbookReader(item, token) {
   let pdfDoc = null;
   let pdfCurrentPage = 1;
   let renderPdfPage = null;
-  let refreshPdfBookmarksList = null;
+  let localRefreshPdfBookmarksList = null;
+  let localRefreshBookmarksTab = null;
+  let renderExistingHighlights = null;
   let currentTheme = 'dark';
   let currentFontSize = 100;
   let currentFont = 'Georgia, serif';
@@ -555,6 +557,97 @@ export async function openEbookReader(item, token) {
   const clickOutsideTOC = (e) => {
     if (!drawer.contains(e.target) && e.target.id !== 'reader-toc-btn' && !e.target.closest('#reader-toc-btn')) {
       closeTOCDrawer();
+    }
+  };
+
+  // Highlight/Bookmark logic
+  const showHighlightModal = (cfiRange, text) => {
+    selectedCfiRange = cfiRange;
+    selectedTextStr = text;
+    
+    const modal = document.getElementById('reader-highlight-modal');
+    const textBox = document.getElementById('highlight-selected-text');
+    const noteInput = document.getElementById('highlight-note-input');
+    
+    if (textBox) textBox.textContent = text;
+    if (noteInput) noteInput.value = "";
+    
+    document.querySelectorAll('.hl-color-btn').forEach(btn => {
+      if (btn.getAttribute('data-color') === activeColor) {
+        btn.classList.add('ring-2', 'ring-accent', 'ring-offset-2', 'ring-offset-primary');
+      } else {
+        btn.classList.remove('ring-2', 'ring-accent', 'ring-offset-2', 'ring-offset-primary');
+      }
+    });
+
+    if (modal) modal.classList.remove('hidden');
+  };
+
+  document.querySelectorAll('.hl-color-btn').forEach(btn => {
+    btn.onclick = (e) => {
+      activeColor = e.target.getAttribute('data-color');
+      document.querySelectorAll('.hl-color-btn').forEach(b => {
+        if (b.getAttribute('data-color') === activeColor) {
+          b.classList.add('ring-2', 'ring-accent', 'ring-offset-2', 'ring-offset-primary');
+        } else {
+          b.classList.remove('ring-2', 'ring-accent', 'ring-offset-2', 'ring-offset-primary');
+        }
+      });
+    };
+  });
+
+  document.getElementById('highlight-save-btn').onclick = async () => {
+    const noteInput = document.getElementById('highlight-note-input');
+    const noteText = noteInput ? noteInput.value.trim() : "";
+    
+    try {
+      await request('POST', `/api/me/item/${itemId}/bookmark`, {
+        time: Date.now() / 1000,
+        title: selectedTextStr,
+        note: noteText,
+        color: activeColor,
+        cfi: selectedCfiRange
+      });
+      
+      document.getElementById('reader-highlight-modal').classList.add('hidden');
+      
+      // Deselect text in viewer iframe
+      if (rendition) {
+        try {
+          const contents = rendition.getContents();
+          if (contents && contents.length > 0) {
+            contents[0].window.getSelection().removeAllRanges();
+          }
+        } catch (e) {}
+      }
+
+      // Trigger rendering highlights and refresh side drawer
+      if (typeof renderExistingHighlights === 'function') {
+        renderExistingHighlights();
+      }
+      if (typeof localRefreshBookmarksTab === 'function') {
+        await localRefreshBookmarksTab();
+      }
+      
+      if (format === 'pdf' && typeof localRefreshPdfBookmarksList === 'function') {
+        await localRefreshPdfBookmarksList();
+      }
+      
+    } catch (err) {
+      console.error("Failed to save highlight:", err);
+      alert("Failed to save highlight");
+    }
+  };
+
+  document.getElementById('highlight-cancel-btn').onclick = () => {
+    document.getElementById('reader-highlight-modal').classList.add('hidden');
+    if (rendition) {
+      try {
+        const contents = rendition.getContents();
+        if (contents && contents.length > 0) {
+          contents[0].window.getSelection().removeAllRanges();
+        }
+      } catch (e) {}
     }
   };
 
@@ -904,9 +997,9 @@ export async function openEbookReader(item, token) {
       };
 
       // PDF Bookmarks / Notes list refresh helper
-      refreshPdfBookmarksList = async () => {
+      localRefreshPdfBookmarksList = async () => {
         await refreshPdfBookmarksList(itemId, (b) => {
-          jumpToPage(b.time);
+          renderPdfPage(b.time);
         });
       };
       // Add PDF bookmark button click
@@ -936,7 +1029,7 @@ export async function openEbookReader(item, token) {
           tabThumbs.className = `flex-1 text-center py-1 text-[10px] rounded transition-colors ${inactiveBtnClass}`;
           listThumbs.classList.add('hidden');
           listBms.classList.remove('hidden');
-          refreshPdfBookmarksList();
+          localRefreshPdfBookmarksList();
         };
       }
       
@@ -1052,12 +1145,7 @@ export async function openEbookReader(item, token) {
         }
       };
 
-
-          console.warn("Failed to apply stylesheet rules to iframe contents:", e);
-        }
-      };
-
-      const renderExistingHighlights = () => {
+      renderExistingHighlights = () => {
         if (!rendition) return;
         const curUser = window.currentUser || {};
         const bms = (curUser.bookmarks || []).filter(b => b.libraryItemId === itemId && b.cfi);
@@ -1408,93 +1496,6 @@ export async function openEbookReader(item, token) {
         }
       };
 
-      // Highlight/Bookmark logic
-      const showHighlightModal = (cfiRange, text) => {
-        selectedCfiRange = cfiRange;
-        selectedTextStr = text;
-        
-        const modal = document.getElementById('reader-highlight-modal');
-        const textBox = document.getElementById('highlight-selected-text');
-        const noteInput = document.getElementById('highlight-note-input');
-        
-        if (textBox) textBox.textContent = text;
-        if (noteInput) noteInput.value = "";
-        
-        document.querySelectorAll('.hl-color-btn').forEach(btn => {
-          if (btn.getAttribute('data-color') === activeColor) {
-            btn.classList.add('ring-2', 'ring-accent', 'ring-offset-2', 'ring-offset-primary');
-          } else {
-            btn.classList.remove('ring-2', 'ring-accent', 'ring-offset-2', 'ring-offset-primary');
-          }
-        });
-
-        if (modal) modal.classList.remove('hidden');
-      };
-
-      document.querySelectorAll('.hl-color-btn').forEach(btn => {
-        btn.onclick = (e) => {
-          activeColor = e.target.getAttribute('data-color');
-          document.querySelectorAll('.hl-color-btn').forEach(b => {
-            if (b.getAttribute('data-color') === activeColor) {
-              b.classList.add('ring-2', 'ring-accent', 'ring-offset-2', 'ring-offset-primary');
-            } else {
-              b.classList.remove('ring-2', 'ring-accent', 'ring-offset-2', 'ring-offset-primary');
-            }
-          });
-        };
-      });
-
-      document.getElementById('highlight-save-btn').onclick = async () => {
-        const noteInput = document.getElementById('highlight-note-input');
-        const noteText = noteInput ? noteInput.value.trim() : "";
-        
-        try {
-          const resp = await request('POST', `/api/me/item/${itemId}/bookmark`, {
-            time: Date.now() / 1000,
-            title: selectedTextStr,
-            note: noteText,
-            color: activeColor,
-            cfi: selectedCfiRange
-          });
-          
-          document.getElementById('reader-highlight-modal').classList.add('hidden');
-          
-          // Deselect text in viewer iframe
-          if (rendition) {
-            try {
-              const contents = rendition.getContents();
-              if (contents && contents.length > 0) {
-                contents[0].window.getSelection().removeAllRanges();
-              }
-            } catch (e) {}
-          }
-
-          // Trigger rendering highlights and refresh side drawer
-          renderExistingHighlights();
-          await refreshBookmarksTab();
-          
-          if (format === 'pdf' && typeof refreshPdfBookmarksList === 'function') {
-            await refreshPdfBookmarksList();
-          }
-          
-        } catch (err) {
-          console.error("Failed to save highlight:", err);
-          alert("Failed to save highlight");
-        }
-      };
-
-      document.getElementById('highlight-cancel-btn').onclick = () => {
-        document.getElementById('reader-highlight-modal').classList.add('hidden');
-        if (rendition) {
-          try {
-            const contents = rendition.getContents();
-            if (contents && contents.length > 0) {
-              contents[0].window.getSelection().removeAllRanges();
-            }
-          } catch (e) {}
-        }
-      };
-
       // Drawer Tab Swapping
       const tabChapters = document.getElementById('drawer-tab-chapters');
       const tabBookmarks = document.getElementById('drawer-tab-bookmarks');
@@ -1513,7 +1514,7 @@ export async function openEbookReader(item, token) {
           tabChapters.className = `flex-1 text-center py-1 text-xs rounded transition-colors ${inactiveBtnClass}`;
           listChapters.classList.add('hidden');
           listBookmarks.classList.remove('hidden');
-          refreshBookmarksTab();
+          localRefreshBookmarksTab();
         };
       }
 
@@ -1731,7 +1732,7 @@ export async function openEbookReader(item, token) {
       document.addEventListener('click', clickOutsideTOC);
 
       // Bookmarks view refresh helper
-      refreshBookmarksTab = async () => {
+      localRefreshBookmarksTab = async () => {
         await refreshBookmarksTab(itemId, (b) => {
           if (rendition && b.cfi) {
             rendition.display(b.cfi);

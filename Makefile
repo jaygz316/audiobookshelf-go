@@ -3,25 +3,25 @@
 all: build
 
 build:
-	go run run.go build
+	go run run.go run_commands.go build
 
 test:
-	go run run.go test
+	go run run.go run_commands.go test
 
 vet:
-	go run run.go vet
+	go run run.go run_commands.go vet
 
 fmt:
-	go run run.go fmt
+	go run run.go run_commands.go fmt
 
 fmt-check:
-	go run run.go fmt-check
+	go run run.go run_commands.go fmt-check
 
 docker-build:
-	go run run.go docker-build
+	go run run.go run_commands.go docker-build
 
 docker-push:
-	go run run.go docker-push
+	go run run.go run_commands.go docker-push
 
 clean:
-	go run run.go clean
+	go run run.go run_commands.go clean

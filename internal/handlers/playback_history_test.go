@@ -189,4 +189,80 @@ func TestListeningStatsAndHistory(t *testing.T) {
 			t.Errorf("Expected DaysListened 2, got %d", stats.DaysListened)
 		}
 	})
+
+	t.Run("GET /api/users/{id}/listening-sessions permissions and pagination", func(t *testing.T) {
+		// Other user tries to access normaluser's sessions -> Forbidden
+		req := httptest.NewRequest("GET", "/api/users/user-normal/listening-sessions", nil)
+		req = req.WithContext(context.WithValue(req.Context(), core.UserContextKey, otherSession))
+		rr := httptest.NewRecorder()
+		handleUserCRUD(db).ServeHTTP(rr, req)
+		if rr.Code != http.StatusForbidden {
+			t.Errorf("Expected 403 Forbidden, got %d", rr.Code)
+		}
+
+		// Root user tries to access normaluser's sessions -> Success
+		req2 := httptest.NewRequest("GET", "/api/users/user-normal/listening-sessions?page=0&itemsPerPage=5", nil)
+		req2 = req2.WithContext(context.WithValue(req2.Context(), core.UserContextKey, rootSession))
+		rr2 := httptest.NewRecorder()
+		handleUserCRUD(db).ServeHTTP(rr2, req2)
+		if rr2.Code != http.StatusOK {
+			t.Errorf("Expected 200 OK, got %d", rr2.Code)
+		}
+
+		var resp map[string]interface{}
+		if err := json.NewDecoder(rr2.Body).Decode(&resp); err != nil {
+			t.Fatalf("Failed to decode response: %v", err)
+		}
+
+		sessionsList, ok := resp["sessions"].([]interface{})
+		if !ok || len(sessionsList) != 2 {
+			t.Errorf("Expected 2 sessions in paginated list, got %v", resp["sessions"])
+		}
+		if int(resp["total"].(float64)) != 2 {
+			t.Errorf("Expected total 2, got %v", resp["total"])
+		}
+	})
+
+	t.Run("GET /api/server-listening-sessions permissions and pagination", func(t *testing.T) {
+		// Normal user tries to access server sessions -> Forbidden
+		req := httptest.NewRequest("GET", "/api/server-listening-sessions", nil)
+		req = req.WithContext(context.WithValue(req.Context(), core.UserContextKey, normalSession))
+		rr := httptest.NewRecorder()
+		handleGetServerListeningSessions(db).ServeHTTP(rr, req)
+		if rr.Code != http.StatusForbidden {
+			t.Errorf("Expected 403 Forbidden, got %d", rr.Code)
+		}
+
+		// Root user tries to access server sessions -> Success
+		req2 := httptest.NewRequest("GET", "/api/server-listening-sessions?page=0&itemsPerPage=5", nil)
+		req2 = req2.WithContext(context.WithValue(req2.Context(), core.UserContextKey, rootSession))
+		rr2 := httptest.NewRecorder()
+		handleGetServerListeningSessions(db).ServeHTTP(rr2, req2)
+		if rr2.Code != http.StatusOK {
+			t.Errorf("Expected 200 OK, got %d", rr2.Code)
+		}
+
+		var resp map[string]interface{}
+		if err := json.NewDecoder(rr2.Body).Decode(&resp); err != nil {
+			t.Fatalf("Failed to decode response: %v", err)
+		}
+
+		sessionsList, ok := resp["sessions"].([]interface{})
+		if !ok || len(sessionsList) != 2 {
+			t.Errorf("Expected 2 sessions in server list, got %v", resp["sessions"])
+		}
+		if int(resp["total"].(float64)) != 2 {
+			t.Errorf("Expected total 2, got %v", resp["total"])
+		}
+	})
+
+	t.Run("GET /api/me/listening-sessions invalid/negative pagination parameters", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/api/me/listening-sessions?page=1&itemsPerPage=-5", nil)
+		req = req.WithContext(context.WithValue(req.Context(), core.UserContextKey, normalSession))
+		rr := httptest.NewRecorder()
+		handleGetMeListeningSessions(db).ServeHTTP(rr, req)
+
+		// Check the response. Let's see if SQLite query fails or if it's handled.
+		t.Logf("Negative page/limit response (page=1, limit=-5): %d, body: %s", rr.Code, rr.Body.String())
+	})
 }

@@ -3,8 +3,6 @@ package main
 import (
 	"database/sql"
 	"embed"
-	"encoding/json"
-	"flag"
 	"fmt"
 	"io/fs"
 	"log"
@@ -12,13 +10,11 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"path"
 	"path/filepath"
 	"syscall"
 	"time"
 
 	ibackup "audiobookshelf/internal/backup"
-	"audiobookshelf/internal/core"
 	"audiobookshelf/internal/db"
 	"audiobookshelf/internal/handlers"
 	"audiobookshelf/internal/logger"
@@ -37,40 +33,6 @@ var subFS fs.FS
 
 var cachedSecret string
 var globalDB *sql.DB
-
-func getTokenSecret(database *sql.DB) string {
-	if envSecret := os.Getenv("JWT_SECRET_KEY"); envSecret != "" {
-		return envSecret
-	}
-	if cachedSecret != "" {
-		return cachedSecret
-	}
-	if database == nil {
-		return ""
-	}
-	secret := db.GetTokenSecret(database)
-	if secret != "" {
-		cachedSecret = secret
-	}
-	return secret
-}
-
-func getVersion(appRoot string) string {
-	pkgPath := filepath.Join(appRoot, "package.json")
-	file, err := os.Open(pkgPath)
-	if err != nil {
-		return "2.35.1" // Fallback
-	}
-	defer file.Close()
-
-	var pkg struct {
-		Version string `json:"version"`
-	}
-	if err := json.NewDecoder(file).Decode(&pkg); err != nil {
-		return "2.35.1"
-	}
-	return pkg.Version
-}
 
 func init() {
 	// Register font MIME types to ensure proper browser rendering of icons.
@@ -179,74 +141,4 @@ func main() {
 		log.Fatalf("Server ListenAndServe failed: %v", err)
 	}
 	log.Printf("Go Gateway stopped.")
-}
-
-func parseConfig() *core.Config {
-	configFlag := flag.String("c", "", "Config path")
-	metadataFlag := flag.String("m", "", "Metadata path")
-	portFlag := flag.String("p", "", "Port")
-	hostFlag := flag.String("h", "", "Host")
-	sourceFlag := flag.String("s", "", "Source")
-	devFlag := flag.Bool("d", false, "Dev mode")
-	prodDevFlag := flag.Bool("r", false, "Prod with dev env")
-	legacyURLFlag := flag.String("legacy-url", "http://localhost:3334", "Legacy Node.js server URL")
-
-	flag.Parse()
-
-	configPath := *configFlag
-	if configPath == "" {
-		configPath = os.Getenv("CONFIG_PATH")
-	}
-	if configPath == "" {
-		configPath = "config"
-	}
-	configPath, _ = filepath.Abs(configPath)
-
-	metadataPath := *metadataFlag
-	if metadataPath == "" {
-		metadataPath = os.Getenv("METADATA_PATH")
-	}
-	if metadataPath == "" {
-		metadataPath = "metadata"
-	}
-	metadataPath, _ = filepath.Abs(metadataPath)
-
-	port := *portFlag
-	if port == "" {
-		port = os.Getenv("PORT")
-	}
-	if port == "" {
-		port = "3333"
-	}
-
-	host := *hostFlag
-	if host == "" {
-		host = os.Getenv("HOST")
-	}
-
-	source := *sourceFlag
-	if source == "" {
-		source = os.Getenv("SOURCE")
-	}
-	if source == "" {
-		source = "debian"
-	}
-
-	routerBasePath, exists := os.LookupEnv("ROUTER_BASE_PATH")
-	if !exists {
-		routerBasePath = "/audiobookshelf"
-	}
-	routerBasePath = path.Clean("/" + routerBasePath)
-
-	return &core.Config{
-		ConfigPath:     configPath,
-		MetadataPath:   metadataPath,
-		Port:           port,
-		Host:           host,
-		Source:         source,
-		Dev:            *devFlag,
-		ProdWithDevEnv: *prodDevFlag,
-		LegacyURL:      *legacyURLFlag,
-		RouterBasePath: routerBasePath,
-	}
 }

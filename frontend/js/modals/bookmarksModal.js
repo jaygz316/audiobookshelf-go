@@ -1,6 +1,6 @@
 import { request } from '../api.js';
-import { escapeHtml, formatDuration } from '../itemDetails.js';
-import { getCurrentPlayingItem, getCurrentPlaybackTime } from '../player.js';
+import { escapeHtml, formatDuration, parseDuration } from '../itemDetails.js';
+import { getCurrentPlayingItem, getCurrentPlaybackTime, playItem } from '../player.js';
 
 let currentUser = null;
 
@@ -354,7 +354,7 @@ export function triggerAddBookmarkOnDetailsModal(item) {
   };
 }
 
-export function triggerExportBookmarksModal(item) {
+export async function triggerExportBookmarksModal(item) {
   const user = await getBookmarksUser();
   const bookmarks = (user.bookmarks || []).filter(b => b.libraryItemId === item.id);
   bookmarks.sort((a, b) => a.time - b.time);
@@ -705,24 +705,6 @@ export function triggerImportBookmarksModal(item) {
   };
 }
 
-/**
- * Parse duration format (HH:MM:SS or MM:SS or seconds) to float seconds
- */
-function parseDuration(str) {
-  if (!str) return 0;
-  str = str.trim();
-  if (/^\d+(\.\d+)?$/.test(str)) {
-    return parseFloat(str);
-  }
-  const parts = str.split(':').map(Number);
-  if (parts.some(isNaN)) return 0;
-  if (parts.length === 3) {
-    return parts[0] * 3600 + parts[1] * 60 + parts[2];
-  } else if (parts.length === 2) {
-    return parts[0] * 60 + parts[1];
-  }
-  return 0;
-}
 
 /**
  * Triggers interactive chapter editor modal

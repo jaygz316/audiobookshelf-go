@@ -1,5 +1,5 @@
 import { request } from '../api.js';
-import { showToast } from '../app.js';
+import { showToast } from '../toast.js';
 import { onEvent, offEvent, sendEvent } from '../socket.js';
 import { logout } from '../auth.js';
 
