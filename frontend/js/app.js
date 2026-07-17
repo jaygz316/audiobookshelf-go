@@ -19,6 +19,22 @@ import { initPublicShare } from './publicShare.js';
 import { initSearchPresets } from './presets.js';
 import { loadPodcastLatestView, loadPodcastAddView, loadPodcastDownloadQueueView } from './podcasts.js';
 
+export function updateSearchPlaceholder() {
+  const activeLib = getActiveLibrary();
+  const globalSearchInput = document.getElementById('global-search-input');
+  if (globalSearchInput) {
+    if (activeLib) {
+      if (activeLib.mediaType === 'podcast') {
+        globalSearchInput.placeholder = 'Search Podcasts...';
+      } else {
+        globalSearchInput.placeholder = 'Search Books...';
+      }
+    } else {
+      globalSearchInput.placeholder = 'Search Library...';
+    }
+  }
+}
+
 function initApp() {
   setupEventHandlers();
   
@@ -363,6 +379,7 @@ function setupEventHandlers() {
     if (!libraryId) return;
     
     updateSidebarVisibility();
+    updateSearchPlaceholder();
     if (window.updateCustomSortMenu) {
       window.updateCustomSortMenu();
     }
@@ -1983,6 +2000,7 @@ function bootstrapApp(payload) {
 
   // Initialize library dropdown
   initLibrary(payload);
+  updateSearchPlaceholder();
 
   // Transition to main view
   showAppContainer();

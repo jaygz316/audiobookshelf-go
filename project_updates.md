@@ -30,6 +30,12 @@
 *This log is updated by developers/agents whenever an API, design pattern, or library is deprecated or updated.*
 
 ### 2026-07-17
+- **Library Grid, Header Navbar Search & Chromecast Alignment**:
+  - Implemented dynamic update of the global search input placeholder to reflect the active library's media type (e.g. `"Search Books..."` or `"Search Podcasts..."`), resolving dynamic viewport placeholders.
+  - Hidden secondary/administrative header actions (`#header-settings-btn`, `#header-activity-btn`, and `#header-upload-btn`) on mobile viewports (< 768px) via media query to eliminate crowding and redundancy on narrow screens.
+  - Aligned Google Cast connection color state with the application gold accent (`--color-accent` / `#e5a93b`) and corrected sizing for standard alignment.
+  - Integrated smooth width, height, and max-width transitions for bookshelf cards to ensure seamless card scaling when adjusting the shelf-size slider.
+  - Dynamically toggled `font-semibold` class on active navigation links' label element (`p`) inside `highlightSidebarLink` (`router.js`) to ensure typography weight mirrors the active page context on the navigation rail.
 - **Library Layout Columns & Mobile Form Polish**:
   - Refactored [itemDetails.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/itemDetails.js) container padding to responsive `p-4 sm:p-6 md:p-8` and increased maximum width constraint to `max-w-6xl` to align with the main application grid.
   - Upgraded details layout grid on desktop from a hardcoded 3-column split to a customized 2-column layout (`grid-cols-1 md:grid-cols-[240px_1fr]`) to reserve a precise 240px left-hand control rail.

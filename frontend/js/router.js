@@ -19,6 +19,7 @@ export function highlightSidebarLink(pageName) {
     if (name === pageName) {
       link.classList.remove('hover:bg-primary', 'hover:text-white', 'text-white/80', 'text-white', 'bg-bg/60');
       link.classList.add('bg-primary/80', 'text-accent');
+      p.classList.add('font-semibold');
       const activeBar = link.querySelector('.active-indicator');
       if (activeBar) {
         activeBar.classList.add('active');
@@ -26,6 +27,7 @@ export function highlightSidebarLink(pageName) {
     } else {
       link.classList.remove('bg-primary/80', 'text-accent', 'text-white');
       link.classList.add('hover:bg-primary', 'hover:text-white', 'text-white/80', 'bg-bg/60');
+      p.classList.remove('font-semibold');
       const activeBar = link.querySelector('.active-indicator');
       if (activeBar) {
         activeBar.classList.remove('active');
