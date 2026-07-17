@@ -220,11 +220,22 @@ input:checked + .abs-slider:before {
   flex-shrink: 0;
 }
 
-.series-cover-stack img {
+.series-cover-stack .series-cover-book {
   position: absolute;
+  border-radius: 6px;
+  overflow: hidden;
+  transition: transform 0.3s ease, opacity 0.3s ease, box-shadow 0.3s ease;
+}
+
+.series-cover-stack .series-cover-book img {
+  position: relative;
+  width: 100% !important;
+  height: 100% !important;
   object-fit: cover;
   border-radius: 6px;
-  transition: transform 0.3s ease, opacity 0.3s ease, box-shadow 0.3s ease;
+  transition: none !important;
+  transform: none !important;
+  box-shadow: none !important;
 }
 
 .series-cover-front {
@@ -234,6 +245,7 @@ input:checked + .abs-slider:before {
   left: 5%;
   z-index: 20;
   box-shadow: 0 8px 16px rgba(0, 0, 0, 0.5), 0 2px 4px rgba(0, 0, 0, 0.3);
+  -webkit-box-reflect: var(--bookshelf-reflect);
 }
 
 .group:hover .series-cover-front,
@@ -436,12 +448,24 @@ input:checked + .abs-slider:before {
   justify-content: center;
   flex-shrink: 0;
 }
-.series-detail-cover-stack img {
+.series-detail-cover-stack .series-cover-book {
   position: absolute;
-  object-fit: cover;
   border-radius: 6px;
+  overflow: hidden;
   transition: transform 0.3s ease, opacity 0.3s ease, box-shadow 0.3s ease;
 }
+
+.series-detail-cover-stack .series-cover-book img {
+  position: relative;
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover;
+  border-radius: 6px;
+  transition: none !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
 .series-detail-cover-stack .series-cover-front {
   width: 90%;
   height: 90%;
@@ -449,6 +473,7 @@ input:checked + .abs-slider:before {
   left: 5%;
   z-index: 20;
   box-shadow: 0 8px 16px rgba(0, 0, 0, 0.5), 0 2px 4px rgba(0, 0, 0, 0.3);
+  -webkit-box-reflect: var(--bookshelf-reflect);
 }
 .group:hover .series-detail-cover-stack .series-cover-front,
 .series-detail-cover-stack:hover .series-cover-front {
@@ -855,16 +880,19 @@ textarea:focus {
   border-radius: 8px !important;
 }
 
-.library-list-table {
+.library-list-table,
+#settings-tab-content table {
   border-collapse: collapse !important;
 }
 
-.library-list-table thead tr {
+.library-list-table thead tr,
+#settings-tab-content table thead tr {
   background-color: rgba(255, 255, 255, 0.01) !important;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
 }
 
-.library-list-table th {
+.library-list-table th,
+#settings-tab-content table th {
   font-size: 0.65rem !important;
   font-weight: 600 !important;
   letter-spacing: 0.05em !important;
@@ -873,20 +901,24 @@ textarea:focus {
   padding: 0.75rem 1rem !important;
 }
 
-.library-list-table td {
+.library-list-table td,
+#settings-tab-content table td {
   padding: 0.75rem 1rem !important;
   vertical-align: middle !important;
 }
 
-.library-list-table tbody tr {
+.library-list-table tbody tr,
+#settings-tab-content table tbody tr {
   border-bottom: 1px solid rgba(255, 255, 255, 0.03) !important;
 }
 
-.library-list-table tbody tr:last-child {
+.library-list-table tbody tr:last-child,
+#settings-tab-content table tbody tr:last-child {
   border-bottom: none !important;
 }
 
-.library-list-table tbody tr:hover {
+.library-list-table tbody tr:hover,
+#settings-tab-content table tbody tr:hover {
   background-color: rgba(255, 255, 255, 0.02) !important;
 }
 
@@ -1009,6 +1041,12 @@ div[class*="fixed"][class*="z-50"] input[type="number"],
 div[class*="fixed"][class*="z-50"] input[type="email"],
 div[class*="fixed"][class*="z-50"] select,
 div[class*="fixed"][class*="z-50"] textarea,
+dialog input[type="text"],
+dialog input[type="password"],
+dialog input[type="number"],
+dialog input[type="email"],
+dialog select,
+dialog textarea,
 #settings-tab-content input[type="text"],
 #settings-tab-content input[type="password"],
 #settings-tab-content input[type="number"],
@@ -1019,8 +1057,11 @@ div[class*="fixed"][class*="z-50"] textarea,
 #setup-screen input[type="password"],
 #setup-screen input[type="number"],
 #setup-screen input[type="email"] {
+  background-color: var(--color-black-500, #222222) !important;
+  border: 1px solid var(--color-black-300, #444444) !important;
+  color: var(--color-white, #ffffff) !important;
   border-radius: 4px !important;
-  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out !important;
+  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out, background-color 0.15s ease-in-out !important;
 }
 div[class*="fixed"][class*="z-50"] input[type="text"]:focus,
 div[class*="fixed"][class*="z-50"] input[type="password"]:focus,
@@ -1028,6 +1069,12 @@ div[class*="fixed"][class*="z-50"] input[type="number"]:focus,
 div[class*="fixed"][class*="z-50"] input[type="email"]:focus,
 div[class*="fixed"][class*="z-50"] select:focus,
 div[class*="fixed"][class*="z-50"] textarea:focus,
+dialog input[type="text"]:focus,
+dialog input[type="password"]:focus,
+dialog input[type="number"]:focus,
+dialog input[type="email"]:focus,
+dialog select:focus,
+dialog textarea:focus,
 #settings-tab-content input[type="text"]:focus,
 #settings-tab-content input[type="password"]:focus,
 #settings-tab-content input[type="number"]:focus,
@@ -1191,6 +1238,45 @@ input[type="radio"]:focus-visible,
   user-select: none !important;
 }
 
+/* Left and Right vertical wood border panels for Home page shelves */
+.shelf-wrapper::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  height: var(--bookshelf-row-height);
+  left: 0;
+  width: 14px;
+  background-image: 
+    linear-gradient(to bottom, var(--bookshelf-overlay), var(--bookshelf-overlay)),
+    var(--bookshelf-texture-img);
+  background-size: 100% 100%, auto var(--bookshelf-row-height);
+  background-repeat: no-repeat, repeat-y;
+  box-shadow: inset -3px 0 6px rgba(0, 0, 0, 0.7), 2px 0 5px rgba(0, 0, 0, 0.5);
+  z-index: 30;
+  border-top-left-radius: 8px;
+  border-bottom-left-radius: 8px;
+  pointer-events: none;
+}
+
+.shelf-wrapper::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  height: var(--bookshelf-row-height);
+  right: 0;
+  width: 14px;
+  background-image: 
+    linear-gradient(to bottom, var(--bookshelf-overlay), var(--bookshelf-overlay)),
+    var(--bookshelf-texture-img);
+  background-size: 100% 100%, auto var(--bookshelf-row-height);
+  background-repeat: no-repeat, repeat-y;
+  box-shadow: inset 3px 0 6px rgba(0, 0, 0, 0.7), -2px 0 5px rgba(0, 0, 0, 0.5);
+  z-index: 30;
+  border-top-right-radius: 8px;
+  border-bottom-right-radius: 8px;
+  pointer-events: none;
+}
+
 .shelf-wrapper:hover .shelf-scroll-btn {
   opacity: 1 !important;
   pointer-events: auto !important;
@@ -1273,3 +1359,33 @@ input[type="radio"]:focus-visible,
   transform: scale(1.2) !important;
   background: #f0be5a !important;
 }
+
+/* Custom View Transition name for settings content pane to allow scoped tab-switching animations */
+#settings-tab-content {
+  view-transition-name: settings-tab-pane;
+}
+
+/* Fallback/general tab fade-in animation for browsers that don't support View Transitions */
+#settings-tab-content > div:not(.hidden) {
+  animation: settingsTabFadeIn 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes settingsTabFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Style file inputs in settings consistently */
+#settings-tab-content input[type="file"] {
+  background-color: transparent !important;
+  border: none !important;
+  padding: 0.25rem 0 !important;
+  color: var(--color-black-50, #bbbbbb) !important;
+}
+
