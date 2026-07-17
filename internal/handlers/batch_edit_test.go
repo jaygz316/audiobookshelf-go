@@ -140,4 +140,62 @@ func TestHandleBatchUpdateLibraryItems(t *testing.T) {
 			t.Errorf("Expected libraryItem1 authorNamesFirstLast to be 'Author X', got %q", authorNames1)
 		}
 	}
+
+	// Case 3: Batch update containing a missing book item/media (skip/continue logic)
+	{
+		// Insert item3 into libraryItems, but DO NOT insert book3 into books table
+		_, err = db.Exec(`INSERT INTO libraryItems (id, libraryId, createdAt, updatedAt, mediaType, mediaId, title) VALUES ('item3', 'lib1', '2026-06-08 12:00:00.000', '2026-06-08 12:00:00.000', 'book', 'book3', 'Book Three')`)
+		if err != nil {
+			t.Fatalf("Failed to insert libraryItem3: %v", err)
+		}
+
+		payload := []BatchUpdateItem{
+			{
+				ID: "item3", // will be skipped because book3 details do not exist
+				MediaPayload: BatchUpdateMediaPayload{
+					Publisher: utils.NullIfEmpty("Publisher Three"),
+				},
+			},
+			{
+				ID: "item1", // will be updated successfully
+				MediaPayload: BatchUpdateMediaPayload{
+					Publisher: utils.NullIfEmpty("Another Publisher"),
+				},
+			},
+		}
+		body, _ := json.Marshal(payload)
+		req := httptest.NewRequest("POST", "/api/items/batch/update", bytes.NewReader(body))
+		user := &core.UserSession{
+			ID:       "user1",
+			Username: "admin",
+			Type:     "admin",
+		}
+		req = req.WithContext(context.WithValue(req.Context(), core.UserContextKey, user))
+		rr := httptest.NewRecorder()
+		handler.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusOK {
+			t.Fatalf("Expected 200 OK, got %d. Body: %s", rr.Code, rr.Body.String())
+		}
+
+		// Verify book1 was updated to "Another Publisher"
+		var pub1 string
+		err = db.QueryRow("SELECT publisher FROM books WHERE id = 'book1'").Scan(&pub1)
+		if err != nil {
+			t.Fatalf("Query book1 failed: %v", err)
+		}
+		if pub1 != "Another Publisher" {
+			t.Errorf("Expected book1 publisher to be 'Another Publisher', got %q", pub1)
+		}
+
+		// Verify libraryItem3 was NOT updated (since book3 is missing, the update was skipped)
+		var title3 string
+		err = db.QueryRow("SELECT title FROM libraryItems WHERE id = 'item3'").Scan(&title3)
+		if err != nil {
+			t.Fatalf("Query libraryItem3 failed: %v", err)
+		}
+		if title3 != "Book Three" {
+			t.Errorf("Expected libraryItem3 title to remain 'Book Three', got %q", title3)
+		}
+	}
 }

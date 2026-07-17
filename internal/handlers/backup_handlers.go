@@ -12,6 +12,18 @@ import (
 	"net/http"
 )
 
+func init() {
+	ibackup.OnBeforeRestore = func() {
+		if GetGlobalDB() != nil {
+			log.Infof("[Apply Backup] Closing active database connection before restore")
+			if err := GetGlobalDB().Close(); err != nil {
+				log.Errorf("[Apply Backup] Failed to close old database connection: %v", err)
+			}
+			SetGlobalDB(nil)
+		}
+	}
+}
+
 // handleGetBackups returns an HTTP handler for GET /api/backups.
 func handleGetBackups(db *sql.DB, metadataPath string) http.HandlerFunc {
 	return ibackup.HandleGetBackups(db, metadataPath)
@@ -54,15 +66,28 @@ func handleApplyBackup(db *sql.DB, configPath string, metadataPath string, trigg
 }
 
 func reconnectDB(dbPath string) error {
+	if GetGlobalDB() != nil {
+		if err := GetGlobalDB().Close(); err != nil {
+			log.Errorf("[Apply Backup] Failed to close old database connection: %v", err)
+		}
+		SetGlobalDB(nil)
+	}
 	dbFile, err := idb.InitDB(dbPath)
 	if err != nil {
 		log.Errorf("[Apply Backup] Failed to reconnect to restored DB: %v", err)
 		return err
 	}
-	globalDB = dbFile
+	SetGlobalDB(dbFile)
+	if ibackup.GlobalScheduler != nil && globalCfg != nil {
+		ibackup.GlobalScheduler.Stop()
+		ibackup.InitScheduler(dbFile, globalCfg.ConfigPath, globalCfg.MetadataPath)
+	}
 	if isocket.GlobalAuth != nil {
 		isocket.GlobalAuth.SetDB(dbFile)
 	}
 	reinitManagers(dbFile)
+	if ActiveHandler != nil && globalCfg != nil {
+		SetupHandler(dbFile, globalCfg, true, globalAppRoot, globalVersion)
+	}
 	return nil
 }

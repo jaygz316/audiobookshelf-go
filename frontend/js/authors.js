@@ -3,8 +3,9 @@
 
 import { request, resolvePath } from './api.js';
 import { getActiveLibraryId } from './library.js';
-import { showToast } from './app.js';
+import { showToast } from './toast.js';
 import { createCard, progressCache } from './dashboard.js';
+import { navigateTo } from './router.js';
 
 let currentSearch = '';
 let currentSort = 'name'; // 'name' or 'numBooks'
@@ -412,6 +413,15 @@ function createSeriesCard(series) {
       }
     }));
   };
+
+  // Pre-populate progressCache with any userProgress returned in bulk from backend
+  if (series.books) {
+    series.books.forEach(b => {
+      if (b.userProgress && !progressCache.has(b.id)) {
+        progressCache.set(b.id, b.userProgress);
+      }
+    });
+  }
 
   // Fetch progress for all books in this series asynchronously and render series progress bar
   if (series.books && series.books.length > 0) {

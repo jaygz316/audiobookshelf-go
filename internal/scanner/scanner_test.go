@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	_ "modernc.org/sqlite"
 )
@@ -375,5 +376,116 @@ func BenchmarkParseMetadataForGroup(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_ = parseMetadataForGroup(db, "benchmark-item", groupFiles, "book", tempDir, "Benchmark/Book", true)
+	}
+}
+
+func TestScanPodcastLibraryIntegration(t *testing.T) {
+	db := setupScannerTestDB(t)
+	defer db.Close()
+
+	// Create a temp folder to act as library folder
+	tempDir, err := os.MkdirTemp("", "abs-test-podcast-library")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Create PodcastAuthor/PodcastTitle structure
+	podcastDir := filepath.Join(tempDir, "PodcastAuthor", "PodcastTitle")
+	if err := os.MkdirAll(podcastDir, 0755); err != nil {
+		t.Fatalf("failed to create podcast dir: %v", err)
+	}
+
+	// Write mock episode file
+	mockEpisodePath := filepath.Join(podcastDir, "episode1.mp3")
+	if err := os.WriteFile(mockEpisodePath, []byte("ID3mock-podcast-data"), 0644); err != nil {
+		t.Fatalf("failed to write mock episode file: %v", err)
+	}
+
+	// Insert Library and Library Folder into db
+	libraryID := "podcast-lib-1"
+	folderID := "podcast-folder-1"
+	_, err = db.Exec("INSERT INTO libraries (id, name, mediaType, settings) VALUES (?, ?, ?, ?)",
+		libraryID, "Podcasts", "podcast", `{"audiobooksOnly":false}`)
+	if err != nil {
+		t.Fatalf("failed to insert library: %v", err)
+	}
+
+	_, err = db.Exec("INSERT INTO libraryFolders (id, path, libraryId) VALUES (?, ?, ?)",
+		folderID, tempDir, libraryID)
+	if err != nil {
+		t.Fatalf("failed to insert library folder: %v", err)
+	}
+
+	// Run ScanLibrary first time (Inserting)
+	err = ScanLibrary(db, libraryID, nil)
+	if err != nil {
+		t.Fatalf("first ScanLibrary failed: %v", err)
+	}
+
+	// Verify database state
+	var count int
+	err = db.QueryRow("SELECT COUNT(*) FROM libraryItems WHERE libraryId = ?", libraryID).Scan(&count)
+	if err != nil {
+		t.Fatalf("failed to query library items count: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("expected 1 library item, found %d", count)
+	}
+
+	var itemPath, itemTitle, itemMediaType string
+	err = db.QueryRow("SELECT path, title, mediaType FROM libraryItems WHERE libraryId = ?", libraryID).Scan(&itemPath, &itemTitle, &itemMediaType)
+	if err != nil {
+		t.Fatalf("failed to query library item: %v", err)
+	}
+
+	expectedPath := filepath.ToSlash(podcastDir)
+	if itemPath != expectedPath {
+		t.Errorf("expected item path %q, got %q", expectedPath, itemPath)
+	}
+	if itemTitle != "PodcastTitle" {
+		t.Errorf("expected item title 'PodcastTitle', got %q", itemTitle)
+	}
+	if itemMediaType != "podcast" {
+		t.Errorf("expected mediaType 'podcast', got %q", itemMediaType)
+	}
+
+	var podcastTitle, podcastAuthor string
+	err = db.QueryRow("SELECT title, author FROM podcasts").Scan(&podcastTitle, &podcastAuthor)
+	if err != nil {
+		t.Fatalf("failed to query podcast: %v", err)
+	}
+	if podcastTitle != "PodcastTitle" {
+		t.Errorf("expected podcast title 'PodcastTitle', got %q", podcastTitle)
+	}
+	if podcastAuthor != "PodcastAuthor" {
+		t.Errorf("expected podcast author 'PodcastAuthor', got %q", podcastAuthor)
+	}
+
+	// Modify modification time of episode1.mp3 to trigger a rescan
+	now := time.Now()
+	futureTime := now.Add(1 * time.Hour)
+	err = os.Chtimes(mockEpisodePath, futureTime, futureTime)
+	if err != nil {
+		t.Fatalf("failed to change file times: %v", err)
+	}
+
+	// Run ScanLibrary second time (Rescanning)
+	err = ScanLibrary(db, libraryID, nil)
+	if err != nil {
+		t.Fatalf("second ScanLibrary failed: %v", err)
+	}
+
+	// Verify database state after rescan - checking author regression
+	var rescannedTitle, rescannedAuthor string
+	err = db.QueryRow("SELECT title, author FROM podcasts").Scan(&rescannedTitle, &rescannedAuthor)
+	if err != nil {
+		t.Fatalf("failed to query podcast after rescan: %v", err)
+	}
+	if rescannedTitle != "PodcastTitle" {
+		t.Errorf("expected title 'PodcastTitle' after rescan, got %q", rescannedTitle)
+	}
+	if rescannedAuthor != "PodcastAuthor" {
+		t.Errorf("expected author 'PodcastAuthor' after rescan, got %q (was it corrupted to library ID %s?)", rescannedAuthor, libraryID)
 	}
 }

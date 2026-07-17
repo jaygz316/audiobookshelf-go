@@ -59,7 +59,7 @@ func serveStaticOrSPA(fSys fs.FS, routerBasePath string) http.HandlerFunc {
 
 	fileServer := http.FileServer(http.FS(fSys))
 	return func(w http.ResponseWriter, r *http.Request) {
-		allowIframe := getAllowIframeSetting(globalDB)
+		allowIframe := getAllowIframeSetting(GetGlobalDB())
 		if !allowIframe {
 			w.Header().Set("X-Frame-Options", "SAMEORIGIN")
 			w.Header().Set("Content-Security-Policy", "frame-ancestors 'self'")

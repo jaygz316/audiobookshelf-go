@@ -3,7 +3,7 @@ import { request, resolvePath } from './api.js';
 import { getActiveLibraryId, getLibrariesList, initLibrary } from './library.js';
 import { onEvent, offEvent, sendEvent } from './socket.js';
 import { logout } from './auth.js';
-import { showToast } from './app.js';
+import { showToast } from './toast.js';
 import { renderUsersTab, renderApiKeysTab } from './settings/users.js';
 import { renderBackupsTab } from './settings/backups.js';
 import { renderLogsTab, renderListeningSessionsTab, renderLoginSessionsTab, renderTasksTab } from './settings/logs.js';
@@ -810,8 +810,6 @@ async function renderAuthSettingsTab() {
   } catch (err) {
     container.innerHTML = `<p class="text-red-400 text-sm">Failed to load auth settings: ${err.message}</p>`;
   }
-}
-
 }
 
 async function renderProvidersTab() {
@@ -2058,7 +2056,6 @@ async function renderSharesTab() {
   }
 }
 
-/**
 async function renderLibrariesTab() {
   const container = document.getElementById('tab-libraries');
   if (!container) return;

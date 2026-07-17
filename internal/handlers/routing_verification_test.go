@@ -432,7 +432,7 @@ func TestMockHLSRequest(t *testing.T) {
 	}
 	defer db.Close()
 
-	globalDB = db
+	SetGlobalDB(db)
 	streamManager = ihls.NewStreamManager()
 	metadataPath, _ := filepath.Abs("metadata")
 

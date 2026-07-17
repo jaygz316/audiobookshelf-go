@@ -5087,7 +5087,8 @@
   box-shadow: 0.125em 0.875em 0.5em #111111aa;
 }
 .bookshelfDividerCategorized {
-  display: none !important;
+  background: var(--bookshelf-divider-bg);
+  box-shadow: 0.125em 0.875em 0.5em #111111aa;
 }
 .box-shadow-book {
   box-shadow: 4px 1px 8px #11111166, -4px 1px 8px #11111166, 1px -4px 8px #11111166;

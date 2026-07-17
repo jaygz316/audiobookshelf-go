@@ -1,7 +1,7 @@
 // frontend/js/upload.js
 
 import { request, resolvePath } from './api.js';
-import { showToast } from './app.js';
+import { showToast } from './toast.js';
 
 let uploadModal = null;
 let fileQueue = []; // Array of { file, path }

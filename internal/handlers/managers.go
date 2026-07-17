@@ -28,6 +28,20 @@ var (
 	globalDB              *sql.DB
 )
 
+var globalDBMu sync.RWMutex
+
+func GetGlobalDB() *sql.DB {
+	globalDBMu.RLock()
+	defer globalDBMu.RUnlock()
+	return globalDB
+}
+
+func SetGlobalDB(db *sql.DB) {
+	globalDBMu.Lock()
+	globalDB = db
+	globalDBMu.Unlock()
+}
+
 var managersMu sync.Mutex
 
 func initManagers(db *sql.DB) {

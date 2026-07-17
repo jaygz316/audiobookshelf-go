@@ -261,8 +261,20 @@ func TestExportOPML(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
 
-	// Seed podcast
-	_, err := db.Exec(`INSERT INTO podcasts (id, title, feedURL) VALUES ('podcast-1', 'Podcast A', 'https://example.com/podcast_a.xml')`)
+	// Seed user
+	_, err := db.Exec(`INSERT INTO users (id, username, type, isActive, permissions) VALUES ('user-1', 'admin', 'admin', 1, '{"accessAllLibraries": true}')`)
+	if err != nil {
+		t.Fatalf("Failed to seed user: %v", err)
+	}
+
+	// Seed library
+	_, err = db.Exec(`INSERT INTO libraries (id, name, mediaType) VALUES ('lib-1', 'Podcast Library', 'podcast')`)
+	if err != nil {
+		t.Fatalf("Failed to seed library: %v", err)
+	}
+
+	// Seed podcasts
+	_, err = db.Exec(`INSERT INTO podcasts (id, title, feedURL) VALUES ('podcast-1', 'Podcast A', 'https://example.com/podcast_a.xml')`)
 	if err != nil {
 		t.Fatalf("Failed to seed podcast: %v", err)
 	}
@@ -271,7 +283,17 @@ func TestExportOPML(t *testing.T) {
 		t.Fatalf("Failed to seed podcast 2: %v", err)
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/api/podcasts/opml/export", nil)
+	// Seed library items
+	_, err = db.Exec(`INSERT INTO libraryItems (id, libraryId, mediaId, mediaType) VALUES ('item-1', 'lib-1', 'podcast-1', 'podcast')`)
+	if err != nil {
+		t.Fatalf("Failed to seed library item 1: %v", err)
+	}
+	_, err = db.Exec(`INSERT INTO libraryItems (id, libraryId, mediaId, mediaType) VALUES ('item-2', 'lib-1', 'podcast-2', 'podcast')`)
+	if err != nil {
+		t.Fatalf("Failed to seed library item 2: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/podcasts/opml/export?libraryId=lib-1", nil)
 	ctx := context.WithValue(req.Context(), core.UserContextKey, &core.UserSession{
 		ID:   "user-1",
 		Type: "admin",

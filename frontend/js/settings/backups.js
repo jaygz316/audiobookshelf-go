@@ -1,5 +1,5 @@
 import { request, resolvePath } from '../api.js';
-import { showToast } from '../app.js';
+import { showToast } from '../toast.js';
 
 function escapeHtml(str) {
   if (!str) return '';

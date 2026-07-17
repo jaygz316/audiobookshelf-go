@@ -488,3 +488,90 @@ input:checked + .abs-slider:before {
   opacity: 0.8;
   transition: transform 0.1s ease, opacity 0.1s ease;
 }
+
+/* Playing equalizer visualizer overlays */
+.playing-visualizer {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  width: 16px;
+  height: 16px;
+  padding: 1px;
+}
+.playing-visualizer span {
+  display: block;
+  width: 2px;
+  background-color: var(--color-accent, #e5a93b);
+  border-radius: 1px 1px 0 0;
+  height: 20%;
+  transition: height 0.2s ease;
+}
+.playing-visualizer.playing span {
+  animation: bounce-equalizer 0.8s ease-in-out infinite alternate;
+}
+.playing-visualizer.playing span:nth-child(1) {
+  animation-delay: -0.2s;
+}
+.playing-visualizer.playing span:nth-child(2) {
+  animation-delay: -0.4s;
+}
+.playing-visualizer.playing span:nth-child(3) {
+  animation-delay: -0.6s;
+}
+.playing-visualizer.playing span:nth-child(4) {
+  animation-delay: 0s;
+}
+
+@keyframes bounce-equalizer {
+  0% {
+    height: 15%;
+  }
+  100% {
+    height: 100%;
+  }
+}
+
+/* User presence badges on cards */
+.presence-badges-container {
+  display: flex;
+  flex-direction: row-reverse;
+  align-items: center;
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 25;
+}
+.presence-avatar-badge {
+  width: 22px;
+  height: 22px;
+  border-radius: 9999px;
+  background-color: var(--color-primary, #1e1e1e);
+  border: 1.5px solid var(--color-accent, #e5a93b);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 8px;
+  font-weight: 700;
+  text-transform: uppercase;
+  position: relative;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.5);
+  margin-left: -6px;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+.presence-avatar-badge:hover {
+  transform: scale(1.15) translateY(-2px);
+  z-index: 50 !important;
+}
+.presence-online-dot {
+  position: absolute;
+  bottom: -1px;
+  right: -1px;
+  width: 6px;
+  height: 6px;
+  background-color: #10b981;
+  border-radius: 9999px;
+  border: 1px solid var(--color-primary, #1e1e1e);
+}
+

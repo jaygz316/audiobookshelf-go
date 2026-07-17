@@ -1,9 +1,10 @@
 // js/dashboard.js
 
 import { request, resolvePath } from './api.js';
-import { playItem } from './player.js';
-import { loadItemDetails, triggerEditItemDetailsModal } from './itemDetails.js';
-import { showToast } from './app.js';
+import { playItem, getCurrentItem, getAudio } from './player.js';
+import { loadItemDetails } from './itemDetails.js';
+import { triggerEditItemDetailsModal } from './modals/editDetailsModal.js';
+import { showToast } from './toast.js';
 import { openEbookReader } from './reader.js';
 
 let batchEditMode = false;
@@ -624,13 +625,142 @@ export function createCard(item, isContinue, libraryId, shelfId = '') {
     card.classList.add('ring-4', 'ring-accent', 'scale-105');
   }
 
+  // Equalizer visualizer element
+  const visualizerEl = document.createElement('div');
+  visualizerEl.className = 'absolute bottom-3 right-2 z-20 bg-black/75 rounded-md p-1 items-center justify-center hidden';
+  visualizerEl.innerHTML = `
+    <div class="playing-visualizer">
+      <span></span>
+      <span></span>
+      <span></span>
+      <span></span>
+    </div>
+  `;
+  card.appendChild(visualizerEl);
+
+  const updatePlayingState = () => {
+    const currentItem = getCurrentItem();
+    const audio = getAudio();
+    const isCurrent = currentItem && currentItem.id === item.id;
+    const isPlaying = isCurrent && audio && !audio.paused;
+
+    if (isCurrent) {
+      visualizerEl.classList.remove('hidden');
+      visualizerEl.classList.add('flex');
+      const vis = visualizerEl.querySelector('.playing-visualizer');
+      if (vis) {
+        if (isPlaying) {
+          vis.classList.add('playing');
+        } else {
+          vis.classList.remove('playing');
+        }
+      }
+    } else {
+      visualizerEl.classList.add('hidden');
+      visualizerEl.classList.remove('flex');
+    }
+
+    const pBtn = card.querySelector('.play-btn');
+    if (pBtn) {
+      const playIcon = pBtn.querySelector('span');
+      if (playIcon) {
+        if (isCurrent && isPlaying) {
+          playIcon.textContent = 'pause';
+          pBtn.title = 'Pause Playback';
+        } else {
+          playIcon.textContent = 'play_arrow';
+          pBtn.title = 'Play Now';
+        }
+      }
+    }
+  };
+
+  const updatePresenceBadges = () => {
+    const existingContainer = card.querySelector('.presence-badges-container');
+    if (existingContainer) existingContainer.remove();
+
+    if (!window.activePlaybackSessions) return;
+
+    const sessions = Array.from(window.activePlaybackSessions.values())
+      .filter(s => s.mediaItemId === item.id);
+
+    if (sessions.length === 0) return;
+
+    const badgesContainer = document.createElement('div');
+    badgesContainer.className = 'presence-badges-container';
+
+    const maxVisible = 3;
+    const visibleSessions = sessions.slice(0, maxVisible);
+    
+    visibleSessions.forEach((session, index) => {
+      const badge = document.createElement('div');
+      badge.className = 'presence-avatar-badge';
+      badge.style.zIndex = (10 + index).toString();
+
+      const username = session.username || 'User';
+      const initials = username.split(' ').map(n => n[0]).join('').substring(0, 2);
+      badge.textContent = initials;
+      badge.title = `${username} is playing this via ${session.playMethod || 'HLS'}`;
+
+      const dot = document.createElement('div');
+      dot.className = 'presence-online-dot';
+      badge.appendChild(dot);
+
+      badgesContainer.appendChild(badge);
+    });
+
+    if (sessions.length > maxVisible) {
+      const moreBadge = document.createElement('div');
+      moreBadge.className = 'presence-avatar-badge bg-accent text-primary font-bold';
+      moreBadge.style.zIndex = '9';
+      moreBadge.textContent = `+${sessions.length - maxVisible}`;
+      moreBadge.title = `${sessions.length} users playing this`;
+      badgesContainer.appendChild(moreBadge);
+    }
+
+    card.appendChild(badgesContainer);
+  };
+
+  // Initial render calls
+  updatePlayingState();
+  updatePresenceBadges();
+
+  // Listeners with garbage collection on disconnection
+  const handlePlaybackStateChanged = (e) => {
+    if (!card.isConnected) {
+      document.removeEventListener('playback-state-changed', handlePlaybackStateChanged);
+      return;
+    }
+    updatePlayingState();
+  };
+  document.addEventListener('playback-state-changed', handlePlaybackStateChanged);
+
+  const handlePresenceUpdated = (e) => {
+    if (!card.isConnected) {
+      document.removeEventListener('presence-updated', handlePresenceUpdated);
+      return;
+    }
+    updatePresenceBadges();
+  };
+  document.addEventListener('presence-updated', handlePresenceUpdated);
+
   // Play button handler
   const playBtn = card.querySelector('.play-btn');
   if (playBtn) {
     playBtn.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
-      playItem(item.id);
+      const currentItem = getCurrentItem();
+      const audio = getAudio();
+      if (currentItem && currentItem.id === item.id && audio) {
+        if (audio.paused) {
+          audio.play().catch(err => console.error('Play resume failed:', err));
+        } else {
+          audio.pause();
+        }
+      } else {
+        playItem(item.id);
+      }
     });
   }
 
@@ -1004,13 +1134,28 @@ function createListRow(item, libraryId, visibleCols = ['cover', 'title', 'author
     switch (col) {
       case 'cover':
         rowHtml += `
-          <td class="p-3 w-16">
+          <td class="p-3 w-16 relative">
             <img src="${coverUrl}" class="w-10 h-14 object-cover rounded shadow border border-black-400/20" onerror="this.onerror=null; this.src='assets/images/logo.png'">
+            <div class="list-visualizer absolute bottom-4 right-4 bg-black/75 rounded p-0.5 hidden items-center justify-center pointer-events-none">
+              <div class="playing-visualizer">
+                <span></span>
+                <span></span>
+                <span></span>
+                <span></span>
+              </div>
+            </div>
           </td>
         `;
         break;
       case 'title':
-        rowHtml += `<td class="p-3 font-semibold text-white">${escapeHtml(title)}</td>`;
+        rowHtml += `
+          <td class="p-3 font-semibold text-white">
+            <div class="flex items-center gap-2">
+              <span>${escapeHtml(title)}</span>
+              <div class="list-presence-container flex items-center h-6"></div>
+            </div>
+          </td>
+        `;
         break;
       case 'author':
         rowHtml += `<td class="p-3 text-black-50">${escapeHtml(author)}</td>`;
@@ -1088,10 +1233,127 @@ function createListRow(item, libraryId, visibleCols = ['cover', 'title', 'author
 
   tr.innerHTML = rowHtml;
 
+  const updatePlayingState = () => {
+    const currentItem = getCurrentItem();
+    const audio = getAudio();
+    const isCurrent = currentItem && currentItem.id === item.id;
+    const isPlaying = isCurrent && audio && !audio.paused;
+
+    const visualizerEl = tr.querySelector('.list-visualizer');
+    if (visualizerEl) {
+      if (isCurrent) {
+        visualizerEl.classList.remove('hidden');
+        visualizerEl.classList.add('flex');
+        const vis = visualizerEl.querySelector('.playing-visualizer');
+        if (vis) {
+          if (isPlaying) {
+            vis.classList.add('playing');
+          } else {
+            vis.classList.remove('playing');
+          }
+        }
+      } else {
+        visualizerEl.classList.add('hidden');
+        visualizerEl.classList.remove('flex');
+      }
+    }
+
+    const pBtn = tr.querySelector('.play-btn');
+    if (pBtn) {
+      const playIcon = pBtn.querySelector('span');
+      if (playIcon) {
+        if (isCurrent && isPlaying) {
+          playIcon.textContent = 'pause';
+          pBtn.title = 'Pause';
+        } else {
+          playIcon.textContent = 'play_arrow';
+          pBtn.title = 'Play';
+        }
+      }
+    }
+  };
+
+  const updatePresenceBadges = () => {
+    const presenceContainer = tr.querySelector('.list-presence-container');
+    if (!presenceContainer) return;
+    presenceContainer.innerHTML = '';
+
+    if (!window.activePlaybackSessions) return;
+
+    const sessions = Array.from(window.activePlaybackSessions.values())
+      .filter(s => s.mediaItemId === item.id);
+
+    if (sessions.length === 0) return;
+
+    const maxVisible = 2;
+    const visibleSessions = sessions.slice(0, maxVisible);
+
+    visibleSessions.forEach((session, index) => {
+      const badge = document.createElement('div');
+      badge.className = 'presence-avatar-badge scale-90 origin-left relative';
+      badge.style.position = 'relative';
+      badge.style.margin = '0 0 0 -4px';
+      
+      const username = session.username || 'User';
+      const initials = username.split(' ').map(n => n[0]).join('').substring(0, 2);
+      badge.textContent = initials;
+      badge.title = `${username} is playing this via ${session.playMethod || 'HLS'}`;
+
+      const dot = document.createElement('div');
+      dot.className = 'presence-online-dot';
+      badge.appendChild(dot);
+
+      presenceContainer.appendChild(badge);
+    });
+
+    if (sessions.length > maxVisible) {
+      const moreBadge = document.createElement('div');
+      moreBadge.className = 'presence-avatar-badge bg-accent text-primary font-bold scale-90 origin-left relative';
+      moreBadge.style.position = 'relative';
+      moreBadge.style.margin = '0 0 0 -4px';
+      moreBadge.textContent = `+${sessions.length - maxVisible}`;
+      moreBadge.title = `${sessions.length} users playing this`;
+      presenceContainer.appendChild(moreBadge);
+    }
+  };
+
+  setTimeout(() => {
+    updatePlayingState();
+    updatePresenceBadges();
+  }, 0);
+
+  const handlePlaybackStateChanged = (e) => {
+    if (!tr.isConnected) {
+      document.removeEventListener('playback-state-changed', handlePlaybackStateChanged);
+      return;
+    }
+    updatePlayingState();
+  };
+  document.addEventListener('playback-state-changed', handlePlaybackStateChanged);
+
+  const handlePresenceUpdated = (e) => {
+    if (!tr.isConnected) {
+      document.removeEventListener('presence-updated', handlePresenceUpdated);
+      return;
+    }
+    updatePresenceBadges();
+  };
+  document.addEventListener('presence-updated', handlePresenceUpdated);
+
   tr.onclick = (e) => {
     if (e.target.closest('.play-btn')) {
       e.stopPropagation();
-      playItem(item.id);
+      const currentItem = getCurrentItem();
+      const audio = getAudio();
+      if (currentItem && currentItem.id === item.id && audio) {
+        if (audio.paused) {
+          audio.play().catch(err => console.error('Play resume failed:', err));
+        } else {
+          audio.pause();
+        }
+      } else {
+        playItem(item.id);
+      }
       return;
     }
     window.history.pushState(null, '', resolvePath(`/item/${item.id}`));

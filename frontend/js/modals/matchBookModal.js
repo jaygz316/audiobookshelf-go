@@ -1,5 +1,5 @@
 import { request } from '../api.js';
-import { escapeHtml } from '../itemDetails.js';
+import { escapeHtml, getDiffOldHtml, getDiffNewHtml } from '../itemDetails.js';
 
 function triggerMatchModal(item, libraryId, mode, onSaveSuccess) {
   const isCoverMode = mode === 'cover';

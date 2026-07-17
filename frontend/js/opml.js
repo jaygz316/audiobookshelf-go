@@ -1,7 +1,7 @@
 // frontend/js/opml.js
 
 import { request } from './api.js';
-import { showToast } from './app.js';
+import { showToast } from './toast.js';
 
 export function openOPMLModal(libraryId) {
   const modal = document.createElement('div');

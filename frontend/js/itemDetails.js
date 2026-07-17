@@ -1,6 +1,6 @@
 import { triggerAddToPlaylistModal } from './modals/playlistModal.js';
 import { triggerEditItemDetailsModal } from './modals/editDetailsModal.js';
-import { triggerMatchBookModal, triggerMatchCoverModal, triggerMatchModal } from './modals/matchBookModal.js';
+import { triggerMatchBookModal, triggerMatchCoverModal } from './modals/matchBookModal.js';
 import { renderBookmarks, triggerEditBookmarkModal, triggerAddBookmarkOnDetailsModal, triggerExportBookmarksModal, triggerImportBookmarksModal } from './modals/bookmarksModal.js';
 import { triggerEditChaptersModal } from './modals/chaptersModal.js';
 import { triggerShareLinkModal } from './modals/shareModal.js';
@@ -8,7 +8,7 @@ import { triggerCoverEditorModal } from './modals/coverEditorModal.js';
 import { request, resolvePath } from './api.js';
 import { playItem, getCurrentPlayingItem, getCurrentPlaybackTime, addToQueue, seekTo } from './player.js';
 import { openEbookReader } from './reader.js';
-import { showToast } from './app.js';
+import { showToast } from './toast.js';
 
 let currentUser = null;
 let activeItemId = null;
@@ -2175,5 +2175,21 @@ export function getDiffNewHtml(oldStr, newStr) {
       return `<span class="bg-green-950/80 text-green-300 px-0.5 rounded font-bold">${escapeHtml(word)}</span>`;
     }
   }).join('');
+}
+
+export function parseDuration(str) {
+  if (!str) return 0;
+  str = str.trim();
+  if (/^\d+(\.\d+)?$/.test(str)) {
+    return parseFloat(str);
+  }
+  const parts = str.split(':').map(Number);
+  if (parts.some(isNaN)) return 0;
+  if (parts.length === 3) {
+    return parts[0] * 3600 + parts[1] * 60 + parts[2];
+  } else if (parts.length === 2) {
+    return parts[0] * 60 + parts[1];
+  }
+  return 0;
 }
 
