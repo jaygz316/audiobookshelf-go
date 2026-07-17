@@ -1,23 +1,22 @@
-# Handoff: Audiobookshelf Go Port — Final UX Audit & Regression Pass
+# Handoff: Audiobookshelf Go Port — Theme & Visual Parity Audit
 
 ## Current Screen Under Audit
-- **Screen**: Full App Regression Pass & Screen-by-Screen UI/UX Audit
-- **Status**: ✅ Complete
+- **Screen**: Theme & Overall Visual Parity
+- **Status**: ✅ Completed Left Sidebar active indicators, Series cover progress bars, card action controls, and category placard typography alignment.
 
 ## What Was Fixed/Enhanced This Run
-- **Full Checklist Audited**: Verified and checked off all remaining priorities in the screen-by-screen audit queue (`ux_scheduled_prompt.md`), including:
-  - **Priority 2 & 5 (Home, Dashboard & Library Grid)**: Bookshelf plank shadows, spine creases, list/grid toggles, results headers, filtering/sorting dropdowns, dynamic `#book-count` update.
-  - **Priority 7 (Item Detail Pages)**: Metadata layout, action buttons, progress cards, chapter lists, audio file lists, and matching/edit modals.
-  - **Priority 8 (Audio Player)**: Chapter navigation, Chapters dialog, seek settings, bottom player bar controls (speed, sleep, volume, cast launcher), and the expanded player view.
-  - **Priority 9 (Collections, Playlists, Authors, Narrators)**: Drag-and-drop reorder widgets, custom list views, search inputs, sort controls.
-  - **Priority 10 (Settings)**: Orange border navigation tabs, server configuration toggles, user manager panels, library path configurations.
-- **Baseline Integration**: Checked formatting, vette, compiled WebAssembly frontend bundle, built the binary, and passed all 134+ tests cleanly.
+- **Active Indicator Dynamic Coloring**:
+  - Replaced hardcoded `bg-yellow-400` with the theme-dynamic `bg-accent` color in the left navigation sidebar links (`frontend/index.html`), allowing active highlights to seamlessly transition between gold (dark/sepia themes) and emerald (light theme).
+- **Progress Bar & Controls Accent Color Integration**:
+  - Modified the series progress bar fill in `authors.js` and the Edit Details action button hover state in `dashboard.js` to utilize the dynamic `bg-accent` and `hover:text-accent` classes instead of hardcoded yellow shades.
+- **Category Placard Typography Refinement**:
+  - Removed the non-matching `font-mono` class from category placards in `dashboard.js` (`createShelfSection` and `createShelfGridSection`), matching the clean sans-serif typography of the original project.
 
 ## Remaining Issues on This Screen
 - None.
 
 ## Next Screen in Queue
-- **App Completed**: All UI/UX priorities and system parity milestones are achieved. The next step is ongoing maintenance or new features requested by the user.
+- **Settings Screen forms, pill toggles, and library list visual updates**: Continue visual adjustments on user administration, settings layouts, and active/inactive status pill designs to match the original's layout hierarchy.
 
 ## Buttons/Controls Verified Working This Run
-- All navigation buttons, play/pause controls, search inputs, filter selectors, settings sub-tabs, and detail page options.
+- Sidebar links, active navigation indicator transitions, card details actions, series cover stacks progress fills, and all system/e2e test suites passed successfully.

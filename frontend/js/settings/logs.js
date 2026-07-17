@@ -5,11 +5,27 @@ import { logout } from '../auth.js';
 
 let currentSessions = [];
 let selectedUserIdFilter = '';
+let searchFilter = '';
+let methodFilter = '';
 let tasksPollInterval = null;
 
 function getFilteredSessions() {
-  if (!selectedUserIdFilter) return currentSessions;
-  return currentSessions.filter(s => s.userId === selectedUserIdFilter);
+  let filtered = currentSessions;
+  if (selectedUserIdFilter) {
+    filtered = filtered.filter(s => s.userId === selectedUserIdFilter);
+  }
+  if (methodFilter) {
+    filtered = filtered.filter(s => (s.playMethod || '').toLowerCase() === methodFilter.toLowerCase());
+  }
+  if (searchFilter) {
+    const q = searchFilter.toLowerCase();
+    filtered = filtered.filter(s => 
+      (s.username || '').toLowerCase().includes(q) ||
+      (s.title || '').toLowerCase().includes(q) ||
+      (s.deviceInfo || '').toLowerCase().includes(q)
+    );
+  }
+  return filtered;
 }
 
 function escapeHtml(str) {
@@ -75,17 +91,33 @@ export async function renderListeningSessionsTab() {
     const users = usersResp.users || [];
     currentSessions = sessionsResp.sessions || [];
     selectedUserIdFilter = '';
+    searchFilter = '';
+    methodFilter = '';
 
     container.innerHTML = `
       <div class="space-y-4">
-        <div class="flex justify-between items-center">
+        <div class="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center bg-black-500/10 p-3 rounded-md border border-black-400/40">
           <h3 class="text-lg font-semibold text-white">Listening Sessions</h3>
-          <div class="flex items-center space-x-2">
-            <label for="filter-session-user" class="text-xs text-black-100 uppercase tracking-wider">Filter by User:</label>
-            <select id="filter-session-user" class="bg-black-500 text-white px-3 py-1.5 rounded border border-black-300 focus:outline-none focus:border-accent text-sm">
-              <option value="">All Users</option>
-              ${users.map(u => `<option value="${u.id}">${escapeHtml(u.username)}</option>`).join('')}
-            </select>
+          <div class="flex flex-wrap items-center gap-3">
+            <div class="flex items-center space-x-2">
+              <label for="search-session" class="text-xs text-black-100 uppercase tracking-wider font-semibold">Search:</label>
+              <input type="text" id="search-session" placeholder="Search sessions..." class="bg-black-500 text-white px-3 py-1.5 rounded border border-black-300 focus:outline-none focus:border-accent text-sm w-44 font-semibold">
+            </div>
+            <div class="flex items-center space-x-2">
+              <label for="filter-session-user" class="text-xs text-black-100 uppercase tracking-wider font-semibold">User:</label>
+              <select id="filter-session-user" class="bg-black-500 text-white px-3 py-1.5 rounded border border-black-300 focus:outline-none focus:border-accent text-sm font-semibold">
+                <option value="">All Users</option>
+                ${users.map(u => `<option value="${u.id}">${escapeHtml(u.username)}</option>`).join('')}
+              </select>
+            </div>
+            <div class="flex items-center space-x-2">
+              <label for="filter-session-method" class="text-xs text-black-100 uppercase tracking-wider font-semibold">Method:</label>
+              <select id="filter-session-method" class="bg-black-500 text-white px-3 py-1.5 rounded border border-black-300 focus:outline-none focus:border-accent text-sm font-semibold">
+                <option value="">All</option>
+                <option value="HLS">HLS</option>
+                <option value="Direct Play">Direct Play</option>
+              </select>
+            </div>
           </div>
         </div>
 
@@ -100,7 +132,7 @@ export async function renderListeningSessionsTab() {
                 <th class="px-4 py-3">Time Listened</th>
                 <th class="px-4 py-3">Last Position/Last Time</th>
                 <th class="px-4 py-3">Last Updated</th>
-                <th class="px-4 py-3 text-right">Actions</th>
+                <th class="px-4 py-3 text-right font-semibold">Actions</th>
               </tr>
             </thead>
             <tbody id="sessions-list-rows" class="divide-y divide-black-400">
@@ -117,9 +149,21 @@ export async function renderListeningSessionsTab() {
       renderListeningSessionsListRows(getFilteredSessions());
     };
 
+    const searchInput = container.querySelector('#search-session');
+    searchInput.oninput = () => {
+      searchFilter = searchInput.value;
+      renderListeningSessionsListRows(getFilteredSessions());
+    };
+
+    const methodSelect = container.querySelector('#filter-session-method');
+    methodSelect.onchange = () => {
+      methodFilter = methodSelect.value;
+      renderListeningSessionsListRows(getFilteredSessions());
+    };
+
     renderListeningSessionsListRows(getFilteredSessions());
   } catch (err) {
-    container.innerHTML = `<div class="text-red-500 text-center py-4">Failed to load listening sessions: ${escapeHtml(err.message)}</div>`;
+    container.innerHTML = `<div class="text-red-500 text-center py-4 font-semibold">Failed to load listening sessions: ${escapeHtml(err.message)}</div>`;
   }
 }
 

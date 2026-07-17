@@ -403,6 +403,12 @@ async function triggerUserModal(user = null, currentUser, onSaveSuccess) {
       return;
     }
 
+    const btn = form.querySelector('button[type="submit"]');
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = `<span class="animate-spin rounded-full h-3 w-3 border-b-2 border-primary inline-block mr-1"></span><span>${isEdit ? 'Saving...' : 'Creating...'}</span>`;
+    }
+
     const accessAllTags = allTagsCheckbox.checked;
     const selectedTagsNotAccessible = modal.querySelector('#perm-tags-not-accessible').value === 'true';
     const tagCheckboxes = modal.querySelectorAll('.user-tag-checkbox:checked');
@@ -461,6 +467,10 @@ async function triggerUserModal(user = null, currentUser, onSaveSuccess) {
       if (onSaveSuccess) onSaveSuccess();
     } catch (err) {
       showToast('Failed to save user: ' + err.message, 'error');
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = `<span class="material-symbols text-sm">check</span><span>${isEdit ? 'Save' : 'Create'}</span>`;
+      }
     }
   };
 }
@@ -631,6 +641,12 @@ function triggerApiKeyModal(users, onSaveSuccess) {
   form.onsubmit = async (e) => {
     e.preventDefault();
 
+    const btn = form.querySelector('button[type="submit"]');
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = `<span class="animate-spin rounded-full h-3 w-3 border-b-2 border-primary inline-block mr-1"></span><span>Generating...</span>`;
+    }
+
     const name = modal.querySelector('#apikey-name').value.trim();
     const userId = modal.querySelector('#apikey-user').value;
     const expiresVal = modal.querySelector('#apikey-expires').value;
@@ -654,6 +670,10 @@ function triggerApiKeyModal(users, onSaveSuccess) {
       }
     } catch (err) {
       showToast('Failed to create API key: ' + err.message, 'error');
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = `<span class="material-symbols text-sm">vpn_key</span><span>Generate</span>`;
+      }
     }
   };
 }

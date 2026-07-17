@@ -294,7 +294,7 @@ export function triggerChaptersModal() {
       </button>
     </div>
 
-    <div class="max-h-[300px] overflow-y-auto space-y-1.5 pr-1 no-scroll" id="chapters-list-container">
+    <div class="max-h-[300px] overflow-y-auto space-y-1.5 pr-1" id="chapters-list-container">
       ${chapters.map((ch, idx) => `
         <button class="chapter-row-btn w-full text-left p-2 rounded text-xs hover:bg-black-500/50 transition-colors flex justify-between items-center" data-start="${ch.start}">
           <span class="font-medium text-white truncate max-w-[80%]">${escapeHtml(ch.title || `Chapter ${idx + 1}`)}</span>
@@ -819,12 +819,39 @@ export function drawWaveform() {
     ctx.clearRect(0, 0, width, height);
 
     if (!currentWaveform || currentWaveform.length === 0) {
-      ctx.strokeStyle = '#2d2d2d';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(0, height / 2);
-      ctx.lineTo(width, height / 2);
-      ctx.stroke();
+      const timelineId = canvasId === 'player-waveform-canvas' ? 'player-timeline' : 'expanded-timeline';
+      const timeline = document.getElementById(timelineId);
+      const pct = timeline ? parseFloat(timeline.value) / 100 : 0;
+      
+      const trackHeight = 4;
+      const y = (height - trackHeight) / 2;
+
+      // Draw background track
+      ctx.fillStyle = '#374151';
+      drawRoundedRect(ctx, 0, y, width, trackHeight, trackHeight / 2);
+
+      // Draw played track
+      ctx.fillStyle = '#e5a93b';
+      drawRoundedRect(ctx, 0, y, pct * width, trackHeight, trackHeight / 2);
+
+      // Draw hover preview track if hovering
+      if (hoverPct !== null) {
+        ctx.fillStyle = '#fcd34d';
+        if (hoverPct > pct) {
+          drawRoundedRect(ctx, pct * width, y, (hoverPct - pct) * width, trackHeight, trackHeight / 2);
+        } else if (hoverPct < pct) {
+          drawRoundedRect(ctx, hoverPct * width, y, (pct - hoverPct) * width, trackHeight, trackHeight / 2);
+        }
+
+        // Draw vertical hover indicator line
+        const canvasHoverX = hoverPct * width;
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(canvasHoverX, 0);
+        ctx.lineTo(canvasHoverX, height);
+        ctx.stroke();
+      }
       return;
     }
 

@@ -276,11 +276,11 @@ export async function openEbookReader(item, token) {
           </div>
         </div>
         <!-- Chapters list -->
-        <div id="reader-toc-list" class="flex-grow overflow-y-auto p-2 space-y-1 no-scroll">
+        <div id="reader-toc-list" class="flex-grow overflow-y-auto p-2 space-y-1">
           <!-- Table of Contents items go here -->
         </div>
         <!-- Bookmarks list -->
-        <div id="reader-bookmarks-list" class="hidden flex-grow overflow-y-auto p-2 space-y-2 no-scroll">
+        <div id="reader-bookmarks-list" class="hidden flex-grow overflow-y-auto p-2 space-y-2">
           <!-- Bookmarks and highlights go here -->
         </div>
       </div>
@@ -703,10 +703,10 @@ export async function openEbookReader(item, token) {
                 <button id="pdf-tab-bookmarks" class="flex-1 text-center py-1 text-[10px] rounded transition-colors text-black-100 hover:text-white">Notes</button>
               </div>
             </div>
-            <div id="pdf-thumbnails-list" class="flex-grow overflow-y-auto p-2 space-y-3 bg-black-900/10 no-scroll">
+            <div id="pdf-thumbnails-list" class="flex-grow overflow-y-auto p-2 space-y-3 bg-black-900/10">
               <!-- Thumbnail items -->
             </div>
-            <div id="pdf-bookmarks-list" class="hidden flex-grow overflow-y-auto p-2 space-y-2 bg-black-900/10 no-scroll">
+            <div id="pdf-bookmarks-list" class="hidden flex-grow overflow-y-auto p-2 space-y-2 bg-black-900/10">
               <!-- Bookmarks and notes list -->
             </div>
           </div>

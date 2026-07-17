@@ -103,7 +103,7 @@ export async function refreshBookmarksTab(itemId, onBookmarkClick) {
     <div class="px-2 pb-2">
       <input id="bookmarks-search-input" type="text" placeholder="Search highlights & notes..." class="w-full bg-black-600 border border-black-400 text-white rounded text-xs px-2 py-1.5 focus:outline-none focus:border-accent" value="${escapeHtml(searchVal)}" />
     </div>
-    <div class="space-y-2 p-1 max-h-[calc(100vh-12rem)] overflow-y-auto no-scroll" id="bookmarks-items-container">
+    <div class="space-y-2 p-1 max-h-[calc(100vh-12rem)] overflow-y-auto" id="bookmarks-items-container">
       ${filteredBms.length === 0 ? `
         <p class="text-xs text-black-100 italic text-center py-4">No highlights or notes found.</p>
       ` : filteredBms.map((b, idx) => {

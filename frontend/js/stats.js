@@ -182,6 +182,15 @@ export async function loadStats() {
         pathD = `M ${points[0].x} ${points[0].y} ` + points.slice(1).map(p => `L ${p.x} ${p.y}`).join(' ');
       }
 
+      // Area path string for gradient fill
+      let areaD = '';
+      if (points.length > 0) {
+        const bottomY = 288 - chartContentMarginBottom;
+        const firstX = points[0].x;
+        const lastX = points[points.length - 1].x;
+        areaD = `${pathD} L ${lastX} ${bottomY} L ${firstX} ${bottomY} Z`;
+      }
+
       // Total minutes listened this week
       const totalMinutesListeningThisWeek = last7DaysOfListening.reduce((acc, d) => acc + d.minutesListening, 0);
       const averageMinutesPerDay = Math.round(totalMinutesListeningThisWeek / 7);
@@ -265,12 +274,21 @@ export async function loadStats() {
       }
 
       const heatRange = heatMax - heatMin + 0.01;
-      const bgColors = ['rgb(45,45,45)', 'rgb(14, 68, 41)', 'rgb(0, 109, 50)', 'rgb(38, 166, 65)', 'rgb(57, 211, 83)'];
-      const outlineColors = ['rgba(255,255,255,0.03)', 'rgba(255,255,255,0.03)'];
+      const theme = document.documentElement.getAttribute('data-theme') || 'dark';
+      let bgColors, outlineColor;
+      if (theme === 'light') {
+        bgColors = ['#ebedf0', '#9be9a8', '#40c463', '#30a14e', '#216e39'];
+        outlineColor = 'rgba(27, 31, 35, 0.06)';
+      } else if (theme === 'sepia') {
+        bgColors = ['#dfd5be', '#d4af37', '#b8860b', '#8b6508', '#5c4308'];
+        outlineColor = 'rgba(0, 0, 0, 0.08)';
+      } else { // dark / default
+        bgColors = ['#2d2d2d', '#0e4429', '#006d32', '#26a641', '#39d353'];
+        outlineColor = 'rgba(255, 255, 255, 0.03)';
+      }
 
       const blocksHtml = dates.map(block => {
         let bgColor = bgColors[0];
-        let outlineColor = outlineColors[0];
         if (block.value > 0) {
           const percentOfAvg = (block.value - heatMin) / heatRange;
           const bgIndex = Math.floor(percentOfAvg * 4) + 1;
@@ -285,7 +303,7 @@ export async function loadStats() {
         }
 
         return `
-          <div class="group absolute h-2.5 w-2.5 rounded-xs cursor-pointer hover:scale-125 transition-transform duration-100 z-10" style="transform:translate(${block.col * 13}px,${block.row * 13}px); background-color:${bgColor}; outline:1px solid ${outlineColor}; outline-offset:-1px;">
+          <div class="group absolute h-2.5 w-2.5 rounded-[2px] cursor-pointer hover:scale-125 transition-transform duration-100 z-10" style="transform:translate(${block.col * 13}px,${block.row * 13}px); background-color:${bgColor}; outline:1px solid ${outlineColor}; outline-offset:-1px;">
             <div class="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 z-50 opacity-0 group-hover:opacity-100 bg-black-700 text-white text-[10px] px-2 py-1 rounded shadow whitespace-nowrap transition-opacity duration-150">
               ${tooltipText}
             </div>
@@ -383,14 +401,22 @@ export async function loadStats() {
 
               <!-- The SVGs -->
               <svg width="384" height="288" class="absolute inset-0 overflow-visible pointer-events-none">
+                <defs>
+                  <linearGradient id="chart-grad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="var(--color-accent)" stop-opacity="0.3"></stop>
+                    <stop offset="100%" stop-color="var(--color-accent)" stop-opacity="0"></stop>
+                  </linearGradient>
+                </defs>
+                <!-- SVG area fill path -->
+                <path d="${areaD}" fill="url(#chart-grad)" stroke="none"></path>
                 <!-- SVG path line -->
-                <path d="${pathD}" fill="none" stroke="#facc15" stroke-width="2"></path>
+                <path d="${pathD}" fill="none" style="stroke: var(--color-accent);" stroke-width="2"></path>
               </svg>
  
                <!-- Points and Tooltips -->
               ${points.map((p, idx) => `
                 <div class="absolute group cursor-pointer z-20" style="left: ${p.x - 4}px; top: ${p.y - 4}px; width: 8px; height: 8px;">
-                  <div class="h-2 w-2 bg-yellow-400 hover:bg-yellow-300 rounded-full transform duration-150 transition-transform hover:scale-125"></div>
+                  <div class="h-2 w-2 bg-accent hover:opacity-85 rounded-full transform duration-150 transition-transform hover:scale-125"></div>
                   <!-- Tooltip -->
                   <div class="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-black-700 text-white text-xs px-2 py-1 rounded shadow whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
                     ${last7DaysOfListening[idx].minutesListening} mins
@@ -438,7 +464,7 @@ export async function loadStats() {
               <span class="material-symbols text-accent text-xl">history</span>
               <span>Recent Playback Sessions</span>
             </h3>
-            <div class="space-y-4 max-h-[340px] overflow-y-auto pr-2 no-scroll flex-1">
+            <div class="space-y-4 max-h-[340px] overflow-y-auto pr-2 flex-1">
               <div id="recent-sessions-list" class="space-y-3">
                 <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-accent mx-auto mt-10"></div>
               </div>
@@ -451,7 +477,7 @@ export async function loadStats() {
           <div id="heatmap" class="min-w-[750px]">
             <div class="mx-auto select-none" style="height: 206px; width: 741px; position: relative;">
               <p class="mb-4 px-1 text-sm text-black-100 font-semibold">${daysListenedInTheLastYear} days listened in the last year</p>
-              <div class="border border-white/10 rounded-sm py-4 w-full" style="background-color: #1a1a1a; height: 156px; position: relative;">
+              <div class="border border-black-400 rounded-sm py-4 w-full bg-black-500" style="height: 156px; position: relative;">
                 <div style="width: 689px; height: 91px;" class="ml-12 mt-8 absolute">
                   <!-- Day Labels -->
                   <div style="transform: translate(-25px, 13px); line-height: 10px; font-size: 10px; position: absolute;" class="text-black-100 font-semibold">Mon</div>
@@ -468,11 +494,11 @@ export async function loadStats() {
                   <div class="flex py-2 px-4 absolute w-full left-0 items-center font-semibold" style="margin-top: 91px;">
                     <div class="grow"></div>
                     <p style="font-size: 10px; line-height: 10px" class="text-black-100 px-1">Less</p>
-                    <div class="h-2.5 w-2.5 rounded-xs" style="margin-left: 1.5px; margin-right: 1.5px; background-color: rgb(45,45,45); outline: 1px solid rgba(255,255,255,0.03); outline-offset: -1px;"></div>
-                    <div class="h-2.5 w-2.5 rounded-xs" style="margin-left: 1.5px; margin-right: 1.5px; background-color: rgb(14,68,41); outline: 1px solid rgba(255,255,255,0.03); outline-offset: -1px;"></div>
-                    <div class="h-2.5 w-2.5 rounded-xs" style="margin-left: 1.5px; margin-right: 1.5px; background-color: rgb(0,109,50); outline: 1px solid rgba(255,255,255,0.03); outline-offset: -1px;"></div>
-                    <div class="h-2.5 w-2.5 rounded-xs" style="margin-left: 1.5px; margin-right: 1.5px; background-color: rgb(38,166,65); outline: 1px solid rgba(255,255,255,0.03); outline-offset: -1px;"></div>
-                    <div class="h-2.5 w-2.5 rounded-xs" style="margin-left: 1.5px; margin-right: 1.5px; background-color: rgb(57,211,83); outline: 1px solid rgba(255,255,255,0.03); outline-offset: -1px;"></div>
+                    <div class="h-2.5 w-2.5 rounded-[2px]" style="margin-left: 1.5px; margin-right: 1.5px; background-color: ${bgColors[0]}; outline: 1px solid ${outlineColor}; outline-offset: -1px;"></div>
+                    <div class="h-2.5 w-2.5 rounded-[2px]" style="margin-left: 1.5px; margin-right: 1.5px; background-color: ${bgColors[1]}; outline: 1px solid ${outlineColor}; outline-offset: -1px;"></div>
+                    <div class="h-2.5 w-2.5 rounded-[2px]" style="margin-left: 1.5px; margin-right: 1.5px; background-color: ${bgColors[2]}; outline: 1px solid ${outlineColor}; outline-offset: -1px;"></div>
+                    <div class="h-2.5 w-2.5 rounded-[2px]" style="margin-left: 1.5px; margin-right: 1.5px; background-color: ${bgColors[3]}; outline: 1px solid ${outlineColor}; outline-offset: -1px;"></div>
+                    <div class="h-2.5 w-2.5 rounded-[2px]" style="margin-left: 1.5px; margin-right: 1.5px; background-color: ${bgColors[4]}; outline: 1px solid ${outlineColor}; outline-offset: -1px;"></div>
                     <p style="font-size: 10px; line-height: 10px" class="text-black-100 px-1">More</p>
                   </div>
                 </div>
@@ -602,7 +628,7 @@ export async function loadStats() {
               <span class="material-symbols text-accent text-xl">sell</span>
               <span>Top Genres</span>
             </h3>
-            <div class="space-y-4 max-h-[350px] overflow-y-auto pr-2 no-scroll">
+            <div class="space-y-4 max-h-[350px] overflow-y-auto pr-2">
               ${(!stats.genresWithCount || stats.genresWithCount.length === 0) ? `
                 <div class="text-center text-black-100 py-10 font-semibold text-sm">No genres found.</div>
               ` : stats.genresWithCount.slice(0, 10).map((item) => {
@@ -630,7 +656,7 @@ export async function loadStats() {
                 <span class="material-symbols text-accent text-xl">person</span>
                 <span>Top Authors</span>
               </h3>
-              <div class="space-y-4 max-h-[350px] overflow-y-auto pr-2 no-scroll">
+              <div class="space-y-4 max-h-[350px] overflow-y-auto pr-2">
                 ${(!stats.authorsWithCount || stats.authorsWithCount.length === 0) ? `
                   <div class="text-center text-black-100 py-10 font-semibold text-sm">No authors found.</div>
                 ` : stats.authorsWithCount.slice(0, 10).map((item) => {
@@ -658,7 +684,7 @@ export async function loadStats() {
               <span class="material-symbols text-accent text-xl">schedule</span>
               <span>Longest Items</span>
             </h3>
-            <div class="space-y-4 max-h-[350px] overflow-y-auto pr-2 no-scroll">
+            <div class="space-y-4 max-h-[350px] overflow-y-auto pr-2">
               ${(!stats.longestItems || stats.longestItems.length === 0) ? `
                 <div class="text-center text-black-100 py-10 font-semibold text-sm">No items found.</div>
               ` : stats.longestItems.map((item) => {
@@ -685,7 +711,7 @@ export async function loadStats() {
               <span class="material-symbols text-accent text-xl">database</span>
               <span>Largest Items</span>
             </h3>
-            <div class="space-y-4 max-h-[350px] overflow-y-auto pr-2 no-scroll">
+            <div class="space-y-4 max-h-[350px] overflow-y-auto pr-2">
               ${(!stats.largestItems || stats.largestItems.length === 0) ? `
                 <div class="text-center text-black-100 py-10 font-semibold text-sm">No items found.</div>
               ` : stats.largestItems.map((item) => {
@@ -923,7 +949,7 @@ export async function loadStats() {
               <span class="material-symbols text-accent text-xl">grade</span>
               <span>Most Listened Items</span>
             </h3>
-            <div class="space-y-4 max-h-[250px] overflow-y-auto pr-2 no-scroll">
+            <div class="space-y-4 max-h-[250px] overflow-y-auto pr-2">
               ${itemsList.length === 0 ? `
                 <div class="text-center text-black-100 py-10 font-semibold text-sm">No items in history.</div>
               ` : itemsList.sort((a, b) => b.timeListened - a.timeListened).slice(0, 5).map((item) => {
@@ -953,7 +979,7 @@ export async function loadStats() {
               <span class="material-symbols text-accent text-xl">person</span>
               <span>Top Authors</span>
             </h3>
-            <div class="space-y-4 max-h-[250px] overflow-y-auto pr-2 no-scroll">
+            <div class="space-y-4 max-h-[250px] overflow-y-auto pr-2">
               ${topAuthorsList.length === 0 ? `
                 <div class="text-center text-black-100 py-10 font-semibold text-sm">No author stats.</div>
               ` : topAuthorsList.map(([author, seconds]) => {
@@ -980,7 +1006,7 @@ export async function loadStats() {
               <span class="material-symbols text-accent text-xl">group</span>
               <span>Top Users</span>
             </h3>
-            <div class="space-y-4 max-h-[250px] overflow-y-auto pr-2 no-scroll">
+            <div class="space-y-4 max-h-[250px] overflow-y-auto pr-2">
               ${topUsersList.length === 0 ? `
                 <div class="text-center text-black-100 py-10 font-semibold text-sm">No user stats.</div>
               ` : topUsersList.map(([username, seconds]) => {

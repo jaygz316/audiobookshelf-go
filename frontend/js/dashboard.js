@@ -200,10 +200,10 @@ export async function loadDashboard(libraryId, isHomeOnly = false, filterBy = ''
       bookshelfContainer.appendChild(gridContainer);
     } else if (activeStyle === 'list') {
       const tableWrapper = document.createElement('div');
-      tableWrapper.className = 'w-full bg-primary/30 border border-black-400/40 rounded-lg overflow-hidden shadow-lg p-2 text-white';
+      tableWrapper.className = 'library-list-wrapper w-full bg-primary/30 border border-black-400/40 rounded-lg overflow-hidden shadow-lg p-2 text-white';
       
       const table = document.createElement('table');
-      table.className = 'w-full text-left text-xs';
+      table.className = 'library-list-table w-full text-left text-xs';
       
       const visibleCols = getVisibleColumns();
       
@@ -452,7 +452,7 @@ function createShelfSection(shelfId, label, entities, libraryId) {
   plaqueDiv.innerHTML = `
     <div class="relative text-center categoryPlacard z-30 top-0 w-44e rounded-md mx-auto">
       <div class="shinyBlack flex items-center justify-center border rounded px-2 py-1">
-        <h3 class="text-[0.85em] font-semibold tracking-wider font-mono">${label.toUpperCase()}</h3>
+        <h3 class="text-[0.85em] font-semibold tracking-wider">${label.toUpperCase()}</h3>
       </div>
     </div>
     <div class="bookshelfDividerCategorized h-6e w-full absolute top-0 left-0 right-0 z-20"></div>
@@ -471,7 +471,7 @@ function createShelfGridSection(shelfId, label, entities, libraryId) {
   plaqueDiv.innerHTML = `
     <div class="relative text-center categoryPlacard z-30 top-0 w-44e rounded-md mx-auto">
       <div class="shinyBlack flex items-center justify-center border rounded px-2 py-1">
-        <h3 class="text-[0.85em] font-semibold tracking-wider font-mono">${label.toUpperCase()}</h3>
+        <h3 class="text-[0.85em] font-semibold tracking-wider">${label.toUpperCase()}</h3>
       </div>
     </div>
   `;
@@ -550,7 +550,7 @@ export function createCard(item, isContinue, libraryId, shelfId = '') {
 
       <!-- Top-right Edit button -->
       ${userCanUpdate ? `
-        <button class="absolute top-2 right-2 cursor-pointer text-white/80 hover:text-yellow-300 hover:scale-110 transition-transform duration-150 edit-btn p-1 pointer-events-auto focus:outline-none" title="Edit Details">
+        <button class="absolute top-2 right-2 cursor-pointer text-white/80 hover:text-accent hover:scale-110 transition-transform duration-150 edit-btn p-1 pointer-events-auto focus:outline-none" title="Edit Details">
           <span class="material-symbols text-base">edit</span>
         </button>
       ` : ''}
@@ -747,6 +747,17 @@ export function createCard(item, isContinue, libraryId, shelfId = '') {
     updatePresenceBadges();
   };
   document.addEventListener('presence-updated', handlePresenceUpdated);
+
+  const handleProgressUpdated = (e) => {
+    if (!card.isConnected) {
+      document.removeEventListener('progress-updated', handleProgressUpdated);
+      return;
+    }
+    if (e.detail && e.detail.itemId === item.id) {
+      applyProgress(e.detail.progress);
+    }
+  };
+  document.addEventListener('progress-updated', handleProgressUpdated);
 
   // Play button handler
   const playBtn = card.querySelector('.play-btn');

@@ -384,7 +384,7 @@ function createSeriesCard(series) {
         ${imagesHtml}
         <!-- Progress bar container -->
         <div class="series-progress-bar-container absolute bottom-[5%] left-[5%] right-[5%] h-1.5 bg-black/40 rounded-b shadow z-30 hidden select-none pointer-events-none">
-          <div class="series-progress-bar-fill h-full bg-yellow-400" style="width: 0%;"></div>
+          <div class="series-progress-bar-fill h-full bg-accent" style="width: 0%;"></div>
         </div>
       </div>
     `;
@@ -466,7 +466,7 @@ function createSeriesCard(series) {
             if (isSeriesFinished) {
               fill.className = 'series-progress-bar-fill h-full bg-success';
             } else {
-              fill.className = 'series-progress-bar-fill h-full bg-yellow-400';
+              fill.className = 'series-progress-bar-fill h-full bg-accent';
             }
             container.classList.remove('hidden');
           }

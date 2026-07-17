@@ -704,6 +704,16 @@ function setupEventHandlers() {
           clearBtn.classList.add('hidden');
         }
       }
+      const filterBtn = document.getElementById('filter-dropdown-btn');
+      if (filterBtn) {
+        if (val) {
+          filterBtn.classList.add('text-accent');
+          filterBtn.classList.remove('text-black-50');
+        } else {
+          filterBtn.classList.remove('text-accent');
+          filterBtn.classList.add('text-black-50');
+        }
+      }
     };
 
     window.updateFilterLabelGlobal = (val) => {

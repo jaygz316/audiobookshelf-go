@@ -153,6 +153,7 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
           <div class="flex flex-col items-center space-y-4">
             <div id="details-cover-container" class="w-56 h-80 bg-black-500 rounded border border-black-400 overflow-hidden shadow-2xl flex-shrink-0 flex items-center justify-center relative group select-none cursor-pointer">
               <img src="${coverUrl}" alt="${escapeHtml(title)}" class="w-full h-full object-cover" onerror="this.onerror=null; this.src='assets/images/logo.png'">
+              <div class="book-spine-crease"></div>
               ${isAdmin ? `
                 <div class="absolute inset-0 bg-black-950/70 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center transition-opacity duration-200">
                   <span class="material-symbols text-3xl text-white">edit</span>
@@ -261,6 +262,19 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
                 <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-accent mx-auto"></div>
               </div>
             </div>
+
+            <!-- Playback History Section -->
+            ${hasAudio ? `
+              <div id="details-history-section" class="w-full max-w-xs border border-black-400/50 bg-primary/20 rounded-md p-3.5 space-y-3 text-xs text-left">
+                <div class="flex items-center justify-between border-b border-black-500 pb-2">
+                  <span class="font-bold text-white uppercase tracking-wider">Playback History</span>
+                  <span id="history-total-badge" class="px-2 py-0.5 rounded text-[0.65rem] font-bold uppercase tracking-wide bg-black-500 text-black-100">0 sessions</span>
+                </div>
+                <div id="history-controls" class="space-y-2 max-h-60 overflow-y-auto pr-1">
+                  <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-accent mx-auto"></div>
+                </div>
+              </div>
+            ` : ''}
           </div>
 
           <!-- Middle & Right Columns: Metadata & Info -->
@@ -312,7 +326,7 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
             ${description ? `
               <div class="bg-primary border border-black-300 rounded-md p-4 space-y-2">
                 <h3 class="text-xs font-semibold uppercase tracking-wider text-black-100">Description</h3>
-                <p class="text-sm text-black-50 leading-relaxed whitespace-pre-line overflow-y-auto max-h-48 no-scroll">${escapeHtml(description)}</p>
+                <p class="text-sm text-black-50 leading-relaxed whitespace-pre-line overflow-y-auto max-h-48">${escapeHtml(description)}</p>
               </div>
             ` : ''}
 
@@ -486,7 +500,7 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
                   </div>
                 </summary>
                 <div class="pt-2">
-                  <ol class="space-y-1 max-h-64 overflow-y-auto no-scroll border border-black-400/50 rounded-md p-2 bg-primary/20 list-decimal list-inside text-xs">
+                  <ol class="space-y-1 max-h-64 overflow-y-auto border border-black-400/50 rounded-md p-2 bg-primary/20 list-decimal list-inside text-xs">
                     ${item.media.tracks.map((t, idx) => `
                       <li class="p-2 hover:bg-black-500/40 rounded transition-colors text-black-50">
                         <span class="font-medium text-white pl-1">${escapeHtml(t.title)}</span>
@@ -508,7 +522,7 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
                   </div>
                 </summary>
                 <div class="pt-2">
-                  <ol class="space-y-1 max-h-64 overflow-y-auto no-scroll border border-black-400/50 rounded-md p-2 bg-primary/20 list-decimal list-inside text-xs">
+                  <ol class="space-y-1 max-h-64 overflow-y-auto border border-black-400/50 rounded-md p-2 bg-primary/20 list-decimal list-inside text-xs">
                     ${item.media.audioFiles.map((af, idx) => {
                       const filename = af.metadata?.filename || af.filename || `File ${idx + 1}`;
                       const durationStr = af.duration ? formatDuration(af.duration) : '';
@@ -547,7 +561,7 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
                 </summary>
                 <div class="pt-2">
                   ${item.media?.chapters?.length > 0 ? `
-                    <ol class="space-y-1 max-h-64 overflow-y-auto no-scroll border border-black-400/50 rounded-md p-2 bg-primary/20 list-decimal list-inside text-xs">
+                    <ol class="space-y-1 max-h-64 overflow-y-auto border border-black-400/50 rounded-md p-2 bg-primary/20 list-decimal list-inside text-xs">
                       ${item.media.chapters.map((c) => `
                         <li class="p-2 hover:bg-black-500/40 rounded transition-colors text-black-50 flex justify-between items-center cursor-pointer chapter-item-seek" data-start="${c.start}">
                           <span class="font-medium text-white pl-1">${escapeHtml(c.title)}</span>
@@ -923,7 +937,7 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
                 </div>
               </div>
               <!-- Episode list container -->
-              <ul class="space-y-2.5 max-h-[500px] overflow-y-auto no-scroll border border-black-400/50 rounded-md p-3 bg-primary/20" id="podcast-episodes-list">
+              <ul class="space-y-2.5 max-h-[500px] overflow-y-auto border border-black-400/50 rounded-md p-3 bg-primary/20" id="podcast-episodes-list">
               </ul>
 
               <!-- Batch Actions Toolbar -->
@@ -1182,7 +1196,7 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
                       </div>
                     </div>
                     <!-- Description Accordion panel (hidden by default) -->
-                    <div class="episode-description ${isExpanded ? '' : 'hidden'} border-t border-black-400/20 p-3.5 bg-black-500/20 text-black-100 text-xs leading-relaxed max-h-48 overflow-y-auto no-scroll">
+                    <div class="episode-description ${isExpanded ? '' : 'hidden'} border-t border-black-400/20 p-3.5 bg-black-500/20 text-black-100 text-xs leading-relaxed max-h-48 overflow-y-auto">
                       ${ep.description ? ep.description : '<em class="text-black-200">No description available.</em>'}
                     </div>
                   </li>
@@ -1906,6 +1920,77 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
 
     // 4. Fetch and render progress details
     if (hasAudio || hasEbook) {
+      const handleProgressUpdated = (e) => {
+        if (!container.isConnected) {
+          document.removeEventListener('progress-updated', handleProgressUpdated);
+          return;
+        }
+        if (e.detail && e.detail.itemId === item.id) {
+          const progressObj = e.detail.progress;
+          
+          const progressSection = document.getElementById('details-progress-section');
+          if (progressSection) progressSection.classList.remove('hidden');
+
+          // Update badge
+          const badge = document.getElementById('progress-status-badge');
+          if (badge) {
+            if (progressObj.isFinished) {
+              badge.className = 'px-2 py-0.5 rounded text-[0.65rem] font-bold uppercase tracking-wide bg-success text-white';
+              badge.textContent = 'Finished';
+            } else if (progressObj.progress > 0) {
+              badge.className = 'px-2 py-0.5 rounded text-[0.65rem] font-bold uppercase tracking-wide bg-yellow-500 text-white';
+              badge.textContent = 'In Progress';
+            } else {
+              badge.className = 'px-2 py-0.5 rounded text-[0.65rem] font-bold uppercase tracking-wide bg-black-500 text-black-100';
+              badge.textContent = 'Not Started';
+            }
+          }
+
+          // Update progress bar
+          const percent = progressObj.progress ? Math.round(progressObj.progress * 100) : 0;
+          const fill = document.getElementById('progress-bar-fill');
+          if (fill) {
+            fill.style.width = `${percent}%`;
+            if (progressObj.isFinished) {
+              fill.className = 'h-full bg-success';
+            } else {
+              fill.className = 'h-full bg-accent';
+            }
+          }
+
+          // Update percentage text
+          const percentText = document.getElementById('progress-percent');
+          if (percentText) percentText.textContent = `${percent}%`;
+
+          // Update durations
+          const duration = progressObj.duration || item.media?.duration || 0;
+          const currentTime = progressObj.currentTime || 0;
+
+          const timeListened = document.getElementById('progress-time-listened');
+          if (timeListened) timeListened.textContent = formatDuration(currentTime);
+
+          const timeRemaining = document.getElementById('progress-time-remaining');
+          if (timeRemaining) {
+            const remaining = duration - currentTime;
+            timeRemaining.textContent = remaining > 0 ? `${formatDuration(remaining)} left` : '00:00:00 left';
+          }
+
+          // Update buttons
+          const toggleBtnText = document.getElementById('progress-toggle-finished-text');
+          const toggleBtnIcon = document.querySelector('#progress-toggle-finished-btn span');
+          if (toggleBtnText && toggleBtnIcon) {
+            if (progressObj.isFinished) {
+              toggleBtnText.textContent = 'Mark Unfinished';
+              toggleBtnIcon.textContent = 'history';
+            } else {
+              toggleBtnText.textContent = 'Mark Finished';
+              toggleBtnIcon.textContent = 'check_circle';
+            }
+          }
+        }
+      };
+      document.addEventListener('progress-updated', handleProgressUpdated);
+
       request('GET', `/api/me/progress/${item.id}`)
         .then(progressObj => {
           if (progressObj) {
@@ -2070,6 +2155,61 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
         });
     }
 
+    // 5. Fetch and render item playback history
+    if (hasAudio) {
+      const updateHistorySection = async () => {
+        const historyControls = document.getElementById('history-controls');
+        const historyTotalBadge = document.getElementById('history-total-badge');
+        if (!historyControls) return;
+
+        try {
+          const res = await request('GET', `/api/me/listening-sessions?itemId=${item.id}&itemsPerPage=20`);
+          const sessions = res.sessions || [];
+          const total = res.total || 0;
+
+          if (historyTotalBadge) {
+            historyTotalBadge.textContent = `${total} ${total === 1 ? 'session' : 'sessions'}`;
+          }
+
+          if (sessions.length === 0) {
+            historyControls.innerHTML = `<p class="text-black-100 text-[0.7rem] text-center py-2 font-semibold">No playback history recorded.</p>`;
+            return;
+          }
+
+          historyControls.innerHTML = sessions.map(sess => {
+            let dateStr = 'Unknown';
+            if (sess.updatedAt) {
+              const dateObj = parseSQLiteTime(sess.updatedAt);
+              if (dateObj && !isNaN(dateObj)) {
+                dateStr = dateObj.toLocaleDateString(undefined, {
+                  month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+                });
+              } else {
+                dateStr = sess.updatedAt;
+              }
+            }
+            return `
+              <div class="border-b border-black-500/40 pb-1.5 last:border-b-0 last:pb-0 text-[10px] space-y-0.5">
+                <div class="flex justify-between items-center text-white">
+                  <span class="font-bold font-mono">${dateStr}</span>
+                  <span class="text-accent font-semibold">${formatDuration(sess.timeListened)}</span>
+                </div>
+                <div class="flex justify-between items-center text-black-100 font-semibold">
+                  <span class="truncate pr-1">${escapeHtml(sess.deviceInfo || 'Web Client')}</span>
+                  <span class="bg-black-500 px-1 rounded-[3px] text-[8px] font-mono border border-black-400/50">${escapeHtml(sess.playMethod || 'HLS')}</span>
+                </div>
+              </div>
+            `;
+          }).join('');
+        } catch (err) {
+          console.warn('Failed to load item playback history:', err);
+          historyControls.innerHTML = `<p class="text-error text-[0.7rem] font-semibold">Failed to load history.</p>`;
+        }
+      };
+
+      updateHistorySection();
+    }
+
   } catch (err) {
     console.error('Failed to load item details:', err);
     container.innerHTML = `
@@ -2191,5 +2331,17 @@ export function parseDuration(str) {
     return parts[0] * 60 + parts[1];
   }
   return 0;
+}
+
+export function parseSQLiteTime(s) {
+  if (!s) return null;
+  let normalized = s.trim();
+  if (!normalized.endsWith('Z') && !normalized.includes('+') && !normalized.includes('-')) {
+    normalized += 'Z';
+  }
+  normalized = normalized.replace(' ', 'T').replace(/\s+/g, '');
+  const parsed = new Date(normalized);
+  if (!isNaN(parsed.getTime())) return parsed;
+  return new Date(s);
 }
 

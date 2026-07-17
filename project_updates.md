@@ -221,4 +221,14 @@
   - Grouped sidebar buttons into Server, Configuration, and Tools sections, and implemented dynamic active tab highlights with left gold borders on desktop (`md:border-l-4 md:border-l-accent`) and bottom gold borders on mobile (`border-b-2 border-b-accent`).
   - Added a thick left gold border highlight (`border-l-4 border-l-accent`) to selected library rows inside the libraries settings sub-tab.
   - Implemented gold focus ring glow transitions (`box-shadow: 0 0 0 2px rgba(229, 169, 59, 0.25)`) for settings form input fields, selects, and textareas on focus.
+- **Item Details Playback History & Logs Filters**:
+  - Integrated the backend `/api/me/listening-sessions?itemId=...` API with `frontend/js/itemDetails.js` to render a "Recent Sessions" panel under the details-rss-section, displaying local formatted dates, durations, playback devices, and methods.
+  - Implemented a custom `progress-updated` event framework to update details badges (Finished, In Progress, Not Started), progress bar width, percentage text, and remaining durations dynamically.
+  - Added a matching event listener in `createCard` inside `frontend/js/dashboard.js` to update cards in-place upon receiving the `progress-updated` event.
+  - Optimized the WebSocket `user_item_progress_updated` handler in `frontend/js/socket.js` to cache updates and fire the local event, reloading the dashboard shelves only if shelf membership changed.
+  - Enhanced the "Listening Sessions" logs tab in `frontend/js/settings/logs.js` with comprehensive client-side text search and play method selection dropdown filtering.
+- **Visual Parity and Scrollbar Refinements**:
+  - Removed `no-scroll` styling from the Playback History (`history-controls`) list, Chapters list (`chapters-list-container`), Podcast Episode lists (`podcast-episodes-list`), and EPUB/PDF E-Reader Sidebars (table of contents, bookmarks, highlights, and thumbnails containers) to allow floating macOS-style scrollbars.
+  - Added physical book spine crease decoration (`.book-spine-crease`) to the cover template on the Item Details page (`itemDetails.js`), aligning detail page cover graphics with the main dashboard card aesthetics.
+
 
