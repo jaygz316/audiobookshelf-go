@@ -60,7 +60,7 @@ function triggerMatchModal(item, libraryId, mode, onSaveSuccess) {
 
   // Create Modal
   const modal = document.createElement('div');
-  modal.className = 'fixed inset-0 bg-black-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 select-none';
+  modal.className = 'fixed inset-0 bg-black-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4';
   modal.innerHTML = `
     <div class="bg-primary border border-black-300 w-full max-w-4xl p-6 rounded-md shadow-2xl space-y-4 flex flex-col max-h-[90vh]">
       <!-- Header -->

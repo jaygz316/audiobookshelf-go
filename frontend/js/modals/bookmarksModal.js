@@ -110,7 +110,7 @@ export async function renderBookmarks(item) {
 
 export function triggerEditBookmarkModal(item, bookmark) {
   const modal = document.createElement('div');
-  modal.className = 'fixed inset-0 bg-black-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 select-none';
+  modal.className = 'fixed inset-0 bg-black-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4';
   modal.innerHTML = `
     <div class="bg-primary border border-black-400 rounded-lg max-w-md w-full p-6 shadow-2xl space-y-4">
       <div class="flex items-center justify-between border-b border-black-500 pb-3">
@@ -228,7 +228,7 @@ export function triggerAddBookmarkOnDetailsModal(item) {
   }
 
   const modal = document.createElement('div');
-  modal.className = 'fixed inset-0 bg-black-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 select-none';
+  modal.className = 'fixed inset-0 bg-black-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4';
   modal.innerHTML = `
     <div class="bg-primary border border-black-400 rounded-lg max-w-md w-full p-6 shadow-2xl space-y-4">
       <div class="flex items-center justify-between border-b border-black-500 pb-3">
@@ -371,7 +371,7 @@ export async function triggerExportBookmarksModal(item) {
   }
 
   const modal = document.createElement('div');
-  modal.className = 'fixed inset-0 bg-black-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 select-none';
+  modal.className = 'fixed inset-0 bg-black-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4';
   modal.innerHTML = `
     <div class="bg-primary border border-black-400 rounded-lg max-w-md w-full p-6 shadow-2xl space-y-4">
       <div class="flex items-center justify-between border-b border-black-500 pb-3">
@@ -468,7 +468,7 @@ export async function triggerExportBookmarksModal(item) {
 
 export function triggerImportBookmarksModal(item) {
   const modal = document.createElement('div');
-  modal.className = 'fixed inset-0 bg-black-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 select-none';
+  modal.className = 'fixed inset-0 bg-black-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4';
   modal.innerHTML = `
     <div class="bg-primary border border-black-400 rounded-lg max-w-md w-full p-6 shadow-2xl space-y-4">
       <div class="flex items-center justify-between border-b border-black-500 pb-3">

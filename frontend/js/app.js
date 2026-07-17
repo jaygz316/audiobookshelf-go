@@ -641,6 +641,9 @@ function setupEventHandlers() {
     const closeSubmenu = () => {
       if (submenu) submenu.classList.add('hidden');
       currentSubmenuCat = null;
+      if (window.innerWidth < 640 && filterMenu && filterOpen) {
+        filterMenu.classList.remove('hidden');
+      }
     };
 
     const getDecodedSubVal = (s) => {
@@ -738,14 +741,31 @@ function setupEventHandlers() {
         item.label.toLowerCase().includes(filterText.toLowerCase())
       );
 
+      let itemsHtml = '';
+      if (window.innerWidth < 640) {
+        itemsHtml += `
+          <button id="filter-submenu-back-btn" class="w-full text-left px-3 py-2 text-xs text-accent font-semibold hover:bg-black-400 flex items-center space-x-1.5 transition-colors border-b border-black-400/30 sticky top-0 bg-primary z-20 focus:outline-none">
+            <span class="material-symbols text-sm">arrow_back</span>
+            <span>Back to Categories</span>
+          </button>
+        `;
+      }
+
       if (filtered.length === 0) {
-        submenuItems.innerHTML = `
+        submenuItems.innerHTML = itemsHtml + `
           <div class="px-3 py-2 text-xs text-black-200">No items found</div>
         `;
+        const backBtn = submenuItems.querySelector('#filter-submenu-back-btn');
+        if (backBtn) {
+          backBtn.onclick = (e) => {
+            e.stopPropagation();
+            closeSubmenu();
+          };
+        }
         return;
       }
 
-      submenuItems.innerHTML = filtered.map(item => {
+      submenuItems.innerHTML = itemsHtml + filtered.map(item => {
         const isSelected = activeFilterVal === item.value;
         return `
           <button class="filter-submenu-option-btn w-full text-left px-3 py-1.5 text-xs text-black-50 hover:bg-black-400 hover:text-white flex items-center justify-between transition-colors focus:outline-none ${isSelected ? 'text-accent font-medium' : ''}" data-value="${item.value}">
@@ -754,6 +774,14 @@ function setupEventHandlers() {
           </button>
         `;
       }).join('');
+
+      const backBtn = submenuItems.querySelector('#filter-submenu-back-btn');
+      if (backBtn) {
+        backBtn.onclick = (e) => {
+          e.stopPropagation();
+          closeSubmenu();
+        };
+      }
 
       submenuItems.querySelectorAll('.filter-submenu-option-btn').forEach(btn => {
         btn.onclick = (e) => {
@@ -865,19 +893,34 @@ function setupEventHandlers() {
       const rect = btnEl.getBoundingClientRect();
       const parentRect = btnEl.offsetParent.getBoundingClientRect();
       const relativeTop = rect.top - parentRect.top;
-      submenu.style.top = `${relativeTop}px`;
 
       // Dynamic horizontal positioning to prevent screen overflow on narrow viewports
       const submenuWidth = 224; // Width corresponding to w-56
-      if (rect.left - submenuWidth < 10) {
+      if (window.innerWidth < 640) {
+        // Mobile view: overlay the main dropdown menu in place
         submenu.style.right = '0px';
+        submenu.style.top = '100%';
+        submenu.style.width = '176px';
         submenu.style.zIndex = '60';
+        submenu.style.marginTop = '0.375rem'; // match mt-1.5
+      } else if (rect.left - submenuWidth < 10) {
+        submenu.style.right = '0px';
+        submenu.style.top = `${relativeTop}px`;
+        submenu.style.width = '224px';
+        submenu.style.zIndex = '60';
+        submenu.style.marginTop = '0px';
       } else {
         submenu.style.right = '182px';
+        submenu.style.top = `${relativeTop}px`;
+        submenu.style.width = '224px';
         submenu.style.zIndex = '50';
+        submenu.style.marginTop = '0px';
       }
 
       submenu.classList.remove('hidden');
+      if (window.innerWidth < 640 && filterMenu) {
+        filterMenu.classList.add('hidden');
+      }
 
       if (submenuItemsData.length > 6 && searchInput) {
         searchInput.focus();

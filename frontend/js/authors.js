@@ -579,7 +579,7 @@ export async function loadAuthorDetails(authorId) {
     }
 
     let html = `
-      <div class="p-6 max-w-6xl mx-auto space-y-6 text-left">
+      <div class="p-4 sm:p-6 md:p-8 max-w-6xl mx-auto space-y-6 text-left">
         <div class="flex items-center space-x-2">
           <button id="back-authors-btn" class="flex items-center space-x-1.5 text-sm text-black-100 hover:text-white transition-colors cursor-pointer">
             <span class="material-symbols text-sm">arrow_back</span>
@@ -856,7 +856,7 @@ export async function loadSeriesDetails(seriesId) {
     }
 
     let html = `
-      <div class="p-6 max-w-6xl mx-auto space-y-6 text-left">
+      <div class="p-4 sm:p-6 md:p-8 max-w-6xl mx-auto space-y-6 text-left">
         <div class="flex items-center space-x-2">
           <button id="back-series-btn" class="flex items-center space-x-1.5 text-sm text-black-100 hover:text-white transition-colors cursor-pointer">
             <span class="material-symbols text-sm">arrow_back</span>
