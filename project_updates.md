@@ -30,6 +30,8 @@
 *This log is updated by developers/agents whenever an API, design pattern, or library is deprecated or updated.*
 
 ### 2026-07-17
+- **Interactive Bookshelf Row Scroll Buttons**:
+  - Added left/right scroll buttons on personalized shelves ("Continue Listening", "Recently Added", etc.) with auto-hidden states on overflow start/end boundaries, complete with smooth scroll triggers and premium CSS hover/active effects, bringing complete visual and functional parity to horizontal shelf navigation.
 - **Settings Form Segmented Controls & Custom Dialogs**:
   - Replaced native select inputs with green/gray CSS pill-segmented controls for "Tag Filter Mode", "Media Type", and "Cover Aspect Ratio" across user/library/provider modals to mirror Vue-like toggles.
   - Added a globally accessible `showConfirm` dialog in `toast.js` attached to `window.showConfirm` to replace standard browser `confirm()` calls with stylized dark charcoal/gold border overlays.

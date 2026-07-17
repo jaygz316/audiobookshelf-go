@@ -436,7 +436,7 @@ async function loadMoreItems(libraryId, filterBy, filterLabel) {
 
 function createShelfSection(shelfId, label, entities, libraryId) {
   const shelfWrapper = document.createElement('div');
-  shelfWrapper.className = 'relative w-full';
+  shelfWrapper.className = 'relative w-full shelf-wrapper';
   
   const rowDiv = document.createElement('div');
   rowDiv.className = 'w-full relative overflow-x-auto no-scroll overflow-y-hidden z-10 bg-repeat-x bookshelfRow';
@@ -453,6 +453,63 @@ function createShelfSection(shelfId, label, entities, libraryId) {
   rowDiv.appendChild(itemsContainer);
   shelfWrapper.appendChild(rowDiv);
   
+  // Left and Right scroll navigation buttons
+  const leftBtn = document.createElement('button');
+  leftBtn.type = 'button';
+  leftBtn.className = 'shelf-scroll-btn scroll-left hidden';
+  leftBtn.innerHTML = '<span class="material-symbols text-xl font-bold">chevron_left</span>';
+  leftBtn.title = 'Scroll Left';
+
+  const rightBtn = document.createElement('button');
+  rightBtn.type = 'button';
+  rightBtn.className = 'shelf-scroll-btn scroll-right hidden';
+  rightBtn.innerHTML = '<span class="material-symbols text-xl font-bold">chevron_right</span>';
+  rightBtn.title = 'Scroll Right';
+
+  shelfWrapper.appendChild(leftBtn);
+  shelfWrapper.appendChild(rightBtn);
+
+  const updateScrollButtons = () => {
+    const scrollLeft = rowDiv.scrollLeft;
+    const scrollWidth = rowDiv.scrollWidth;
+    const clientWidth = rowDiv.clientWidth;
+
+    if (scrollWidth <= clientWidth) {
+      leftBtn.classList.add('hidden');
+      rightBtn.classList.add('hidden');
+    } else {
+      if (scrollLeft <= 5) {
+        leftBtn.classList.add('hidden');
+      } else {
+        leftBtn.classList.remove('hidden');
+      }
+
+      if (scrollLeft + clientWidth >= scrollWidth - 5) {
+        rightBtn.classList.add('hidden');
+      } else {
+        rightBtn.classList.remove('hidden');
+      }
+    }
+  };
+
+  leftBtn.onclick = (e) => {
+    e.stopPropagation();
+    rowDiv.scrollBy({ left: -rowDiv.clientWidth * 0.75, behavior: 'smooth' });
+  };
+
+  rightBtn.onclick = (e) => {
+    e.stopPropagation();
+    rowDiv.scrollBy({ left: rowDiv.clientWidth * 0.75, behavior: 'smooth' });
+  };
+
+  rowDiv.addEventListener('scroll', updateScrollButtons);
+  
+  // Set up initial state checks
+  setTimeout(updateScrollButtons, 100);
+  
+  // Update on window resizing
+  window.addEventListener('resize', updateScrollButtons);
+
   const plaqueDiv = document.createElement('div');
   plaqueDiv.className = 'relative h-12';
   plaqueDiv.innerHTML = `
@@ -467,6 +524,7 @@ function createShelfSection(shelfId, label, entities, libraryId) {
   
   return shelfWrapper;
 }
+
 
 function createShelfGridSection(shelfId, label, entities, libraryId) {
   const shelfWrapper = document.createElement('div');

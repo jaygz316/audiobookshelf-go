@@ -1168,6 +1168,47 @@ input[type="radio"]:focus-visible,
   transform: translateY(calc(var(--bookshelf-plank-height, 24px) / 2 - 50%)) !important;
 }
 
+/* Bookshelf row scroll navigation buttons */
+.shelf-scroll-btn {
+  position: absolute;
+  top: calc(50% - var(--bookshelf-plank-height, 18px)/2 - 20px) !important; /* Center relative to book cover area above the shelf plank */
+  width: 40px !important;
+  height: 40px !important;
+  border-radius: 50% !important;
+  background-color: rgba(26, 26, 26, 0.85) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  color: #ffffff !important;
+  cursor: pointer !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5) !important;
+  transition: opacity 0.2s ease, transform 0.2s ease, background-color 0.15s ease !important;
+  z-index: 40 !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  user-select: none !important;
+}
 
+.shelf-wrapper:hover .shelf-scroll-btn {
+  opacity: 1 !important;
+  pointer-events: auto !important;
+}
 
+.shelf-scroll-btn:hover {
+  background-color: var(--color-accent, #e5a93b) !important;
+  color: #1a1a1a !important;
+  transform: scale(1.08) !important;
+}
 
+.shelf-scroll-btn:active {
+  transform: scale(0.95) !important;
+}
+
+.shelf-scroll-btn.scroll-left {
+  left: 12px !important;
+}
+
+.shelf-scroll-btn.scroll-right {
+  right: 12px !important;
+}
