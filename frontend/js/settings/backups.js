@@ -277,7 +277,13 @@ function renderBackupsListRows(backups) {
 
     // Bind triggers
     tr.querySelector('.apply-btn').onclick = async () => {
-      if (!confirm(`Are you absolutely sure you want to restore the backup from ${b.datePretty}? This will disconnect current sessions, overwrite the database, and trigger a server reload.`)) {
+      const confirmed = await window.showConfirm(
+        'Restore Backup',
+        `Are you absolutely sure you want to restore the backup from ${b.datePretty}? This will disconnect current sessions, overwrite the database, and trigger a server reload.`,
+        'Restore',
+        'Cancel'
+      );
+      if (!confirmed) {
         return;
       }
       try {
@@ -290,7 +296,13 @@ function renderBackupsListRows(backups) {
     };
 
     tr.querySelector('.delete-btn').onclick = async () => {
-      if (!confirm(`Delete backup file ${b.filename}?`)) return;
+      const confirmed = await window.showConfirm(
+        'Delete Backup',
+        `Delete backup file ${b.filename}?`,
+        'Delete',
+        'Cancel'
+      );
+      if (!confirmed) return;
       try {
         const res = await request('DELETE', `/api/backups/${b.id}`);
         renderBackupsListRows(res.backups || []);

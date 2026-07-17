@@ -30,6 +30,10 @@
 *This log is updated by developers/agents whenever an API, design pattern, or library is deprecated or updated.*
 
 ### 2026-07-17
+- **Settings Form Segmented Controls & Custom Dialogs**:
+  - Replaced native select inputs with green/gray CSS pill-segmented controls for "Tag Filter Mode", "Media Type", and "Cover Aspect Ratio" across user/library/provider modals to mirror Vue-like toggles.
+  - Added a globally accessible `showConfirm` dialog in `toast.js` attached to `window.showConfirm` to replace standard browser `confirm()` calls with stylized dark charcoal/gold border overlays.
+  - Corrected mobile view responsiveness of Settings tab layout by adjusting padding size variables on smaller screen sizes.
 - **Responsive Mobile Navigation Drawer**:
   - Redesigned the mobile navigation sidebar drawer (`#sidebar`) to be a widescreen (16rem / 256px wide) slide-out panel matching standard native drawer menus.
   - Formatted sidebar navigation link items horizontally on mobile viewports, displaying the page icon and text label side-by-side with improved text sizes and alignment.

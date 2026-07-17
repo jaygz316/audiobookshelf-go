@@ -123,7 +123,13 @@ function renderUsersListRows(users, currentUser) {
       };
       if (u.hasOpenIDLink) {
         tr.querySelector('.unlink-oidc-btn').onclick = async () => {
-          if (!confirm(`Are you sure you want to unlink OIDC for user "${u.username}"?`)) return;
+          const confirmed = await window.showConfirm(
+            'Unlink OIDC',
+            `Are you sure you want to unlink OIDC for user "${u.username}"?`,
+            'Unlink',
+            'Cancel'
+          );
+          if (!confirmed) return;
           try {
             await request('PATCH', `/api/users/${u.id}/openid-unlink`);
             showToast('OIDC link removed successfully.', 'success');
@@ -137,7 +143,13 @@ function renderUsersListRows(users, currentUser) {
 
     if (canDelete) {
       tr.querySelector('.delete-user-btn').onclick = async () => {
-        if (!confirm(`Are you sure you want to delete user "${u.username}"? This will delete all of their history and listening progress.`)) {
+        const confirmed = await window.showConfirm(
+          'Delete User',
+          `Are you sure you want to delete user "${u.username}"? This will delete all of their history and listening progress.`,
+          'Delete',
+          'Cancel'
+        );
+        if (!confirmed) {
           return;
         }
         try {
@@ -317,10 +329,11 @@ async function triggerUserModal(user = null, currentUser, onSaveSuccess) {
           <div id="tag-selector-container" class="${accessAllTags ? 'hidden' : ''} border border-black-300 rounded p-3 bg-black-500 space-y-3">
             <div>
               <label class="block text-[10px] font-semibold text-black-100 uppercase mb-1">Tag Filter Mode</label>
-              <select id="perm-tags-not-accessible" class="w-full bg-black-500 text-white px-2 py-1 rounded border border-black-300 focus:outline-none focus:border-accent text-xs">
-                <option value="false" ${!selectedTagsNotAccessible ? 'selected' : ''}>Allow Only Selected Tags</option>
-                <option value="true" ${selectedTagsNotAccessible ? 'selected' : ''}>Block Selected Tags</option>
-              </select>
+              <div class="flex rounded bg-black-600 p-1 border border-black-300 w-full" id="perm-tags-toggle-container">
+                <button type="button" id="perm-tags-allow-btn" class="flex-grow py-1 text-[11px] font-semibold rounded text-center transition-all focus:outline-none ${!selectedTagsNotAccessible ? 'bg-success text-white' : 'text-black-100 hover:text-white'}" data-value="false">Allow Only Selected</button>
+                <button type="button" id="perm-tags-block-btn" class="flex-grow py-1 text-[11px] font-semibold rounded text-center transition-all focus:outline-none ${selectedTagsNotAccessible ? 'bg-success text-white' : 'text-black-100 hover:text-white'}" data-value="true">Block Selected</button>
+              </div>
+              <input type="hidden" id="perm-tags-not-accessible" value="${selectedTagsNotAccessible ? 'true' : 'false'}">
             </div>
 
             <div>
@@ -352,6 +365,22 @@ async function triggerUserModal(user = null, currentUser, onSaveSuccess) {
   `;
 
   document.body.appendChild(modal);
+  
+  const tagsNotAccessibleInput = modal.querySelector('#perm-tags-not-accessible');
+  const tagsAllowBtn = modal.querySelector('#perm-tags-allow-btn');
+  const tagsBlockBtn = modal.querySelector('#perm-tags-block-btn');
+  if (tagsNotAccessibleInput && tagsAllowBtn && tagsBlockBtn) {
+    tagsAllowBtn.onclick = () => {
+      tagsNotAccessibleInput.value = 'false';
+      tagsAllowBtn.className = 'flex-grow py-1 text-[11px] font-semibold rounded text-center transition-all focus:outline-none bg-success text-white';
+      tagsBlockBtn.className = 'flex-grow py-1 text-[11px] font-semibold rounded text-center transition-all focus:outline-none text-black-100 hover:text-white';
+    };
+    tagsBlockBtn.onclick = () => {
+      tagsNotAccessibleInput.value = 'true';
+      tagsAllowBtn.className = 'flex-grow py-1 text-[11px] font-semibold rounded text-center transition-all focus:outline-none text-black-100 hover:text-white';
+      tagsBlockBtn.className = 'flex-grow py-1 text-[11px] font-semibold rounded text-center transition-all focus:outline-none bg-success text-white';
+    };
+  }
 
   const closeModal = () => modal.remove();
   modal.querySelector('#close-user-modal-btn').onclick = closeModal;
@@ -574,7 +603,12 @@ function renderApiKeysListRows(apiKeys, users) {
 
     const deleteBtn = tr.querySelector('.delete-apikey-btn');
     deleteBtn.onclick = async () => {
-      const confirmed = confirm(`Are you sure you want to delete the API key "${key.name}"?`);
+      const confirmed = await window.showConfirm(
+        'Delete API Key',
+        `Are you sure you want to delete the API key "${key.name}"?`,
+        'Delete',
+        'Cancel'
+      );
       if (confirmed) {
         try {
           await request('DELETE', `/api/api-keys/${key.id}`);

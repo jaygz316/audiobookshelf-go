@@ -84,7 +84,13 @@ export async function renderBookmarks(item) {
         e.stopPropagation();
         const idx = parseInt(btn.getAttribute('data-idx'), 10);
         const b = bookmarks[idx];
-        if (confirm(`Are you sure you want to delete the bookmark "${b.title}"?`)) {
+        const confirmed = await window.showConfirm(
+          'Delete Bookmark',
+          `Are you sure you want to delete the bookmark "${b.title}"?`,
+          'Delete',
+          'Cancel'
+        );
+        if (confirmed) {
           try {
             await request('DELETE', `/api/me/item/${item.id}/bookmark/${b.time}`);
             renderBookmarks(item);

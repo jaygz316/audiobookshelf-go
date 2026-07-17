@@ -440,7 +440,13 @@ export async function loadPodcastDownloadQueueView(libraryId) {
       const cancelAllBtn = document.getElementById('cancel-all-tasks-btn');
       if (cancelAllBtn) {
         cancelAllBtn.onclick = async () => {
-          if (!confirm('Are you sure you want to cancel all downloads?')) return;
+          const confirmed = await window.showConfirm(
+            'Cancel Downloads',
+            'Are you sure you want to cancel all downloads?',
+            'Cancel All',
+            'Cancel'
+          );
+          if (!confirmed) return;
           try {
             await request('POST', '/api/tasks/cancel-all');
             if (window.showToast) window.showToast('Cancelled all download tasks', 'success');

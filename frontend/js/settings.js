@@ -113,7 +113,7 @@ export async function loadSettings() {
       </div>
 
       <!-- Right Content Column -->
-      <div class="flex-grow bg-primary/20 border border-black-400/50 rounded-lg p-6 min-w-0" id="settings-tab-content">
+      <div class="flex-grow bg-primary/20 border border-black-400/50 rounded-lg p-4 md:p-6 min-w-0" id="settings-tab-content">
         <div id="tab-libraries" class="space-y-6"></div>
         <div id="tab-users" class="space-y-6 hidden"></div>
         <div id="tab-apikeys" class="space-y-6 hidden"></div>
@@ -554,7 +554,13 @@ async function renderServerSettingsTab() {
     const btnPurgeAll = document.getElementById('btn-purge-all-cache');
     if (btnPurgeAll) {
       btnPurgeAll.onclick = async () => {
-        if (!confirm('Are you sure you want to purge all cache? This includes resized cover images.')) return;
+        const confirmed = await showConfirm(
+          'Purge All Cache',
+          'Are you sure you want to purge all cache? This includes resized cover images.',
+          'Purge All',
+          'Cancel'
+        );
+        if (!confirmed) return;
         try {
           btnPurgeAll.disabled = true;
           btnPurgeAll.innerHTML = `
@@ -578,7 +584,13 @@ async function renderServerSettingsTab() {
     const btnPurgeItems = document.getElementById('btn-purge-items-cache');
     if (btnPurgeItems) {
       btnPurgeItems.onclick = async () => {
-        if (!confirm('Are you sure you want to purge item cover cache? All resized cover images will be deleted.')) return;
+        const confirmed = await showConfirm(
+          'Purge Cover Cache',
+          'Are you sure you want to purge item cover cache? All resized cover images will be deleted.',
+          'Purge Covers',
+          'Cancel'
+        );
+        if (!confirmed) return;
         try {
           btnPurgeItems.disabled = true;
           btnPurgeItems.innerHTML = `
@@ -903,10 +915,11 @@ async function renderProvidersTab() {
           </div>
           <div>
             <label class="block text-xs text-black-100 mb-1">Media Type</label>
-            <select id="prov-mediatype" class="w-full bg-black-500 text-white px-3 py-1.5 rounded border border-black-300 focus:outline-none focus:border-accent text-sm">
-              <option value="book">Book</option>
-              <option value="podcast">Podcast</option>
-            </select>
+            <div class="flex rounded bg-black-600 p-1 border border-black-300 w-full" id="prov-mediatype-toggle-container">
+              <button type="button" id="prov-mediatype-book-btn" class="flex-grow py-1.5 text-xs font-semibold rounded text-center transition-all focus:outline-none bg-success text-white" data-value="book">Book</button>
+              <button type="button" id="prov-mediatype-podcast-btn" class="flex-grow py-1.5 text-xs font-semibold rounded text-center transition-all focus:outline-none text-black-100 hover:text-white" data-value="podcast">Podcast</button>
+            </div>
+            <input type="hidden" id="prov-mediatype" value="book">
           </div>
           <div>
             <label class="block text-xs text-black-100 mb-1">Authorization Header Value (Optional)</label>
@@ -943,6 +956,24 @@ async function renderProvidersTab() {
     `;
 
     renderCustomProvidersRows(customProviders);
+
+    const provMediatypeInput = container.querySelector('#prov-mediatype');
+    const provBookBtn = container.querySelector('#prov-mediatype-book-btn');
+    const provPodcastBtn = container.querySelector('#prov-mediatype-podcast-btn');
+
+    if (provBookBtn && provPodcastBtn && provMediatypeInput) {
+      provBookBtn.onclick = () => {
+        provMediatypeInput.value = 'book';
+        provBookBtn.className = 'flex-grow py-1.5 text-xs font-semibold rounded text-center transition-all focus:outline-none bg-success text-white';
+        provPodcastBtn.className = 'flex-grow py-1.5 text-xs font-semibold rounded text-center transition-all focus:outline-none text-black-100 hover:text-white';
+      };
+
+      provPodcastBtn.onclick = () => {
+        provMediatypeInput.value = 'podcast';
+        provBookBtn.className = 'flex-grow py-1.5 text-xs font-semibold rounded text-center transition-all focus:outline-none text-black-100 hover:text-white';
+        provPodcastBtn.className = 'flex-grow py-1.5 text-xs font-semibold rounded text-center transition-all focus:outline-none bg-success text-white';
+      };
+    }
 
     document.getElementById('create-provider-form').onsubmit = async (e) => {
       e.preventDefault();
@@ -1009,7 +1040,13 @@ function renderCustomProvidersRows(customProviders) {
     `;
 
     tr.querySelector('.delete-prov-btn').onclick = async () => {
-      if (!confirm(`Are you sure you want to delete custom provider "${p.name}"? Any libraries using it will fallback to defaults.`)) return;
+      const confirmed = await showConfirm(
+        'Delete Custom Provider',
+        `Are you sure you want to delete custom provider "${p.name}"? Any libraries using it will fallback to defaults.`,
+        'Delete',
+        'Cancel'
+      );
+      if (!confirmed) return;
       try {
         await request('DELETE', `/api/custom-metadata-providers/${p.id}`);
         renderProvidersTab(); // reload
@@ -1331,7 +1368,13 @@ function renderNotificationsListRows(notifications, allSettings) {
 
     const deleteBtn = tr.querySelector('.delete-notif-btn');
     deleteBtn.onclick = async () => {
-      if (confirm('Are you sure you want to delete this notification setup?')) {
+      const confirmed = await showConfirm(
+        'Delete Notification Setup',
+        'Are you sure you want to delete this notification setup?',
+        'Delete',
+        'Cancel'
+      );
+      if (confirmed) {
         try {
           const appriseUrlInput = document.getElementById('apprise-api-url') ? document.getElementById('apprise-api-url').value.trim() : allSettings.appriseApiUrl;
           const maxQueueVal = document.getElementById('max-notification-queue') ? parseInt(document.getElementById('max-notification-queue').value, 10) : allSettings.maxNotificationQueue;
@@ -1607,7 +1650,13 @@ async function renderFeedsTab() {
 
       // Wire up delete button
       tr.querySelector('.delete-feed-btn').onclick = async (e) => {
-        if (!confirm('Are you sure you want to close this RSS feed?')) return;
+        const confirmed = await showConfirm(
+          'Close RSS Feed',
+          'Are you sure you want to close this RSS feed?',
+          'Close Feed',
+          'Cancel'
+        );
+        if (!confirmed) return;
         const btn = e.currentTarget;
         try {
           await request('DELETE', `/api/feeds/${btn.dataset.id}`);
@@ -1910,7 +1959,13 @@ function renderEreaderDevicesRows(devices, users, settings) {
     tr.querySelector('.delete-dev-btn').onclick = async (e) => {
       const btn = e.currentTarget;
       const index = parseInt(btn.dataset.index, 10);
-      if (!confirm(`Are you sure you want to delete device "${devices[index].name}"?`)) return;
+      const confirmed = await showConfirm(
+        'Delete Device',
+        `Are you sure you want to delete device "${devices[index].name}"?`,
+        'Delete',
+        'Cancel'
+      );
+      if (!confirmed) return;
 
       const updatedDevices = devices.filter((_, i) => i !== index);
       try {
@@ -2126,7 +2181,13 @@ async function renderSharesTab() {
     container.querySelectorAll('.delete-share-btn').forEach(btn => {
       btn.onclick = async () => {
         const id = btn.getAttribute('data-id');
-        if (!confirm('Are you sure you want to revoke and delete this public share link? Any existing links will immediately stop working.')) {
+        const confirmed = await showConfirm(
+          'Revoke Share Link',
+          'Are you sure you want to revoke and delete this public share link? Any existing links will immediately stop working.',
+          'Revoke Link',
+          'Cancel'
+        );
+        if (!confirmed) {
           return;
         }
         try {
@@ -2348,7 +2409,13 @@ async function renderLibrariesTab() {
         const id = btn.dataset.id;
         const lib = libs.find(l => l.id === id);
         if (!lib) return;
-        if (confirm(`Are you sure you want to delete the library "${lib.name}"? This action cannot be undone.`)) {
+        const confirmed = await showConfirm(
+          'Delete Library',
+          `Are you sure you want to delete the library "${lib.name}"? This action cannot be undone.`,
+          'Delete',
+          'Cancel'
+        );
+        if (confirmed) {
           try {
             await request('DELETE', `/api/libraries/${id}`);
             showToast('Library deleted successfully.', 'success');
@@ -2418,10 +2485,11 @@ function showLibraryModal(lib) {
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label class="block text-xs text-black-100 mb-1">Media Type</label>
-            <select id="lib-mediatype" class="w-full bg-black-500 text-white px-3 py-1.5 rounded border border-black-300 focus:outline-none focus:border-accent text-sm" ${isEdit ? 'disabled' : ''}>
-              <option value="book" ${isEdit && lib.mediaType === 'book' ? 'selected' : ''}>Book (Audiobooks / E-Books)</option>
-              <option value="podcast" ${isEdit && lib.mediaType === 'podcast' ? 'selected' : ''}>Podcast</option>
-            </select>
+            <div class="flex rounded bg-black-600 p-1 border border-black-300 w-full" id="lib-mediatype-toggle-container">
+              <button type="button" id="lib-mediatype-book-btn" class="flex-grow py-1.5 text-xs font-semibold rounded text-center transition-all focus:outline-none ${(!isEdit || lib.mediaType === 'book') ? 'bg-success text-white' : 'text-black-100 hover:text-white'}" ${isEdit ? 'disabled' : ''} data-value="book">Book</button>
+              <button type="button" id="lib-mediatype-podcast-btn" class="flex-grow py-1.5 text-xs font-semibold rounded text-center transition-all focus:outline-none ${(isEdit && lib.mediaType === 'podcast') ? 'bg-success text-white' : 'text-black-100 hover:text-white'}" ${isEdit ? 'disabled' : ''} data-value="podcast">Podcast</button>
+            </div>
+            <input type="hidden" id="lib-mediatype" value="${isEdit ? lib.mediaType : 'book'}">
           </div>
           <div>
             <label class="block text-xs text-black-100 mb-1">Icon</label>
@@ -2445,10 +2513,11 @@ function showLibraryModal(lib) {
           </div>
           <div>
             <label class="block text-xs text-black-100 mb-1">Cover Aspect Ratio</label>
-            <select id="lib-cover-aspect-ratio" class="w-full bg-black-500 text-white px-3 py-1.5 rounded border border-black-300 focus:outline-none focus:border-accent text-sm">
-              <option value="1" ${coverAspectRatio == 1 ? 'selected' : ''}>Square (1:1) - Podcasts/Audible</option>
-              <option value="1.6" ${coverAspectRatio == 1.6 ? 'selected' : ''}>Standard Book (1.6:1)</option>
-            </select>
+            <div class="flex rounded bg-black-600 p-1 border border-black-300 w-full" id="lib-aspect-toggle-container">
+              <button type="button" id="lib-aspect-square-btn" class="flex-grow py-1.5 text-xs font-semibold rounded text-center transition-all focus:outline-none ${(coverAspectRatio == 1) ? 'bg-success text-white' : 'text-black-100 hover:text-white'}" data-value="1">Square (1:1)</button>
+              <button type="button" id="lib-aspect-standard-btn" class="flex-grow py-1.5 text-xs font-semibold rounded text-center transition-all focus:outline-none ${(coverAspectRatio == 1.6) ? 'bg-success text-white' : 'text-black-100 hover:text-white'}" data-value="1.6">Standard Book (1.6:1)</button>
+            </div>
+            <input type="hidden" id="lib-cover-aspect-ratio" value="${coverAspectRatio}">
           </div>
         </div>
 
@@ -2478,6 +2547,68 @@ function showLibraryModal(lib) {
   `;
 
   document.body.appendChild(modal);
+
+  // Handle Media Type Toggle click events (if not editing)
+  if (!isEdit) {
+    const mediatypeInput = modal.querySelector('#lib-mediatype');
+    const bookBtn = modal.querySelector('#lib-mediatype-book-btn');
+    const podcastBtn = modal.querySelector('#lib-mediatype-podcast-btn');
+
+    bookBtn.onclick = () => {
+      mediatypeInput.value = 'book';
+      bookBtn.className = 'flex-grow py-1.5 text-xs font-semibold rounded text-center transition-all focus:outline-none bg-success text-white';
+      podcastBtn.className = 'flex-grow py-1.5 text-xs font-semibold rounded text-center transition-all focus:outline-none text-black-100 hover:text-white';
+      
+      // Auto switch icon and cover aspect ratio defaults when switching media type
+      const iconSelect = modal.querySelector('#lib-icon');
+      if (iconSelect) iconSelect.value = 'local_library';
+
+      const aspectInput = modal.querySelector('#lib-cover-aspect-ratio');
+      const aspectSquareBtn = modal.querySelector('#lib-aspect-square-btn');
+      const aspectStandardBtn = modal.querySelector('#lib-aspect-standard-btn');
+      if (aspectInput && aspectSquareBtn && aspectStandardBtn) {
+        aspectInput.value = '1.6';
+        aspectSquareBtn.className = 'flex-grow py-1.5 text-xs font-semibold rounded text-center transition-all focus:outline-none text-black-100 hover:text-white';
+        aspectStandardBtn.className = 'flex-grow py-1.5 text-xs font-semibold rounded text-center transition-all focus:outline-none bg-success text-white';
+      }
+    };
+
+    podcastBtn.onclick = () => {
+      mediatypeInput.value = 'podcast';
+      bookBtn.className = 'flex-grow py-1.5 text-xs font-semibold rounded text-center transition-all focus:outline-none text-black-100 hover:text-white';
+      podcastBtn.className = 'flex-grow py-1.5 text-xs font-semibold rounded text-center transition-all focus:outline-none bg-success text-white';
+      
+      // Auto switch icon and cover aspect ratio defaults when switching media type
+      const iconSelect = modal.querySelector('#lib-icon');
+      if (iconSelect) iconSelect.value = 'podcasts';
+
+      const aspectInput = modal.querySelector('#lib-cover-aspect-ratio');
+      const aspectSquareBtn = modal.querySelector('#lib-aspect-square-btn');
+      const aspectStandardBtn = modal.querySelector('#lib-aspect-standard-btn');
+      if (aspectInput && aspectSquareBtn && aspectStandardBtn) {
+        aspectInput.value = '1';
+        aspectSquareBtn.className = 'flex-grow py-1.5 text-xs font-semibold rounded text-center transition-all focus:outline-none bg-success text-white';
+        aspectStandardBtn.className = 'flex-grow py-1.5 text-xs font-semibold rounded text-center transition-all focus:outline-none text-black-100 hover:text-white';
+      }
+    };
+  }
+
+  // Handle Cover Aspect Ratio Toggle click events
+  const aspectInput = modal.querySelector('#lib-cover-aspect-ratio');
+  const aspectSquareBtn = modal.querySelector('#lib-aspect-square-btn');
+  const aspectStandardBtn = modal.querySelector('#lib-aspect-standard-btn');
+
+  aspectSquareBtn.onclick = () => {
+    aspectInput.value = '1';
+    aspectSquareBtn.className = 'flex-grow py-1.5 text-xs font-semibold rounded text-center transition-all focus:outline-none bg-success text-white';
+    aspectStandardBtn.className = 'flex-grow py-1.5 text-xs font-semibold rounded text-center transition-all focus:outline-none text-black-100 hover:text-white';
+  };
+
+  aspectStandardBtn.onclick = () => {
+    aspectInput.value = '1.6';
+    aspectSquareBtn.className = 'flex-grow py-1.5 text-xs font-semibold rounded text-center transition-all focus:outline-none text-black-100 hover:text-white';
+    aspectStandardBtn.className = 'flex-grow py-1.5 text-xs font-semibold rounded text-center transition-all focus:outline-none bg-success text-white';
+  };
 
   const foldersContainer = modal.querySelector('#library-folders-container');
   const closeModal = () => modal.remove();

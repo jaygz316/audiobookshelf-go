@@ -790,7 +790,13 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
       const embedMetadataBtn = document.getElementById('details-embed-metadata-btn');
       if (embedMetadataBtn) {
         embedMetadataBtn.onclick = async () => {
-          if (!confirm('Are you sure you want to write and embed metadata, chapters, and cover art directly into the audio files? This will overwrite the tags of the files on disk.')) {
+          const confirmed = await window.showConfirm(
+            'Embed Metadata',
+            'Are you sure you want to write and embed metadata, chapters, and cover art directly into the audio files? This will overwrite the tags of the files on disk.',
+            'Embed',
+            'Cancel'
+          );
+          if (!confirmed) {
             return;
           }
           embedMetadataBtn.disabled = true;
@@ -809,7 +815,13 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
       const mergeAudioBtn = document.getElementById('details-merge-audio-btn');
       if (mergeAudioBtn) {
         mergeAudioBtn.onclick = async () => {
-          if (!confirm('Are you sure you want to merge all separate audio tracks into a single M4B file? This will merge the files, create chapters, update the database, and delete the original files.')) {
+          const confirmed = await window.showConfirm(
+            'Merge Audio Files',
+            'Are you sure you want to merge all separate audio tracks into a single M4B file? This will merge the files, create chapters, update the database, and delete the original files.',
+            'Merge',
+            'Cancel'
+          );
+          if (!confirmed) {
             return;
           }
           mergeAudioBtn.disabled = true;
@@ -1343,7 +1355,13 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
               episodesList.querySelectorAll('.delete-file-btn').forEach(btn => {
                 btn.onclick = async (e) => {
                   e.stopPropagation();
-                  if (!confirm('Are you sure you want to delete the local file for this episode?')) return;
+                  const confirmed = await window.showConfirm(
+                    'Delete Local File',
+                    'Are you sure you want to delete the local file for this episode?',
+                    'Delete',
+                    'Cancel'
+                  );
+                  if (!confirmed) return;
                   const epId = btn.getAttribute('data-id');
 
                   try {
@@ -1365,7 +1383,13 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
               episodesList.querySelectorAll('.hard-delete-btn').forEach(btn => {
                 btn.onclick = async (e) => {
                   e.stopPropagation();
-                  if (!confirm('Are you sure you want to completely delete this episode from the database? This cannot be undone.')) return;
+                  const confirmed = await window.showConfirm(
+                    'Delete Episode',
+                    'Are you sure you want to completely delete this episode from the database? This cannot be undone.',
+                    'Delete',
+                    'Cancel'
+                  );
+                  if (!confirmed) return;
                   const epId = btn.getAttribute('data-id');
 
                   try {
@@ -1533,7 +1557,13 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
             if (batchDeleteBtn) {
               batchDeleteBtn.onclick = async () => {
                 if (selectedEpisodes.size === 0) return;
-                if (!confirm(`Are you sure you want to delete local files for the ${selectedEpisodes.size} selected episodes?`)) return;
+                const confirmed = await window.showConfirm(
+                  'Delete Files',
+                  `Are you sure you want to delete local files for the ${selectedEpisodes.size} selected episodes?`,
+                  'Delete',
+                  'Cancel'
+                );
+                if (!confirmed) return;
                 const ids = Array.from(selectedEpisodes);
                 batchDeleteBtn.disabled = true;
                 try {
@@ -1831,7 +1861,13 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
           const actionBtn = document.getElementById('rss-action-btn');
           if (actionBtn) {
             actionBtn.onclick = async () => {
-              if (!confirm('Are you sure you want to close this RSS feed?')) return;
+              const confirmed = await window.showConfirm(
+                'Close RSS Feed',
+                'Are you sure you want to close this RSS feed?',
+                'Close',
+                'Cancel'
+              );
+              if (!confirmed) return;
               try {
                 await request('DELETE', `/api/feeds/${activeFeed.id}`);
                 showToast('RSS feed closed successfully', 'success');
@@ -1904,7 +1940,13 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
       const deleteItemBtn = document.getElementById('details-delete-item-btn');
       if (deleteItemBtn) {
         deleteItemBtn.onclick = async () => {
-          if (!confirm(`Are you sure you want to delete the library item "${title}"? This will permanently delete the item and its media progress.`)) {
+          const confirmed = await window.showConfirm(
+            'Delete Library Item',
+            `Are you sure you want to delete the library item "${title}"? This will permanently delete the item and its media progress.`,
+            'Delete',
+            'Cancel'
+          );
+          if (!confirmed) {
             return;
           }
           try {
@@ -2079,7 +2121,13 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
               const resetBtn = document.getElementById('progress-reset-btn');
               if (resetBtn) {
                 resetBtn.onclick = async () => {
-                  if (!confirm('Are you sure you want to reset your listening progress?')) return;
+                  const confirmed = await window.showConfirm(
+                    'Reset Progress',
+                    'Are you sure you want to reset your listening progress?',
+                    'Reset',
+                    'Cancel'
+                  );
+                  if (!confirmed) return;
                   try {
                     await request('DELETE', `/api/me/progress/${item.id}`);
                     loadItemDetails(itemId, libraryId, backCallback);
