@@ -990,7 +990,17 @@ div[class*="fixed"][class*="z-50"] input[type="password"],
 div[class*="fixed"][class*="z-50"] input[type="number"],
 div[class*="fixed"][class*="z-50"] input[type="email"],
 div[class*="fixed"][class*="z-50"] select,
-div[class*="fixed"][class*="z-50"] textarea {
+div[class*="fixed"][class*="z-50"] textarea,
+#settings-tab-content input[type="text"],
+#settings-tab-content input[type="password"],
+#settings-tab-content input[type="number"],
+#settings-tab-content input[type="email"],
+#settings-tab-content select,
+#settings-tab-content textarea,
+#setup-screen input[type="text"],
+#setup-screen input[type="password"],
+#setup-screen input[type="number"],
+#setup-screen input[type="email"] {
   border-radius: 4px !important;
   transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out !important;
 }
@@ -999,10 +1009,29 @@ div[class*="fixed"][class*="z-50"] input[type="password"]:focus,
 div[class*="fixed"][class*="z-50"] input[type="number"]:focus,
 div[class*="fixed"][class*="z-50"] input[type="email"]:focus,
 div[class*="fixed"][class*="z-50"] select:focus,
-div[class*="fixed"][class*="z-50"] textarea:focus {
+div[class*="fixed"][class*="z-50"] textarea:focus,
+#settings-tab-content input[type="text"]:focus,
+#settings-tab-content input[type="password"]:focus,
+#settings-tab-content input[type="number"]:focus,
+#settings-tab-content input[type="email"]:focus,
+#settings-tab-content select:focus,
+#settings-tab-content textarea:focus,
+#setup-screen input[type="text"]:focus,
+#setup-screen input[type="password"]:focus,
+#setup-screen input[type="number"]:focus,
+#setup-screen input[type="email"]:focus {
   border-color: var(--color-accent, #e5a93b) !important;
   box-shadow: 0 0 0 2px rgba(229, 169, 59, 0.25) !important;
   outline: none !important;
+}
+
+/* Keyboard outline styling for high-contrast accessibility */
+button:focus-visible,
+a:focus-visible,
+input[type="checkbox"]:focus-visible,
+input[type="radio"]:focus-visible {
+  outline: 2px solid var(--color-accent, #e5a93b) !important;
+  outline-offset: 2px !important;
 }
 
 /* Premium Range Slider for Bookshelf Card Sizing */
@@ -1034,6 +1063,12 @@ div[class*="fixed"][class*="z-50"] textarea:focus {
   box-shadow: 0 0 8px var(--color-accent, #e5a93b) !important;
 }
 
+#shelf-size-slider:focus-visible::-webkit-slider-thumb {
+  outline: 2px solid var(--color-white, #ffffff) !important;
+  outline-offset: 2px !important;
+  box-shadow: 0 0 0 4px var(--color-accent, #e5a93b) !important;
+}
+
 #shelf-size-slider::-moz-range-thumb {
   width: 14px !important;
   height: 14px !important;
@@ -1049,6 +1084,12 @@ div[class*="fixed"][class*="z-50"] textarea:focus {
   transform: scale(1.25) !important;
   background: color-mix(in oklab, var(--color-accent, #e5a93b) 85%, white) !important;
   box-shadow: 0 0 8px var(--color-accent, #e5a93b) !important;
+}
+
+#shelf-size-slider:focus-visible::-moz-range-thumb {
+  outline: 2px solid var(--color-white, #ffffff) !important;
+  outline-offset: 2px !important;
+  box-shadow: 0 0 0 4px var(--color-accent, #e5a93b) !important;
 }
 
 /* Premium Search Results Dropdown List Styles */

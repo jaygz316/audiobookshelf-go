@@ -2269,4 +2269,98 @@ function initNotificationWidget(user) {
   });
 }
 
+// Global Stack and MutationObserver for Modal Focus Trapping (Keyboard Accessibility)
+let focusStack = [];
+const focusableSelectors = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
+
+function setupFocusTrap(modal) {
+  const previouslyFocused = document.activeElement;
+  focusStack.push({ modal, previouslyFocused });
+
+  const getFocusables = () => {
+    return Array.from(modal.querySelectorAll(focusableSelectors))
+      .filter(el => {
+        if (el.hasAttribute('disabled') || el.disabled) return false;
+        const style = window.getComputedStyle(el);
+        if (style.display === 'none' || style.visibility === 'hidden') return false;
+        if (el.offsetParent === null && style.position !== 'fixed') return false;
+        return true;
+      });
+  };
+
+  // Focus the first appropriate element
+  setTimeout(() => {
+    const focusables = getFocusables();
+    if (focusables.length > 0) {
+      const input = focusables.find(el => el.tagName === 'INPUT' && el.type !== 'hidden' && el.type !== 'submit');
+      if (input) {
+        input.focus();
+      } else {
+        focusables[0].focus();
+      }
+    }
+  }, 100);
+
+  const handleKeydown = (e) => {
+    if (e.key !== 'Tab') return;
+    
+    const top = focusStack[focusStack.length - 1];
+    if (!top || top.modal !== modal) return;
+
+    const focusables = getFocusables();
+    if (focusables.length === 0) {
+      e.preventDefault();
+      return;
+    }
+
+    const first = focusables[0];
+    const last = focusables[focusables.length - 1];
+
+    if (e.shiftKey) { // Shift + Tab
+      if (document.activeElement === first) {
+        last.focus();
+        e.preventDefault();
+      }
+    } else { // Tab
+      if (document.activeElement === last) {
+        first.focus();
+        e.preventDefault();
+      }
+    }
+  };
+
+  modal.addEventListener('keydown', handleKeydown);
+}
+
+function teardownFocusTrap(modal) {
+  const index = focusStack.findIndex(item => item.modal === modal);
+  if (index !== -1) {
+    const { previouslyFocused } = focusStack[index];
+    focusStack.splice(index, 1);
+    if (previouslyFocused && typeof previouslyFocused.focus === 'function') {
+      setTimeout(() => {
+        previouslyFocused.focus();
+      }, 50);
+    }
+  }
+}
+
+const modalObserver = new MutationObserver((mutations) => {
+  for (const mutation of mutations) {
+    for (const node of mutation.addedNodes) {
+      if (node.nodeType === Node.ELEMENT_NODE && node.classList.contains('fixed') && (node.classList.contains('inset-0') || (node.classList.contains('w-full') && node.classList.contains('h-full')))) {
+        if (node.classList.contains('pointer-events-none') || node.id === 'toast-container') continue;
+        setupFocusTrap(node);
+      }
+    }
+    for (const node of mutation.removedNodes) {
+      if (node.nodeType === Node.ELEMENT_NODE && node.classList.contains('fixed') && (node.classList.contains('inset-0') || (node.classList.contains('w-full') && node.classList.contains('h-full')))) {
+        if (node.classList.contains('pointer-events-none') || node.id === 'toast-container') continue;
+        teardownFocusTrap(node);
+      }
+    }
+  }
+});
+modalObserver.observe(document.body, { childList: true });
+
 
