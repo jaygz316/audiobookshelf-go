@@ -137,6 +137,11 @@ export async function renderBackupsTab() {
 
     document.getElementById('backup-schedule-form').onsubmit = async (e) => {
       e.preventDefault();
+      const btn = document.querySelector('#backup-schedule-form button[type="submit"]');
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<span class="animate-spin rounded-full h-4 w-4 border-b-2 border-primary inline-block mr-1.5"></span><span>Saving...</span>`;
+      }
       try {
         let scheduleVal = '';
         if (presetSelect.value === 'custom') {
@@ -154,11 +159,20 @@ export async function renderBackupsTab() {
         renderBackupsTab(); // reload
       } catch (err) {
         showToast('Failed to update backup schedule: ' + err.message, 'error');
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = `<span class="material-symbols text-sm">save</span><span>Save Schedule</span>`;
+        }
       }
     };
 
     document.getElementById('backup-path-form').onsubmit = async (e) => {
       e.preventDefault();
+      const btn = document.querySelector('#backup-path-form button[type="submit"]');
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<span class="animate-spin rounded-full h-4 w-4 border-b-2 border-primary inline-block mr-1.5"></span><span>Saving...</span>`;
+      }
       try {
         const path = document.getElementById('backup-location-path').value;
         await request('PATCH', '/api/backups/path', { path });
@@ -166,6 +180,10 @@ export async function renderBackupsTab() {
         renderBackupsTab(); // reload
       } catch (err) {
         showToast('Failed to update backup path: ' + err.message, 'error');
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = `<span class="material-symbols text-sm">save</span><span>Change Path</span>`;
+        }
       }
     };
 

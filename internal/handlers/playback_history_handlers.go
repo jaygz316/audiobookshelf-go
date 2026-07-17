@@ -53,7 +53,13 @@ func handleGetMeListeningSessions(db *sql.DB) http.HandlerFunc {
 			}
 		}
 
-		sessions, err := handleGetUserListeningSessions(db, userSess.ID, page, itemsPerPage)
+		mediaItemID := r.URL.Query().Get("mediaItemId")
+		libraryItemID := r.URL.Query().Get("libraryItemId")
+		if libraryItemID == "" {
+			libraryItemID = r.URL.Query().Get("itemId")
+		}
+
+		sessions, err := handleGetUserListeningSessions(db, userSess.ID, page, itemsPerPage, mediaItemID, libraryItemID)
 		if err != nil {
 			log.Errorf("[Listening Sessions] Failed to query sessions: %v", err)
 			http.Error(w, `{"error": "Internal Server Error"}`, http.StatusInternalServerError)
@@ -118,7 +124,13 @@ func handleGetServerListeningSessions(db *sql.DB) http.HandlerFunc {
 			}
 		}
 
-		sessions, err := handleGetUserListeningSessions(db, "", page, itemsPerPage)
+		mediaItemID := r.URL.Query().Get("mediaItemId")
+		libraryItemID := r.URL.Query().Get("libraryItemId")
+		if libraryItemID == "" {
+			libraryItemID = r.URL.Query().Get("itemId")
+		}
+
+		sessions, err := handleGetUserListeningSessions(db, "", page, itemsPerPage, mediaItemID, libraryItemID)
 		if err != nil {
 			log.Errorf("[Listening Sessions] Failed to query server sessions: %v", err)
 			http.Error(w, `{"error": "Internal Server Error"}`, http.StatusInternalServerError)

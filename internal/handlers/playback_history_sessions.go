@@ -3,30 +3,66 @@ package handlers
 import (
 	log "audiobookshelf/internal/logger"
 	"database/sql"
+	"strings"
 )
 
-func handleGetUserListeningSessions(dbConn *sql.DB, targetUserID string, page int, itemsPerPage int) (map[string]interface{}, error) {
+func handleGetUserListeningSessions(dbConn *sql.DB, targetUserID string, page int, itemsPerPage int, mediaItemID string, libraryItemID string) (map[string]interface{}, error) {
 	// Query total count
 	var total int
 	var err error
-	if targetUserID == "" {
-		err = dbConn.QueryRow("SELECT COUNT(*) FROM playbackSessions").Scan(&total)
-	} else {
-		err = dbConn.QueryRow("SELECT COUNT(*) FROM playbackSessions WHERE userId = ?", targetUserID).Scan(&total)
+
+	countQuery := "SELECT COUNT(*) FROM playbackSessions ps"
+	var countArgs []interface{}
+	var countWheres []string
+
+	if targetUserID != "" {
+		countWheres = append(countWheres, "ps.userId = ?")
+		countArgs = append(countArgs, targetUserID)
 	}
+
+	if libraryItemID != "" {
+		countWheres = append(countWheres, "(ps.mediaItemId = ? OR json_extract(ps.extraData, '$.libraryItemId') = ?)")
+		countArgs = append(countArgs, libraryItemID, libraryItemID)
+	} else if mediaItemID != "" {
+		countWheres = append(countWheres, "ps.mediaItemId = ?")
+		countArgs = append(countArgs, mediaItemID)
+	}
+
+	if len(countWheres) > 0 {
+		countQuery += " WHERE " + strings.Join(countWheres, " AND ")
+	}
+
+	err = dbConn.QueryRow(countQuery, countArgs...).Scan(&total)
 	if err != nil {
 		return nil, err
 	}
 
+	// Base SELECT query
 	var query string
 	var args []interface{}
-	if targetUserID == "" {
-		query = listeningSessionsQuery + ` ORDER BY COALESCE(ps.updatedAt, ps.createdAt) DESC LIMIT ? OFFSET ?`
-		args = append(args, itemsPerPage, page*itemsPerPage)
-	} else {
-		query = listeningSessionsQuery + ` WHERE ps.userId = ? ORDER BY COALESCE(ps.updatedAt, ps.createdAt) DESC LIMIT ? OFFSET ?`
-		args = append(args, targetUserID, itemsPerPage, page*itemsPerPage)
+
+	query = listeningSessionsQuery
+
+	var whereClauses []string
+	if targetUserID != "" {
+		whereClauses = append(whereClauses, "ps.userId = ?")
+		args = append(args, targetUserID)
 	}
+
+	if libraryItemID != "" {
+		whereClauses = append(whereClauses, "(ps.mediaItemId = ? OR json_extract(ps.extraData, '$.libraryItemId') = ?)")
+		args = append(args, libraryItemID, libraryItemID)
+	} else if mediaItemID != "" {
+		whereClauses = append(whereClauses, "ps.mediaItemId = ?")
+		args = append(args, mediaItemID)
+	}
+
+	if len(whereClauses) > 0 {
+		query += " WHERE " + strings.Join(whereClauses, " AND ")
+	}
+
+	query += ` ORDER BY COALESCE(ps.updatedAt, ps.createdAt) DESC LIMIT ? OFFSET ?`
+	args = append(args, itemsPerPage, page*itemsPerPage)
 
 	rows, err := dbConn.Query(query, args...)
 	if err != nil {

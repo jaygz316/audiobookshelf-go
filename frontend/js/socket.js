@@ -3,7 +3,7 @@
 import { resolvePath, ROUTER_BASE_PATH } from './api.js';
 import { getActiveLibraryId } from './library.js';
 import { isDashboardActive } from './router.js';
-import { loadDashboard } from './dashboard.js';
+import { loadDashboard, progressCache } from './dashboard.js';
 import { showToast } from './toast.js';
 
 let ws = null;
@@ -180,16 +180,49 @@ export function registerAppSocketListeners() {
   // Register listener for progress syncing across devices
   onEvent('user_item_progress_updated', (data) => {
     console.log('[Socket] progress updated:', data);
-    const activeLibId = getActiveLibraryId();
-    if (activeLibId && isDashboardActive()) {
-      let pathName = window.location.pathname;
-      if (typeof ROUTER_BASE_PATH !== 'undefined' && ROUTER_BASE_PATH && pathName.startsWith(ROUTER_BASE_PATH)) {
-        pathName = pathName.substring(ROUTER_BASE_PATH.length);
+    if (!data || !data.itemId) return;
+
+    const cacheKey = data.itemId;
+    const oldProgress = progressCache.get(cacheKey);
+
+    const newProgress = {
+      progress: data.progress,
+      isFinished: data.isFinished,
+      currentTime: data.currentTime,
+      duration: data.duration
+    };
+
+    // Update cache
+    progressCache.set(cacheKey, newProgress);
+
+    // Dispatch event for card/UI in-place updates
+    document.dispatchEvent(new CustomEvent('progress-updated', {
+      detail: {
+        itemId: data.itemId,
+        progress: newProgress
       }
-      if (!pathName.startsWith('/')) {
-        pathName = '/' + pathName;
+    }));
+
+    // Determine if we need to reload dashboard shelves (membership changes)
+    const oldFinished = oldProgress ? oldProgress.isFinished : false;
+    const oldStarted = oldProgress ? (oldProgress.progress > 0) : false;
+    const newFinished = newProgress.isFinished;
+    const newStarted = newProgress.progress > 0;
+
+    const membershipChanged = (oldFinished !== newFinished) || (oldStarted !== newStarted);
+
+    if (membershipChanged) {
+      const activeLibId = getActiveLibraryId();
+      if (activeLibId && isDashboardActive()) {
+        let pathName = window.location.pathname;
+        if (typeof ROUTER_BASE_PATH !== 'undefined' && ROUTER_BASE_PATH && pathName.startsWith(ROUTER_BASE_PATH)) {
+          pathName = pathName.substring(ROUTER_BASE_PATH.length);
+        }
+        if (!pathName.startsWith('/')) {
+          pathName = '/' + pathName;
+        }
+        loadDashboard(activeLibId, pathName === '/');
       }
-      loadDashboard(activeLibId, pathName === '/');
     }
   });
 

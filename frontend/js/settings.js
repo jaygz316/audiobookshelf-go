@@ -8,6 +8,7 @@ import { renderUsersTab, renderApiKeysTab } from './settings/users.js';
 import { renderBackupsTab } from './settings/backups.js';
 import { renderLogsTab, renderListeningSessionsTab, renderLoginSessionsTab, renderTasksTab } from './settings/logs.js';
 
+const activeScans = new Set();
 
 export async function loadSettings() {
   const user = window.currentUser || {};
@@ -474,6 +475,11 @@ async function renderServerSettingsTab() {
 
     document.getElementById('server-settings-form').onsubmit = async (e) => {
       e.preventDefault();
+      const btn = document.querySelector('#server-settings-form button[type="submit"]');
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<span class="animate-spin rounded-full h-4 w-4 border-b-2 border-primary inline-block mr-1.5"></span><span>Saving...</span>`;
+      }
       try {
         const corsInput = document.getElementById('setting-allowed-cors-origins').value;
         const allowedCorsOrigins = corsInput.split(/[\n,]+/).map(s => s.trim()).filter(Boolean).join(',');
@@ -512,11 +518,21 @@ async function renderServerSettingsTab() {
         showToast('Server settings saved successfully!', 'success');
       } catch (err) {
         showToast('Failed to save settings: ' + err.message, 'error');
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = `<span class="material-symbols text-lg">save</span><span>Save Server Settings</span>`;
+        }
       }
     };
 
     document.getElementById('sorting-prefixes-form').onsubmit = async (e) => {
       e.preventDefault();
+      const btn = document.querySelector('#sorting-prefixes-form button[type="submit"]');
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<span class="animate-spin rounded-full h-4 w-4 border-b-2 border-primary inline-block mr-1.5"></span><span>Saving...</span>`;
+      }
       try {
         const val = document.getElementById('setting-prefixes').value;
         const prefixArray = val.split(',').map(s => s.trim()).filter(Boolean);
@@ -524,9 +540,14 @@ async function renderServerSettingsTab() {
         if (res && res.serverSettings) {
           window.serverSettings = res.serverSettings;
         }
-        showToast('Sorting prefixes updated! Title ignore columns will update in the background.', 'success');
+        showToast('Sorting prefixes saved successfully!', 'success');
       } catch (err) {
         showToast('Failed to save prefixes: ' + err.message, 'error');
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = `<span class="material-symbols text-lg">save</span><span>Save & Recompute Prefixes</span>`;
+        }
       }
     };
 
@@ -768,6 +789,11 @@ async function renderAuthSettingsTab() {
 
     document.getElementById('auth-settings-form').onsubmit = async (e) => {
       e.preventDefault();
+      const btn = document.querySelector('#auth-settings-form button[type="submit"]');
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<span class="animate-spin rounded-full h-4 w-4 border-b-2 border-primary inline-block mr-1.5"></span><span>Saving...</span>`;
+      }
       try {
         const methods = [];
         if (document.getElementById('auth-method-local').checked) methods.push('local');
@@ -775,6 +801,10 @@ async function renderAuthSettingsTab() {
 
         if (methods.length === 0) {
           showToast('You must enable at least one authentication method.', 'warning');
+          if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = `<span class="material-symbols text-lg">save</span><span>Save Auth Settings</span>`;
+          }
           return;
         }
 
@@ -811,6 +841,11 @@ async function renderAuthSettingsTab() {
         showToast('Authentication settings saved successfully!', 'success');
       } catch (err) {
         showToast('Failed to save auth settings: ' + err.message, 'error');
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = `<span class="material-symbols text-lg">save</span><span>Save Auth Settings</span>`;
+        }
       }
     };
 
@@ -911,6 +946,11 @@ async function renderProvidersTab() {
 
     document.getElementById('create-provider-form').onsubmit = async (e) => {
       e.preventDefault();
+      const btn = document.querySelector('#create-provider-form button[type="submit"]');
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<span class="animate-spin rounded-full h-4 w-4 border-b-2 border-primary inline-block mr-1.5"></span><span>Adding...</span>`;
+      }
       try {
         const payload = {
           name: document.getElementById('prov-name').value,
@@ -927,6 +967,11 @@ async function renderProvidersTab() {
         renderProvidersTab(); // reload
       } catch (err) {
         showToast('Failed to add provider: ' + err.message, 'error');
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = `<span class="material-symbols text-lg">save</span><span>Add Provider</span>`;
+        }
       }
     };
 
@@ -1206,6 +1251,11 @@ export async function renderNotificationsTab() {
 
     document.getElementById('apprise-settings-form').onsubmit = async (e) => {
       e.preventDefault();
+      const btn = document.getElementById('save-apprise-settings-btn');
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<span class="animate-spin rounded-full h-4 w-4 border-b-2 border-primary inline-block mr-1.5"></span><span>Saving...</span>`;
+      }
       try {
         const appriseUrlInput = document.getElementById('apprise-api-url').value.trim();
         const maxQueueVal = parseInt(document.getElementById('max-notification-queue').value, 10);
@@ -1223,6 +1273,11 @@ export async function renderNotificationsTab() {
         renderNotificationsTab();
       } catch (err) {
         showToast('Failed to save settings: ' + err.message, 'error');
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = `<span class="material-symbols text-lg">save</span><span>Save General Settings</span>`;
+        }
       }
     };
 
@@ -1378,6 +1433,11 @@ function triggerCreateNotificationModal(allSettings, onSaveSuccess) {
   const form = modal.querySelector('#notification-form');
   form.onsubmit = async (e) => {
     e.preventDefault();
+    const btn = form.querySelector('button[type="submit"]');
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = `<span class="animate-spin rounded-full h-3 w-3 border-b-2 border-primary inline-block mr-1"></span><span>Creating...</span>`;
+    }
 
     const eventName = modal.querySelector('#notif-eventName').value;
     const libraryIdVal = modal.querySelector('#notif-libraryId').value;
@@ -1416,6 +1476,10 @@ function triggerCreateNotificationModal(allSettings, onSaveSuccess) {
       if (onSaveSuccess) onSaveSuccess();
     } catch (err) {
       showToast(`Failed to save notification setup: ${err.message}`, 'error');
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = `<span class="material-symbols text-sm">check</span><span>Create</span>`;
+      }
     }
   };
 }
@@ -1692,6 +1756,11 @@ export async function renderEmailsTab() {
     // Save Email Settings Handler
     document.getElementById('email-settings-form').onsubmit = async (e) => {
       e.preventDefault();
+      const btn = document.getElementById('save-email-settings-btn');
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<span class="animate-spin rounded-full h-4 w-4 border-b-2 border-primary inline-block mr-1.5"></span><span>Saving...</span>`;
+      }
       try {
         const hostVal = document.getElementById('email-host').value.trim();
         const portVal = parseInt(document.getElementById('email-port').value, 10);
@@ -1718,6 +1787,10 @@ export async function renderEmailsTab() {
         renderEmailsTab();
       } catch (err) {
         showToast('Failed to save configuration: ' + err.message, 'error');
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = `<span class="material-symbols text-lg">save</span><span>Save Settings</span>`;
+        }
       }
     };
 
@@ -1937,6 +2010,11 @@ function triggerEreaderDeviceModal(device = null, devices, users, settings) {
   const form = modal.querySelector('#ereader-device-form');
   form.onsubmit = async (e) => {
     e.preventDefault();
+    const btn = form.querySelector('button[type="submit"]');
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = `<span class="animate-spin rounded-full h-3 w-3 border-b-2 border-primary inline-block mr-1"></span><span>Saving...</span>`;
+    }
 
     const nameVal = modal.querySelector('#dev-name').value.trim();
     const emailVal = modal.querySelector('#dev-email').value.trim();
@@ -1971,6 +2049,10 @@ function triggerEreaderDeviceModal(device = null, devices, users, settings) {
       renderEmailsTab();
     } catch (err) {
       showToast('Failed to save device: ' + err.message, 'error');
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = `<span class="material-symbols text-sm">check</span><span>Save</span>`;
+      }
     }
   };
 }
@@ -2102,13 +2184,15 @@ async function renderLibrariesTab() {
         if (!foldersList) foldersList = 'No folders configured';
 
         const isSelected = lib.id === getActiveLibraryId();
-        const borderClass = isSelected ? 'border-l-4 border-l-accent' : 'border-l-4 border-l-transparent';
+        const borderClass = isSelected ? 'border-l-accent' : 'border-l-transparent';
+        const isScanning = activeScans.has(lib.id);
+        const spinClass = isScanning ? 'animate-spin' : '';
 
         html += `
-          <div class="library-row border-y border-r ${borderClass} bg-black-500 rounded-r p-4 flex flex-col md:flex-row justify-between items-start md:items-center space-y-4 md:space-y-0 cursor-move transition-colors hover:bg-black-400" draggable="true" data-id="${lib.id}">
+          <div class="library-row border border-black-300 border-l-4 ${borderClass} bg-black-500 rounded p-4 flex flex-col md:flex-row justify-between items-start md:items-center space-y-4 md:space-y-0 transition-colors hover:bg-black-400" draggable="true" data-id="${lib.id}">
             <div class="flex items-center space-x-3 w-full md:w-auto">
               <!-- Reorder Handle -->
-              <span class="material-symbols text-black-200 hover:text-white text-xl select-none mr-1">drag_handle</span>
+              <span class="material-symbols text-black-200 hover:text-white text-xl select-none mr-1 cursor-grab active:cursor-grabbing" title="Drag to reorder">drag_handle</span>
               
               <!-- Content -->
               <div class="space-y-1">
@@ -2123,7 +2207,7 @@ async function renderLibrariesTab() {
             </div>
             <div class="flex items-center space-x-2 w-full md:w-auto justify-end relative">
               <button type="button" class="btn-scan-lib bg-accent/10 hover:bg-accent/20 border border-accent/30 text-accent text-xs font-semibold px-3 py-1.5 rounded transition-colors flex items-center space-x-1" data-id="${lib.id}">
-                <span class="material-symbols text-sm">sync</span>
+                <span class="material-symbols text-sm ${spinClass}">sync</span>
                 <span>Scan</span>
               </button>
               
@@ -2406,8 +2490,8 @@ function showLibraryModal(lib) {
       <!-- Current path display and navigation up -->
       <div class="flex items-center space-x-2 bg-black-500/70 p-2 rounded border border-black-300/30 text-xs">
         <button type="button" id="btn-picker-up" class="text-accent hover:opacity-85 material-symbols text-base focus:outline-none flex items-center justify-center" title="Go up one folder">arrow_upward</button>
-        <span class="text-black-100">Path:</span>
-        <span id="picker-current-path" class="font-mono text-white truncate grow">/</span>
+        <span class="text-black-100 select-none">Path:</span>
+        <span id="picker-current-path" class="font-mono text-white grow flex items-center overflow-x-auto whitespace-nowrap scrollbar-none select-none">/</span>
       </div>
 
       <!-- Main columns flex layout -->
@@ -2508,8 +2592,69 @@ function showLibraryModal(lib) {
       }
     }
 
+    function getPathSegments(pathStr) {
+      const segments = [];
+      const clean = pathStr.replace(/\\/g, '/');
+      const parts = clean.split('/').filter(Boolean);
+      
+      if (isPosix) {
+        segments.push({ name: '/', path: '/' });
+        let currentBuild = '';
+        for (let i = 0; i < parts.length; i++) {
+          currentBuild += '/' + parts[i];
+          segments.push({ name: parts[i], path: currentBuild });
+        }
+      } else {
+        let drive = '';
+        let startIdx = 0;
+        if (parts.length > 0 && /^[a-zA-Z]:$/.test(parts[0])) {
+          drive = parts[0] + '\\';
+          segments.push({ name: parts[0] + '\\', path: drive });
+          startIdx = 1;
+        } else {
+          segments.push({ name: '\\', path: '\\' });
+        }
+        
+        let currentBuild = drive;
+        for (let i = startIdx; i < parts.length; i++) {
+          if (currentBuild && !currentBuild.endsWith('\\')) {
+            currentBuild += '\\';
+          }
+          currentBuild += parts[i];
+          segments.push({ name: parts[i], path: currentBuild });
+        }
+      }
+      return segments;
+    }
+
     function updatePathDisplay() {
-      currentPathEl.textContent = currentPath;
+      currentPathEl.innerHTML = '';
+      const segments = getPathSegments(currentPath);
+      
+      segments.forEach((seg, index) => {
+        if (index > 0) {
+          const sep = document.createElement('span');
+          sep.className = 'text-black-300 mx-1 select-none font-mono';
+          sep.textContent = isPosix ? '/' : '\\';
+          currentPathEl.appendChild(sep);
+        }
+        
+        const link = document.createElement('span');
+        if (index === segments.length - 1) {
+          link.className = 'font-semibold text-white font-mono';
+          link.textContent = seg.name;
+        } else {
+          link.className = 'hover:text-accent cursor-pointer hover:underline transition-colors font-semibold text-gray-300 font-mono';
+          link.textContent = seg.name;
+          link.onclick = () => {
+            currentPath = seg.path;
+            selectedPath = seg.path;
+            loadPath(currentPath, getLevel(currentPath));
+          };
+        }
+        currentPathEl.appendChild(link);
+      });
+
       if (currentPath === '/' || currentPath === '' || (!isPosix && /^[a-zA-Z]:\\?$/.test(currentPath))) {
         upBtn.disabled = true;
         upBtn.classList.add('opacity-50');
@@ -2549,11 +2694,12 @@ function showLibraryModal(lib) {
       directories.forEach(dir => {
         const item = document.createElement('button');
         item.type = 'button';
-        item.className = 'w-full text-left flex items-center px-2 py-1.5 text-xs text-gray-300 hover:text-white hover:bg-black-400 transition-colors focus:outline-none rounded';
+        item.className = 'w-full text-left flex items-center pl-2 pr-2 py-1.5 text-xs text-gray-300 hover:text-white hover:bg-black-400 transition-colors focus:outline-none rounded';
         
         const isSelected = dir.path === selectedPath;
         if (isSelected) {
-          item.classList.add('bg-black-500', 'text-white', 'font-semibold');
+          item.classList.remove('pl-2');
+          item.classList.add('bg-black-500', 'text-white', 'font-semibold', 'border-l-2', 'border-accent', 'pl-1.5');
           selectBtn.disabled = false;
           selectBtn.classList.remove('opacity-50');
         }
@@ -2567,11 +2713,13 @@ function showLibraryModal(lib) {
         item.onclick = (e) => {
           selectedPath = dir.path;
           Array.from(dirsListEl.children).forEach(child => {
-            child.classList.remove('bg-black-500', 'text-white', 'font-semibold');
+            child.classList.remove('bg-black-500', 'text-white', 'font-semibold', 'border-l-2', 'border-accent', 'pl-1.5');
+            child.classList.add('pl-2');
             const chk = child.querySelector('.text-accent');
             if (chk) chk.remove();
           });
-          item.classList.add('bg-black-500', 'text-white', 'font-semibold');
+          item.classList.remove('pl-2');
+          item.classList.add('bg-black-500', 'text-white', 'font-semibold', 'border-l-2', 'border-accent', 'pl-1.5');
           const checkSpan = document.createElement('span');
           checkSpan.className = 'material-symbols text-[14px] text-accent flex items-center';
           checkSpan.textContent = 'check';
@@ -2666,6 +2814,11 @@ function showLibraryModal(lib) {
   const form = modal.querySelector('#library-form');
   form.onsubmit = async (e) => {
     e.preventDefault();
+    const btn = form.querySelector('button[type="submit"]');
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = `<span class="animate-spin rounded-full h-3 w-3 border-b-2 border-primary inline-block mr-1"></span><span>Saving...</span>`;
+    }
 
     const name = modal.querySelector('#lib-name').value;
     const mediaType = modal.querySelector('#lib-mediatype').value;
@@ -2700,6 +2853,10 @@ function showLibraryModal(lib) {
 
     if (!foldersValid || folders.length === 0) {
       showToast('Please specify at least one valid folder path.', 'warning');
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = `<span class="material-symbols text-sm">check</span><span>Save</span>`;
+      }
       return;
     }
 
@@ -2727,6 +2884,10 @@ function showLibraryModal(lib) {
       initLibrary(res);
     } catch (err) {
       showToast('Failed to save library: ' + err.message, 'error');
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = `<span class="material-symbols text-sm">check</span><span>Save</span>`;
+      }
     }
   };
 }
@@ -2768,6 +2929,25 @@ export function applyServerThemeAndCss(settings) {
     }
   }
 }
+
+// Register socket listeners for settings library scan animations
+onEvent('library_scan_started', (libraryId) => {
+  activeScans.add(libraryId);
+  const btn = document.querySelector(`.btn-scan-lib[data-id="${libraryId}"]`);
+  if (btn) {
+    const icon = btn.querySelector('.material-symbols');
+    if (icon) icon.classList.add('animate-spin');
+  }
+});
+
+onEvent('library_scan_complete', (libraryId) => {
+  activeScans.delete(libraryId);
+  const btn = document.querySelector(`.btn-scan-lib[data-id="${libraryId}"]`);
+  if (btn) {
+    const icon = btn.querySelector('.material-symbols');
+    if (icon) icon.classList.remove('animate-spin');
+  }
+});
 
 
 

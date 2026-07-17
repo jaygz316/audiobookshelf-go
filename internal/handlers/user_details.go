@@ -47,7 +47,7 @@ func handleUserListeningSessionsRoute(db *sql.DB, w http.ResponseWriter, r *http
 			itemsPerPage = limit
 		}
 	}
-	sessions, err := handleGetUserListeningSessions(db, targetUserID, page, itemsPerPage)
+	sessions, err := handleGetUserListeningSessions(db, targetUserID, page, itemsPerPage, "", "")
 	if err != nil {
 		log.Errorf("[Listening Sessions] Failed to query sessions: %v", err)
 		http.Error(w, `{"error": "Internal Server Error"}`, http.StatusInternalServerError)

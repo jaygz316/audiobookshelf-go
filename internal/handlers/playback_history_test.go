@@ -126,6 +126,48 @@ func TestListeningStatsAndHistory(t *testing.T) {
 		}
 	})
 
+	t.Run("GET /api/me/listening-sessions filtering by item", func(t *testing.T) {
+		// Valid filter matching book-1
+		req := httptest.NewRequest("GET", "/api/me/listening-sessions?mediaItemId=book-1", nil)
+		req = req.WithContext(context.WithValue(req.Context(), core.UserContextKey, normalSession))
+		rr := httptest.NewRecorder()
+		handleGetMeListeningSessions(db).ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusOK {
+			t.Errorf("Expected 200, got %d", rr.Code)
+		}
+
+		var resp map[string]interface{}
+		if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
+			t.Fatalf("Failed to decode response: %v", err)
+		}
+
+		sessionsList, ok := resp["sessions"].([]interface{})
+		if !ok || len(sessionsList) != 2 {
+			t.Errorf("Expected 2 sessions for book-1, got %d", len(sessionsList))
+		}
+
+		// Filter not matching any sessions
+		reqNonExistent := httptest.NewRequest("GET", "/api/me/listening-sessions?mediaItemId=book-nonexistent", nil)
+		reqNonExistent = reqNonExistent.WithContext(context.WithValue(reqNonExistent.Context(), core.UserContextKey, normalSession))
+		rr2 := httptest.NewRecorder()
+		handleGetMeListeningSessions(db).ServeHTTP(rr2, reqNonExistent)
+
+		if rr2.Code != http.StatusOK {
+			t.Errorf("Expected 200, got %d", rr2.Code)
+		}
+
+		var resp2 map[string]interface{}
+		if err := json.NewDecoder(rr2.Body).Decode(&resp2); err != nil {
+			t.Fatalf("Failed to decode response: %v", err)
+		}
+
+		sessionsList2, ok := resp2["sessions"].([]interface{})
+		if !ok || len(sessionsList2) != 0 {
+			t.Errorf("Expected 0 sessions for non-existent item, got %d", len(sessionsList2))
+		}
+	})
+
 	t.Run("GET /api/users/{id}/listening-stats permissions", func(t *testing.T) {
 		// Other user tries to access normaluser's stats -> Forbidden
 		req := httptest.NewRequest("GET", "/api/users/user-normal/listening-stats", nil)
