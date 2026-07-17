@@ -867,6 +867,16 @@ function setupEventHandlers() {
       const relativeTop = rect.top - parentRect.top;
       submenu.style.top = `${relativeTop}px`;
 
+      // Dynamic horizontal positioning to prevent screen overflow on narrow viewports
+      const submenuWidth = 224; // Width corresponding to w-56
+      if (rect.left - submenuWidth < 10) {
+        submenu.style.right = '0px';
+        submenu.style.zIndex = '60';
+      } else {
+        submenu.style.right = '182px';
+        submenu.style.zIndex = '50';
+      }
+
       submenu.classList.remove('hidden');
 
       if (submenuItemsData.length > 6 && searchInput) {
@@ -1480,8 +1490,7 @@ function bootstrapApp(payload) {
 
     const clearSearchResultHighlight = (items) => {
       items.forEach(item => {
-        item.classList.remove('bg-black-300', 'text-white');
-        item.classList.add('hover:bg-black-400', 'text-gray-50');
+        item.classList.remove('bg-black-300');
       });
     };
 
@@ -1489,8 +1498,7 @@ function bootstrapApp(payload) {
       clearSearchResultHighlight(items);
       if (index >= 0 && index < items.length) {
         const item = items[index];
-        item.classList.remove('hover:bg-black-400', 'text-gray-50');
-        item.classList.add('bg-black-300', 'text-white');
+        item.classList.add('bg-black-300');
         item.scrollIntoView({ block: 'nearest' });
       }
     };
@@ -1590,13 +1598,13 @@ function bootstrapApp(payload) {
         totalResults += items.length;
 
         const headerLi = document.createElement('li');
-        headerLi.className = 'px-3 py-1.5 text-[10px] font-bold text-black-50 uppercase tracking-wider select-none bg-black-700/60 border-b border-black-600/30';
+        headerLi.className = 'px-3 py-1.5 text-[10px] font-bold text-accent uppercase tracking-wider select-none';
         headerLi.textContent = `${title} (${items.length})`;
         globalSearchResultsList.appendChild(headerLi);
 
         items.forEach(item => {
           const li = document.createElement('li');
-          li.className = 'px-3 py-2 hover:bg-black-400 cursor-pointer flex items-center text-gray-50 border-b border-black-600/30';
+          li.className = 'px-3 py-2 cursor-pointer flex items-center text-black-50';
           renderFunc(li, item);
           globalSearchResultsList.appendChild(li);
         });
@@ -1618,8 +1626,8 @@ function bootstrapApp(payload) {
           <img src="${coverUrl}" class="w-8 h-12 object-cover rounded-sm mr-3 bg-black-700" onerror="this.onerror=null; this.src='assets/images/logo.png'">
           <div class="grow min-w-0">
             <p class="truncate text-sm font-medium text-white">${escapeHtml(title)}</p>
-            ${subtitle ? `<p class="truncate text-xs text-gray-300">${escapeHtml(subtitle)}</p>` : ''}
-            <p class="truncate text-xs text-gray-400">${escapeHtml(authorName)}</p>
+            ${subtitle ? `<p class="truncate text-xs text-black-100">${escapeHtml(subtitle)}</p>` : ''}
+            <p class="truncate text-xs text-black-200">${escapeHtml(authorName)}</p>
           </div>
         `;
       });
@@ -1639,7 +1647,7 @@ function bootstrapApp(payload) {
           <img src="${coverUrl}" class="w-8 h-12 object-cover rounded-sm mr-3 bg-black-700" onerror="this.onerror=null; this.src='assets/images/logo.png'">
           <div class="grow min-w-0">
             <p class="truncate text-sm font-medium text-white">${escapeHtml(title)}</p>
-            <p class="truncate text-xs text-gray-400">${escapeHtml(authorName)}</p>
+            <p class="truncate text-xs text-black-200">${escapeHtml(authorName)}</p>
           </div>
         `;
       });
@@ -1659,7 +1667,7 @@ function bootstrapApp(payload) {
           <img src="${coverUrl}" class="w-8 h-12 object-cover rounded-sm mr-3 bg-black-700" onerror="this.onerror=null; this.src='assets/images/logo.png'">
           <div class="grow min-w-0">
             <p class="truncate text-sm font-medium text-white">${escapeHtml(episodeTitle)}</p>
-            <p class="truncate text-xs text-gray-400">${escapeHtml(podcastTitle)}</p>
+            <p class="truncate text-xs text-black-200">${escapeHtml(podcastTitle)}</p>
           </div>
         `;
       });
@@ -1676,7 +1684,7 @@ function bootstrapApp(payload) {
           <div class="w-8 h-8 rounded-full bg-accent text-primary font-bold text-xs flex items-center justify-center mr-3 select-none hidden">${escapeHtml(authorInitials)}</div>
           <div class="grow min-w-0">
             <p class="truncate text-sm font-medium text-white">${escapeHtml(auth.name)}</p>
-            <p class="truncate text-xs text-gray-400">${auth.numBooks} ${auth.numBooks === 1 ? 'Book' : 'Books'}</p>
+            <p class="truncate text-xs text-black-200">${auth.numBooks} ${auth.numBooks === 1 ? 'Book' : 'Books'}</p>
           </div>
         `;
       });
@@ -1687,7 +1695,7 @@ function bootstrapApp(payload) {
         li.setAttribute('data-id', ser.id);
         li.innerHTML = `
           <div class="w-8 h-8 flex items-center justify-center mr-3 bg-black-600 rounded-sm select-none">
-            <span class="material-symbols text-xl text-gray-200">layers</span>
+            <span class="material-symbols text-xl text-black-100">layers</span>
           </div>
           <div class="grow min-w-0">
             <p class="truncate text-sm font-medium text-white">${escapeHtml(ser.name)}</p>
@@ -1701,11 +1709,11 @@ function bootstrapApp(payload) {
         li.setAttribute('data-val', narr.name);
         li.innerHTML = `
           <div class="w-8 h-8 flex items-center justify-center mr-3 select-none">
-            <span class="material-symbols text-xl text-gray-200">record_voice_over</span>
+            <span class="material-symbols text-xl text-black-100">record_voice_over</span>
           </div>
           <div class="grow min-w-0">
             <p class="truncate text-sm font-medium text-white">${escapeHtml(narr.name)}</p>
-            <p class="truncate text-xs text-gray-400">${narr.numBooks} ${narr.numBooks === 1 ? 'Book' : 'Books'}</p>
+            <p class="truncate text-xs text-black-200">${narr.numBooks} ${narr.numBooks === 1 ? 'Book' : 'Books'}</p>
           </div>
         `;
       });
@@ -1716,11 +1724,11 @@ function bootstrapApp(payload) {
         li.setAttribute('data-val', tag.name);
         li.innerHTML = `
           <div class="w-8 h-8 flex items-center justify-center mr-3 select-none">
-            <span class="material-symbols text-xl text-gray-200">local_offer</span>
+            <span class="material-symbols text-xl text-black-100">local_offer</span>
           </div>
           <div class="grow min-w-0">
             <p class="truncate text-sm font-medium text-white">${escapeHtml(tag.name)}</p>
-            <p class="truncate text-xs text-gray-400">${tag.numItems} ${tag.numItems === 1 ? 'Item' : 'Items'}</p>
+            <p class="truncate text-xs text-black-200">${tag.numItems} ${tag.numItems === 1 ? 'Item' : 'Items'}</p>
           </div>
         `;
       });
@@ -1731,17 +1739,17 @@ function bootstrapApp(payload) {
         li.setAttribute('data-val', gen.name);
         li.innerHTML = `
           <div class="w-8 h-8 flex items-center justify-center mr-3 select-none">
-            <span class="material-symbols text-xl text-gray-200">category</span>
+            <span class="material-symbols text-xl text-black-100">category</span>
           </div>
           <div class="grow min-w-0">
             <p class="truncate text-sm font-medium text-white">${escapeHtml(gen.name)}</p>
-            <p class="truncate text-xs text-gray-400">${gen.numItems} ${gen.numItems === 1 ? 'Item' : 'Items'}</p>
+            <p class="truncate text-xs text-black-200">${gen.numItems} ${gen.numItems === 1 ? 'Item' : 'Items'}</p>
           </div>
         `;
       });
 
       if (totalResults === 0) {
-        globalSearchResultsList.innerHTML = `<li class="text-center py-4 text-gray-400 select-none">No results found</li>`;
+        globalSearchResultsList.innerHTML = `<li class="text-center py-4 text-black-100 select-none">No results found</li>`;
       }
 
       const announcementEl = document.getElementById('global-search-announcement');
@@ -1821,7 +1829,7 @@ function bootstrapApp(payload) {
 
       if (globalSearchResultsList) {
         // Show spinner
-        globalSearchResultsList.innerHTML = `<li class="text-center py-4 text-gray-400 select-none"><span class="material-symbols animate-spin">sync</span></li>`;
+        globalSearchResultsList.innerHTML = `<li class="text-center py-4 text-black-100 select-none"><span class="material-symbols animate-spin">sync</span></li>`;
       }
 
       clearTimeout(searchDebounceTimeout);

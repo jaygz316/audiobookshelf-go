@@ -813,6 +813,9 @@ export function drawWaveform() {
   if (!playerController) return;
   const currentWaveform = playerController.getCurrentWaveform();
   const hoverPct = playerController.getHoverPct();
+  const currentItem = playerController.getCurrentItem();
+  const chapters = currentItem?.media?.chapters || [];
+  const duration = isCasting() ? (getRemotePlayer().duration || 0) : (playerController.getAudio() ? playerController.getAudio().duration : 0);
 
   const canvasIds = ['player-waveform-canvas', 'expanded-waveform-canvas'];
   canvasIds.forEach(canvasId => {
@@ -867,6 +870,18 @@ export function drawWaveform() {
         ctx.lineTo(canvasHoverX, height);
         ctx.stroke();
       }
+
+      // Draw chapter tick marks
+      if (duration > 0 && chapters.length > 0) {
+        ctx.fillStyle = '#111827';
+        chapters.forEach((ch, idx) => {
+          if (idx === 0) return;
+          const tickX = (ch.start / duration) * width;
+          if (tickX > 0 && tickX < width) {
+            ctx.fillRect(tickX - 0.75, y, 1.5, trackHeight);
+          }
+        });
+      }
       return;
     }
 
@@ -901,6 +916,18 @@ export function drawWaveform() {
       }
 
       drawRoundedRect(ctx, x, y, barWidth, barHeight, 1);
+    }
+
+    // Draw chapter tick marks on waveform canvas
+    if (duration > 0 && chapters.length > 0) {
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+      chapters.forEach((ch, idx) => {
+        if (idx === 0) return;
+        const tickX = (ch.start / duration) * width;
+        if (tickX > 0 && tickX < width) {
+          ctx.fillRect(tickX - 1, 0, 2, height);
+        }
+      });
     }
 
     if (hoverPct !== null) {
@@ -1285,7 +1312,7 @@ export function setupUIEventListeners() {
     if (!tooltip && timeline.parentElement) {
       tooltip = document.createElement('div');
       tooltip.id = id + '-tooltip';
-      tooltip.className = 'absolute bg-black-700 text-white text-[10px] px-1.5 py-0.5 rounded border border-black-300 pointer-events-none hidden z-30 transition-opacity duration-150 shadow-md font-bold';
+      tooltip.className = 'absolute bg-black-600 text-white px-2.5 py-1.5 rounded border border-black-400/50 pointer-events-none hidden z-30 transition-opacity duration-150 shadow-lg text-center flex flex-col items-center';
       tooltip.style.bottom = '100%';
       tooltip.style.marginBottom = '6px';
       tooltip.style.transform = 'translateX(-50%)';
@@ -1308,12 +1335,18 @@ export function setupUIEventListeners() {
       if (duration > 0) {
         const hoverTime = pct * duration;
         if (tooltip) {
+          const currentItem = playerController?.getCurrentItem();
           const chapters = currentItem?.media?.chapters || [];
           const activeChap = chapters.find(c => hoverTime >= c.start && hoverTime < c.end);
           if (activeChap) {
-            tooltip.textContent = `${activeChap.title || 'Untitled'} (${formatTime(hoverTime)})`;
+            const chapIdx = chapters.indexOf(activeChap) + 1;
+            tooltip.innerHTML = `
+              <div class="text-accent text-[9px] font-semibold uppercase tracking-wider mb-0.5">Chapter ${chapIdx}</div>
+              <div class="text-white text-[11px] font-bold leading-tight max-w-[150px] truncate">${escapeHtml(activeChap.title || 'Untitled')}</div>
+              <div class="text-black-100 text-[10px] mt-1 font-mono">${formatTime(hoverTime)}</div>
+            `;
           } else {
-            tooltip.textContent = formatTime(hoverTime);
+            tooltip.innerHTML = `<div class="text-white text-[11px] font-bold font-mono">${formatTime(hoverTime)}</div>`;
           }
           tooltip.style.left = `${pct * 100}%`;
         }
@@ -1342,12 +1375,18 @@ export function setupUIEventListeners() {
       if (duration > 0) {
         const hoverTime = pct * duration;
         if (tooltip) {
+          const currentItem = playerController?.getCurrentItem();
           const chapters = currentItem?.media?.chapters || [];
           const activeChap = chapters.find(c => hoverTime >= c.start && hoverTime < c.end);
           if (activeChap) {
-            tooltip.textContent = `${activeChap.title || 'Untitled'} (${formatTime(hoverTime)})`;
+            const chapIdx = chapters.indexOf(activeChap) + 1;
+            tooltip.innerHTML = `
+              <div class="text-accent text-[9px] font-semibold uppercase tracking-wider mb-0.5">Chapter ${chapIdx}</div>
+              <div class="text-white text-[11px] font-bold leading-tight max-w-[150px] truncate">${escapeHtml(activeChap.title || 'Untitled')}</div>
+              <div class="text-black-100 text-[10px] mt-1 font-mono">${formatTime(hoverTime)}</div>
+            `;
           } else {
-            tooltip.textContent = formatTime(hoverTime);
+            tooltip.innerHTML = `<div class="text-white text-[11px] font-bold font-mono">${formatTime(hoverTime)}</div>`;
           }
           tooltip.style.left = `${pct * 100}%`;
         }
