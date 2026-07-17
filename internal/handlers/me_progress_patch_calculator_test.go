@@ -419,4 +419,3 @@ func TestCalculateUpdatedProgressAdversarial(t *testing.T) {
 		}
 	})
 }
-

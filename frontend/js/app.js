@@ -491,6 +491,7 @@ function setupEventHandlers() {
     const decBtn = document.getElementById('shelf-size-dec');
     const incBtn = document.getElementById('shelf-size-inc');
     const valSpan = document.getElementById('shelf-size-val');
+    const sliderInput = document.getElementById('shelf-size-slider');
     if (!decBtn || !incBtn || !valSpan) return;
 
     let currentSize = parseInt(localStorage.getItem('bookshelf-card-width')) || 120;
@@ -500,6 +501,9 @@ function setupEventHandlers() {
       currentSize = Math.max(80, Math.min(240, newSize));
       localStorage.setItem('bookshelf-card-width', currentSize);
       valSpan.textContent = currentSize;
+      if (sliderInput) {
+        sliderInput.value = currentSize;
+      }
       document.documentElement.style.setProperty('--bookshelf-card-width', `${currentSize}px`);
     };
 
@@ -514,6 +518,15 @@ function setupEventHandlers() {
       e.stopPropagation();
       updateSize(currentSize + 10);
     };
+
+    if (sliderInput) {
+      sliderInput.oninput = (e) => {
+        updateSize(parseInt(e.target.value));
+      };
+      sliderInput.onclick = (e) => {
+        e.stopPropagation();
+      };
+    }
   };
 
   initShelfSizing();

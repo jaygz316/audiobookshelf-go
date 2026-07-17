@@ -36,69 +36,76 @@ export async function loadSettings() {
   container.innerHTML = `
     <div class="max-w-7xl mx-auto p-4 flex flex-col md:flex-row gap-6 h-full min-h-0">
       <!-- Left Settings Navigation Sidebar -->
-      <div class="w-full md:w-72 flex-shrink-0 bg-primary/50 border border-black-400/50 rounded-lg p-2 flex flex-row md:flex-col overflow-x-auto md:overflow-x-visible space-x-1 md:space-x-0 space-y-0 md:space-y-1 h-fit scrollbar-none" id="settings-tabs">
-        <div class="hidden md:block text-xs font-semibold text-accent uppercase tracking-wider px-3 py-2 border-b border-black-400/50 mb-2">Settings</div>
-        <button class="flex-shrink-0 w-auto md:w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-accent bg-black-500/80 flex items-center space-x-2" data-tab="libraries">
+      <div class="w-full md:w-64 flex-shrink-0 bg-primary/50 border border-black-400/50 rounded-lg p-2 flex flex-row md:flex-col overflow-x-auto md:overflow-x-visible space-x-1 md:space-x-0 space-y-0 md:space-y-1 h-fit scrollbar-none" id="settings-tabs">
+        <!-- SERVER GROUP -->
+        <div class="hidden md:block text-[10px] font-bold text-accent uppercase tracking-wider px-3 py-1 mt-2 mb-1">Server</div>
+        <button class="flex-shrink-0 w-auto md:w-full text-left px-3 py-2 rounded-md md:rounded-l-none md:rounded-r-md font-semibold text-sm transition-all text-accent bg-black-500/80 flex items-center space-x-2 border-b-2 border-b-accent md:border-b-0 md:border-l-4 md:border-l-accent" data-tab="libraries">
           <span class="material-symbols text-lg">local_library</span>
           <span>Libraries</span>
         </button>
-        <button class="flex-shrink-0 w-auto md:w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2" data-tab="users">
+        <button class="flex-shrink-0 w-auto md:w-full text-left px-3 py-2 rounded-md md:rounded-l-none md:rounded-r-md font-semibold text-sm transition-all text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2 border-b-2 border-b-transparent md:border-b-0 md:border-l-4 md:border-l-transparent" data-tab="users">
           <span class="material-symbols text-lg">group</span>
           <span>Users</span>
         </button>
-        <button class="flex-shrink-0 w-auto md:w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2" data-tab="apikeys">
-          <span class="material-symbols text-lg">vpn_key</span>
-          <span>API Keys</span>
-        </button>
-        <button class="flex-shrink-0 w-auto md:w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2" data-tab="server">
-          <span class="material-symbols text-lg">dns</span>
-          <span>Server Settings</span>
-        </button>
-        <button class="flex-shrink-0 w-auto md:w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2" data-tab="auth">
-          <span class="material-symbols text-lg">security</span>
-          <span>Authentication</span>
-        </button>
-        <button class="flex-shrink-0 w-auto md:w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2" data-tab="notifications">
-          <span class="material-symbols text-lg">notifications</span>
-          <span>Notifications</span>
-        </button>
-        <button class="flex-shrink-0 w-auto md:w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2" data-tab="emails">
-          <span class="material-symbols text-lg">mail</span>
-          <span>E-Reader Email</span>
-        </button>
-        <button class="flex-shrink-0 w-auto md:w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2" data-tab="feeds">
-          <span class="material-symbols text-lg">rss_feed</span>
-          <span>RSS Feeds</span>
-        </button>
-        <button class="flex-shrink-0 w-auto md:w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2" data-tab="listening-sessions">
+        <button class="flex-shrink-0 w-auto md:w-full text-left px-3 py-2 rounded-md md:rounded-l-none md:rounded-r-md font-semibold text-sm transition-all text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2 border-b-2 border-b-transparent md:border-b-0 md:border-l-4 md:border-l-transparent" data-tab="listening-sessions">
           <span class="material-symbols text-lg">insights</span>
           <span>Playback Sessions</span>
         </button>
-        <button class="flex-shrink-0 w-auto md:w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2" data-tab="login-sessions">
-          <span class="material-symbols text-lg">devices</span>
-          <span>Login Sessions</span>
-        </button>
-        <button class="flex-shrink-0 w-auto md:w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2" data-tab="backups">
+        <button class="flex-shrink-0 w-auto md:w-full text-left px-3 py-2 rounded-md md:rounded-l-none md:rounded-r-md font-semibold text-sm transition-all text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2 border-b-2 border-b-transparent md:border-b-0 md:border-l-4 md:border-l-transparent" data-tab="backups">
           <span class="material-symbols text-lg">backup</span>
           <span>Backups</span>
         </button>
-        <button class="flex-shrink-0 w-auto md:w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2" data-tab="upload">
-          <span class="material-symbols text-lg">upload</span>
-          <span>Uploads</span>
-        </button>
-        <button class="flex-shrink-0 w-auto md:w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2" data-tab="providers">
+        <button class="flex-shrink-0 w-auto md:w-full text-left px-3 py-2 rounded-md md:rounded-l-none md:rounded-r-md font-semibold text-sm transition-all text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2 border-b-2 border-b-transparent md:border-b-0 md:border-l-4 md:border-l-transparent" data-tab="providers">
           <span class="material-symbols text-lg">api</span>
           <span>Custom Metadata Providers</span>
         </button>
-        <button class="flex-shrink-0 w-auto md:w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2" data-tab="shares">
-          <span class="material-symbols text-lg">share</span>
-          <span>Shares</span>
-        </button>
-        <button class="flex-shrink-0 w-auto md:w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2" data-tab="logs">
+        <button class="flex-shrink-0 w-auto md:w-full text-left px-3 py-2 rounded-md md:rounded-l-none md:rounded-r-md font-semibold text-sm transition-all text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2 border-b-2 border-b-transparent md:border-b-0 md:border-l-4 md:border-l-transparent" data-tab="logs">
           <span class="material-symbols text-lg">description</span>
           <span>System Logs</span>
         </button>
-        <button class="flex-shrink-0 w-auto md:w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2" data-tab="tasks">
+
+        <!-- CONFIGURATION GROUP -->
+        <div class="hidden md:block text-[10px] font-bold text-accent uppercase tracking-wider px-3 py-1 mt-4 mb-1 border-t border-black-400/30 pt-3">Configuration</div>
+        <button class="flex-shrink-0 w-auto md:w-full text-left px-3 py-2 rounded-md md:rounded-l-none md:rounded-r-md font-semibold text-sm transition-all text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2 border-b-2 border-b-transparent md:border-b-0 md:border-l-4 md:border-l-transparent" data-tab="server">
+          <span class="material-symbols text-lg">dns</span>
+          <span>Server Settings</span>
+        </button>
+        <button class="flex-shrink-0 w-auto md:w-full text-left px-3 py-2 rounded-md md:rounded-l-none md:rounded-r-md font-semibold text-sm transition-all text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2 border-b-2 border-b-transparent md:border-b-0 md:border-l-4 md:border-l-transparent" data-tab="auth">
+          <span class="material-symbols text-lg">security</span>
+          <span>Authentication</span>
+        </button>
+        <button class="flex-shrink-0 w-auto md:w-full text-left px-3 py-2 rounded-md md:rounded-l-none md:rounded-r-md font-semibold text-sm transition-all text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2 border-b-2 border-b-transparent md:border-b-0 md:border-l-4 md:border-l-transparent" data-tab="notifications">
+          <span class="material-symbols text-lg">notifications</span>
+          <span>Notifications</span>
+        </button>
+        <button class="flex-shrink-0 w-auto md:w-full text-left px-3 py-2 rounded-md md:rounded-l-none md:rounded-r-md font-semibold text-sm transition-all text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2 border-b-2 border-b-transparent md:border-b-0 md:border-l-4 md:border-l-transparent" data-tab="emails">
+          <span class="material-symbols text-lg">mail</span>
+          <span>E-Reader Email</span>
+        </button>
+        <button class="flex-shrink-0 w-auto md:w-full text-left px-3 py-2 rounded-md md:rounded-l-none md:rounded-r-md font-semibold text-sm transition-all text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2 border-b-2 border-b-transparent md:border-b-0 md:border-l-4 md:border-l-transparent" data-tab="feeds">
+          <span class="material-symbols text-lg">rss_feed</span>
+          <span>RSS Feeds</span>
+        </button>
+
+        <!-- TOOLS GROUP -->
+        <div class="hidden md:block text-[10px] font-bold text-accent uppercase tracking-wider px-3 py-1 mt-4 mb-1 border-t border-black-400/30 pt-3">Tools</div>
+        <button class="flex-shrink-0 w-auto md:w-full text-left px-3 py-2 rounded-md md:rounded-l-none md:rounded-r-md font-semibold text-sm transition-all text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2 border-b-2 border-b-transparent md:border-b-0 md:border-l-4 md:border-l-transparent" data-tab="apikeys">
+          <span class="material-symbols text-lg">vpn_key</span>
+          <span>API Keys</span>
+        </button>
+        <button class="flex-shrink-0 w-auto md:w-full text-left px-3 py-2 rounded-md md:rounded-l-none md:rounded-r-md font-semibold text-sm transition-all text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2 border-b-2 border-b-transparent md:border-b-0 md:border-l-4 md:border-l-transparent" data-tab="login-sessions">
+          <span class="material-symbols text-lg">devices</span>
+          <span>Login Sessions</span>
+        </button>
+        <button class="flex-shrink-0 w-auto md:w-full text-left px-3 py-2 rounded-md md:rounded-l-none md:rounded-r-md font-semibold text-sm transition-all text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2 border-b-2 border-b-transparent md:border-b-0 md:border-l-4 md:border-l-transparent" data-tab="upload">
+          <span class="material-symbols text-lg">upload</span>
+          <span>Uploads</span>
+        </button>
+        <button class="flex-shrink-0 w-auto md:w-full text-left px-3 py-2 rounded-md md:rounded-l-none md:rounded-r-md font-semibold text-sm transition-all text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2 border-b-2 border-b-transparent md:border-b-0 md:border-l-4 md:border-l-transparent" data-tab="shares">
+          <span class="material-symbols text-lg">share</span>
+          <span>Shares</span>
+        </button>
+        <button class="flex-shrink-0 w-auto md:w-full text-left px-3 py-2 rounded-md md:rounded-l-none md:rounded-r-md font-semibold text-sm transition-all text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2 border-b-2 border-b-transparent md:border-b-0 md:border-l-4 md:border-l-transparent" data-tab="tasks">
           <span class="material-symbols text-lg">downloading</span>
           <span>Tasks & Downloads</span>
         </button>
@@ -131,9 +138,9 @@ export async function loadSettings() {
   tabs.forEach(tab => {
     tab.onclick = () => {
       tabs.forEach(t => {
-        t.className = 'flex-shrink-0 w-auto md:w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2';
+        t.className = 'flex-shrink-0 w-auto md:w-full text-left px-3 py-2 rounded-md md:rounded-l-none md:rounded-r-md font-semibold text-sm transition-all text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2 border-b-2 border-b-transparent md:border-b-0 md:border-l-4 md:border-l-transparent';
       });
-      tab.className = 'flex-shrink-0 w-auto md:w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-accent bg-black-500/80 flex items-center space-x-2';
+      tab.className = 'flex-shrink-0 w-auto md:w-full text-left px-3 py-2 rounded-md md:rounded-l-none md:rounded-r-md font-semibold text-sm transition-all text-accent bg-black-500/80 flex items-center space-x-2 border-b-2 border-b-accent md:border-b-0 md:border-l-4 md:border-l-accent';
 
       const activeTabId = tab.dataset.tab;
       document.querySelectorAll('#settings-tab-content > div').forEach(content => {
@@ -2095,7 +2102,7 @@ async function renderLibrariesTab() {
         if (!foldersList) foldersList = 'No folders configured';
 
         const isSelected = lib.id === getActiveLibraryId();
-        const borderClass = isSelected ? 'border-l-warning' : 'border-l-black-400';
+        const borderClass = isSelected ? 'border-l-4 border-l-accent' : 'border-l-4 border-l-transparent';
 
         html += `
           <div class="library-row border-y border-r ${borderClass} bg-black-500 rounded-r p-4 flex flex-col md:flex-row justify-between items-start md:items-center space-y-4 md:space-y-0 cursor-move transition-colors hover:bg-black-400" draggable="true" data-id="${lib.id}">

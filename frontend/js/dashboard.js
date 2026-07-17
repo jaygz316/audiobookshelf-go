@@ -433,7 +433,7 @@ function createShelfSection(shelfId, label, entities, libraryId) {
   shelfWrapper.className = 'relative w-full';
   
   const rowDiv = document.createElement('div');
-  rowDiv.className = 'w-full h-56 relative overflow-x-auto no-scroll overflow-y-hidden z-10 bg-repeat-x bookshelfRow';
+  rowDiv.className = 'w-full relative overflow-x-auto no-scroll overflow-y-hidden z-10 bg-repeat-x bookshelfRow';
   
   const itemsContainer = document.createElement('div');
   itemsContainer.id = `${shelfId}-shelf`;
@@ -519,9 +519,13 @@ export function createCard(item, isContinue, libraryId, shelfId = '') {
   
   const showPlayButton = hasAudio;
   const showReadButton = !hasAudio && hasEbook;
+  const isBook = item.mediaType !== 'podcast';
 
   card.innerHTML = `
-    <img class="w-full h-full object-cover" src="${coverUrl}" alt="${escapeHtml(title)}" onerror="this.onerror=null; this.src='assets/images/logo.png'">
+    <div class="book-cover-wrapper relative w-full h-full rounded-sm overflow-hidden">
+      <img class="w-full h-full object-cover" src="${coverUrl}" alt="${escapeHtml(title)}" onerror="this.onerror=null; this.src='assets/images/logo.png'">
+      ${isBook ? `<div class="book-spine-crease"></div>` : ''}
+    </div>
     
     <!-- Hover overlay -->
     <div class="absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col justify-between p-3 select-none text-left z-30 font-sans">

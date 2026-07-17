@@ -143,13 +143,13 @@ export function renderPresetPills() {
                      preset.sortDesc === currentSortDesc;
 
     const activeClasses = isActive 
-      ? 'bg-accent border-accent text-white font-medium shadow-sm'
+      ? 'bg-accent border-accent text-primary font-semibold shadow-sm'
       : 'border border-black-300/30 text-black-100 hover:text-white hover:bg-black-600/40';
 
     return `
       <div class="preset-pill flex items-center px-3 py-1 rounded-full text-[11px] transition-all duration-150 cursor-pointer ${activeClasses}" data-id="${preset.id}">
         <span>${preset.name}</span>
-        <button class="delete-preset-btn ml-1.5 hover:text-red-400 focus:outline-none transition-colors" data-id="${preset.id}">
+        <button class="delete-preset-btn ml-1.5 ${isActive ? 'text-primary/70 hover:text-primary' : 'hover:text-red-400'} focus:outline-none transition-colors" data-id="${preset.id}">
           <span class="material-symbols text-[12px] pt-[2px] font-variation-normal">close</span>
         </button>
       </div>
@@ -170,10 +170,14 @@ export function renderPresetPills() {
       localStorage.setItem('library-sortBy', preset.sortBy);
       localStorage.setItem('library-sortDesc', preset.sortDesc.toString());
 
-      // Update Filter Label in dropdown
-      const labelEl = document.getElementById('filter-selected-label');
-      if (labelEl) {
-        labelEl.textContent = getFriendlyFilterLabel(preset.filterBy);
+      // Update Filter Label in dropdown and highlight button if active
+      if (window.updateFilterLabelGlobal) {
+        window.updateFilterLabelGlobal(preset.filterBy);
+      } else {
+        const labelEl = document.getElementById('filter-selected-label');
+        if (labelEl) {
+          labelEl.textContent = getFriendlyFilterLabel(preset.filterBy);
+        }
       }
 
       // Update Sort Label and check icons

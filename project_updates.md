@@ -188,6 +188,12 @@
   - Replaced all direct reads/writes/comparisons of `globalDB` with thread-safe calls across the handlers files: `backup_handlers.go`, `dispatchers.go`, `managers.go`, `middleware.go`, `routes.go`, `spa.go`, and test files.
 
 ### 2026-07-17
+- **Refined Shelf Planks, Shadows & Cover Reflections**:
+  - Wrapped book cover images and spine creases in a `.book-cover-wrapper` container in `createCard` (`dashboard.js`), ensuring spine creases are included in reflections while play buttons, badges, and hover details remain unreflected.
+  - Refactored `.bookshelfRow` (`components.css`) and `.library-shelf-grid` (`layout.css`) backgrounds with a solid back wall gradient (`var(--color-bg)`) overlaying the wood texture behind books, exposing the raw textured wood grain only on the 20px shelf planks.
+  - Unified highlights and shadows (`rgba(255,255,255,0.2)` / `rgba(0,0,0,0.35)`) and theme overlays on shelf planks, ensuring wood texture grain and 3D lighting remain visible across themes.
+  - Styled category separators (`.bookshelfDividerCategorized`) to utilize the same wood grain texture, highlights, shadows, and theme overlays for visual cohesion.
+  - Directed box-shadows, hover elevation (`translateY(-6px)`), and `-webkit-box-reflect` styles to the `.book-cover-wrapper` container to perfectly mirror physical cover styling of the original project.
 - **WebAssembly Setup Wizard Modularization**:
   - Modularized `frontend/go/setup.go` by splitting it into three smaller files under 200 lines: `setup.go` (UI screen rendering/transitions), `setup_validation.go` (step validation logic), and `setup_submit.go` (asynchronous submission/API interaction logic).
   - All files retain build tag `//go:build js && wasm` and package `main` declaration, ensuring successful compilation and passing test status.
@@ -212,3 +218,7 @@
   - Replaced the brand gold accent on active settings toggle switches (`.abs-slider`) with a standard emerald green (`#10b981`) to match the original Audiobookshelf styling.
   - Aligned troubleshooting / cache tool buttons to use premium dark grey layouts (`bg-black-400 hover:bg-black-300 border border-black-300`) instead of almost-black colors.
   - Refactored the settings sidebar layout to support swiping on mobile view by laying out buttons horizontally with hidden scrollbars, while preserving the vertical sidebar on desktop screens.
+  - Grouped sidebar buttons into Server, Configuration, and Tools sections, and implemented dynamic active tab highlights with left gold borders on desktop (`md:border-l-4 md:border-l-accent`) and bottom gold borders on mobile (`border-b-2 border-b-accent`).
+  - Added a thick left gold border highlight (`border-l-4 border-l-accent`) to selected library rows inside the libraries settings sub-tab.
+  - Implemented gold focus ring glow transitions (`box-shadow: 0 0 0 2px rgba(229, 169, 59, 0.25)`) for settings form input fields, selects, and textareas on focus.
+

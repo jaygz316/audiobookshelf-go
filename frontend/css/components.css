@@ -1,17 +1,33 @@
 .bookshelfRow {
   height: var(--bookshelf-row-height) !important;
   background-image: 
-    linear-gradient(to bottom, transparent 0px, transparent calc(var(--bookshelf-row-height) - 16px), var(--bookshelf-plank-top) calc(var(--bookshelf-row-height) - 16px), var(--bookshelf-plank-top) calc(var(--bookshelf-row-height) - 14px), var(--bookshelf-plank-mid) calc(var(--bookshelf-row-height) - 14px), var(--bookshelf-plank-bottom) var(--bookshelf-row-height)),
-    linear-gradient(to bottom, rgba(0, 0, 0, 0.6) 0px, rgba(0, 0, 0, 0) 12px),
-    linear-gradient(to bottom, var(--bookshelf-overlay), var(--bookshelf-overlay)),
+    /* 1. Shadow cast by the shelf above onto the back wall */
+    linear-gradient(to bottom, rgba(0, 0, 0, 0.45) 0px, rgba(0, 0, 0, 0) 16px),
+    /* 2. 3D shelf plank highlights and shadows (drawn on top of the wood texture) */
+    linear-gradient(to bottom,
+      transparent 0px,
+      transparent calc(var(--bookshelf-row-height) - 20px),
+      rgba(255, 255, 255, 0.2) calc(var(--bookshelf-row-height) - 20px),
+      rgba(255, 255, 255, 0.05) calc(var(--bookshelf-row-height) - 18px),
+      rgba(0, 0, 0, 0.15) calc(var(--bookshelf-row-height) - 18px),
+      rgba(0, 0, 0, 0.35) var(--bookshelf-row-height)
+    ),
+    /* 3. Solid back wall color covering the wood texture, and overlay tint on the plank */
+    linear-gradient(to bottom,
+      var(--color-bg) 0px,
+      var(--color-bg) calc(var(--bookshelf-row-height) - 20px),
+      var(--bookshelf-overlay) calc(var(--bookshelf-row-height) - 20px),
+      var(--bookshelf-overlay) var(--bookshelf-row-height)
+    ),
+    /* 4. The underlying wood grain texture */
     var(--bookshelf-texture-img) !important;
-  background-size: 100% var(--bookshelf-row-height), 100% var(--bookshelf-row-height), 100% 100%, auto 100% !important;
+  background-size: 100% 100%, 100% 100%, 100% 100%, auto 100% !important;
   background-repeat: no-repeat, no-repeat, no-repeat, repeat-x !important;
 }
 
 .bookshelfRow > div {
   align-items: flex-end !important;
-  padding-bottom: 20px !important; /* leaves room for cover reflection to draw on top of the 16px divider plank */
+  padding-bottom: 20px !important; /* leaves room for cover reflection to draw on top of the 20px divider plank */
 }
 
 .bookshelfRow .bookshelf-card,
@@ -29,18 +45,29 @@
   transform: translateY(-6px) !important;
 }
 
-.bookshelfRow .bookshelf-card img,
-.bookshelfRow .group img {
+.bookshelfRow .bookshelf-card .book-cover-wrapper,
+.bookshelfRow .group .book-cover-wrapper {
   width: 100% !important;
   height: 100% !important;
-  object-fit: cover;
   border-radius: 4px;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5), 0 2px 4px rgba(0, 0, 0, 0.4);
   -webkit-box-reflect: var(--bookshelf-reflect);
   transition: box-shadow 0.2s ease;
 }
 
-/* Card hover effect adjustments */
+.bookshelfRow .bookshelf-card:hover .book-cover-wrapper,
+.bookshelfRow .group:hover .book-cover-wrapper {
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.65), 0 4px 10px rgba(0, 0, 0, 0.45);
+}
+
+.bookshelfRow .bookshelf-card img,
+.bookshelfRow .group img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover;
+  border-radius: 4px;
+}
+
 /* 3D Book Cover Spine Crease & Shading */
 .book-spine-crease {
   position: absolute;
@@ -53,9 +80,18 @@
   background: linear-gradient(to right, rgba(0, 0, 0, 0.3) 0px, rgba(0, 0, 0, 0) 1px, rgba(255, 255, 255, 0.15) 3px, rgba(255, 255, 255, 0) 6px, rgba(0, 0, 0, 0.08) 8px, rgba(0, 0, 0, 0) 15px);
 }
 
-.bookshelfRow .bookshelf-card:hover img,
-.bookshelfRow .group:hover img {
-  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.65), 0 4px 10px rgba(0, 0, 0, 0.45);
+.bookshelfDividerCategorized {
+  background-image: 
+    linear-gradient(to bottom,
+      rgba(255, 255, 255, 0.25) 0px,
+      rgba(255, 255, 255, 0.05) 2px,
+      rgba(0, 0, 0, 0.15) 2px,
+      rgba(0, 0, 0, 0.4) 100%
+    ),
+    var(--bookshelf-texture-img) !important;
+  background-size: 100% 100%, auto 100% !important;
+  background-repeat: no-repeat, repeat-x !important;
+  box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.6) !important;
 }
 
 /* Keep hover details matching card dimensions */
@@ -626,5 +662,26 @@ input:checked + .abs-slider:before {
 .filter-submenu-option-btn:active,
 .filter-cat-row-btn:active {
   transform: scale(0.98);
+}
+
+/* Form Input Focus States */
+#settings-tab-content input[type="text"],
+#settings-tab-content input[type="password"],
+#settings-tab-content input[type="number"],
+#settings-tab-content input[type="email"],
+#settings-tab-content select,
+#settings-tab-content textarea {
+  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+#settings-tab-content input[type="text"]:focus,
+#settings-tab-content input[type="password"]:focus,
+#settings-tab-content input[type="number"]:focus,
+#settings-tab-content input[type="email"]:focus,
+#settings-tab-content select:focus,
+#settings-tab-content textarea:focus {
+  border-color: var(--color-accent, #e5a93b) !important;
+  box-shadow: 0 0 0 2px rgba(229, 169, 59, 0.25) !important;
+  outline: none !important;
 }
 
