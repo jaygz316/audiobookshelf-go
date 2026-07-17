@@ -219,7 +219,7 @@ function renderModal(libraryId, libraryName, folders) {
           <p class="text-xs text-black-100 text-center mb-4">Supports bulk files and nested audio/ebook folder structures</p>
           
           <div class="flex items-center space-x-2">
-            <button id="select-files-btn" class="bg-accent hover:bg-accent-hover text-primary font-semibold px-3 py-1.5 rounded text-xs transition-colors focus:outline-none">
+            <button id="select-files-btn" class="bg-accent hover:opacity-90 text-primary font-semibold px-3 py-1.5 rounded text-xs transition-opacity focus:outline-none">
               Choose Files
             </button>
             <button id="select-folder-btn" class="bg-black-400 hover:bg-black-300 border border-black-300 text-white font-semibold px-3 py-1.5 rounded text-xs transition-colors focus:outline-none">
@@ -253,7 +253,7 @@ function renderModal(libraryId, libraryName, folders) {
         <button id="cancel-upload-btn" class="bg-black-400 hover:bg-black-300 border border-black-300 text-white px-4 py-2 rounded text-sm font-semibold transition-colors focus:outline-none">
           Cancel
         </button>
-        <button id="upload-start-btn" class="bg-accent hover:bg-accent-hover text-primary px-5 py-2 rounded text-sm font-semibold transition-colors focus:outline-none opacity-50 cursor-not-allowed" disabled>
+        <button id="upload-start-btn" class="bg-accent hover:opacity-90 text-primary px-5 py-2 rounded text-sm font-semibold transition-opacity focus:outline-none opacity-50 cursor-not-allowed" disabled>
           Upload & Scan
         </button>
       </div>
@@ -533,7 +533,7 @@ function startMultipartUpload(libraryId) {
       `;
 
       footerContainer.innerHTML = `
-        <button id="upload-success-close-btn" class="bg-accent hover:bg-accent-hover text-primary px-5 py-2 rounded text-sm font-semibold transition-colors focus:outline-none">
+        <button id="upload-success-close-btn" class="bg-accent hover:opacity-90 text-primary px-5 py-2 rounded text-sm font-semibold transition-opacity focus:outline-none">
           Done
         </button>
       `;
@@ -629,7 +629,7 @@ function renderPodcastModal(libraryId, libraryName, folders) {
         <div id="pane-search-itunes" class="space-y-4">
           <form id="podcast-search-form" class="flex space-x-2">
             <input type="text" id="podcast-search-input" class="flex-grow bg-black-500 text-white border border-black-300 rounded px-3 py-2 text-xs focus:outline-none focus:border-accent" placeholder="Search podcast title, host or author..." required>
-            <button type="submit" id="podcast-search-btn" class="bg-accent hover:bg-accent-hover text-primary font-bold px-4 py-2 rounded text-xs transition-colors focus:outline-none flex items-center gap-1">
+            <button type="submit" id="podcast-search-btn" class="bg-accent hover:opacity-90 text-primary font-bold px-4 py-2 rounded text-xs transition-opacity focus:outline-none flex items-center gap-1">
               <span class="material-symbols text-base">search</span> Search
             </button>
           </form>
@@ -651,7 +651,7 @@ function renderPodcastModal(libraryId, libraryName, folders) {
             </div>
             
             <div class="flex justify-end pt-2">
-              <button type="submit" id="subscribe-rss-btn" class="bg-accent hover:bg-accent-hover text-primary px-5 py-2 rounded text-xs font-bold uppercase tracking-wider transition-colors focus:outline-none">
+              <button type="submit" id="subscribe-rss-btn" class="bg-accent hover:opacity-90 text-primary px-5 py-2 rounded text-xs font-bold uppercase tracking-wider transition-opacity focus:outline-none">
                 Subscribe
               </button>
             </div>
@@ -761,7 +761,7 @@ function renderPodcastModal(libraryId, libraryName, folders) {
         </div>
         <div class="flex-shrink-0">
           ${hasFeed ? `
-            <button id="sub-btn-${index}" class="bg-accent hover:bg-accent-hover text-primary text-xs font-bold px-2.5 py-1 rounded transition-colors focus:outline-none">
+            <button id="sub-btn-${index}" class="bg-accent hover:opacity-90 text-primary text-xs font-bold px-2.5 py-1 rounded transition-opacity focus:outline-none">
               Subscribe
             </button>
           ` : `

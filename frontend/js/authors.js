@@ -1080,7 +1080,7 @@ function openEditAuthorModal(author) {
           <label class="block text-xs uppercase font-semibold text-black-100 mb-1.5">ASIN</label>
           <div class="flex space-x-2">
             <input type="text" id="edit-author-asin" class="flex-grow bg-black-500 text-white px-3 py-2 rounded border border-black-300 focus:outline-none focus:border-accent text-xs" value="${escapeHtml(author.asin || '')}">
-            <button id="match-author-btn" class="bg-accent hover:bg-accent-hover text-black px-4 py-2 rounded text-xs font-semibold whitespace-nowrap">Match</button>
+            <button id="match-author-btn" class="bg-accent hover:opacity-90 transition-opacity text-black px-4 py-2 rounded text-xs font-semibold whitespace-nowrap">Match</button>
           </div>
         </div>
         <div>
@@ -1099,7 +1099,7 @@ function openEditAuthorModal(author) {
       </div>
       <div class="px-6 py-4 border-t border-black-400 flex justify-end space-x-3">
         <button id="cancel-author-edit" class="bg-black-400 hover:bg-black-300 text-white px-4 py-2 rounded text-xs font-semibold">Cancel</button>
-        <button id="save-author-edit" class="bg-accent hover:bg-accent-hover text-black px-4 py-2 rounded text-xs font-semibold">Save</button>
+        <button id="save-author-edit" class="bg-accent hover:opacity-90 transition-opacity text-black px-4 py-2 rounded text-xs font-semibold">Save</button>
       </div>
     </div>
   `;
@@ -1186,7 +1186,7 @@ function openMatchAuthorModal(author, parentCloseModal) {
               <option value="audnexus">Audnexus</option>
             </select>
           </div>
-          <button id="match-search-btn" class="bg-accent hover:bg-accent-hover text-black px-5 py-2 rounded text-xs font-semibold h-[34px]">Search</button>
+          <button id="match-search-btn" class="bg-accent hover:opacity-90 transition-opacity text-black px-5 py-2 rounded text-xs font-semibold h-[34px]">Search</button>
         </div>
 
         <div id="match-results-container" class="space-y-3 pt-4 border-t border-black-400 overflow-y-auto max-h-[50vh]">
@@ -1243,7 +1243,7 @@ function openMatchAuthorModal(author, parentCloseModal) {
               ${res.description ? `<p class="text-black-100 text-xs mt-1 line-clamp-2 leading-relaxed">${escapeHtml(res.description)}</p>` : ''}
             </div>
           </div>
-          <button class="select-match-btn bg-accent hover:bg-accent-hover text-black px-3 py-1.5 rounded text-[11px] font-bold flex-shrink-0">Select Match</button>
+          <button class="select-match-btn bg-accent hover:opacity-90 transition-opacity text-black px-3 py-1.5 rounded text-[11px] font-bold flex-shrink-0">Select Match</button>
         `;
 
         item.querySelector('.select-match-btn').onclick = async () => {
@@ -1312,7 +1312,7 @@ function openEditSeriesModal(series) {
       </div>
       <div class="px-6 py-4 border-t border-black-400 flex justify-end space-x-3">
         <button id="cancel-series-edit" class="bg-black-400 hover:bg-black-300 text-white px-4 py-2 rounded text-xs font-semibold">Cancel</button>
-        <button id="save-series-edit" class="bg-accent hover:bg-accent-hover text-black px-4 py-2 rounded text-xs font-semibold">Save</button>
+        <button id="save-series-edit" class="bg-accent hover:opacity-90 transition-opacity text-black px-4 py-2 rounded text-xs font-semibold">Save</button>
       </div>
     </div>
   `;

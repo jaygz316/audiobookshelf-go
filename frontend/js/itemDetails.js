@@ -483,7 +483,7 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
                 </div>
 
                 <div class="flex justify-end pt-1">
-                  <button id="podcast-details-save-settings-btn" class="bg-accent hover:bg-accent-hover text-primary text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded transition-colors focus:outline-none">
+                  <button id="podcast-details-save-settings-btn" class="bg-accent hover:opacity-90 text-primary text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded transition-opacity focus:outline-none">
                     Save Settings
                   </button>
                 </div>
