@@ -131,17 +131,17 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
           </button>
           ${isAdmin ? `
             <div class="flex items-center space-x-2">
-              <button id="details-match-btn" class="bg-black-500 hover:bg-black-400 border border-black-300 text-white font-semibold px-3 py-1.5 rounded text-xs flex items-center space-x-1 transition-colors">
+              <button id="details-match-btn" class="bg-black-500 hover:bg-black-400 border border-black-300 text-white font-semibold px-3 py-1.5 rounded text-xs flex items-center space-x-1 transition-colors" title="Match Item">
                 <span class="material-symbols text-sm">find_replace</span>
-                <span>Match</span>
+                <span class="hidden sm:inline">Match</span>
               </button>
-              <button id="details-edit-btn" class="bg-black-500 hover:bg-black-400 border border-black-300 text-white font-semibold px-3 py-1.5 rounded text-xs flex items-center space-x-1 transition-colors">
+              <button id="details-edit-btn" class="bg-black-500 hover:bg-black-400 border border-black-300 text-white font-semibold px-3 py-1.5 rounded text-xs flex items-center space-x-1 transition-colors" title="Edit Details">
                 <span class="material-symbols text-sm">edit</span>
-                <span>Edit Details</span>
+                <span class="hidden sm:inline">Edit Details</span>
               </button>
-              <button id="details-delete-item-btn" class="bg-black-500 hover:bg-red-950 border border-black-300 text-error hover:text-white font-semibold px-3 py-1.5 rounded text-xs flex items-center space-x-1 transition-colors">
+              <button id="details-delete-item-btn" class="bg-black-500 hover:bg-red-950 border border-black-300 text-error hover:text-white font-semibold px-3 py-1.5 rounded text-xs flex items-center space-x-1 transition-colors" title="Delete Item">
                 <span class="material-symbols text-sm">delete</span>
-                <span>Delete</span>
+                <span class="hidden sm:inline">Delete</span>
               </button>
             </div>
           ` : ''}
@@ -331,7 +331,7 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
             ` : ''}
 
             <!-- Metadata Grid -->
-            <div class="grid grid-cols-2 md:grid-cols-3 gap-4 text-xs bg-primary/40 border border-black-400/50 rounded-md p-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 text-xs bg-primary/40 border border-black-400/50 rounded-md p-4">
               ${publisher ? `
                 <div>
                   <p class="text-black-100 uppercase font-semibold">Publisher</p>
@@ -385,7 +385,7 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
                 </div>
               ` : ''}
               ${isAdmin && item.path ? `
-                <div class="col-span-2 md:col-span-3">
+                <div class="col-span-1 sm:col-span-2 md:col-span-3">
                   <p class="text-black-100 uppercase font-semibold">Path</p>
                   <p class="text-white mt-0.5 text-xs font-mono break-all select-all">${escapeHtml(item.path)}</p>
                 </div>
@@ -436,7 +436,7 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
                   </div>
                   <label class="relative inline-flex items-center cursor-pointer flex-shrink-0">
                     <input type="checkbox" id="podcast-details-auto-download" class="sr-only peer" ${item.media.autoDownloadEpisodes ? 'checked' : ''}>
-                    <div class="w-8 h-4 bg-black-400 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-accent"></div>
+                    <div class="w-8 h-4 bg-black-400 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-[#10b981]"></div>
                   </label>
                 </div>
 
@@ -448,7 +448,7 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
                   </div>
                   <label class="relative inline-flex items-center cursor-pointer flex-shrink-0">
                     <input type="checkbox" id="podcast-details-auto-delete-played" class="sr-only peer" ${item.media.autoDeletePlayed ? 'checked' : ''}>
-                    <div class="w-8 h-4 bg-black-400 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-accent"></div>
+                    <div class="w-8 h-4 bg-black-400 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-[#10b981]"></div>
                   </label>
                 </div>
 

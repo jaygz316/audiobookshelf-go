@@ -986,7 +986,7 @@ export function triggerExpandedPlayer() {
 
   const dialog = document.createElement('dialog');
   dialog.id = 'expanded-player-dialog';
-  dialog.className = 'fixed inset-0 w-full h-full bg-primary flex flex-col p-6 text-white z-50 overflow-hidden select-none max-w-none max-h-none border-none outline-none';
+  dialog.className = 'fixed inset-0 w-full h-full bg-primary flex flex-col p-4 sm:p-6 text-white z-50 overflow-hidden select-none max-w-none max-h-none border-none outline-none';
 
   const token = localStorage.getItem('token');
   const ts = currentItem.updatedAt || currentItem.addedAt || Date.now();
@@ -1014,7 +1014,7 @@ export function triggerExpandedPlayer() {
 
   dialog.innerHTML = `
     <!-- Header -->
-    <div class="flex items-center justify-between border-b border-black-600/50 pb-4 flex-shrink-0 w-full max-w-3xl mx-auto">
+    <div class="flex items-center justify-between border-b border-black-600/50 pb-3 sm:pb-4 flex-shrink-0 w-full max-w-3xl mx-auto">
       <button id="expanded-close-btn" class="p-2 hover:bg-black-500 rounded text-black-50 hover:text-white flex items-center justify-center transition-all" title="Minimize">
         <span class="material-symbols text-2xl">keyboard_arrow_down</span>
       </button>
@@ -1027,67 +1027,67 @@ export function triggerExpandedPlayer() {
     </div>
 
     <!-- Main Content Container -->
-    <div class="flex-grow flex flex-col items-center justify-center py-6 w-full max-w-xl mx-auto overflow-y-auto no-scroll space-y-6">
+    <div class="flex-grow flex flex-col items-center justify-center py-4 sm:py-6 w-full max-w-xl mx-auto overflow-y-auto no-scroll space-y-4 sm:space-y-6">
       <!-- Large Cover Image -->
-      <div class="w-64 h-64 sm:w-72 sm:h-72 md:w-80 md:h-80 bg-black-500 rounded-lg shadow-2xl border border-black-400 overflow-hidden flex-shrink-0 relative group">
+      <div class="w-48 h-48 sm:w-64 sm:h-64 md:w-80 md:h-80 bg-black-500 rounded-lg shadow-2xl border border-black-400 overflow-hidden flex-shrink-0 relative group max-h-[30vh] max-w-[30vh] aspect-square">
         <img src="${coverUrl}" alt="${title}" class="w-full h-full object-cover">
       </div>
 
       <!-- Title / Author Info -->
-      <div class="text-center px-4 w-full flex-shrink-0">
-        <h2 class="text-xl font-bold text-white tracking-wide truncate max-w-full" title="${title}">${title}</h2>
-        <p class="text-sm text-black-50 mt-1 truncate max-w-full" title="${author}">${author}</p>
-        <div id="expanded-chapter-info" class="text-xs text-accent mt-2 font-semibold truncate hidden"></div>
+      <div class="text-center px-4 w-full flex-shrink-0 space-y-1">
+        <h2 class="text-lg sm:text-xl font-bold text-white tracking-wide truncate max-w-full" title="${title}">${title}</h2>
+        <p class="text-xs sm:text-sm text-black-50 truncate max-w-full" title="${author}">${author}</p>
+        <div id="expanded-chapter-info" class="text-[10px] sm:text-xs text-accent font-semibold truncate hidden"></div>
       </div>
     </div>
 
     <!-- Control & Progress Section -->
-    <div class="w-full max-w-xl mx-auto pb-6 space-y-5 flex-shrink-0">
+    <div class="w-full max-w-xl mx-auto pb-4 sm:pb-6 space-y-4 sm:space-y-5 flex-shrink-0">
       <!-- Timeline and Progress -->
       <div class="flex flex-col space-y-1">
-        <div class="flex items-center w-full space-x-2 text-xs text-black-50">
-          <span id="expanded-time-elapsed" class="min-w-[40px]">0:00</span>
+        <div class="flex items-center w-full space-x-2 text-[10px] sm:text-xs text-black-50">
+          <span id="expanded-time-elapsed" class="min-w-[35px] sm:min-w-[40px]">0:00</span>
           <div class="flex-grow relative h-6 flex items-center">
             <div id="expanded-waveform-container" class="absolute inset-0 w-full h-full pointer-events-none flex items-center z-0">
               <canvas id="expanded-waveform-canvas" class="w-full h-full opacity-60"></canvas>
             </div>
             <input id="expanded-timeline" type="range" min="0" max="100" value="0" class="w-full absolute inset-0 accent-accent bg-transparent h-1 cursor-pointer z-10">
           </div>
-          <span id="expanded-time-remaining" class="min-w-[40px] text-right">0:00</span>
+          <span id="expanded-time-remaining" class="min-w-[35px] sm:min-w-[40px] text-right">0:00</span>
         </div>
       </div>
 
       <!-- Playback buttons -->
-      <div class="flex items-center justify-center space-x-5 sm:space-x-7">
-        <button id="expanded-prev-chapter" class="p-2 hover:bg-black-500 rounded text-black-50 hover:text-white transition-all ${currentItem.media?.chapters?.length > 0 ? '' : 'hidden'}" title="Previous Chapter">
-          <span class="material-symbols text-xl">first_page</span>
+      <div class="flex items-center justify-center space-x-4 sm:space-x-6">
+        <button id="expanded-prev-chapter" class="p-1.5 sm:p-2 hover:bg-black-500 rounded text-black-50 hover:text-white transition-all ${currentItem.media?.chapters?.length > 0 ? '' : 'hidden'}" title="Previous Chapter">
+          <span class="material-symbols text-lg sm:text-xl">first_page</span>
         </button>
-        <button id="expanded-seek-back" class="p-2 hover:bg-black-500 rounded text-black-50 hover:text-white transition-all" title="Seek Back">
-          <span class="material-symbols text-xl">replay_10</span>
-        </button>
-        
-        <button id="expanded-play-pause" class="p-3.5 bg-accent hover:opacity-90 rounded-full text-primary flex items-center justify-center animate-none shadow-lg hover:scale-105 transition-all" title="Play/Pause">
-          <span id="expanded-play-pause-icon" class="material-symbols text-2xl font-bold">play_arrow</span>
+        <button id="expanded-seek-back" class="p-1.5 sm:p-2 hover:bg-black-500 rounded text-black-50 hover:text-white transition-all" title="Seek Back">
+          <span class="material-symbols text-lg sm:text-xl">replay_10</span>
         </button>
         
-        <button id="expanded-seek-forward" class="p-2 hover:bg-black-500 rounded text-black-50 hover:text-white transition-all" title="Seek Forward">
-          <span class="material-symbols text-xl">forward_10</span>
+        <button id="expanded-play-pause" class="p-3 sm:p-3.5 bg-accent hover:opacity-90 rounded-full text-primary flex items-center justify-center animate-none shadow-lg hover:scale-105 transition-all" title="Play/Pause">
+          <span id="expanded-play-pause-icon" class="material-symbols text-xl sm:text-2xl font-bold">play_arrow</span>
         </button>
-        <button id="expanded-next" class="p-2 hover:bg-black-500 rounded text-black-50 hover:text-white transition-all ${currentItem.media?.chapters?.length > 0 || getQueueLength() > 0 ? '' : 'hidden'}" title="Next">
-          <span class="material-symbols text-xl">last_page</span>
+        
+        <button id="expanded-seek-forward" class="p-1.5 sm:p-2 hover:bg-black-500 rounded text-black-50 hover:text-white transition-all" title="Seek Forward">
+          <span class="material-symbols text-lg sm:text-xl">forward_10</span>
+        </button>
+        <button id="expanded-next" class="p-1.5 sm:p-2 hover:bg-black-500 rounded text-black-50 hover:text-white transition-all ${currentItem.media?.chapters?.length > 0 || getQueueLength() > 0 ? '' : 'hidden'}" title="Next">
+          <span class="material-symbols text-lg sm:text-xl">last_page</span>
         </button>
       </div>
 
       <!-- Secondary Controls -->
-      <div class="border-t border-black-600/30 pt-4 flex flex-col space-y-3 sm:space-y-4">
-        <div class="flex items-center justify-center space-x-3 w-full max-w-sm mx-auto px-4">
+      <div class="border-t border-black-600/30 pt-3 sm:pt-4 flex flex-col space-y-2.5 sm:space-y-4">
+        <div class="flex items-center justify-center space-x-2 sm:space-x-3 w-full max-w-xs sm:max-w-sm mx-auto px-4">
           <button id="expanded-volume-btn" class="p-1 hover:bg-black-500 rounded text-black-50 hover:text-white transition-all">
-            <span id="expanded-volume-icon" class="material-symbols text-lg">volume_up</span>
+            <span id="expanded-volume-icon" class="material-symbols text-base sm:text-lg">volume_up</span>
           </button>
-          <input id="expanded-volume-slider" type="range" min="0" max="100" value="${audio ? Math.round(audio.volume * 100) : 100}" class="flex-grow accent-accent bg-black-500 h-1.5 rounded-lg cursor-pointer">
+          <input id="expanded-volume-slider" type="range" min="0" max="100" value="${audio ? Math.round(audio.volume * 100) : 100}" class="flex-grow accent-accent bg-black-500 h-1 sm:h-1.5 rounded-lg cursor-pointer">
         </div>
 
-        <div class="flex items-center justify-around text-black-50 px-2 max-w-md mx-auto w-full">
+        <div class="flex items-center justify-around text-black-50 px-1 sm:px-2 max-w-sm sm:max-w-md mx-auto w-full">
           <div class="flex flex-col items-center space-y-0.5">
             <select id="expanded-speed" class="bg-black-500 border border-black-300 rounded text-[10px] text-white px-1.5 py-0.5 focus:outline-none cursor-pointer">
               ${speedOptions}
@@ -1095,25 +1095,25 @@ export function triggerExpandedPlayer() {
             <span class="text-[9px] text-black-100 font-semibold uppercase">Speed</span>
           </div>
 
-          <button id="expanded-sleep-btn" class="p-2 hover:bg-black-500 rounded hover:text-white flex flex-col items-center space-y-0.5 relative" title="Sleep Timer">
-            <span id="expanded-sleep-icon" class="material-symbols text-lg">bedtime</span>
-            <span id="expanded-sleep-badge" class="absolute top-1 right-2 bg-accent text-primary text-[8px] font-bold rounded-full w-3.5 h-3.5 flex items-center justify-center hidden"></span>
+          <button id="expanded-sleep-btn" class="p-1.5 sm:p-2 hover:bg-black-500 rounded hover:text-white flex flex-col items-center space-y-0.5 relative" title="Sleep Timer">
+            <span id="expanded-sleep-icon" class="material-symbols text-base sm:text-lg">bedtime</span>
+            <span id="expanded-sleep-badge" class="absolute top-1 right-1 sm:right-2 bg-accent text-primary text-[7px] sm:text-[8px] font-bold rounded-full w-3 h-3 sm:w-3.5 sm:h-3.5 flex items-center justify-center hidden"></span>
             <span class="text-[9px] text-black-100 font-semibold uppercase">Sleep</span>
           </button>
 
-          <button id="expanded-chapters-btn" class="p-2 hover:bg-black-500 rounded hover:text-white flex flex-col items-center space-y-0.5 ${currentItem.media?.chapters?.length > 0 ? '' : 'opacity-40 pointer-events-none'}" title="Chapters">
-            <span class="material-symbols text-lg">format_list_bulleted</span>
+          <button id="expanded-chapters-btn" class="p-1.5 sm:p-2 hover:bg-black-500 rounded hover:text-white flex flex-col items-center space-y-0.5 ${currentItem.media?.chapters?.length > 0 ? '' : 'opacity-40 pointer-events-none'}" title="Chapters">
+            <span class="material-symbols text-base sm:text-lg">format_list_bulleted</span>
             <span class="text-[9px] text-black-100 font-semibold uppercase">Chapters</span>
           </button>
 
-          <button id="expanded-queue-btn" class="p-2 hover:bg-black-500 rounded hover:text-white flex flex-col items-center space-y-0.5 relative" title="Queue">
-            <span class="material-symbols text-lg">queue_music</span>
-            <span id="expanded-queue-badge" class="absolute top-1 right-2 bg-accent text-primary text-[8px] font-bold rounded-full w-3.5 h-3.5 flex items-center justify-center hidden"></span>
+          <button id="expanded-queue-btn" class="p-1.5 sm:p-2 hover:bg-black-500 rounded hover:text-white flex flex-col items-center space-y-0.5 relative" title="Queue">
+            <span class="material-symbols text-base sm:text-lg">queue_music</span>
+            <span id="expanded-queue-badge" class="absolute top-1 right-1 sm:right-2 bg-accent text-primary text-[7px] sm:text-[8px] font-bold rounded-full w-3 h-3 sm:w-3.5 sm:h-3.5 flex items-center justify-center hidden"></span>
             <span class="text-[9px] text-black-100 font-semibold uppercase">Queue</span>
           </button>
 
-          <button id="expanded-bookmark-btn" class="p-2 hover:bg-black-500 rounded hover:text-white flex flex-col items-center space-y-0.5" title="Add Bookmark">
-            <span class="material-symbols text-lg">bookmark_add</span>
+          <button id="expanded-bookmark-btn" class="p-1.5 sm:p-2 hover:bg-black-500 rounded hover:text-white flex flex-col items-center space-y-0.5" title="Add Bookmark">
+            <span class="material-symbols text-base sm:text-lg">bookmark_add</span>
             <span class="text-[9px] text-black-100 font-semibold uppercase">Bookmark</span>
           </button>
         </div>

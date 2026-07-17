@@ -139,7 +139,7 @@
   border-radius: 50%;
 }
 input:checked + .abs-slider {
-  background-color: var(--color-success, #22c55e) !important;
+  background-color: #10b981 !important;
 }
 input:checked + .abs-slider:before {
   transform: translateX(20px);
@@ -902,5 +902,79 @@ input:checked + .abs-slider:before {
 }
 .border-b-transparent {
   border-bottom-color: transparent !important;
+}
+
+/* Selected Library Row Border styling (brand orange/gold highlight) */
+.library-row.border-accent {
+  border-left-color: #e5a93b !important;
+  border-color: #e5a93b !important;
+}
+
+/* Settings Page Form Buttons styling */
+#settings-tab-content button {
+  border-radius: 4px !important;
+  font-weight: 600 !important;
+  transition: all 0.15s ease-in-out !important;
+}
+#settings-tab-content button.bg-accent {
+  background-color: var(--color-accent, #e5a93b) !important;
+  color: #111111 !important;
+}
+#settings-tab-content button.bg-accent:hover {
+  opacity: 0.9 !important;
+}
+#settings-tab-content button.bg-black-400,
+#settings-tab-content button.bg-black-500 {
+  background-color: var(--color-black-400, #333333) !important;
+  border: 1px solid var(--color-black-300, #444444) !important;
+  color: #ffffff !important;
+}
+#settings-tab-content button.bg-black-400:hover,
+#settings-tab-content button.bg-black-500:hover {
+  background-color: var(--color-black-300, #444444) !important;
+}
+
+/* Modal General Styling overrides */
+div[class*="fixed"][class*="z-50"] button {
+  border-radius: 4px !important;
+  font-weight: 600 !important;
+  transition: all 0.15s ease-in-out !important;
+}
+div[class*="fixed"][class*="z-50"] button.bg-accent {
+  background-color: var(--color-accent, #e5a93b) !important;
+  color: #111111 !important;
+}
+div[class*="fixed"][class*="z-50"] button.bg-accent:hover {
+  opacity: 0.9 !important;
+}
+div[class*="fixed"][class*="z-50"] button.bg-black-400,
+div[class*="fixed"][class*="z-50"] button.bg-black-500 {
+  background-color: var(--color-black-400, #333333) !important;
+  border: 1px solid var(--color-black-300, #444444) !important;
+  color: #ffffff !important;
+}
+div[class*="fixed"][class*="z-50"] button.bg-black-400:hover,
+div[class*="fixed"][class*="z-50"] button.bg-black-500:hover {
+  background-color: var(--color-black-300, #444444) !important;
+}
+
+div[class*="fixed"][class*="z-50"] input[type="text"],
+div[class*="fixed"][class*="z-50"] input[type="password"],
+div[class*="fixed"][class*="z-50"] input[type="number"],
+div[class*="fixed"][class*="z-50"] input[type="email"],
+div[class*="fixed"][class*="z-50"] select,
+div[class*="fixed"][class*="z-50"] textarea {
+  border-radius: 4px !important;
+  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out !important;
+}
+div[class*="fixed"][class*="z-50"] input[type="text"]:focus,
+div[class*="fixed"][class*="z-50"] input[type="password"]:focus,
+div[class*="fixed"][class*="z-50"] input[type="number"]:focus,
+div[class*="fixed"][class*="z-50"] input[type="email"]:focus,
+div[class*="fixed"][class*="z-50"] select:focus,
+div[class*="fixed"][class*="z-50"] textarea:focus {
+  border-color: var(--color-accent, #e5a93b) !important;
+  box-shadow: 0 0 0 2px rgba(229, 169, 59, 0.25) !important;
+  outline: none !important;
 }
 

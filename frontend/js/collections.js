@@ -450,7 +450,7 @@ export async function loadCollectionDetails(collectionId, libraryId) {
         </div>
 
         <div class="bg-primary border border-black-300 p-6 rounded-md space-y-4">
-          <div class="flex justify-between items-start border-b border-black-400 pb-4">
+          <div class="flex flex-col sm:flex-row justify-between items-start gap-4 sm:gap-0 border-b border-black-400 pb-4">
             <div>
               <div class="flex items-center space-x-2 mb-1">
                 <h2 class="text-2xl font-bold text-white" id="coll-details-title">${escapeHtml(collection.name)}</h2>
@@ -459,7 +459,7 @@ export async function loadCollectionDetails(collectionId, libraryId) {
               <p class="text-xs text-black-50 mb-2" id="coll-details-desc">${escapeHtml(collection.description) || 'No description provided.'}</p>
               <p class="text-xs text-black-100">Created: ${window.formatDateTime ? window.formatDateTime(collection.createdAt) : new Date(collection.createdAt).toLocaleString()}</p>
             </div>
-            <div class="space-x-2 flex-shrink-0">
+            <div class="space-x-2 flex-shrink-0 flex items-center w-full sm:w-auto justify-end sm:justify-start">
               <button id="edit-coll-btn" class="bg-black-400 hover:bg-black-300 border border-black-300 text-white font-semibold px-3 py-1.5 rounded text-xs">Edit Details</button>
               <button id="delete-coll-btn" class="bg-red-900 hover:bg-red-800 text-red-200 font-semibold px-3 py-1.5 rounded text-xs">Delete</button>
             </div>

@@ -375,12 +375,12 @@ export async function loadPlaylistDetails(playlistId, libraryId) {
         </div>
 
         <div class="bg-primary border border-black-300 p-6 rounded-md space-y-4">
-          <div class="flex justify-between items-start border-b border-black-400 pb-4">
+          <div class="flex flex-col sm:flex-row justify-between items-start gap-4 sm:gap-0 border-b border-black-400 pb-4">
             <div>
               <h2 class="text-2xl font-bold text-white mb-1" id="playlist-title">${escapeHtml(playlist.name)}</h2>
               <p class="text-xs text-black-100">Created: ${window.formatDateTime ? window.formatDateTime(playlist.createdAt) : new Date(playlist.createdAt).toLocaleString()}</p>
             </div>
-            <div class="space-x-2 flex items-center">
+            <div class="space-x-2 flex items-center w-full sm:w-auto justify-end sm:justify-start flex-shrink-0">
               ${itemsDetails.length > 0 ? `
               <button id="play-playlist-btn" class="bg-accent hover:opacity-90 text-primary font-bold px-3 py-1.5 rounded text-xs inline-flex items-center space-x-1 transition-opacity">
                 <span class="material-symbols text-sm">play_arrow</span>
