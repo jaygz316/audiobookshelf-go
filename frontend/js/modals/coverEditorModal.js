@@ -59,7 +59,7 @@ export function triggerCoverEditorModal(item, libraryId, onSaveSuccess) {
         <!-- Right: Search, Upload & Background Fill Tabs -->
         <div class="flex flex-col h-full min-h-[300px]">
           <!-- Tab Headers -->
-          <div class="flex border-b border-black-400 text-xs font-semibold mb-4 flex-shrink-0">
+          <div class="flex border-b border-black-400 text-xs font-semibold mb-4 flex-shrink-0 overflow-x-auto whitespace-nowrap scrollbar-none">
             <button id="tab-btn-search" class="px-4 py-2 border-b-2 border-accent text-white">Search Providers</button>
             <button id="tab-btn-upload" class="px-4 py-2 border-b-2 border-transparent text-black-100 hover:text-white">Upload File</button>
             <button id="tab-btn-bg" class="px-4 py-2 border-b-2 border-transparent text-black-100 hover:text-white">Padding & Color</button>

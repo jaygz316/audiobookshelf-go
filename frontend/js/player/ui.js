@@ -110,6 +110,15 @@ export function updatePlayPauseButton(isPlaying) {
     const el = document.getElementById(id);
     if (el) el.textContent = isPlaying ? 'pause' : 'play_arrow';
   });
+
+  const coverContainer = document.getElementById('expanded-cover-container');
+  if (coverContainer) {
+    if (isPlaying) {
+      coverContainer.classList.remove('animation-paused');
+    } else {
+      coverContainer.classList.add('animation-paused');
+    }
+  }
 }
 
 export function updateVolumeIcon(vol) {
@@ -1071,9 +1080,8 @@ export function triggerExpandedPlayer() {
     <!-- Main Content Container -->
     <div class="flex-grow flex flex-col items-center justify-center py-4 sm:py-6 w-full max-w-xl mx-auto overflow-y-auto no-scroll space-y-4 sm:space-y-6">
       <!-- Large Cover Image -->
-      <div class="w-48 h-48 sm:w-64 sm:h-64 md:w-80 md:h-80 bg-black-500 rounded-lg shadow-2xl border border-black-400 overflow-hidden flex-shrink-0 relative group max-h-[30vh] max-w-[30vh] aspect-square">
+      <div id="expanded-cover-container" class="w-48 h-48 sm:w-64 sm:h-64 md:w-80 md:h-80 bg-black-500 rounded-full shadow-2xl border-4 border-black-400/80 overflow-hidden flex-shrink-0 relative group max-h-[30vh] max-w-[30vh] aspect-square animate-spin-slow animation-paused transition-transform duration-300">
         <img src="${coverUrl}" alt="${title}" class="w-full h-full object-cover">
-        ${currentItem.mediaType === 'book' ? '<div class="book-spine-crease"></div>' : ''}
       </div>
 
       <!-- Title / Author Info -->
