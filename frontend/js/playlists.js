@@ -385,8 +385,8 @@ export async function loadPlaylistDetails(playlistId, libraryId) {
     container.innerHTML = `
       <div class="p-6 space-y-6 max-w-3xl mx-auto">
         <div class="flex items-center space-x-2">
-          <button id="back-playlists-btn" class="flex items-center space-x-1 text-sm text-black-50 hover:text-white">
-            <span class="material-symbols">arrow_back</span>
+          <button id="back-playlists-btn" class="flex items-center space-x-1.5 text-sm text-black-100 hover:text-white transition-colors cursor-pointer">
+            <span class="material-symbols text-sm">arrow_back</span>
             <span>Back to Playlists</span>
           </button>
         </div>
@@ -399,13 +399,19 @@ export async function loadPlaylistDetails(playlistId, libraryId) {
             </div>
             <div class="space-x-2 flex items-center w-full sm:w-auto justify-end sm:justify-start flex-shrink-0">
               ${itemsDetails.length > 0 ? `
-              <button id="play-playlist-btn" class="bg-accent hover:opacity-90 text-primary font-bold px-3 py-1.5 rounded text-xs inline-flex items-center space-x-1 transition-opacity">
+              <button id="play-playlist-btn" class="bg-accent hover:opacity-90 text-primary font-bold px-3 py-1.5 rounded text-xs inline-flex items-center space-x-1 transition-opacity cursor-pointer">
                 <span class="material-symbols text-sm">play_arrow</span>
                 <span>Play</span>
               </button>
               ` : ''}
-              <button id="edit-playlist-btn" class="bg-black-400 hover:bg-black-300 border border-black-300 text-white font-semibold px-3 py-1.5 rounded text-xs">Edit Name</button>
-              <button id="delete-playlist-btn" class="bg-red-900 hover:bg-red-800 text-red-200 font-semibold px-3 py-1.5 rounded text-xs">Delete</button>
+              <button id="edit-playlist-btn" class="bg-black-400 hover:bg-black-300 border border-black-300 text-white font-semibold px-3 py-1.5 rounded text-xs flex items-center space-x-1 transition-colors cursor-pointer">
+                <span class="material-symbols text-xs">edit</span>
+                <span>Edit Name</span>
+              </button>
+              <button id="delete-playlist-btn" class="bg-black-400 hover:bg-red-900/40 border border-red-500/30 text-error hover:text-white hover:border-red-500/50 font-semibold px-3 py-1.5 rounded text-xs flex items-center space-x-1 transition-colors cursor-pointer">
+                <span class="material-symbols text-xs">delete</span>
+                <span>Delete</span>
+              </button>
             </div>
           </div>
 
@@ -470,12 +476,15 @@ export async function loadPlaylistDetails(playlistId, libraryId) {
       }
     };
 
-    document.getElementById('edit-playlist-btn').onclick = () => {
-      const newName = prompt('Enter new name for playlist:', playlist.name);
+    document.getElementById('edit-playlist-btn').onclick = async () => {
+      const newName = await window.showPrompt('Rename Playlist', 'Enter new name for playlist:', playlist.name);
       if (newName && newName.trim()) {
-        request('PATCH', `/api/playlists/${playlist.id}`, { name: newName.trim() })
-          .then(() => loadPlaylistDetails(playlist.id, libraryId))
-          .catch(err => showToast('Rename failed: ' + err.message, 'error'));
+        try {
+          await request('PATCH', `/api/playlists/${playlist.id}`, { name: newName.trim() });
+          loadPlaylistDetails(playlist.id, libraryId);
+        } catch (err) {
+          showToast('Rename failed: ' + err.message, 'error');
+        }
       }
     };
 

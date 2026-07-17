@@ -63,9 +63,9 @@ async function renderAuthorsView(container, libraryId) {
           <div class="relative flex-grow max-w-md">
             <span class="material-symbols absolute left-3 top-2.5 text-black-200 text-lg">search</span>
             <input type="text" id="authors-search" placeholder="Search authors..." value="${escapeHtml(currentSearch)}"
-              class="w-full bg-black-500 text-white pl-10 pr-10 py-2 rounded-lg border border-black-300 focus:outline-none focus:border-accent text-sm transition-colors">
+              class="w-full bg-black-400 text-white pl-10 pr-10 py-2 rounded-lg border border-black-300 focus:outline-none focus:border-accent text-sm transition-colors">
             ${currentSearch ? `
-              <button id="authors-search-clear-btn" class="absolute right-3 top-2.5 text-black-200 hover:text-white transition-colors focus:outline-none" title="Clear Search">
+              <button id="authors-search-clear-btn" class="absolute right-3 top-2.5 text-black-200 hover:text-white transition-colors focus:outline-none cursor-pointer" title="Clear Search">
                 <span class="material-symbols text-lg">close</span>
               </button>
             ` : ''}
@@ -74,11 +74,11 @@ async function renderAuthorsView(container, libraryId) {
           <!-- Sort and Order controls -->
           <div class="flex items-center gap-3">
             <label class="text-xs font-semibold text-black-100 uppercase tracking-wider">Sort by:</label>
-            <select id="authors-sort-select" class="bg-black-500 border border-black-300 text-white text-xs rounded px-3 py-1.5 focus:outline-none cursor-pointer">
+            <select id="authors-sort-select" class="bg-black-400 border border-black-300 text-white text-xs rounded px-3 py-1.5 focus:outline-none cursor-pointer">
               <option value="name" ${currentSort === 'name' ? 'selected' : ''}>Name</option>
               <option value="numBooks" ${currentSort === 'numBooks' ? 'selected' : ''}>Book Count</option>
             </select>
-            <button id="authors-direction-btn" class="p-1.5 bg-black-500 hover:bg-black-400 border border-black-300 rounded text-white flex items-center justify-center transition-colors" title="Toggle Sort Order">
+            <button id="authors-direction-btn" class="p-1.5 bg-black-400 hover:bg-black-300 border border-black-300 rounded text-white flex items-center justify-center transition-colors cursor-pointer" title="Toggle Sort Order">
               <span class="material-symbols text-lg">${currentDesc ? 'arrow_downward' : 'arrow_upward'}</span>
             </button>
           </div>
@@ -200,9 +200,9 @@ export async function loadSeries(libraryId) {
           <div class="relative flex-grow max-w-md">
             <span class="material-symbols absolute left-3 top-2.5 text-black-200 text-lg">search</span>
             <input type="text" id="series-search" placeholder="Search series..." value="${escapeHtml(seriesSearch)}"
-              class="w-full bg-black-500 text-white pl-10 pr-10 py-2 rounded-lg border border-black-300 focus:outline-none focus:border-accent text-sm transition-colors">
+              class="w-full bg-black-400 text-white pl-10 pr-10 py-2 rounded-lg border border-black-300 focus:outline-none focus:border-accent text-sm transition-colors">
             ${seriesSearch ? `
-              <button id="series-search-clear-btn" class="absolute right-3 top-2.5 text-black-200 hover:text-white transition-colors focus:outline-none" title="Clear Search">
+              <button id="series-search-clear-btn" class="absolute right-3 top-2.5 text-black-200 hover:text-white transition-colors focus:outline-none cursor-pointer" title="Clear Search">
                 <span class="material-symbols text-lg">close</span>
               </button>
             ` : ''}
@@ -211,7 +211,7 @@ export async function loadSeries(libraryId) {
           <!-- Sort and Order controls -->
           <div class="flex items-center gap-3">
             <label class="text-xs font-semibold text-black-100 uppercase tracking-wider">Sort by:</label>
-            <select id="series-sort-select" class="bg-black-500 border border-black-300 text-white text-xs rounded px-3 py-1.5 focus:outline-none cursor-pointer">
+            <select id="series-sort-select" class="bg-black-400 border border-black-300 text-white text-xs rounded px-3 py-1.5 focus:outline-none cursor-pointer">
               <option value="name" ${seriesSort === 'name' ? 'selected' : ''}>Name</option>
               <option value="numBooks" ${seriesSort === 'numBooks' ? 'selected' : ''}>Book Count</option>
               <option value="totalDuration" ${seriesSort === 'totalDuration' ? 'selected' : ''}>Total Duration</option>
@@ -219,7 +219,7 @@ export async function loadSeries(libraryId) {
               <option value="lastBookAdded" ${seriesSort === 'lastBookAdded' ? 'selected' : ''}>Last Book Added</option>
               <option value="lastBookUpdated" ${seriesSort === 'lastBookUpdated' ? 'selected' : ''}>Last Book Updated</option>
             </select>
-            <button id="series-direction-btn" class="p-1.5 bg-black-500 hover:bg-black-400 border border-black-300 rounded text-white flex items-center justify-center transition-colors" title="Toggle Sort Order">
+            <button id="series-direction-btn" class="p-1.5 bg-black-400 hover:bg-black-300 border border-black-300 rounded text-white flex items-center justify-center transition-colors cursor-pointer" title="Toggle Sort Order">
               <span class="material-symbols text-lg">${seriesDesc ? 'arrow_downward' : 'arrow_upward'}</span>
             </button>
           </div>
@@ -561,8 +561,8 @@ export async function loadAuthorDetails(authorId) {
     let html = `
       <div class="p-6 max-w-6xl mx-auto space-y-6 text-left">
         <div class="flex items-center space-x-2">
-          <button id="back-authors-btn" class="flex items-center space-x-1.5 text-sm text-black-50 hover:text-white transition-colors">
-            <span class="material-symbols">arrow_back</span>
+          <button id="back-authors-btn" class="flex items-center space-x-1.5 text-sm text-black-100 hover:text-white transition-colors cursor-pointer">
+            <span class="material-symbols text-sm">arrow_back</span>
             <span>Back to Authors</span>
           </button>
         </div>
@@ -577,11 +577,13 @@ export async function loadAuthorDetails(authorId) {
               <div class="flex flex-col md:flex-row md:items-center gap-3 justify-center md:justify-start">
                 <h2 class="text-3xl font-bold text-white">${escapeHtml(name)}</h2>
                 ${window.currentUser?.type === 'root' || window.currentUser?.type === 'admin' ? `
-                  <button id="edit-author-btn" class="px-3 py-1 bg-accent/20 text-accent hover:bg-accent/30 border border-accent/40 rounded text-xs font-semibold self-center transition-colors">
-                    Edit
+                  <button id="edit-author-btn" class="bg-black-400 hover:bg-black-300 border border-black-300 text-white font-semibold px-3 py-1.5 rounded text-xs flex items-center space-x-1 transition-colors cursor-pointer">
+                    <span class="material-symbols text-xs">edit</span>
+                    <span>Edit</span>
                   </button>
-                  <button id="match-author-direct-btn" class="px-3 py-1 bg-accent/20 text-accent hover:bg-accent/30 border border-accent/40 rounded text-xs font-semibold self-center transition-colors ml-2">
-                    Match
+                  <button id="match-author-direct-btn" class="bg-black-400 hover:bg-black-300 border border-black-300 text-white font-semibold px-3 py-1.5 rounded text-xs flex items-center space-x-1 transition-colors cursor-pointer ml-2">
+                    <span class="material-symbols text-xs">find_replace</span>
+                    <span>Match</span>
                   </button>
                 ` : ''}
               </div>
@@ -816,8 +818,8 @@ export async function loadSeriesDetails(seriesId) {
     let html = `
       <div class="p-6 max-w-6xl mx-auto space-y-6 text-left">
         <div class="flex items-center space-x-2">
-          <button id="back-series-btn" class="flex items-center space-x-1.5 text-sm text-black-50 hover:text-white transition-colors">
-            <span class="material-symbols">arrow_back</span>
+          <button id="back-series-btn" class="flex items-center space-x-1.5 text-sm text-black-100 hover:text-white transition-colors cursor-pointer">
+            <span class="material-symbols text-sm">arrow_back</span>
             <span>Back to Series</span>
           </button>
         </div>
@@ -833,10 +835,11 @@ export async function loadSeriesDetails(seriesId) {
                   <h2 class="text-3xl font-bold text-white">${escapeHtml(name)}</h2>
                   ${window.currentUser?.type === 'root' || window.currentUser?.type === 'admin' ? `
                     <div class="flex items-center justify-center md:justify-start space-x-2">
-                      <button id="edit-series-btn" class="px-3 py-1 bg-accent/20 text-accent hover:bg-accent/30 border border-accent/40 rounded text-xs font-semibold self-center transition-colors">
-                        Edit
+                      <button id="edit-series-btn" class="bg-black-400 hover:bg-black-300 border border-black-300 text-white font-semibold px-3 py-1.5 rounded text-xs flex items-center space-x-1 transition-colors cursor-pointer">
+                        <span class="material-symbols text-xs">edit</span>
+                        <span>Edit</span>
                       </button>
-                      <button id="auto-number-series-btn" class="px-3 py-1 bg-accent/20 text-accent hover:bg-accent/30 border border-accent/40 rounded text-xs font-semibold self-center transition-colors flex items-center space-x-1">
+                      <button id="auto-number-series-btn" class="bg-black-400 hover:bg-black-300 border border-black-300 text-white font-semibold px-3 py-1.5 rounded text-xs flex items-center space-x-1 transition-colors cursor-pointer">
                         <span class="material-symbols text-[13px]">format_list_numbered</span>
                         <span>Auto-Number</span>
                       </button>

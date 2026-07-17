@@ -94,12 +94,12 @@ export async function loadPodcastLatestView(libraryId) {
           </div>
           <div class="flex items-center space-x-2 flex-shrink-0">
             ${isDownloaded ? `
-              <button class="play-episode-btn flex items-center space-x-1 bg-accent text-primary px-3 py-1.5 rounded font-bold hover:opacity-90 transition-opacity" data-idx="${idx}">
+              <button class="play-episode-btn flex items-center space-x-1 bg-accent text-primary px-3 py-1.5 rounded font-bold hover:opacity-90 transition-opacity cursor-pointer" data-idx="${idx}">
                 <span class="material-symbols text-sm font-bold">play_arrow</span>
                 <span>Play</span>
               </button>
             ` : `
-              <button class="download-episode-btn flex items-center space-x-1 bg-black-400 hover:bg-black-300 border border-black-300 text-white px-3 py-1.5 rounded font-bold transition-colors" data-pod-id="${ep.podcastId}" data-ep-id="${ep.id}">
+              <button class="download-episode-btn flex items-center space-x-1 bg-black-400 hover:bg-black-300 border border-black-300 text-white px-3 py-1.5 rounded font-bold transition-colors cursor-pointer" data-pod-id="${ep.podcastId}" data-ep-id="${ep.id}">
                 <span class="material-symbols text-sm">download</span>
                 <span>Download</span>
               </button>
@@ -387,7 +387,7 @@ export async function loadPodcastDownloadQueueView(libraryId) {
         <div class="p-6 space-y-6">
           <div class="flex justify-between items-center max-w-4xl">
             <h2 class="text-xl font-bold text-white">Podcast Download Queue</h2>
-            <button id="cancel-all-tasks-btn" class="bg-red-600/20 hover:bg-red-600/30 border border-red-500/30 text-red-400 font-bold px-4 py-2 rounded text-xs transition-colors">
+            <button id="cancel-all-tasks-btn" class="bg-black-400 hover:bg-red-900/40 border border-red-500/30 text-error hover:text-white hover:border-red-500/50 font-bold px-4 py-2 rounded text-xs transition-colors cursor-pointer">
               Cancel All Tasks
             </button>
           </div>
@@ -409,10 +409,10 @@ export async function loadPodcastDownloadQueueView(libraryId) {
                 <p class="text-xs text-black-100 mt-0.5">Status: <span class="capitalize text-accent">${escapeHtml(task.status)}</span> ${speed ? `| Speed: ${escapeHtml(speed)}` : ''} ${sizeStr ? `| Size: ${escapeHtml(sizeStr)}` : ''}</p>
               </div>
               <div class="flex space-x-2 flex-shrink-0">
-                <button class="pause-resume-task-btn bg-black-400 hover:bg-black-300 text-white font-bold px-3 py-1.5 rounded text-xs transition-colors" data-id="${task.id}" data-action="${isPaused ? 'resume' : 'pause'}">
+                <button class="pause-resume-task-btn bg-black-400 hover:bg-black-300 border border-black-300 text-white font-bold px-3 py-1.5 rounded text-xs transition-colors cursor-pointer" data-id="${task.id}" data-action="${isPaused ? 'resume' : 'pause'}">
                   ${isPaused ? 'Resume' : 'Pause'}
                 </button>
-                <button class="cancel-task-btn bg-red-600/20 hover:bg-red-600/30 border border-red-500/30 text-red-400 font-bold px-3 py-1.5 rounded text-xs transition-colors" data-id="${task.id}">
+                <button class="cancel-task-btn bg-black-400 hover:bg-red-900/40 border border-red-500/30 text-error hover:text-white hover:border-red-500/50 font-bold px-3 py-1.5 rounded text-xs transition-colors cursor-pointer" data-id="${task.id}">
                   Cancel
                 </button>
               </div>

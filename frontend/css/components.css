@@ -248,13 +248,13 @@ input:checked + .abs-slider:before {
   left: 7%;
   z-index: 15;
   opacity: 0.85;
-  transform: translate(12px, 6px) rotate(8deg);
+  transform: translate(calc(var(--bookshelf-card-width, 120px) * 0.1), calc(var(--bookshelf-card-width, 120px) * 0.05)) rotate(8deg);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
 }
 
 .group:hover .series-cover-middle,
 .series-cover-stack:hover .series-cover-middle {
-  transform: translate(18px, 8px) rotate(12deg);
+  transform: translate(calc(var(--bookshelf-card-width, 120px) * 0.15), calc(var(--bookshelf-card-width, 120px) * 0.067)) rotate(12deg);
   opacity: 0.95;
 }
 
@@ -265,13 +265,13 @@ input:checked + .abs-slider:before {
   left: 9%;
   z-index: 10;
   opacity: 0.65;
-  transform: translate(-16px, 8px) rotate(-12deg);
+  transform: translate(calc(var(--bookshelf-card-width, 120px) * -0.133), calc(var(--bookshelf-card-width, 120px) * 0.067)) rotate(-12deg);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 .group:hover .series-cover-back,
 .series-cover-stack:hover .series-cover-back {
-  transform: translate(-24px, 10px) rotate(-16deg);
+  transform: translate(calc(var(--bookshelf-card-width, 120px) * -0.2), calc(var(--bookshelf-card-width, 120px) * 0.083)) rotate(-16deg);
   opacity: 0.8;
 }
 
@@ -282,13 +282,13 @@ input:checked + .abs-slider:before {
   left: 6%;
   z-index: 10;
   opacity: 0.8;
-  transform: translate(-10px, 4px) rotate(-6deg);
+  transform: translate(calc(var(--bookshelf-card-width, 120px) * -0.083), calc(var(--bookshelf-card-width, 120px) * 0.033)) rotate(-6deg);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
 }
 
 .group:hover .series-cover-back-two,
 .series-cover-stack:hover .series-cover-back-two {
-  transform: translate(-16px, 6px) rotate(-10deg);
+  transform: translate(calc(var(--bookshelf-card-width, 120px) * -0.133), calc(var(--bookshelf-card-width, 120px) * 0.05)) rotate(-10deg);
   opacity: 0.9;
 }
 
@@ -1158,6 +1158,16 @@ input[type="radio"]:focus-visible,
   color: #ffffff !important;
   outline: none !important;
 }
+
+/* Dynamic Centering of Category Placards on Wooden Shelf Divider Planks */
+.categoryPlacard {
+  position: relative !important;
+  top: 0 !important;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  transform: translateY(calc(var(--bookshelf-plank-height, 24px) / 2 - 50%)) !important;
+}
+
 
 
 
