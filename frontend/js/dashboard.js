@@ -80,6 +80,12 @@ export async function loadDashboard(libraryId, isHomeOnly = false, filterBy = ''
   try {
     // 1. Fetch library details to know the mediaType
     const lib = await request('GET', `/api/libraries/${libraryId}`);
+
+    if (lib && lib.mediaType === 'podcast') {
+      bookshelfContainer.classList.add('podcast-library');
+    } else {
+      bookshelfContainer.classList.remove('podcast-library');
+    }
     
     // 2. Fetch personalized shelves
     const shelves = await request('GET', `/api/libraries/${libraryId}/personalized`);

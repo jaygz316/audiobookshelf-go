@@ -151,9 +151,9 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
         <div class="grid grid-cols-1 md:grid-cols-[240px_1fr] gap-6 md:gap-8">
           <!-- Left Column: Cover & Core Actions -->
           <div class="w-full flex flex-col items-center md:items-start space-y-4">
-            <div id="details-cover-container" class="w-56 h-80 bg-black-500 rounded border border-black-400 overflow-hidden shadow-2xl flex-shrink-0 flex items-center justify-center relative group select-none cursor-pointer">
+            <div id="details-cover-container" class="w-56 ${mediaType === 'podcast' ? 'aspect-square' : 'aspect-[2/3]'} bg-black-500 rounded border border-black-400 overflow-hidden shadow-2xl flex-shrink-0 flex items-center justify-center relative group select-none cursor-pointer">
               <img src="${coverUrl}" alt="${escapeHtml(title)}" class="w-full h-full object-cover" onerror="this.onerror=null; this.src='assets/images/logo.png'">
-              <div class="book-spine-crease"></div>
+              ${mediaType !== 'podcast' ? '<div class="book-spine-crease"></div>' : ''}
               ${isAdmin ? `
                 <div class="absolute inset-0 bg-black-950/70 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center transition-opacity duration-200">
                   <span class="material-symbols text-3xl text-white">edit</span>
@@ -331,7 +331,7 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
             ` : ''}
 
             <!-- Metadata Grid -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 text-xs bg-primary/40 border border-black-400/50 rounded-md p-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-xs bg-primary/40 border border-black-400/50 rounded-md p-4">
               ${publisher ? `
                 <div>
                   <p class="text-black-100 uppercase font-semibold">Publisher</p>
@@ -1162,7 +1162,7 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
                         ${coverArtHtml}
                         <div class="min-w-0 flex-grow">
                           <div class="flex items-center space-x-2">
-                            <span class="font-bold text-white text-xs hover:text-accent transition-colors truncate block max-w-md">${escapeHtml(ep.title)}</span>
+                            <span class="font-bold text-white text-xs hover:text-accent transition-colors truncate block max-w-[120px] sm:max-w-xs md:max-w-md">${escapeHtml(ep.title)}</span>
                             <!-- Badges -->
                             <div class="flex items-center space-x-1.5 flex-shrink-0">
                               ${statusBadge}
@@ -1616,9 +1616,14 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
             };
 
             // Close dropdowns on document click
-            document.addEventListener('click', () => {
+            const handleEpisodeDropdownsClose = () => {
+              if (!container.isConnected) {
+                document.removeEventListener('click', handleEpisodeDropdownsClose);
+                return;
+              }
               document.querySelectorAll('.episode-actions-dropdown').forEach(d => d.classList.add('hidden'));
-            });
+            };
+            document.addEventListener('click', handleEpisodeDropdownsClose);
 
             // Sync feed handler
             syncFeedBtn.onclick = async () => {

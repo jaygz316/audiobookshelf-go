@@ -234,7 +234,7 @@ export function triggerCoverEditorModal(item, libraryId, onSaveSuccess) {
             const coverUrl = res.coverUrl;
             if (!coverUrl) return '';
             return `
-              <div class="editor-search-result-item border border-black-400 hover:border-accent rounded overflow-hidden cursor-pointer bg-black-900 relative group aspect-[2/3]" data-idx="${idx}">
+              <div class="editor-search-result-item border border-black-400 hover:border-accent rounded overflow-hidden cursor-pointer bg-black-900 relative group ${mediaType === 'podcast' ? 'aspect-square' : 'aspect-[2/3]'}" data-idx="${idx}">
                 <img src="${escapeHtml(coverUrl)}" class="w-full h-full object-cover" alt="">
                 <div class="absolute inset-0 bg-black-950/70 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity p-1 text-[0.65rem] text-white text-center font-semibold">
                   Select
@@ -372,7 +372,7 @@ export function triggerCoverEditorModal(item, libraryId, onSaveSuccess) {
   let dragOffset = { x: 0, y: 0 };
   let imgScale = 1;
   let activeHandle = null;
-  let aspectRatio = 'free';
+  let aspectRatio = mediaType === 'podcast' ? '1:1' : '2:3';
   let historyStack = [];
 
   const updateAspectButtons = () => {
@@ -401,6 +401,8 @@ export function triggerCoverEditorModal(item, libraryId, onSaveSuccess) {
     updateAspectButtons();
     resetCropBox();
   };
+
+  updateAspectButtons();
 
   const resetCropBox = () => {
     if (!canvas || !originalImg.complete) return;

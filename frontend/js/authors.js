@@ -305,7 +305,15 @@ function createAuthorCard(author) {
 
   const token = localStorage.getItem('token');
   const imageUrl = resolvePath(`/api/authors/${author.id}/image?token=${token}`);
-  const authorInitials = author.name ? author.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : '';
+  let authorInitials = '';
+  if (author.name) {
+    const nameParts = author.name.trim().split(/\s+/);
+    if (nameParts.length > 1 && nameParts[0] && nameParts[1]) {
+      authorInitials = (nameParts[0][0] + nameParts[1][0]).toUpperCase();
+    } else {
+      authorInitials = author.name.substring(0, 2).toUpperCase();
+    }
+  }
 
   const numBooks = author.numBooks !== undefined ? author.numBooks : (author.bookCount || 0);
 

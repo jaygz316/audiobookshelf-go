@@ -12,12 +12,16 @@
       rgba(0, 0, 0, 0.15) calc(var(--bookshelf-row-height) - var(--bookshelf-plank-height) + 2px),
       rgba(0, 0, 0, 0.35) var(--bookshelf-row-height)
     ),
-    /* 3. Translucent back wall overlay to reveal wood texture behind books with 3D depth, and overlay tint on the plank */
+    /* 3. Translucent back wall overlay to reveal wood texture behind books with 3D depth, and the solid wooden front lip */
     linear-gradient(to bottom,
       var(--bookshelf-wall-overlay-top) 0px,
       var(--bookshelf-wall-overlay-bottom) calc(var(--bookshelf-row-height) - var(--bookshelf-plank-height)),
-      var(--bookshelf-overlay) calc(var(--bookshelf-row-height) - var(--bookshelf-plank-height)),
-      var(--bookshelf-overlay) var(--bookshelf-row-height)
+      var(--bookshelf-plank-top) calc(var(--bookshelf-row-height) - var(--bookshelf-plank-height)),
+      var(--bookshelf-plank-top) calc(var(--bookshelf-row-height) - var(--bookshelf-plank-height) + 2px),
+      var(--bookshelf-plank-mid) calc(var(--bookshelf-row-height) - var(--bookshelf-plank-height) + 2px),
+      var(--bookshelf-plank-mid) calc(var(--bookshelf-row-height) - 4px),
+      var(--bookshelf-plank-bottom) calc(var(--bookshelf-row-height) - 4px),
+      var(--bookshelf-plank-bottom) var(--bookshelf-row-height)
     ),
     /* 4. The underlying wood grain texture */
     var(--bookshelf-texture-img) !important;
@@ -151,16 +155,24 @@ div[tabindex="0"].cursor-pointer:focus-within {
 .bookshelfDividerCategorized {
   height: var(--bookshelf-plank-height) !important;
   background-image: 
+    /* 3D highlights on top */
     linear-gradient(to bottom,
       rgba(255, 255, 255, 0.25) 0px,
       rgba(255, 255, 255, 0.05) 2px,
       rgba(0, 0, 0, 0.15) 2px,
       rgba(0, 0, 0, 0.4) 100%
     ),
-    linear-gradient(to bottom, var(--bookshelf-overlay), var(--bookshelf-overlay)),
-    var(--bookshelf-texture-img) !important;
-  background-size: 100% 100%, 100% 100%, auto 100% !important;
-  background-repeat: no-repeat, no-repeat, repeat-x !important;
+    /* Theme-aware plank colors */
+    linear-gradient(to bottom,
+      var(--bookshelf-plank-top) 0px,
+      var(--bookshelf-plank-top) 2px,
+      var(--bookshelf-plank-mid) 2px,
+      var(--bookshelf-plank-mid) calc(100% - 4px),
+      var(--bookshelf-plank-bottom) calc(100% - 4px),
+      var(--bookshelf-plank-bottom) 100%
+    ) !important;
+  background-size: 100% 100%, 100% 100% !important;
+  background-repeat: no-repeat, no-repeat !important;
   box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.6) !important;
 }
 
@@ -200,7 +212,7 @@ div[tabindex="0"].cursor-pointer:focus-within {
   border-radius: 50%;
 }
 input:checked + .abs-slider {
-  background-color: #10b981 !important;
+  background-color: var(--color-accent) !important;
 }
 input:checked + .abs-slider:before {
   transform: translateX(20px);

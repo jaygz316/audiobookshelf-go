@@ -33,12 +33,16 @@
       rgba(0, 0, 0, 0.15) calc(var(--bookshelf-row-height) - var(--bookshelf-plank-height) + 2px),
       rgba(0, 0, 0, 0.35) var(--bookshelf-row-height)
     ),
-    /* 3. Translucent back wall overlay to reveal wood texture behind books with 3D depth, and overlay tint on the plank */
+    /* 3. Translucent back wall overlay to reveal wood texture behind books with 3D depth, and the solid wooden front lip */
     linear-gradient(to bottom,
       var(--bookshelf-wall-overlay-top) 0px,
       var(--bookshelf-wall-overlay-bottom) calc(var(--bookshelf-row-height) - var(--bookshelf-plank-height)),
-      var(--bookshelf-overlay) calc(var(--bookshelf-row-height) - var(--bookshelf-plank-height)),
-      var(--bookshelf-overlay) var(--bookshelf-row-height)
+      var(--bookshelf-plank-top) calc(var(--bookshelf-row-height) - var(--bookshelf-plank-height)),
+      var(--bookshelf-plank-top) calc(var(--bookshelf-row-height) - var(--bookshelf-plank-height) + 2px),
+      var(--bookshelf-plank-mid) calc(var(--bookshelf-row-height) - var(--bookshelf-plank-height) + 2px),
+      var(--bookshelf-plank-mid) calc(var(--bookshelf-row-height) - 4px),
+      var(--bookshelf-plank-bottom) calc(var(--bookshelf-row-height) - 4px),
+      var(--bookshelf-plank-bottom) var(--bookshelf-row-height)
     ),
     /* 4. The underlying wood grain texture */
     var(--bookshelf-texture-img) !important;
@@ -350,5 +354,13 @@
     display: none !important;
   }
 }
+
+/* Podcast Library Dynamic Variable Overrides for Square Aspect Ratios */
+.podcast-library,
+#bookshelf.podcast-library {
+  --bookshelf-card-height: var(--bookshelf-card-width) !important;
+  --bookshelf-row-height: calc(var(--bookshelf-card-height) + var(--bookshelf-plank-height) + 30px) !important;
+}
+
 
 

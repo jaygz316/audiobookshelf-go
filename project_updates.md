@@ -30,6 +30,11 @@
 *This log is updated by developers/agents whenever an API, design pattern, or library is deprecated or updated.*
 
 ### 2026-07-17
+- **Podcast Cover Aspect Ratios & Details Styling**:
+  - Introduced `.podcast-library` class to dynamically override bookshelf card height (`--bookshelf-card-height: var(--bookshelf-card-width) !important`) and recalculate row heights inside `layout.css`.
+  - Configured `loadDashboard` in `dashboard.js` to automatically toggle `.podcast-library` class on the bookshelf container.
+  - Refactored `itemDetails.js` to size podcast covers as `w-56 h-56` square and conditionally render the book spine crease overlay (`.book-spine-crease`) only for non-podcast items.
+  - Adjusted `coverEditorModal.js` to preview search result images with square or rectangular aspect ratio classes according to the media type.
 - **Library Selection Color Alignment**:
   - Aligned the active settings library selection highlights with the authentic orange theme accent (`#e88024`) instead of default gold/theme accent classes.
 - **Interactive Modals & Metadata Provider Refinements**:
@@ -427,4 +432,7 @@
 - **Theme-Aware Scrollbar Styling & Visual Parity**:
   - Defined theme-specific scrollbar color variables (`--color-scrollbar` and `--color-scrollbar-hover`) in [variables.css](file:///home/jay/projects/audiobookshelf-go/frontend/css/variables.css) for all themes (light, sepia, dark, and root default).
   - Applied the new variables inside [components.css](file:///home/jay/projects/audiobookshelf-go/frontend/css/components.css) to customize the standard `::-webkit-scrollbar-thumb` and its `:hover` pseudoclass, replacing neutral gray scrollbars with the themed accent color (e.g. golden brown `#855620` on the dark theme) to achieve complete design parity.
+- **Initials Fallback Generators & Theme Accent Switch Colors**:
+  - Upgraded initials avatar fallback calculations in `app.js` and `authors.js` to split space-separated names (e.g., "John Doe" becomes "JD") while safely falling back to the first two characters for single-word names, achieving complete parity with original profile widgets.
+  - Linked active switch checkbox colors in `components.css` to the theme-aware `var(--color-accent)` token rather than hardcoding static colors.
 

@@ -1437,7 +1437,15 @@ function bootstrapApp(payload) {
   const userDisplayRole = document.getElementById('user-display-role');
   
   if (userInitials) {
-    userInitials.textContent = (user.username || 'U').substring(0, 2).toUpperCase();
+    const name = user.username || 'U';
+    const parts = name.trim().split(/\s+/);
+    let initials = '';
+    if (parts.length > 1 && parts[0] && parts[1]) {
+      initials = (parts[0][0] + parts[1][0]).toUpperCase();
+    } else {
+      initials = name.substring(0, 2).toUpperCase();
+    }
+    userInitials.textContent = initials;
   }
   if (userMenuUsername) {
     userMenuUsername.textContent = user.username || 'User';
