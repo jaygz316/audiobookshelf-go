@@ -2,10 +2,11 @@
   height: var(--bookshelf-row-height) !important;
   background-image: 
     linear-gradient(to bottom, transparent 0px, transparent calc(var(--bookshelf-row-height) - 16px), var(--bookshelf-plank-top) calc(var(--bookshelf-row-height) - 16px), var(--bookshelf-plank-top) calc(var(--bookshelf-row-height) - 14px), var(--bookshelf-plank-mid) calc(var(--bookshelf-row-height) - 14px), var(--bookshelf-plank-bottom) var(--bookshelf-row-height)),
+    linear-gradient(to bottom, rgba(0, 0, 0, 0.6) 0px, rgba(0, 0, 0, 0) 12px),
     linear-gradient(to bottom, var(--bookshelf-overlay), var(--bookshelf-overlay)),
     var(--bookshelf-texture-img) !important;
-  background-size: 100% var(--bookshelf-row-height), 100% 100%, auto 100% !important;
-  background-repeat: no-repeat, no-repeat, repeat-x !important;
+  background-size: 100% var(--bookshelf-row-height), 100% var(--bookshelf-row-height), 100% 100%, auto 100% !important;
+  background-repeat: no-repeat, no-repeat, no-repeat, repeat-x !important;
 }
 
 .bookshelfRow > div {
@@ -40,6 +41,18 @@
 }
 
 /* Card hover effect adjustments */
+/* 3D Book Cover Spine Crease & Shading */
+.book-spine-crease {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  pointer-events: none;
+  z-index: 10;
+  width: 15px;
+  background: linear-gradient(to right, rgba(0, 0, 0, 0.3) 0px, rgba(0, 0, 0, 0) 1px, rgba(255, 255, 255, 0.15) 3px, rgba(255, 255, 255, 0) 6px, rgba(0, 0, 0, 0.08) 8px, rgba(0, 0, 0, 0) 15px);
+}
+
 .bookshelfRow .bookshelf-card:hover img,
 .bookshelfRow .group:hover img {
   box-shadow: 0 12px 24px rgba(0, 0, 0, 0.65), 0 4px 10px rgba(0, 0, 0, 0.45);
@@ -90,7 +103,7 @@
   border-radius: 50%;
 }
 input:checked + .abs-slider {
-  background-color: #10b981;
+  background-color: #10b981 !important;
 }
 input:checked + .abs-slider:before {
   transform: translateX(20px);
@@ -573,5 +586,45 @@ input:checked + .abs-slider:before {
   background-color: #10b981;
   border-radius: 9999px;
   border: 1px solid var(--color-primary, #1e1e1e);
+}
+
+/* Premium Dropdown Menus with glassmorphism, subtle borders, and smooth shadows */
+#filter-dropdown-menu,
+#sort-dropdown-menu,
+#filter-submenu,
+#columns-dropdown-menu,
+#global-search-dropdown,
+#library-dropdown-menu,
+#user-dropdown,
+#header-notification-dropdown {
+  background-color: rgba(26, 26, 26, 0.96) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.6), 0 8px 12px -6px rgba(0, 0, 0, 0.6) !important;
+  padding: 4px !important;
+}
+
+/* Make dropdown option hover highlights look clean and responsive */
+.sort-option-btn,
+.filter-submenu-option-btn,
+.filter-cat-row-btn,
+.col-checkbox-label {
+  border-radius: 6px !important;
+  transition: all 0.15s ease !important;
+}
+
+.sort-option-btn:hover,
+.filter-submenu-option-btn:hover,
+.filter-cat-row-btn:hover {
+  background-color: rgba(255, 255, 255, 0.06) !important;
+  color: #ffffff !important;
+}
+
+.sort-option-btn:active,
+.filter-submenu-option-btn:active,
+.filter-cat-row-btn:active {
+  transform: scale(0.98);
 }
 
