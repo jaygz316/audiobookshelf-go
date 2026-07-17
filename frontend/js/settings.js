@@ -36,69 +36,69 @@ export async function loadSettings() {
   container.innerHTML = `
     <div class="max-w-7xl mx-auto p-4 flex flex-col md:flex-row gap-6 h-full min-h-0">
       <!-- Left Settings Navigation Sidebar -->
-      <div class="w-full md:w-72 flex-shrink-0 bg-primary/50 border border-black-400/50 rounded-lg p-2 flex flex-col space-y-1 h-fit" id="settings-tabs">
-        <div class="text-xs font-semibold text-accent uppercase tracking-wider px-3 py-2 border-b border-black-400/50 mb-2">Settings</div>
-        <button class="w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-accent bg-black-500/80 flex items-center space-x-2" data-tab="libraries">
+      <div class="w-full md:w-72 flex-shrink-0 bg-primary/50 border border-black-400/50 rounded-lg p-2 flex flex-row md:flex-col overflow-x-auto md:overflow-x-visible space-x-1 md:space-x-0 space-y-0 md:space-y-1 h-fit scrollbar-none" id="settings-tabs">
+        <div class="hidden md:block text-xs font-semibold text-accent uppercase tracking-wider px-3 py-2 border-b border-black-400/50 mb-2">Settings</div>
+        <button class="flex-shrink-0 w-auto md:w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-accent bg-black-500/80 flex items-center space-x-2" data-tab="libraries">
           <span class="material-symbols text-lg">local_library</span>
           <span>Libraries</span>
         </button>
-        <button class="w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2" data-tab="users">
+        <button class="flex-shrink-0 w-auto md:w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2" data-tab="users">
           <span class="material-symbols text-lg">group</span>
           <span>Users</span>
         </button>
-        <button class="w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2" data-tab="apikeys">
+        <button class="flex-shrink-0 w-auto md:w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2" data-tab="apikeys">
           <span class="material-symbols text-lg">vpn_key</span>
           <span>API Keys</span>
         </button>
-        <button class="w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2" data-tab="server">
+        <button class="flex-shrink-0 w-auto md:w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2" data-tab="server">
           <span class="material-symbols text-lg">dns</span>
           <span>Server Settings</span>
         </button>
-        <button class="w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2" data-tab="auth">
+        <button class="flex-shrink-0 w-auto md:w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2" data-tab="auth">
           <span class="material-symbols text-lg">security</span>
           <span>Authentication</span>
         </button>
-        <button class="w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2" data-tab="notifications">
+        <button class="flex-shrink-0 w-auto md:w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2" data-tab="notifications">
           <span class="material-symbols text-lg">notifications</span>
           <span>Notifications</span>
         </button>
-        <button class="w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2" data-tab="emails">
+        <button class="flex-shrink-0 w-auto md:w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2" data-tab="emails">
           <span class="material-symbols text-lg">mail</span>
           <span>E-Reader Email</span>
         </button>
-        <button class="w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2" data-tab="feeds">
+        <button class="flex-shrink-0 w-auto md:w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2" data-tab="feeds">
           <span class="material-symbols text-lg">rss_feed</span>
           <span>RSS Feeds</span>
         </button>
-        <button class="w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2" data-tab="listening-sessions">
+        <button class="flex-shrink-0 w-auto md:w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2" data-tab="listening-sessions">
           <span class="material-symbols text-lg">insights</span>
           <span>Playback Sessions</span>
         </button>
-        <button class="w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2" data-tab="login-sessions">
+        <button class="flex-shrink-0 w-auto md:w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2" data-tab="login-sessions">
           <span class="material-symbols text-lg">devices</span>
           <span>Login Sessions</span>
         </button>
-        <button class="w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2" data-tab="backups">
+        <button class="flex-shrink-0 w-auto md:w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2" data-tab="backups">
           <span class="material-symbols text-lg">backup</span>
           <span>Backups</span>
         </button>
-        <button class="w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2" data-tab="upload">
+        <button class="flex-shrink-0 w-auto md:w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2" data-tab="upload">
           <span class="material-symbols text-lg">upload</span>
           <span>Uploads</span>
         </button>
-        <button class="w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2" data-tab="providers">
+        <button class="flex-shrink-0 w-auto md:w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2" data-tab="providers">
           <span class="material-symbols text-lg">api</span>
           <span>Custom Metadata Providers</span>
         </button>
-        <button class="w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2" data-tab="shares">
+        <button class="flex-shrink-0 w-auto md:w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2" data-tab="shares">
           <span class="material-symbols text-lg">share</span>
           <span>Shares</span>
         </button>
-        <button class="w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2" data-tab="logs">
+        <button class="flex-shrink-0 w-auto md:w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2" data-tab="logs">
           <span class="material-symbols text-lg">description</span>
           <span>System Logs</span>
         </button>
-        <button class="w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2" data-tab="tasks">
+        <button class="flex-shrink-0 w-auto md:w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2" data-tab="tasks">
           <span class="material-symbols text-lg">downloading</span>
           <span>Tasks & Downloads</span>
         </button>
@@ -131,9 +131,9 @@ export async function loadSettings() {
   tabs.forEach(tab => {
     tab.onclick = () => {
       tabs.forEach(t => {
-        t.className = 'w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2';
+        t.className = 'flex-shrink-0 w-auto md:w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2';
       });
-      tab.className = 'w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-accent bg-black-500/80 flex items-center space-x-2';
+      tab.className = 'flex-shrink-0 w-auto md:w-full text-left px-3 py-2 rounded-md font-semibold text-sm transition-colors text-accent bg-black-500/80 flex items-center space-x-2';
 
       const activeTabId = tab.dataset.tab;
       document.querySelectorAll('#settings-tab-content > div').forEach(content => {
@@ -437,11 +437,11 @@ async function renderServerSettingsTab() {
         <p class="text-sm text-black-100">Perform maintenance operations on server caches and temporary storage.</p>
         
         <div class="flex flex-wrap gap-4 pt-2">
-          <button type="button" id="btn-purge-all-cache" class="bg-black-600 hover:bg-black-500 text-white font-semibold px-4 py-2 rounded-md transition-colors border border-black-400/40 flex items-center space-x-1.5 text-sm">
+          <button type="button" id="btn-purge-all-cache" class="bg-black-400 hover:bg-black-300 text-white font-semibold px-4 py-2 rounded-md transition-colors border border-black-300 flex items-center space-x-1.5 text-sm">
             <span class="material-symbols text-lg">delete_sweep</span>
             <span>Purge All Cache</span>
           </button>
-          <button type="button" id="btn-purge-items-cache" class="bg-black-600 hover:bg-black-500 text-white font-semibold px-4 py-2 rounded-md transition-colors border border-black-400/40 flex items-center space-x-1.5 text-sm">
+          <button type="button" id="btn-purge-items-cache" class="bg-black-400 hover:bg-black-300 text-white font-semibold px-4 py-2 rounded-md transition-colors border border-black-300 flex items-center space-x-1.5 text-sm">
             <span class="material-symbols text-lg">delete_sweep</span>
             <span>Purge Items Cache</span>
           </button>

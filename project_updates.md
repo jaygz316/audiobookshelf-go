@@ -193,4 +193,22 @@
   - All files retain build tag `//go:build js && wasm` and package `main` declaration, ensuring successful compilation and passing test status.
 - **Bookshelf Divider Restoration**:
   - Restored visual display of horizontal wooden divider planks (`.bookshelfDividerCategorized`) beneath categorized bookshelf rows on the Home/Dashboard view, matching the 3D wooden aesthetics of the original client.
-
+- **Bookshelf Sizing Dynamic Row Heights**:
+  - Removed static row height (`h-56`) from bookshelf rows inside `dashboard.js` (`createShelfSection`), allowing shelf rows to dynamically scale their heights matching the custom-sized book cards adjusted by the shelf-size range slider.
+- **Repeating Shelf Plank Shadows**:
+  - Added top drop-shadow linear gradients to both `.bookshelfRow` in `frontend/css/components.css` and `.library-shelf-grid` in `frontend/css/layout.css` to draw repeating wood plank shadows on the wall texture behind the cards.
+- **3D Book Cover Spine Crease & Shading**:
+  - Injected an absolute crease overlay to book covers inside `createCard` in `frontend/js/dashboard.js`, simulating physical book spines with creases and highlights.
+- **Dynamic Reflection Scaling**:
+  - Refactored `--bookshelf-reflect` in `frontend/css/variables.css` to use percentage-based fade lengths instead of fixed pixels, ensuring reflections scale dynamically with range slider adjustments.
+- **User Profile Pill & Named Material Symbols**:
+  - Refactored the user profile dropdown button (`user-menu-btn`) to a beautiful rounded-full pill incorporating a circular initials avatar (`#user-initials`) and a dropdown caret.
+  - Converted all hexadecimal icon codepoints in the header (Server Activity, Settings Gear) and sidebar (Latest, Collections, Playlists, Narrators, Stats, Download Queue) to descriptive, standard Material Symbols text ligatures (e.g. `query_stats`, `settings`, `podcasts`, `bookmarks`, `playlist_play`, `record_voice_over`, `bar_chart`, `downloading`), improving code readability and compilation reliability.
+  - Standardized book spine crease decoration under a clean `.book-spine-crease` CSS class inside `components.css` and cleaned up inline spine crease styles in `dashboard.js`.
+- **Top Appbar Action Buttons & Active Toggle Colors**:
+  - Aligned all header action buttons (Notification, Server Activity, Upload, Settings) to use standard, consistent `rounded-full` shapes and `w-9 h-9` proportions with smooth transitions matching original Audiobookshelf styling.
+  - Replaced the hardcoded emerald color (`#10b981`) on active switch sliders (`.abs-slider`) with the brand gold accent color variable (`var(--color-accent)`) for premium styling consistency.
+- **Settings View Alignments & Responsive Sidebar**:
+  - Replaced the brand gold accent on active settings toggle switches (`.abs-slider`) with a standard emerald green (`#10b981`) to match the original Audiobookshelf styling.
+  - Aligned troubleshooting / cache tool buttons to use premium dark grey layouts (`bg-black-400 hover:bg-black-300 border border-black-300`) instead of almost-black colors.
+  - Refactored the settings sidebar layout to support swiping on mobile view by laying out buttons horizontally with hidden scrollbars, while preserving the vertical sidebar on desktop screens.
