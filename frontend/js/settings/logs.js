@@ -199,7 +199,7 @@ function renderListeningSessionsListRows(sessions) {
     let actionsHtml = '';
     if (canClose) {
       actionsHtml = `
-        <button class="close-session-btn text-error hover:text-red-400 font-semibold text-xs transition-colors duration-150 inline-flex items-center space-x-1" data-id="${session.id}">
+        <button class="close-session-btn bg-red-900/40 hover:bg-red-900/60 border border-red-500/30 text-error hover:text-white hover:border-red-500/50 text-xs font-semibold px-2.5 py-1 rounded inline-flex items-center space-x-1 transition-colors cursor-pointer" data-id="${session.id}">
           <span class="material-symbols text-sm">close</span>
           <span>Close Session</span>
         </button>
@@ -353,7 +353,7 @@ async function loadAndRenderLoginSessions(userId) {
       ` : '';
 
       const actionButtonHtml = `
-        <button class="revoke-login-session-btn text-error hover:text-red-400 font-semibold text-xs transition-colors duration-150 flex items-center space-x-1" data-id="${session.id}">
+        <button class="revoke-login-session-btn bg-red-900/40 hover:bg-red-900/60 border border-red-500/30 text-error hover:text-white hover:border-red-500/50 text-xs font-semibold px-2.5 py-1 rounded inline-flex items-center space-x-1 transition-colors cursor-pointer" data-id="${session.id}">
           <span class="material-symbols text-sm">close</span>
           <span>Revoke</span>
         </button>
@@ -575,7 +575,7 @@ export async function renderTasksTab() {
           <h3 class="text-lg font-semibold text-white">Active Tasks & Downloads</h3>
           <p class="text-xs text-black-100 font-medium">Monitor and manage real-time episode downloads and background operations.</p>
         </div>
-        <button id="cancel-all-tasks-btn" class="bg-black-400 hover:bg-red-900/40 border border-red-500/30 text-error hover:text-white hover:border-red-500/50 font-bold px-3 py-1.5 rounded text-xs transition-colors flex items-center gap-1 focus:outline-none cursor-pointer">
+        <button id="cancel-all-tasks-btn" class="bg-red-900/40 hover:bg-red-900/60 border border-red-500/30 text-error hover:text-white hover:border-red-500/50 font-bold px-3 py-1.5 rounded text-xs transition-colors flex items-center gap-1 focus:outline-none cursor-pointer">
           <span class="material-symbols text-sm">cancel</span>
           <span>Cancel All Tasks</span>
         </button>
@@ -705,11 +705,11 @@ async function updateTasksList() {
 
       return `
         <tr class="hover:bg-black-500/30 text-xs text-white">
-          <td class="px-4 py-3 font-semibold text-white max-w-[150px] truncate" title="${escapeHtml(task.podcastTitle || '')}">
-            ${escapeHtml(task.podcastTitle || 'Podcast')}
+          <td class="px-4 py-3 font-semibold text-white max-w-[150px] truncate" title="${escapeHtml(task.podcastTitle || task.name || task.type || 'Task')}">
+            ${escapeHtml(task.podcastTitle || task.name || task.type || 'Task')}
           </td>
-          <td class="px-4 py-3 max-w-[250px] truncate" title="${escapeHtml(task.episodeTitle || '')}">
-            ${escapeHtml(task.episodeTitle || 'Episode')}
+          <td class="px-4 py-3 max-w-[250px] truncate" title="${escapeHtml(task.episodeTitle || task.description || '')}">
+            ${escapeHtml(task.episodeTitle || task.description || '')}
           </td>
           <td class="px-4 py-3">${statusBadge}</td>
           <td class="px-4 py-3">${progressInfo}</td>

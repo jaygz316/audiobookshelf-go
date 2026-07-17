@@ -169,6 +169,9 @@ export async function loadSettings() {
       
       // Update hash without triggering router reload
       window.location.hash = activeTabId;
+
+      // Scroll selected tab into view in mobile rail
+      tab.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
     };
   });
 
@@ -191,12 +194,39 @@ export async function loadSettings() {
     renderSharesTab()
   ]);
 
+  // Handle hash change events for browser back/forward buttons
+  const handleHashChange = () => {
+    const currentHash = window.location.hash.substring(1);
+    if (!currentHash) return;
+    const targetTabBtn = Array.from(tabs).find(t => t.dataset.tab === currentHash);
+    if (targetTabBtn && targetTabBtn.getAttribute('aria-selected') !== 'true') {
+      targetTabBtn.click();
+    }
+  };
+  window.addEventListener('hashchange', handleHashChange);
+
+  // Wrap any existing cleanupSettings (like logs listener) and add our hashchange listener cleanup
+  const tabCleanup = window.cleanupSettings;
+  window.cleanupSettings = () => {
+    if (tabCleanup) {
+      try {
+        tabCleanup();
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    window.removeEventListener('hashchange', handleHashChange);
+  };
+
   // Set initial tab from hash if present
   const hash = window.location.hash.substring(1);
   if (hash) {
     const targetTabBtn = Array.from(tabs).find(t => t.dataset.tab === hash);
     if (targetTabBtn) {
       targetTabBtn.click();
+      setTimeout(() => {
+        targetTabBtn.scrollIntoView({ behavior: 'auto', block: 'nearest', inline: 'center' });
+      }, 50);
     }
   }
 }
@@ -643,7 +673,7 @@ async function renderAuthSettingsTab() {
         
         <div>
           <label class="block text-xs font-semibold text-black-100 uppercase tracking-wider mb-2">Active Authentication Methods</label>
-          <div class="flex items-center space-x-6 text-sm">
+          <div class="flex flex-col sm:flex-row sm:items-center sm:space-x-6 space-y-3 sm:space-y-0 text-sm">
             <label class="flex items-center space-x-3 cursor-pointer">
               <span class="abs-switch">
                 <input type="checkbox" id="auth-method-local" value="local" ${activeMethods.includes('local') ? 'checked' : ''}>
@@ -1369,7 +1399,7 @@ function renderNotificationsListRows(notifications, allSettings) {
       <td class="px-4 py-3 text-black-50">${escapeHtml(notif.eventName || '')}</td>
       <td class="px-4 py-3">${enabledBadge}</td>
       <td class="px-4 py-3 text-right">
-        <button class="delete-notif-btn text-error hover:text-red-400 font-semibold text-xs inline-flex items-center space-x-1" data-id="${notif.id}">
+        <button class="delete-notif-btn bg-red-900/40 hover:bg-red-900/60 border border-red-500/30 text-error hover:text-white hover:border-red-500/50 text-xs font-semibold px-2.5 py-1 rounded inline-flex items-center space-x-1 transition-colors cursor-pointer" data-id="${notif.id}">
           <span class="material-symbols text-sm">delete</span>
           <span>Delete</span>
         </button>
@@ -1417,54 +1447,56 @@ function triggerCreateNotificationModal(allSettings, onSaveSuccess) {
   modal.className = 'fixed inset-0 bg-black-900/80 z-50 flex items-center justify-center p-4 overflow-y-auto';
 
   modal.innerHTML = `
-    <div class="bg-primary border border-black-300 w-full max-w-md p-6 rounded-md shadow-lg space-y-4 my-8">
-      <h3 class="text-lg font-bold border-b border-black-400 pb-2">Create Notification Setup</h3>
+    <div class="bg-primary border border-black-300 w-full max-w-md p-6 rounded-md shadow-lg flex flex-col max-h-[90vh] relative">
+      <h3 class="text-lg font-bold border-b border-black-400 pb-2 flex-shrink-0">Create Notification Setup</h3>
       
-      <form id="notification-form" class="space-y-4">
-        <div>
-          <label class="block text-xs text-black-100 mb-1">Event</label>
-          <select id="notif-eventName" required class="w-full bg-black-500 text-white px-3 py-1.5 rounded border border-black-300 focus:outline-none focus:border-accent text-sm">
-            <option value="onPodcastEpisodeDownloaded">onPodcastEpisodeDownloaded (Podcast Episode Downloaded)</option>
-            <option value="onBackupCompleted">onBackupCompleted (Backup Completed)</option>
-            <option value="onBackupFailed">onBackupFailed (Backup Failed)</option>
-            <option value="onTest">onTest (Test Notification)</option>
-          </select>
+      <form id="notification-form" class="space-y-4 flex flex-col flex-grow overflow-hidden">
+        <div class="flex-grow overflow-y-auto pr-1 no-scroll space-y-4 pb-2">
+          <div>
+            <label class="block text-xs text-black-100 mb-1">Event</label>
+            <select id="notif-eventName" required class="w-full bg-black-500 text-white px-3 py-1.5 rounded border border-black-300 focus:outline-none focus:border-accent text-sm">
+              <option value="onPodcastEpisodeDownloaded">onPodcastEpisodeDownloaded (Podcast Episode Downloaded)</option>
+              <option value="onBackupCompleted">onBackupCompleted (Backup Completed)</option>
+              <option value="onBackupFailed">onBackupFailed (Backup Failed)</option>
+              <option value="onTest">onTest (Test Notification)</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-xs text-black-100 mb-1">Library (Optional)</label>
+            <select id="notif-libraryId" class="w-full bg-black-500 text-white px-3 py-1.5 rounded border border-black-300 focus:outline-none focus:border-accent text-sm">
+              <option value="">All Libraries</option>
+              ${libraries.map(lib => `<option value="${lib.id}">${escapeHtml(lib.name)}</option>`).join('')}
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-xs text-black-100 mb-1">Apprise URLs (comma or newline separated)</label>
+            <textarea id="notif-urls" required rows="3" placeholder="e.g. mailto://user:pass@gmail.com, discord://webhook_id/webhook_token" class="w-full bg-black-500 text-white px-3 py-1.5 rounded border border-black-300 focus:outline-none focus:border-accent text-sm"></textarea>
+          </div>
+
+          <div>
+            <label class="block text-xs text-black-100 mb-1">Title Template</label>
+            <input type="text" id="notif-titleTemplate" required placeholder="e.g. New {{podcastTitle}} Episode!" class="w-full bg-black-500 text-white px-3 py-1.5 rounded border border-black-300 focus:outline-none focus:border-accent text-sm">
+          </div>
+
+          <div>
+            <label class="block text-xs text-black-100 mb-1">Body Template</label>
+            <textarea id="notif-bodyTemplate" required rows="2" placeholder="e.g. {{episodeTitle}} added to {{libraryName}}." class="w-full bg-black-500 text-white px-3 py-1.5 rounded border border-black-300 focus:outline-none focus:border-accent text-sm"></textarea>
+          </div>
+
+          <div class="flex items-center pb-2">
+            <label class="flex items-center space-x-3 cursor-pointer text-sm">
+              <span class="abs-switch">
+                <input type="checkbox" id="notif-enabled" checked>
+                <span class="abs-slider"></span>
+              </span>
+              <span>Enabled</span>
+            </label>
+          </div>
         </div>
 
-        <div>
-          <label class="block text-xs text-black-100 mb-1">Library (Optional)</label>
-          <select id="notif-libraryId" class="w-full bg-black-500 text-white px-3 py-1.5 rounded border border-black-300 focus:outline-none focus:border-accent text-sm">
-            <option value="">All Libraries</option>
-            ${libraries.map(lib => `<option value="${lib.id}">${escapeHtml(lib.name)}</option>`).join('')}
-          </select>
-        </div>
-
-        <div>
-          <label class="block text-xs text-black-100 mb-1">Apprise URLs (comma or newline separated)</label>
-          <textarea id="notif-urls" required rows="3" placeholder="e.g. mailto://user:pass@gmail.com, discord://webhook_id/webhook_token" class="w-full bg-black-500 text-white px-3 py-1.5 rounded border border-black-300 focus:outline-none focus:border-accent text-sm"></textarea>
-        </div>
-
-        <div>
-          <label class="block text-xs text-black-100 mb-1">Title Template</label>
-          <input type="text" id="notif-titleTemplate" required placeholder="e.g. New {{podcastTitle}} Episode!" class="w-full bg-black-500 text-white px-3 py-1.5 rounded border border-black-300 focus:outline-none focus:border-accent text-sm">
-        </div>
-
-        <div>
-          <label class="block text-xs text-black-100 mb-1">Body Template</label>
-          <textarea id="notif-bodyTemplate" required rows="2" placeholder="e.g. {{episodeTitle}} added to {{libraryName}}." class="w-full bg-black-500 text-white px-3 py-1.5 rounded border border-black-300 focus:outline-none focus:border-accent text-sm"></textarea>
-        </div>
-
-        <div class="flex items-center pb-2">
-          <label class="flex items-center space-x-3 cursor-pointer text-sm">
-            <span class="abs-switch">
-              <input type="checkbox" id="notif-enabled" checked>
-              <span class="abs-slider"></span>
-            </span>
-            <span>Enabled</span>
-          </label>
-        </div>
-
-        <div class="flex justify-end space-x-3 pt-2">
+        <div class="flex justify-end space-x-3 pt-2 border-t border-black-400 flex-shrink-0">
           <button type="button" id="close-notif-modal-btn" class="bg-black-400 hover:bg-black-300 text-white px-4 py-2 rounded text-xs font-semibold transition-colors flex items-center space-x-1">
             <span class="material-symbols text-sm">close</span>
             <span>Cancel</span>
@@ -1633,17 +1665,17 @@ async function renderFeedsTab() {
         <td class="px-4 py-3 text-black-50 text-xs">${escapeHtml(label)}</td>
         <td class="px-4 py-3 text-black-100">
           <div class="flex items-center gap-3">
-            <span class="truncate max-w-xs font-mono text-xs select-all text-black-100">${escapeHtml(feed.feedUrl)}</span>
-            <button class="copy-feed-btn text-accent hover:text-accent-hover font-semibold text-xs flex items-center gap-1" data-url="${escapeHtml(feed.feedUrl)}">
+            <span class="truncate max-w-xs font-mono text-xs select-all text-black-100 mr-1">${escapeHtml(feed.feedUrl)}</span>
+            <button class="copy-feed-btn bg-accent/20 hover:bg-accent/30 border border-accent/30 hover:border-accent/50 text-accent hover:text-white text-xs font-semibold px-2.5 py-1 rounded inline-flex items-center space-x-1 transition-colors cursor-pointer" data-url="${escapeHtml(feed.feedUrl)}">
               <span class="material-symbols text-sm pointer-events-none">content_copy</span>
-              Copy
+              <span>Copy</span>
             </button>
           </div>
         </td>
         <td class="px-4 py-3 text-right">
-          <button class="delete-feed-btn text-error hover:text-red-400 font-semibold text-xs inline-flex items-center gap-1" data-id="${escapeHtml(feed.id)}">
+          <button class="delete-feed-btn bg-red-900/40 hover:bg-red-900/60 border border-red-500/30 text-error hover:text-white hover:border-red-500/50 text-xs font-semibold px-2.5 py-1 rounded inline-flex items-center space-x-1 transition-colors cursor-pointer" data-id="${escapeHtml(feed.id)}">
             <span class="material-symbols text-sm pointer-events-none">close</span>
-            Close Feed
+            <span>Close Feed</span>
           </button>
         </td>
       `;
@@ -1949,11 +1981,11 @@ function renderEreaderDevicesRows(devices, users, settings) {
       <td class="px-4 py-3 font-mono text-black-50">${escapeHtml(dev.email)}</td>
       <td class="px-4 py-3 text-sm">${availText}</td>
       <td class="px-4 py-3 text-right space-x-2">
-        <button class="edit-dev-btn text-accent hover:text-accent-hover text-xs font-semibold inline-flex items-center space-x-1" data-index="${idx}">
+        <button class="edit-dev-btn bg-accent/20 hover:bg-accent/30 border border-accent/30 hover:border-accent/50 text-accent hover:text-white text-xs font-semibold px-2.5 py-1 rounded inline-flex items-center space-x-1 transition-colors cursor-pointer" data-index="${idx}">
           <span class="material-symbols text-sm">edit</span>
           <span>Edit</span>
         </button>
-        <button class="delete-dev-btn text-error hover:text-red-400 text-xs font-semibold inline-flex items-center space-x-1" data-index="${idx}">
+        <button class="delete-dev-btn bg-red-900/40 hover:bg-red-900/60 border border-red-500/30 text-error hover:text-white hover:border-red-500/50 text-xs font-semibold px-2.5 py-1 rounded inline-flex items-center space-x-1 transition-colors cursor-pointer" data-index="${idx}">
           <span class="material-symbols text-sm">delete</span>
           <span>Delete</span>
         </button>
@@ -2002,44 +2034,46 @@ function triggerEreaderDeviceModal(device = null, devices, users, settings) {
   const selectedUsers = isEdit ? (device.users || []) : [];
 
   modal.innerHTML = `
-    <div class="bg-primary border border-black-300 w-full max-w-lg rounded-md shadow-2xl p-6 relative">
-      <h3 class="text-lg font-bold text-white mb-4 border-b border-black-400 pb-2">
+    <div class="bg-primary border border-black-300 w-full max-w-lg rounded-md shadow-2xl p-6 flex flex-col max-h-[90vh] relative">
+      <h3 class="text-lg font-bold text-white mb-4 border-b border-black-400 pb-2 flex-shrink-0">
         ${isEdit ? 'Edit E-Reader Device' : 'Add E-Reader Device'}
       </h3>
       
-      <form id="ereader-device-form" class="space-y-4 text-left">
-        <div>
-          <label class="block text-xs font-semibold text-black-100 uppercase tracking-wider mb-2">Device Name</label>
-          <input type="text" id="dev-name" value="${escapeHtml(devName)}" required placeholder="e.g. My Kindle" class="w-full bg-black-500 text-white px-3 py-2 rounded border border-black-300 focus:outline-none focus:border-accent">
-        </div>
+      <form id="ereader-device-form" class="space-y-4 text-left flex flex-col flex-grow overflow-hidden">
+        <div class="flex-grow overflow-y-auto pr-1 no-scroll space-y-4 pb-2">
+          <div>
+            <label class="block text-xs font-semibold text-black-100 uppercase tracking-wider mb-2">Device Name</label>
+            <input type="text" id="dev-name" value="${escapeHtml(devName)}" required placeholder="e.g. My Kindle" class="w-full bg-black-500 text-white px-3 py-2 rounded border border-black-300 focus:outline-none focus:border-accent">
+          </div>
 
-        <div>
-          <label class="block text-xs font-semibold text-black-100 uppercase tracking-wider mb-2">Device Email Address</label>
-          <input type="email" id="dev-email" value="${escapeHtml(devEmail)}" required placeholder="e.g. name@kindle.com" class="w-full bg-black-500 text-white px-3 py-2 rounded border border-black-300 focus:outline-none focus:border-accent">
-        </div>
+          <div>
+            <label class="block text-xs font-semibold text-black-100 uppercase tracking-wider mb-2">Device Email Address</label>
+            <input type="email" id="dev-email" value="${escapeHtml(devEmail)}" required placeholder="e.g. name@kindle.com" class="w-full bg-black-500 text-white px-3 py-2 rounded border border-black-300 focus:outline-none focus:border-accent">
+          </div>
 
-        <div>
-          <label class="block text-xs font-semibold text-black-100 uppercase tracking-wider mb-2">Availability Option</label>
-          <select id="dev-availability" class="w-full bg-black-500 text-white px-3 py-2 rounded border border-black-300 focus:outline-none focus:border-accent">
-            <option value="allUsers" ${availOption === 'allUsers' ? 'selected' : ''}>All Users</option>
-            <option value="adminOrUp" ${availOption === 'adminOrUp' ? 'selected' : ''}>Admin or Up</option>
-            <option value="specificUsers" ${availOption === 'specificUsers' ? 'selected' : ''}>Specific Users</option>
-          </select>
-        </div>
+          <div>
+            <label class="block text-xs font-semibold text-black-100 uppercase tracking-wider mb-2">Availability Option</label>
+            <select id="dev-availability" class="w-full bg-black-500 text-white px-3 py-2 rounded border border-black-300 focus:outline-none focus:border-accent">
+              <option value="allUsers" ${availOption === 'allUsers' ? 'selected' : ''}>All Users</option>
+              <option value="adminOrUp" ${availOption === 'adminOrUp' ? 'selected' : ''}>Admin or Up</option>
+              <option value="specificUsers" ${availOption === 'specificUsers' ? 'selected' : ''}>Specific Users</option>
+            </select>
+          </div>
 
-        <div id="dev-users-selection-container" class="hidden space-y-2 border border-black-400 p-3 rounded-md bg-black-500/20 max-h-40 overflow-y-auto">
-          <label class="block text-xs font-semibold text-black-100 uppercase tracking-wider mb-1">Select Allowed Users</label>
-          <div class="space-y-1">
-            ${users.map(u => `
-              <label class="flex items-center space-x-2 cursor-pointer text-sm">
-                <input type="checkbox" name="dev-allowed-users" value="${u.id}" ${selectedUsers.includes(u.id) ? 'checked' : ''} class="rounded text-accent focus:ring-accent bg-black-500 border-black-300">
-                <span>${escapeHtml(u.username)}</span>
-              </label>
-            `).join('')}
+          <div id="dev-users-selection-container" class="hidden space-y-2 border border-black-400 p-3 rounded-md bg-black-500/20 max-h-40 overflow-y-auto">
+            <label class="block text-xs font-semibold text-black-100 uppercase tracking-wider mb-1">Select Allowed Users</label>
+            <div class="space-y-1">
+              ${users.map(u => `
+                <label class="flex items-center space-x-2 cursor-pointer text-sm">
+                  <input type="checkbox" name="dev-allowed-users" value="${u.id}" ${selectedUsers.includes(u.id) ? 'checked' : ''} class="rounded text-accent focus:ring-accent bg-black-500 border-black-300">
+                  <span>${escapeHtml(u.username)}</span>
+                </label>
+              `).join('')}
+            </div>
           </div>
         </div>
 
-        <div class="flex justify-end space-x-3 pt-4 border-t border-black-400">
+        <div class="flex justify-end space-x-3 pt-4 border-t border-black-400 flex-shrink-0">
           <button type="button" id="close-ereader-modal-btn" class="bg-black-400 hover:bg-black-300 text-white px-4 py-2 rounded text-xs font-semibold transition-colors flex items-center space-x-1">
             <span class="material-symbols text-sm">close</span>
             <span>Cancel</span>
@@ -2495,66 +2529,68 @@ function showLibraryModal(lib) {
   const coverAspectRatio = libSettings.coverAspectRatio || 1;
 
   modal.innerHTML = `
-    <div class="bg-primary border border-black-300 w-full max-w-lg p-6 rounded-md shadow-lg space-y-4 my-8 relative">
-      <h3 class="text-lg font-bold border-b border-black-400 pb-2">${isEdit ? 'Edit Library' : 'Add Library'}</h3>
+    <div class="bg-primary border border-black-300 w-full max-w-lg p-6 rounded-md shadow-lg flex flex-col max-h-[90vh] relative">
+      <h3 class="text-lg font-bold border-b border-black-400 pb-2 flex-shrink-0">${isEdit ? 'Edit Library' : 'Add Library'}</h3>
       
-      <form id="library-form" class="space-y-4">
-        <div>
-          <label class="block text-xs text-black-100 mb-1">Library Name</label>
-          <input type="text" id="lib-name" required value="${isEdit ? escapeHtml(lib.name) : ''}" class="w-full bg-black-500 text-white px-3 py-1.5 rounded border border-black-300 focus:outline-none focus:border-accent text-sm">
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <form id="library-form" class="space-y-4 flex flex-col flex-grow overflow-hidden">
+        <div class="flex-grow overflow-y-auto pr-1 no-scroll space-y-4 pb-2">
           <div>
-            <label class="block text-xs text-black-100 mb-1">Media Type</label>
-            <div class="flex rounded bg-black-600 p-1 border border-black-300 w-full" id="lib-mediatype-toggle-container">
-              <button type="button" id="lib-mediatype-book-btn" class="flex-grow py-1.5 text-xs font-semibold rounded text-center transition-all focus:outline-none ${(!isEdit || lib.mediaType === 'book') ? 'bg-success text-white' : 'text-black-100 hover:text-white'}" ${isEdit ? 'disabled' : ''} data-value="book">Book</button>
-              <button type="button" id="lib-mediatype-podcast-btn" class="flex-grow py-1.5 text-xs font-semibold rounded text-center transition-all focus:outline-none ${(isEdit && lib.mediaType === 'podcast') ? 'bg-success text-white' : 'text-black-100 hover:text-white'}" ${isEdit ? 'disabled' : ''} data-value="podcast">Podcast</button>
+            <label class="block text-xs text-black-100 mb-1">Library Name</label>
+            <input type="text" id="lib-name" required value="${isEdit ? escapeHtml(lib.name) : ''}" class="w-full bg-black-500 text-white px-3 py-1.5 rounded border border-black-300 focus:outline-none focus:border-accent text-sm">
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs text-black-100 mb-1">Media Type</label>
+              <div class="flex rounded bg-black-600 p-1 border border-black-300 w-full" id="lib-mediatype-toggle-container">
+                <button type="button" id="lib-mediatype-book-btn" class="flex-grow py-1.5 text-xs font-semibold rounded text-center transition-all focus:outline-none ${(!isEdit || lib.mediaType === 'book') ? 'bg-success text-white' : 'text-black-100 hover:text-white'}" ${isEdit ? 'disabled' : ''} data-value="book">Book</button>
+                <button type="button" id="lib-mediatype-podcast-btn" class="flex-grow py-1.5 text-xs font-semibold rounded text-center transition-all focus:outline-none ${(isEdit && lib.mediaType === 'podcast') ? 'bg-success text-white' : 'text-black-100 hover:text-white'}" ${isEdit ? 'disabled' : ''} data-value="podcast">Podcast</button>
+              </div>
+              <input type="hidden" id="lib-mediatype" value="${isEdit ? lib.mediaType : 'book'}">
             </div>
-            <input type="hidden" id="lib-mediatype" value="${isEdit ? lib.mediaType : 'book'}">
-          </div>
-          <div>
-            <label class="block text-xs text-black-100 mb-1">Icon</label>
-            <select id="lib-icon" class="w-full bg-black-500 text-white px-3 py-1.5 rounded border border-black-300 focus:outline-none focus:border-accent text-sm">
-              <option value="local_library" ${isEdit && lib.icon === 'local_library' ? 'selected' : ''}>Book/Library Icon</option>
-              <option value="podcasts" ${isEdit && lib.icon === 'podcasts' ? 'selected' : ''}>Podcast Icon</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label class="block text-xs text-black-100 mb-1">Provider</label>
-            <select id="lib-provider" class="w-full bg-black-500 text-white px-3 py-1.5 rounded border border-black-300 focus:outline-none focus:border-accent text-sm">
-              <option value="local" ${isEdit && lib.provider === 'local' ? 'selected' : ''}>Local Metadata Only</option>
-              <option value="audible" ${isEdit && lib.provider === 'audible' ? 'selected' : ''}>Audible</option>
-              <option value="google" ${isEdit && lib.provider === 'google' ? 'selected' : ''}>Google Books</option>
-              <option value="openlibrary" ${isEdit && lib.provider === 'openlibrary' ? 'selected' : ''}>Open Library</option>
-              <option value="itunes" ${isEdit && lib.provider === 'itunes' ? 'selected' : ''}>iTunes</option>
-            </select>
-          </div>
-          <div>
-            <label class="block text-xs text-black-100 mb-1">Cover Aspect Ratio</label>
-            <div class="flex rounded bg-black-600 p-1 border border-black-300 w-full" id="lib-aspect-toggle-container">
-              <button type="button" id="lib-aspect-square-btn" class="flex-grow py-1.5 text-xs font-semibold rounded text-center transition-all focus:outline-none ${(coverAspectRatio == 1) ? 'bg-success text-white' : 'text-black-100 hover:text-white'}" data-value="1">Square (1:1)</button>
-              <button type="button" id="lib-aspect-standard-btn" class="flex-grow py-1.5 text-xs font-semibold rounded text-center transition-all focus:outline-none ${(coverAspectRatio == 1.6) ? 'bg-success text-white' : 'text-black-100 hover:text-white'}" data-value="1.6">Standard Book (1.6:1)</button>
+            <div>
+              <label class="block text-xs text-black-100 mb-1">Icon</label>
+              <select id="lib-icon" class="w-full bg-black-500 text-white px-3 py-1.5 rounded border border-black-300 focus:outline-none focus:border-accent text-sm">
+                <option value="local_library" ${isEdit && lib.icon === 'local_library' ? 'selected' : ''}>Book/Library Icon</option>
+                <option value="podcasts" ${isEdit && lib.icon === 'podcasts' ? 'selected' : ''}>Podcast Icon</option>
+              </select>
             </div>
-            <input type="hidden" id="lib-cover-aspect-ratio" value="${coverAspectRatio}">
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs text-black-100 mb-1">Provider</label>
+              <select id="lib-provider" class="w-full bg-black-500 text-white px-3 py-1.5 rounded border border-black-300 focus:outline-none focus:border-accent text-sm">
+                <option value="local" ${isEdit && lib.provider === 'local' ? 'selected' : ''}>Local Metadata Only</option>
+                <option value="audible" ${isEdit && lib.provider === 'audible' ? 'selected' : ''}>Audible</option>
+                <option value="google" ${isEdit && lib.provider === 'google' ? 'selected' : ''}>Google Books</option>
+                <option value="openlibrary" ${isEdit && lib.provider === 'openlibrary' ? 'selected' : ''}>Open Library</option>
+                <option value="itunes" ${isEdit && lib.provider === 'itunes' ? 'selected' : ''}>iTunes</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs text-black-100 mb-1">Cover Aspect Ratio</label>
+              <div class="flex rounded bg-black-600 p-1 border border-black-300 w-full" id="lib-aspect-toggle-container">
+                <button type="button" id="lib-aspect-square-btn" class="flex-grow py-1.5 text-xs font-semibold rounded text-center transition-all focus:outline-none ${(coverAspectRatio == 1) ? 'bg-success text-white' : 'text-black-100 hover:text-white'}" data-value="1">Square (1:1)</button>
+                <button type="button" id="lib-aspect-standard-btn" class="flex-grow py-1.5 text-xs font-semibold rounded text-center transition-all focus:outline-none ${(coverAspectRatio == 1.6) ? 'bg-success text-white' : 'text-black-100 hover:text-white'}" data-value="1.6">Standard Book (1.6:1)</button>
+              </div>
+              <input type="hidden" id="lib-cover-aspect-ratio" value="${coverAspectRatio}">
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs text-black-100 mb-1 flex justify-between items-center">
+              <span>Library Folders</span>
+              <button type="button" id="btn-add-folder-row" class="text-accent hover:underline text-xs font-semibold">Add Folder Path</button>
+            </label>
+            <div id="library-folders-container" class="space-y-2">
+              <!-- Folder inputs go here -->
+            </div>
+            <p class="text-xs text-black-100 mt-1">Paths must be absolute, or relative to the server workspace (e.g. "/audiobooks" or "./audiobooks").</p>
           </div>
         </div>
 
-        <div>
-          <label class="block text-xs text-black-100 mb-1 flex justify-between items-center">
-            <span>Library Folders</span>
-            <button type="button" id="btn-add-folder-row" class="text-accent hover:underline text-xs font-semibold">Add Folder Path</button>
-          </label>
-          <div id="library-folders-container" class="space-y-2">
-            <!-- Folder inputs go here -->
-          </div>
-          <p class="text-xs text-black-100 mt-1">Paths must be absolute, or relative to the server workspace (e.g. "/audiobooks" or "./audiobooks").</p>
-        </div>
-
-        <div class="flex justify-end space-x-2 pt-4 border-t border-black-400">
+        <div class="flex justify-end space-x-2 pt-4 border-t border-black-400 flex-shrink-0">
           <button type="button" id="close-lib-modal-btn" class="bg-black-400 hover:bg-black-300 px-4 py-2 rounded text-sm font-semibold text-white transition-colors flex items-center space-x-1">
             <span class="material-symbols text-sm">close</span>
             <span>Cancel</span>

@@ -194,15 +194,21 @@ export function triggerEditItemDetailsModal(item, libraryId, onSaveSuccess) {
         </div>
 
         <!-- Explicit / Abridged Checkboxes -->
-        <div class="flex items-center space-x-6 py-2 border-t border-b border-black-400/50">
-          <label class="flex items-center space-x-2 text-xs font-semibold text-white cursor-pointer">
-            <input type="checkbox" id="edit-item-explicit" ${explicit ? 'checked' : ''} class="w-4 h-4 rounded text-accent bg-black-600 border-black-300 focus:ring-accent">
-            <span>Explicit Content</span>
+        <div class="flex flex-col sm:flex-row sm:items-center sm:space-x-8 space-y-3 sm:space-y-0 py-3 border-t border-b border-black-400/50">
+          <label class="flex items-center space-x-3 cursor-pointer text-xs">
+            <span class="abs-switch">
+              <input type="checkbox" id="edit-item-explicit" ${explicit ? 'checked' : ''}>
+              <span class="abs-slider"></span>
+            </span>
+            <span class="font-semibold text-white">Explicit Content</span>
           </label>
           ${mediaType === 'book' ? `
-            <label class="flex items-center space-x-2 text-xs font-semibold text-white cursor-pointer">
-              <input type="checkbox" id="edit-item-abridged" ${abridged ? 'checked' : ''} class="w-4 h-4 rounded text-accent bg-black-600 border-black-300 focus:ring-accent">
-              <span>Abridged Book</span>
+            <label class="flex items-center space-x-3 cursor-pointer text-xs">
+              <span class="abs-switch">
+                <input type="checkbox" id="edit-item-abridged" ${abridged ? 'checked' : ''}>
+                <span class="abs-slider"></span>
+              </span>
+              <span class="font-semibold text-white">Abridged Book</span>
             </label>
           ` : ''}
         </div>

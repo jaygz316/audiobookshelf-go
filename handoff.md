@@ -1,15 +1,16 @@
 # Handoff: Audiobookshelf Go Port
 
 ## Targeted Task & Accomplishments
-- **Target Task**: Audit Settings screens, scrollbars, drag-and-drop handles, and navigation icons.
+- **Target Task**: Audit dynamic modals/popovers and metadata providers search/filtering for visual and layout parity.
 - **Accomplishments**:
-  - **Theme-Aware Custom Scrollbars**: Added theme-specific scrollbar color variables (`--color-scrollbar` and `--color-scrollbar-hover`) to [variables.css](file:///home/jay/projects/audiobookshelf-go/frontend/css/variables.css) for all core themes (light, sepia, dark, and root default). Updated webkit scrollbar styles in [components.css](file:///home/jay/projects/audiobookshelf-go/frontend/css/components.css) to inherit these variables, matching the premium custom styled scrollbars of the original project.
-  - **Drag-and-Drop Constraint Fix**: Resolved a critical cross-browser drag-and-drop bug where the `dragstart` event target was the row/list item container rather than the handle (canceling reordering operations). Implemented a robust click origin verification helper via `mousedown` event listeners in [settings.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/settings.js), [collections.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/collections.js), [playlists.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/playlists.js), and [player/queue.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/player/queue.js) to dynamically enable/disable the `draggable` attribute only when clicking the `.drag-handle`.
-  - **Podcast Add Icon Conversion**: Normalized the legacy custom SVG/icon layout in [index.html](file:///home/jay/projects/audiobookshelf-go/frontend/index.html) for the podcast "Add" navigation link to use a standard, high-readability Material Symbol (`add_circle`), completing the icon conversion pass.
-  - **Build & Test Verification**: Successfully recompiled the Go WebAssembly frontend, compiled the Go backend, and verified all unit/E2E tests pass without any regression.
+  - **Dynamic Modals Switch Conversion**: Converted checkbox elements inside [editDetailsModal.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/modals/editDetailsModal.js) (Explicit / Abridged toggles) and [bookmarksModal.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/modals/bookmarksModal.js) (Overwrite Bookmarks toggle) to utilize the project-standard premium sliding switches (`.abs-switch`), completing the visual and touch-interaction parity for modals.
+  - **Podcast Metadata Match Integration**: Updated [matchBookModal.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/modals/matchBookModal.js) search provider fetching logic to dynamically switch to podcast metadata providers (iTunes) if the active library item is a podcast.
+  - **Podcast Filter Publisher Labeling**: Enhanced the filter dropdown rendering in [app.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/app.js) to dynamically label the "Author" filter category as "Publisher" when filtering a podcast library.
+  - **Grid Shelf Divider plank Styling**: Added the wooden shelf divider plank to the dynamic category shelf grid section placards in [dashboard.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/dashboard.js), ensuring complete design consistency with horizontal Row layout shelves.
+  - **Compilation & Test Pass**: Successfully recompiled the Go WebAssembly frontend and backend binaries, and ran the full integration E2E test suite to verify no regressions were introduced (100% test pass).
 
 ## Outstanding Work / Next Gaps
-- Monitor visual parity on browser views to verify the reflection rendered below the shelf row planks.
+- Continue visual audits on the item details page, search results header, and navigation transitions.
 
 ## Next Steps
-- Continue visual audits on settings screens, form controls, and details screens to preserve 100% parity.
+- Verify detail view layout grids on dynamic device aspect ratios.

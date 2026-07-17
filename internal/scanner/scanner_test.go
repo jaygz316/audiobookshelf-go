@@ -13,7 +13,7 @@ import (
 )
 
 func setupScannerTestDB(t testing.TB) *sql.DB {
-	db, err := sql.Open("sqlite", ":memory:")
+	db, err := sql.Open("sqlite", "file::memory:?cache=shared")
 	if err != nil {
 		t.Fatalf("failed to open in-memory database: %v", err)
 	}
@@ -487,5 +487,149 @@ func TestScanPodcastLibraryIntegration(t *testing.T) {
 	}
 	if rescannedAuthor != "PodcastAuthor" {
 		t.Errorf("expected author 'PodcastAuthor' after rescan, got %q (was it corrupted to library ID %s?)", rescannedAuthor, libraryID)
+	}
+}
+
+func TestScanNestedDirectoriesResilience(t *testing.T) {
+	db := setupScannerTestDB(t)
+	defer db.Close()
+
+	// 1. Create a temp directory for the multi-media nested library
+	tempDir, err := os.MkdirTemp("", "abs-nested-library-test")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Define a nested book layout:
+	// - SciFi/Isaac Asimov/Foundation/01 - Foundation.mp3
+	// - SciFi/Isaac Asimov/Foundation/02 - Foundation and Empire.mp3
+	// - Fantasy/J.R.R. Tolkien/The Hobbit/01 - An Unexpected Party.mp3
+	// - Standalones/SomeBook.epub
+	bookDirs := []string{
+		filepath.Join(tempDir, "books", "SciFi", "Isaac Asimov", "Foundation"),
+		filepath.Join(tempDir, "books", "Fantasy", "J.R.R. Tolkien", "The Hobbit"),
+		filepath.Join(tempDir, "books", "Standalones"),
+	}
+
+	for _, d := range bookDirs {
+		if err := os.MkdirAll(d, 0755); err != nil {
+			t.Fatalf("failed to create dir %s: %v", d, err)
+		}
+	}
+
+	// Write mock audio & epub files for books
+	if err := os.WriteFile(filepath.Join(bookDirs[0], "01 - Foundation.mp3"), []byte("ID3mock-foundation-1"), 0644); err != nil {
+		t.Fatalf("failed to write mock audio: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(bookDirs[0], "02 - Foundation and Empire.mp3"), []byte("ID3mock-foundation-2"), 0644); err != nil {
+		t.Fatalf("failed to write mock audio: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(bookDirs[1], "01 - An Unexpected Party.mp3"), []byte("ID3mock-hobbit"), 0644); err != nil {
+		t.Fatalf("failed to write mock audio: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(bookDirs[2], "SomeBook.epub"), []byte("epub-mock-data"), 0644); err != nil {
+		t.Fatalf("failed to write mock epub: %v", err)
+	}
+
+	// Define a nested podcast layout:
+	// - Daily News/2026/07/episode-17.mp3
+	// - Another Podcast/episode-1.mp3
+	podcastDirs := []string{
+		filepath.Join(tempDir, "podcasts", "Daily News", "2026", "07"),
+		filepath.Join(tempDir, "podcasts", "Another Podcast"),
+	}
+	for _, d := range podcastDirs {
+		if err := os.MkdirAll(d, 0755); err != nil {
+			t.Fatalf("failed to create dir %s: %v", d, err)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(podcastDirs[0], "episode-17.mp3"), []byte("ID3mock-podcast-ep17"), 0644); err != nil {
+		t.Fatalf("failed to write mock episode: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(podcastDirs[1], "episode-1.mp3"), []byte("ID3mock-podcast-ep1"), 0644); err != nil {
+		t.Fatalf("failed to write mock episode: %v", err)
+	}
+
+	// 2. Insert Libraries and Folders into DB
+	bookLibID := "lib-nested-books"
+	podcastLibID := "lib-nested-podcasts"
+
+	_, err = db.Exec("INSERT INTO libraries (id, name, mediaType, settings) VALUES (?, ?, ?, ?)",
+		bookLibID, "Nested Books", "book", `{"audiobooksOnly":false}`)
+	if err != nil {
+		t.Fatalf("failed to insert book library: %v", err)
+	}
+	_, err = db.Exec("INSERT INTO libraryFolders (id, path, libraryId) VALUES (?, ?, ?)",
+		"folder-nested-books", filepath.Join(tempDir, "books"), bookLibID)
+	if err != nil {
+		t.Fatalf("failed to insert book library folder: %v", err)
+	}
+
+	_, err = db.Exec("INSERT INTO libraries (id, name, mediaType, settings) VALUES (?, ?, ?, ?)",
+		podcastLibID, "Nested Podcasts", "podcast", `{"audiobooksOnly":false}`)
+	if err != nil {
+		t.Fatalf("failed to insert podcast library: %v", err)
+	}
+	_, err = db.Exec("INSERT INTO libraryFolders (id, path, libraryId) VALUES (?, ?, ?)",
+		"folder-nested-podcasts", filepath.Join(tempDir, "podcasts"), podcastLibID)
+	if err != nil {
+		t.Fatalf("failed to insert podcast library folder: %v", err)
+	}
+
+	// 3. Scan Book Library
+	err = ScanLibrary(db, bookLibID, nil)
+	if err != nil {
+		t.Fatalf("ScanLibrary for books failed: %v", err)
+	}
+
+	// Verify scanned book items
+	// Expecting 3 items:
+	// - SciFi/Isaac Asimov/Foundation (folder)
+	// - Fantasy/J.R.R. Tolkien/The Hobbit (folder)
+	// - Standalones/SomeBook.epub (file card since it's an epub standalone) or if standalones folder contains standalone. Let's see how GroupFileItems groups them.
+	// Standalones/SomeBook.epub has RelDirPath = "Standalones".
+	// Since isRoot is false (RelDirPath = "Standalones"), GroupFileItemsGroups it into a library item representing "Standalones".
+	// So we expect 3 distinct library items.
+	var bookCount int
+	err = db.QueryRow("SELECT COUNT(*) FROM libraryItems WHERE libraryId = ?", bookLibID).Scan(&bookCount)
+	if err != nil {
+		t.Fatalf("failed to query libraryItems: %v", err)
+	}
+	if bookCount != 3 {
+		t.Errorf("expected 3 book library items, got %d", bookCount)
+	}
+
+	// Scan Podcast Library
+	err = ScanLibrary(db, podcastLibID, nil)
+	if err != nil {
+		t.Fatalf("ScanLibrary for podcasts failed: %v", err)
+	}
+
+	// Verify scanned podcast items
+	// Expecting 2 items:
+	// - Daily News/2026/07
+	// - Another Podcast
+	var podcastCount int
+	err = db.QueryRow("SELECT COUNT(*) FROM libraryItems WHERE libraryId = ?", podcastLibID).Scan(&podcastCount)
+	if err != nil {
+		t.Fatalf("failed to query libraryItems podcasts: %v", err)
+	}
+	if podcastCount != 2 {
+		t.Errorf("expected 2 podcast library items, got %d", podcastCount)
+	}
+
+	// 4. Perform a rescan without changes and verify no duplicate entries
+	err = ScanLibrary(db, bookLibID, nil)
+	if err != nil {
+		t.Fatalf("rescan ScanLibrary for books failed: %v", err)
+	}
+	var bookCountPostRescan int
+	err = db.QueryRow("SELECT COUNT(*) FROM libraryItems WHERE libraryId = ?", bookLibID).Scan(&bookCountPostRescan)
+	if err != nil {
+		t.Fatalf("failed to query libraryItems post-rescan: %v", err)
+	}
+	if bookCountPostRescan != 3 {
+		t.Errorf("expected exactly 3 book library items post-rescan, got %d", bookCountPostRescan)
 	}
 }

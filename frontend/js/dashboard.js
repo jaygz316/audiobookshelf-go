@@ -531,13 +531,14 @@ function createShelfGridSection(shelfId, label, entities, libraryId) {
   shelfWrapper.className = 'relative w-full flex flex-col mt-4';
   
   const plaqueDiv = document.createElement('div');
-  plaqueDiv.className = 'relative h-12 mb-2';
+  plaqueDiv.className = 'relative h-12';
   plaqueDiv.innerHTML = `
     <div class="relative text-center categoryPlacard z-30 top-0 w-44e rounded-md mx-auto">
       <div class="shinyBlack flex items-center justify-center border rounded px-2 py-1">
         <h3 class="text-[0.85em] font-semibold tracking-wider">${label.toUpperCase()}</h3>
       </div>
     </div>
+    <div class="bookshelfDividerCategorized h-6e w-full absolute top-0 left-0 right-0 z-20"></div>
   `;
   shelfWrapper.appendChild(plaqueDiv);
 

@@ -30,6 +30,30 @@
 *This log is updated by developers/agents whenever an API, design pattern, or library is deprecated or updated.*
 
 ### 2026-07-17
+- **Interactive Modals & Metadata Provider Refinements**:
+  - Converted checkboxes inside [editDetailsModal.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/modals/editDetailsModal.js) and [bookmarksModal.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/modals/bookmarksModal.js) to the premium sliding switch component (`.abs-switch`), standardizing configuration toggles across all user input forms.
+  - Enabled metadata and cover search provider selection for podcast libraries inside [matchBookModal.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/modals/matchBookModal.js), resolving providers to podcasts-specific listings (iTunes) when handling podcast items.
+  - Aligned search filter categories list in [app.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/app.js) to dynamically label the "Author" filter option to "Publisher" when filtering a podcast library.
+  - Added the bookshelf wooden divider plank under category placards in the shelf grid sections (`createShelfGridSection` in [dashboard.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/dashboard.js)), aligning grid shelf styles with horizontal row shelf styles.
+- **Settings Modals Scroll Containment Refactoring**:
+  - Standardized scroll containment across `showLibraryModal`, `triggerCreateNotificationModal`, and `triggerEreaderDeviceModal` in [settings.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/settings.js).
+  - Replaced full viewport scrolling overlay layouts with capped flex overlays (`max-h-[90vh] flex flex-col`) and nested scrollable field containers (`.flex-grow.overflow-y-auto.no-scroll.pr-1`), ensuring input forms are perfectly constrained on narrow devices and do not bleed below the viewport fold.
+- **Settings Tabs Navigation & Visual Auditing**:
+  - Standardized list action buttons (Delete, Edit, Copy, Close Feed) across all settings sub-panes (including Backups, RSS Feeds, Devices/Sessions, API Keys, and Apprise setups) in [settings.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/settings.js) and [backups.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/settings/backups.js) to use premium colored backgrounds and borders matching dark theme warning/success variable presets.
+  - Refactored authentication method configuration checkboxes to use responsive stacked-to-row alignments (`flex-col sm:flex-row`) preventing text wrap clipping on mobile.
+  - Verified back-button page/state synchronization across browser navigation, scroll alignments inside tab rails, and lifecycle tear-downs.
+- **Settings & Share Visual Parity Enhancements**:
+  - Upgraded the "Active Metadata Providers" list in [settings.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/settings.js) to display book and podcast providers as clean, unified badges with appropriate theme-aware icons.
+  - Enhanced the "Active Share Links" list in [settings.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/settings.js) to show a rich item preview column with cover thumbnails, media titles, type labels/icons, custom status pills for protection/embedding configurations, and polished warning-styled revoke buttons.
+  - Polished the delete buttons in system notifications setups in [settings.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/settings.js) to match the dark theme warnings styling.
+  - Converted share link creation configuration options in [shareModal.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/modals/shareModal.js) from checkboxes to premium sliding switches (`.abs-switch`).
+- **Tasks & Downloads General Tasks Rendering**:
+  - Refactored `updateTasksList` in [logs.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/settings/logs.js) to display general background tasks correctly. If standard podcast metadata fields (`podcastTitle` or `episodeTitle`) are empty, cells fall back to displaying the task `name`, `type`, and `description`.
+- **Nested Directory Scanning Resilience**:
+  - Implemented `TestScanNestedDirectoriesResilience` in [scanner_test.go](file:///home/jay/projects/audiobookshelf-go/internal/scanner/scanner_test.go) to verify paths with deep nested hierarchies, ensuring that directory scanning does not suffer from regressions.
+- **Theme-Aware Bookshelf Back Wall Overlays**:
+  - Replaced hardcoded dark background overlay values (`rgba(20, 20, 20, 0.75)` and `rgba(20, 20, 20, 0.55)`) on `.bookshelfRow` and `.library-shelf-grid` with theme-aware dynamic variables (`--bookshelf-wall-overlay-top` and `--bookshelf-wall-overlay-bottom`).
+  - Defined custom wall overlay values for light, sepia, and dark themes inside [variables.css](file:///home/jay/projects/audiobookshelf-go/frontend/css/variables.css), ensuring wood texture styling matches surrounding background contexts seamlessly.
 - **Library Grid, Header Navbar Search & Chromecast Alignment**:
   - Implemented dynamic update of the global search input placeholder to reflect the active library's media type (e.g. `"Search Books..."` or `"Search Podcasts..."`), resolving dynamic viewport placeholders.
   - Hidden secondary/administrative header actions (`#header-settings-btn`, `#header-activity-btn`, and `#header-upload-btn`) on mobile viewports (< 768px) via media query to eliminate crowding and redundancy on narrow screens.

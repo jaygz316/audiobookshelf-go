@@ -499,9 +499,7 @@ function setupEventHandlers() {
     };
   }
 
-  window.addEventListener('popstate', () => {
-    navigateTo(window.location.pathname, false);
-  });
+
 
   // Shelf Sizing and Sorting/Filtering controls initialization
   const initShelfSizing = () => {
@@ -970,6 +968,9 @@ function setupEventHandlers() {
 
         updateFilterLabel(currentActiveFilter, data);
 
+        const activeLib = getActiveLibrary();
+        const mediaType = activeLib ? activeLib.mediaType : 'book';
+
         let menuHtml = `
           <button class="filter-option-btn w-full text-left px-3 py-1.5 text-xs text-black-50 hover:bg-black-400 hover:text-white flex items-center justify-between transition-colors focus:outline-none" data-value="">
             <span>Clear Filter</span>
@@ -981,7 +982,7 @@ function setupEventHandlers() {
 
         const categories = [
           { key: 'progress', label: 'Progress State' },
-          { key: 'authors', label: 'Author', count: data.authors?.length || 0 },
+          { key: 'authors', label: mediaType === 'podcast' ? 'Publisher' : 'Author', count: data.authors?.length || 0 },
           { key: 'series', label: 'Series', count: data.series?.length || 0 },
           { key: 'narrators', label: 'Narrator', count: data.narrators?.length || 0 },
           { key: 'genres', label: 'Genre', count: data.genres?.length || 0 },

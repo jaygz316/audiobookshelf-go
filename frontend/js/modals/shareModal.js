@@ -115,22 +115,37 @@ export function triggerShareLinkModal(item) {
               <input type="number" id="share-max-downloads" min="0" value="0" class="w-full bg-black-500 text-white px-3 py-2 rounded border border-black-300 focus:outline-none focus:border-accent text-xs">
             </div>
 
-            <div class="flex items-center space-x-2">
-              <input type="checkbox" id="share-allow-download" checked class="rounded border-black-300 text-accent focus:ring-accent bg-black-500 h-4 w-4">
-              <label for="share-allow-download" class="text-xs font-medium text-white">Allow downloads</label>
+            <div class="flex items-center pb-2">
+              <label class="flex items-center space-x-3 cursor-pointer text-xs">
+                <span class="abs-switch">
+                  <input type="checkbox" id="share-allow-download" checked>
+                  <span class="abs-slider"></span>
+                </span>
+                <span class="font-medium text-white">Allow downloads</span>
+              </label>
             </div>
 
-            <div class="flex items-center space-x-2">
-              <input type="checkbox" id="share-embeddable" class="rounded border-black-300 text-accent focus:ring-accent bg-black-500 h-4 w-4">
-              <label for="share-embeddable" class="text-xs font-medium text-white">Enable embeddable mini-player layout</label>
+            <div class="flex items-center pb-2">
+              <label class="flex items-center space-x-3 cursor-pointer text-xs">
+                <span class="abs-switch">
+                  <input type="checkbox" id="share-embeddable">
+                  <span class="abs-slider"></span>
+                </span>
+                <span class="font-medium text-white">Enable embeddable mini-player layout</span>
+              </label>
             </div>
 
             <div class="space-y-2">
-              <div class="flex items-center space-x-2">
-                <input type="checkbox" id="share-require-password" class="rounded border-black-300 text-accent focus:ring-accent bg-black-500 h-4 w-4">
-                <label for="share-require-password" class="text-xs font-medium text-white">Password protect share link</label>
+              <div class="flex items-center pb-2">
+                <label class="flex items-center space-x-3 cursor-pointer text-xs">
+                  <span class="abs-switch">
+                    <input type="checkbox" id="share-require-password">
+                    <span class="abs-slider"></span>
+                  </span>
+                  <span class="font-medium text-white">Password protect share link</span>
+                </label>
               </div>
-              <div id="share-password-field-container" class="hidden pl-6">
+              <div id="share-password-field-container" class="hidden pl-11">
                 <input type="password" id="share-password" placeholder="Enter share password" class="w-full bg-black-500 text-white px-3 py-2 rounded border border-black-300 focus:outline-none focus:border-accent text-xs">
               </div>
             </div>
