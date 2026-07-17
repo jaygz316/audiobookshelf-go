@@ -60,7 +60,7 @@ export function triggerShareLinkModal(item) {
             </div>
 
             <div class="pt-2">
-              <button id="delete-share-link-btn" class="w-full bg-red-950 hover:bg-red-900 border border-red-500 text-red-100 font-bold py-2 rounded text-xs flex items-center justify-center space-x-1.5 transition-colors">
+              <button id="delete-share-link-btn" class="w-full bg-red-900/40 hover:bg-red-900/60 border border-red-500/30 text-error hover:text-white hover:border-red-500/50 font-bold py-2 rounded text-xs flex items-center justify-center space-x-1.5 transition-colors cursor-pointer">
                 <span class="material-symbols text-base">delete</span>
                 <span>Remove Share Link</span>
               </button>

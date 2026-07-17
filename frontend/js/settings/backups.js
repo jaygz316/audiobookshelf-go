@@ -230,7 +230,7 @@ export async function renderBackupsTab() {
     };
 
   } catch (err) {
-    container.innerHTML = `<p class="text-red-400 text-sm">Failed to load backups: ${err.message}</p>`;
+    container.innerHTML = `<p class="text-error text-sm">Failed to load backups: ${err.message}</p>`;
   }
 }
 
@@ -260,15 +260,15 @@ function renderBackupsListRows(backups) {
       <td class="px-4 py-3 font-mono text-xs">${escapeHtml(b.filename)}</td>
       <td class="px-4 py-3">${sizeFormatted}</td>
       <td class="px-4 py-3 text-right space-x-2">
-        <button class="apply-btn bg-emerald-800 hover:bg-emerald-700 text-emerald-100 text-xs font-semibold px-2.5 py-1 rounded inline-flex items-center space-x-1" data-id="${b.id}">
+        <button class="apply-btn bg-success/20 hover:bg-success/30 border border-success/30 hover:border-success/50 text-success hover:text-white text-xs font-semibold px-2.5 py-1 rounded inline-flex items-center space-x-1 transition-colors cursor-pointer" data-id="${b.id}">
           <span class="material-symbols text-sm">settings_backup_restore</span>
           <span>Restore</span>
         </button>
-        <a href="${downloadUrl}" class="inline-block bg-black-400 hover:bg-black-300 text-white text-xs font-semibold px-2.5 py-1 rounded inline-flex items-center space-x-1">
+        <a href="${downloadUrl}" class="inline-block bg-black-400 hover:bg-black-300 text-white text-xs font-semibold px-2.5 py-1 rounded inline-flex items-center space-x-1 transition-colors cursor-pointer">
           <span class="material-symbols text-sm">download</span>
           <span>Download</span>
         </a>
-        <button class="delete-btn bg-red-900 hover:bg-red-800 text-red-200 text-xs font-semibold px-2.5 py-1 rounded inline-flex items-center space-x-1" data-id="${b.id}">
+        <button class="delete-btn bg-red-900/40 hover:bg-red-900/60 border border-red-500/30 text-error hover:text-white hover:border-red-500/50 text-xs font-semibold px-2.5 py-1 rounded inline-flex items-center space-x-1 transition-colors cursor-pointer" data-id="${b.id}">
           <span class="material-symbols text-sm">delete</span>
           <span>Delete</span>
         </button>

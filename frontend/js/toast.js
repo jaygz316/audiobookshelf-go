@@ -6,11 +6,11 @@ export function showToast(message, type = 'info') {
   toast.className = 'px-4 py-2.5 rounded shadow-lg text-sm transition-all duration-300 transform translate-y-2 opacity-0 flex items-center space-x-2 ';
   
   if (type === 'success') {
-    toast.className += 'bg-emerald-800 border border-emerald-500 text-emerald-100';
+    toast.className += 'bg-success/10 border border-success/60 text-success';
   } else if (type === 'error') {
-    toast.className += 'bg-red-950 border border-red-500 text-red-100';
+    toast.className += 'bg-error/10 border border-error/60 text-error';
   } else if (type === 'warning') {
-    toast.className += 'bg-yellow-950/80 border border-yellow-600/50 text-yellow-100';
+    toast.className += 'bg-warning/10 border border-warning/60 text-warning';
   } else {
     toast.className += 'bg-primary border border-black-300 text-white';
   }

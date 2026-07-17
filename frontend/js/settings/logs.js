@@ -163,7 +163,7 @@ export async function renderListeningSessionsTab() {
 
     renderListeningSessionsListRows(getFilteredSessions());
   } catch (err) {
-    container.innerHTML = `<div class="text-red-500 text-center py-4 font-semibold">Failed to load listening sessions: ${escapeHtml(err.message)}</div>`;
+    container.innerHTML = `<div class="text-error text-center py-4 font-semibold">Failed to load listening sessions: ${escapeHtml(err.message)}</div>`;
   }
 }
 
@@ -199,7 +199,7 @@ function renderListeningSessionsListRows(sessions) {
     let actionsHtml = '';
     if (canClose) {
       actionsHtml = `
-        <button class="close-session-btn text-red-500 hover:text-red-400 font-semibold text-xs transition-colors duration-150 inline-flex items-center space-x-1" data-id="${session.id}">
+        <button class="close-session-btn text-error hover:text-red-400 font-semibold text-xs transition-colors duration-150 inline-flex items-center space-x-1" data-id="${session.id}">
           <span class="material-symbols text-sm">close</span>
           <span>Close Session</span>
         </button>
@@ -310,7 +310,7 @@ export async function renderLoginSessionsTab() {
     await loadAndRenderLoginSessions(select.value);
 
   } catch (err) {
-    container.innerHTML = `<div class="text-red-500 text-center py-4">Failed to load active login sessions: ${escapeHtml(err.message)}</div>`;
+    container.innerHTML = `<div class="text-error text-center py-4">Failed to load active login sessions: ${escapeHtml(err.message)}</div>`;
   }
 }
 
@@ -353,7 +353,7 @@ async function loadAndRenderLoginSessions(userId) {
       ` : '';
 
       const actionButtonHtml = `
-        <button class="revoke-login-session-btn text-red-500 hover:text-red-400 font-semibold text-xs transition-colors duration-150 flex items-center space-x-1" data-id="${session.id}">
+        <button class="revoke-login-session-btn text-error hover:text-red-400 font-semibold text-xs transition-colors duration-150 flex items-center space-x-1" data-id="${session.id}">
           <span class="material-symbols text-sm">close</span>
           <span>Revoke</span>
         </button>
@@ -405,7 +405,7 @@ async function loadAndRenderLoginSessions(userId) {
   } catch (err) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="5" class="px-4 py-8 text-center text-red-500">
+        <td colspan="5" class="px-4 py-8 text-center text-error">
           Failed to load sessions: ${escapeHtml(err.message)}
         </td>
       </tr>
@@ -496,11 +496,11 @@ export async function renderLogsTab() {
         
         let levelColorClass = 'text-black-100';
         if (entry.level === 2) {
-          levelColorClass = 'text-green-400';
+          levelColorClass = 'text-success';
         } else if (entry.level === 3) {
-          levelColorClass = 'text-yellow-400';
+          levelColorClass = 'text-warning';
         } else if (entry.level === 4) {
-          levelColorClass = 'text-red-400';
+          levelColorClass = 'text-error';
         }
 
         const timestamp = escapeHtml(String(entry.timestamp || ''));
@@ -560,7 +560,7 @@ export async function renderLogsTab() {
     };
 
   } catch (err) {
-    container.innerHTML = `<p class="text-red-400 text-sm">Failed to load logs: ${escapeHtml(err.message)}</p>`;
+    container.innerHTML = `<p class="text-error text-sm">Failed to load logs: ${escapeHtml(err.message)}</p>`;
   }
 }
 
@@ -661,13 +661,13 @@ async function updateTasksList() {
       
       let statusBadge = '';
       if (task.status === 'running') {
-        statusBadge = `<span class="bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider">Downloading</span>`;
+        statusBadge = `<span class="bg-info/10 text-info border border-info/30 px-1.5 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider">Downloading</span>`;
       } else if (task.status === 'paused') {
-        statusBadge = `<span class="bg-yellow-500/20 text-yellow-400 px-2 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider">Paused</span>`;
+        statusBadge = `<span class="bg-warning/10 text-warning border border-warning/30 px-1.5 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider">Paused</span>`;
       } else if (task.status === 'failed') {
-        statusBadge = `<span class="bg-red-500/20 text-red-400 px-2 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider">Failed</span>`;
+        statusBadge = `<span class="bg-error/10 text-error border border-error/30 px-1.5 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider">Failed</span>`;
       } else if (task.status === 'finished') {
-        statusBadge = `<span class="bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider">Completed</span>`;
+        statusBadge = `<span class="bg-success/10 text-success border border-success/30 px-1.5 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider">Completed</span>`;
       } else {
         statusBadge = `<span class="bg-black-400 text-black-100 px-2 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider">${task.status}</span>`;
       }
@@ -688,13 +688,13 @@ async function updateTasksList() {
         progressInfo = `
           <div class="flex items-center space-x-2 min-w-[120px]">
             <div class="w-24 bg-black-500 rounded-full h-1.5 overflow-hidden opacity-50">
-              <div class="bg-yellow-500 h-1.5 rounded-full" style="width: ${progressPct}%"></div>
+              <div class="bg-warning h-1.5 rounded-full" style="width: ${progressPct}%"></div>
             </div>
             <span class="text-[10px] font-mono text-black-100">${progressPct}% (${downloadedMb}/${totalMb} MB)</span>
           </div>
         `;
       } else if (task.status === 'failed' && task.error) {
-        progressInfo = `<span class="text-[10px] text-red-400 truncate max-w-[200px]" title="${escapeHtml(task.error)}">${escapeHtml(task.error)}</span>`;
+        progressInfo = `<span class="text-[10px] text-error truncate max-w-[200px]" title="${escapeHtml(task.error)}">${escapeHtml(task.error)}</span>`;
       } else {
         progressInfo = `<span class="text-[10px] text-black-100">-</span>`;
       }
@@ -726,7 +726,7 @@ async function updateTasksList() {
                 </button>
               ` : ''}
               ${showCancel ? `
-                <button class="task-action-btn hover:text-red-400 text-black-100 p-1 rounded hover:bg-black-400" data-id="${task.id}" data-action="cancel" title="Cancel Download">
+                <button class="task-action-btn hover:text-error text-black-100 p-1 rounded hover:bg-black-400" data-id="${task.id}" data-action="cancel" title="Cancel Download">
                   <span class="material-symbols text-sm">cancel</span>
                 </button>
               ` : ''}

@@ -63,7 +63,7 @@ export async function renderUsersTab() {
     };
 
   } catch (err) {
-    container.innerHTML = `<p class="text-red-400 text-sm">Failed to load users: ${err.message}</p>`;
+    container.innerHTML = `<p class="text-error text-sm">Failed to load users: ${err.message}</p>`;
   }
 }
 
@@ -110,7 +110,7 @@ function renderUsersListRows(users, currentUser) {
           <span class="material-symbols text-sm">edit</span>
           <span>Edit</span>
         </button>
-        <button class="delete-user-btn bg-red-900/40 hover:bg-red-800 border border-red-500/30 text-error hover:text-white hover:border-red-500/50 text-xs font-semibold px-2.5 py-1 rounded disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center space-x-1 transition-colors cursor-pointer" ${canDelete ? '' : 'disabled'} data-id="${u.id}">
+        <button class="delete-user-btn bg-red-900/40 hover:bg-red-900/60 border border-red-500/30 text-error hover:text-white hover:border-red-500/50 text-xs font-semibold px-2.5 py-1 rounded disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center space-x-1 transition-colors cursor-pointer" ${canDelete ? '' : 'disabled'} data-id="${u.id}">
           <span class="material-symbols text-sm">delete</span>
           <span>Delete</span>
         </button>
@@ -554,7 +554,7 @@ export async function renderApiKeysTab() {
 
     renderApiKeysListRows(apiKeys, users);
   } catch (err) {
-    container.innerHTML = `<div class="text-red-500 text-center py-4">Failed to load API keys: ${escapeHtml(err.message)}</div>`;
+    container.innerHTML = `<div class="text-error text-center py-4">Failed to load API keys: ${escapeHtml(err.message)}</div>`;
   }
 }
 

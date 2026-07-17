@@ -1590,8 +1590,8 @@ function bootstrapApp(payload) {
         totalResults += items.length;
 
         const headerLi = document.createElement('li');
-        headerLi.className = 'px-3 py-1 text-xs font-semibold text-gray-400 uppercase tracking-wider select-none bg-black-700/50';
-        headerLi.textContent = title;
+        headerLi.className = 'px-3 py-1.5 text-[10px] font-bold text-black-50 uppercase tracking-wider select-none bg-black-700/60 border-b border-black-600/30';
+        headerLi.textContent = `${title} (${items.length})`;
         globalSearchResultsList.appendChild(headerLi);
 
         items.forEach(item => {
