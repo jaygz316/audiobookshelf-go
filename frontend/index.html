@@ -103,7 +103,7 @@
         </div>
 
         <!-- Custom Login Message Banner -->
-        <div id="login-custom-message" class="w-full mb-4 text-center text-sm text-gray-300 border border-white/10 rounded p-3 bg-primary/20 hidden"></div>
+        <div id="login-custom-message" class="w-full mb-4 text-center text-sm text-black-50 border border-white/10 rounded p-3 bg-primary/20 hidden"></div>
 
         <!-- Error Message Banner -->
         <div id="login-error" class="w-full mb-4 bg-red-900/40 border border-red-500/45 text-red-200 text-sm rounded p-3 hidden text-center"></div>
@@ -111,16 +111,16 @@
         <!-- Credentials Form -->
         <form id="login-form" class="w-full flex flex-col space-y-4">
           <div>
-            <label for="username" class="text-xs text-gray-300 uppercase">Username</label>
+            <label for="username" class="text-xs text-black-50 uppercase">Username</label>
             <input type="text" id="username" autocomplete="username" required
-              class="w-full bg-primary text-gray-200 focus:bg-bg focus:outline-none border border-gray-600 focus:border-gray-300 rounded-sm px-3 py-2 text-sm mt-1">
+              class="w-full bg-primary text-white focus:bg-bg focus:outline-none border border-black-400/50 focus:border-accent rounded-sm px-3 py-2 text-sm mt-1">
           </div>
           <div>
-            <label for="password" class="text-xs text-gray-300 uppercase">Password</label>
+            <label for="password" class="text-xs text-black-50 uppercase">Password</label>
             <div class="relative w-full mt-1 password-wrapper">
               <input type="password" id="password" autocomplete="current-password"
-                class="w-full bg-primary text-gray-200 focus:bg-bg focus:outline-none border border-gray-600 focus:border-gray-300 rounded-sm pr-10 pl-3 py-2 text-sm">
-              <button type="button" class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-white cursor-pointer select-none focus:outline-none password-toggle-btn" tabindex="-1">
+                class="w-full bg-primary text-white focus:bg-bg focus:outline-none border border-black-400/50 focus:border-accent rounded-sm pr-10 pl-3 py-2 text-sm">
+              <button type="button" class="absolute inset-y-0 right-0 pr-3 flex items-center text-black-100 hover:text-white cursor-pointer select-none focus:outline-none password-toggle-btn" tabindex="-1">
                 <span class="material-symbols text-lg">visibility</span>
               </button>
             </div>
@@ -128,7 +128,7 @@
           
           <div class="w-full flex justify-end py-3">
             <button type="submit" id="login-submit-btn"
-              class="abs-btn rounded-md shadow-md relative border border-gray-600 text-center text-white px-8 py-2 bg-primary leading-none">
+              class="abs-btn rounded-md shadow-md relative border border-black-400/50 text-center text-white px-8 py-2 bg-primary leading-none">
               Submit
             </button>
           </div>
@@ -138,7 +138,7 @@
         <div id="login-divider" class="w-full h-px bg-white/10 my-4 hidden"></div>
         
         <!-- OIDC Button -->
-        <button id="oidc-btn" class="w-full abs-btn outline-none rounded-md shadow-md relative border border-gray-600 text-center bg-primary text-white px-8 py-2 leading-none hidden flex items-center justify-center space-x-2">
+        <button id="oidc-btn" class="w-full abs-btn outline-none rounded-md shadow-md relative border border-black-400/50 text-center bg-primary text-white px-8 py-2 leading-none hidden flex items-center justify-center space-x-2">
           <span class="material-symbols text-lg">vpn_key</span>
           <span id="oidc-btn-text">Sign in with OpenId</span>
         </button>
@@ -169,13 +169,13 @@
         </div>
         <div class="flex-grow h-0.5 bg-white/10 mx-2 -mt-4"></div>
         <div class="flex flex-col items-center">
-          <div id="step-indicator-2" class="w-8 h-8 rounded-full bg-black-600 text-gray-400 flex items-center justify-center font-bold text-sm transition-colors duration-150">2</div>
-          <span class="text-xs text-gray-400 mt-1 font-semibold" id="step-label-2">Library</span>
+          <div id="step-indicator-2" class="w-8 h-8 rounded-full bg-black-600 text-black-100 flex items-center justify-center font-bold text-sm transition-colors duration-150">2</div>
+          <span class="text-xs text-black-100 mt-1 font-semibold" id="step-label-2">Library</span>
         </div>
         <div class="flex-grow h-0.5 bg-white/10 mx-2 -mt-4"></div>
         <div class="flex flex-col items-center">
-          <div id="step-indicator-3" class="w-8 h-8 rounded-full bg-black-600 text-gray-400 flex items-center justify-center font-bold text-sm transition-colors duration-150">3</div>
-          <span class="text-xs text-gray-400 mt-1 font-semibold" id="step-label-3">Finish</span>
+          <div id="step-indicator-3" class="w-8 h-8 rounded-full bg-black-600 text-black-100 flex items-center justify-center font-bold text-sm transition-colors duration-150">3</div>
+          <span class="text-xs text-black-100 mt-1 font-semibold" id="step-label-3">Finish</span>
         </div>
       </div>
 
@@ -190,14 +190,14 @@
           <div>
             <label for="setup-username" class="px-1 text-sm font-semibold">Username</label>
             <input type="text" id="setup-username" autocomplete="username" placeholder="root"
-              class="w-full bg-primary text-gray-200 focus:bg-bg focus:outline-none border border-gray-600 focus:border-gray-300 rounded-sm px-3 py-2 text-sm mt-1">
+              class="w-full bg-primary text-white focus:bg-bg focus:outline-none border border-black-400/50 focus:border-accent rounded-sm px-3 py-2 text-sm mt-1">
           </div>
           <div>
             <label for="setup-password" class="px-1 text-sm font-semibold">Password</label>
             <div class="relative w-full mt-1 password-wrapper">
               <input type="password" id="setup-password" autocomplete="new-password"
-                class="w-full bg-primary text-gray-200 focus:bg-bg focus:outline-none border border-gray-600 focus:border-gray-300 rounded-sm pr-10 pl-3 py-2 text-sm">
-              <button type="button" class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-white cursor-pointer select-none focus:outline-none password-toggle-btn" tabindex="-1">
+                class="w-full bg-primary text-white focus:bg-bg focus:outline-none border border-black-400/50 focus:border-accent rounded-sm pr-10 pl-3 py-2 text-sm">
+              <button type="button" class="absolute inset-y-0 right-0 pr-3 flex items-center text-black-100 hover:text-white cursor-pointer select-none focus:outline-none password-toggle-btn" tabindex="-1">
                 <span class="material-symbols text-lg">visibility</span>
               </button>
             </div>
@@ -206,8 +206,8 @@
             <label for="setup-password2" class="px-1 text-sm font-semibold">Confirm Password</label>
             <div class="relative w-full mt-1 password-wrapper">
               <input type="password" id="setup-password2" autocomplete="new-password"
-                class="w-full bg-primary text-gray-200 focus:bg-bg focus:outline-none border border-gray-600 focus:border-gray-300 rounded-sm pr-10 pl-3 py-2 text-sm">
-              <button type="button" class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-white cursor-pointer select-none focus:outline-none password-toggle-btn" tabindex="-1">
+                class="w-full bg-primary text-white focus:bg-bg focus:outline-none border border-black-400/50 focus:border-accent rounded-sm pr-10 pl-3 py-2 text-sm">
+              <button type="button" class="absolute inset-y-0 right-0 pr-3 flex items-center text-black-100 hover:text-white cursor-pointer select-none focus:outline-none password-toggle-btn" tabindex="-1">
                 <span class="material-symbols text-lg">visibility</span>
               </button>
             </div>
@@ -220,16 +220,16 @@
           <div>
             <label for="setup-library-name" class="px-1 text-sm font-semibold">Library Name</label>
             <input type="text" id="setup-library-name" value="Audiobooks" placeholder="e.g. Audiobooks"
-              class="w-full bg-primary text-gray-200 focus:bg-bg focus:outline-none border border-gray-600 focus:border-gray-300 rounded-sm px-3 py-2 text-sm mt-1">
+              class="w-full bg-primary text-white focus:bg-bg focus:outline-none border border-black-400/50 focus:border-accent rounded-sm px-3 py-2 text-sm mt-1">
           </div>
           <div>
             <label class="px-1 text-sm font-semibold">Library Type</label>
             <div class="flex space-x-4 mt-1">
-              <label class="flex items-center space-x-2 bg-primary px-4 py-2.5 rounded border border-gray-600 cursor-pointer hover:border-gray-400 w-1/2 justify-center transition-colors">
+              <label class="flex items-center space-x-2 bg-primary px-4 py-2.5 rounded border border-black-400/50 cursor-pointer hover:border-black-50 w-1/2 justify-center transition-colors">
                 <input type="radio" name="setup-library-type" value="book" checked class="text-accent focus:ring-accent mr-2">
                 <span class="text-sm font-semibold">Book</span>
               </label>
-              <label class="flex items-center space-x-2 bg-primary px-4 py-2.5 rounded border border-gray-600 cursor-pointer hover:border-gray-400 w-1/2 justify-center transition-colors">
+              <label class="flex items-center space-x-2 bg-primary px-4 py-2.5 rounded border border-black-400/50 cursor-pointer hover:border-black-50 w-1/2 justify-center transition-colors">
                 <input type="radio" name="setup-library-type" value="podcast" class="text-accent focus:ring-accent mr-2">
                 <span class="text-sm font-semibold">Podcast</span>
               </label>
@@ -238,7 +238,7 @@
           <div>
             <label for="setup-library-path" class="px-1 text-sm font-semibold">Folder Path</label>
             <input type="text" id="setup-library-path" value="/audiobooks" placeholder="e.g. /audiobooks"
-              class="w-full bg-primary text-gray-200 focus:bg-bg focus:outline-none border border-gray-600 focus:border-gray-300 rounded-sm px-3 py-2 text-sm mt-1">
+              class="w-full bg-primary text-white focus:bg-bg focus:outline-none border border-black-400/50 focus:border-accent rounded-sm px-3 py-2 text-sm mt-1">
           </div>
         </div>
 
@@ -246,12 +246,12 @@
         <div id="setup-step-3" class="space-y-4 hidden">
           <p class="text-lg font-semibold mb-2 pl-1 text-center">Ready to Start</p>
           <div class="bg-primary/50 border border-white/5 rounded p-4 space-y-3">
-            <p class="text-sm text-gray-300">You are all set! Click finish to complete the setup and start streaming your audiobooks and podcasts.</p>
+            <p class="text-sm text-black-50">You are all set! Click finish to complete the setup and start streaming your audiobooks and podcasts.</p>
             <div class="text-xs text-black-100 space-y-1.5 pt-2 border-t border-white/10">
-              <p><span class="font-semibold text-gray-400">Config Path:</span> <span id="setup-summary-config" class="text-gray-200 font-mono"></span></p>
-              <p><span class="font-semibold text-gray-400">Metadata Path:</span> <span id="setup-summary-metadata" class="text-gray-200 font-mono"></span></p>
-              <p><span class="font-semibold text-gray-400">Owner Username:</span> <span id="setup-summary-username" class="text-gray-200 font-semibold"></span></p>
-              <p><span class="font-semibold text-gray-400">Initial Library:</span> <span id="setup-summary-libname" class="text-gray-200"></span> (<span id="setup-summary-libtype" class="text-gray-200 uppercase text-[10px] bg-black-400 px-1 py-0.5 rounded"></span>)</p>
+              <p><span class="font-semibold text-black-100">Config Path:</span> <span id="setup-summary-config" class="text-white font-mono"></span></p>
+              <p><span class="font-semibold text-black-100">Metadata Path:</span> <span id="setup-summary-metadata" class="text-white font-mono"></span></p>
+              <p><span class="font-semibold text-black-100">Owner Username:</span> <span id="setup-summary-username" class="text-white font-semibold"></span></p>
+              <p><span class="font-semibold text-black-100">Initial Library:</span> <span id="setup-summary-libname" class="text-white"></span> (<span id="setup-summary-libtype" class="text-white uppercase text-[10px] bg-black-400 px-1 py-0.5 rounded"></span>)</p>
             </div>
           </div>
         </div>
@@ -262,7 +262,7 @@
 
         <!-- Navigation Action Buttons -->
         <div class="w-full flex justify-between items-center py-3">
-          <button type="button" id="setup-back-btn" class="hidden rounded-md shadow-md border border-gray-600 text-center text-white px-6 py-2 bg-primary leading-none hover:bg-black-500 transition-colors focus:outline-none text-sm font-semibold">
+          <button type="button" id="setup-back-btn" class="hidden rounded-md shadow-md border border-black-400/50 text-center text-white px-6 py-2 bg-primary leading-none hover:bg-black-500 transition-colors focus:outline-none text-sm font-semibold">
             Back
           </button>
           <div class="flex-grow"></div>
@@ -363,14 +363,14 @@
           
           <!-- Library Dropdown -->
           <div class="relative h-8 max-w-52 md:min-w-32 flex items-center">
-            <button id="library-dropdown-btn" class="w-10 sm:w-full relative h-full border border-white/10 hover:border-opacity-20 rounded shadow-sm px-2 text-left text-sm cursor-pointer bg-black/20 text-gray-400 hover:text-gray-200 flex items-center justify-between transition-colors focus:outline-none" title="Select Library">
+            <button id="library-dropdown-btn" class="w-10 sm:w-auto relative h-full bg-black-600 border border-black-400/50 hover:bg-black-500 rounded px-2.5 text-left text-xs font-semibold text-white/90 hover:text-white flex items-center justify-between transition-colors focus:outline-none cursor-pointer" title="Select Library">
               <div class="flex items-center min-w-0">
                 <span id="library-dropdown-icon" class="material-symbols text-lg sm:mr-1.5 flex items-center justify-center">local_library</span>
                 <span id="library-dropdown-selected-name" class="hidden sm:block truncate">Loading...</span>
               </div>
               <span class="material-symbols text-base hidden sm:block ml-1">expand_more</span>
             </button>
-            <div id="library-dropdown-menu" class="absolute z-10 -mt-px left-0 top-full w-full min-w-48 bg-primary border border-black-200 shadow-lg rounded-b-md py-1 overflow-auto focus:outline-none sm:text-sm hidden">
+            <div id="library-dropdown-menu" class="absolute z-10 -mt-px left-0 top-full w-full min-w-48 bg-primary border border-black-300 shadow-lg rounded-b-md py-1 overflow-auto focus:outline-none sm:text-sm hidden">
               <!-- Dynamically populated -->
             </div>
           </div>

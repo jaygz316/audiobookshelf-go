@@ -201,205 +201,215 @@ export function navigateTo(path, pushState = true) {
     relPath = '/' + relPath;
   }
 
-  const filterBtn = document.getElementById('filter-dropdown-btn');
-  const sortBtn = document.getElementById('sort-dropdown-btn');
-  const sortOrderToggle = document.getElementById('sort-order-toggle-btn');
-  const shelfSizeControl = document.getElementById('shelf-size-control');
-  const styleSwitcher = document.getElementById('style-switcher');
+  const performTransition = () => {
+    const filterBtn = document.getElementById('filter-dropdown-btn');
+    const sortBtn = document.getElementById('sort-dropdown-btn');
+    const sortOrderToggle = document.getElementById('sort-order-toggle-btn');
+    const shelfSizeControl = document.getElementById('shelf-size-control');
+    const styleSwitcher = document.getElementById('style-switcher');
 
-  const showControls = (relPath === '/library');
-  const showBookCount = (relPath === '/library' || relPath === '/series' || relPath === '/authors' || relPath === '/collections' || relPath === '/playlists' || relPath === '/narrators');
-  const showShelfSize = (
-    relPath === '/' || 
-    relPath === '/library' || 
-    relPath === '/series' || 
-    relPath === '/authors' || 
-    relPath === '/collections' || 
-    relPath === '/playlists' || 
-    relPath === '/narrators' ||
-    relPath.startsWith('/author/') ||
-    relPath.startsWith('/series/') ||
-    relPath.startsWith('/playlist/') ||
-    relPath.startsWith('/collection/')
-  );
-  
-  const bookCount = document.getElementById('book-count');
-  const viewTitleSeparator = document.getElementById('view-title-separator');
-  if (bookCount) {
-    if (showBookCount) bookCount.classList.remove('hidden');
-    else bookCount.classList.add('hidden');
-  }
-  if (viewTitleSeparator) {
-    if (showBookCount) viewTitleSeparator.classList.remove('hidden');
-    else viewTitleSeparator.classList.add('hidden');
-  }
+    const showControls = (relPath === '/library');
+    const showBookCount = (relPath === '/library' || relPath === '/series' || relPath === '/authors' || relPath === '/collections' || relPath === '/playlists' || relPath === '/narrators');
+    const showShelfSize = (
+      relPath === '/' || 
+      relPath === '/library' || 
+      relPath === '/series' || 
+      relPath === '/authors' || 
+      relPath === '/collections' || 
+      relPath === '/playlists' || 
+      relPath === '/narrators' ||
+      relPath.startsWith('/author/') ||
+      relPath.startsWith('/series/') ||
+      relPath.startsWith('/playlist/') ||
+      relPath.startsWith('/collection/')
+    );
+    
+    const bookCount = document.getElementById('book-count');
+    const viewTitleSeparator = document.getElementById('view-title-separator');
+    if (bookCount) {
+      if (showBookCount) bookCount.classList.remove('hidden');
+      else bookCount.classList.add('hidden');
+    }
+    if (viewTitleSeparator) {
+      if (showBookCount) viewTitleSeparator.classList.remove('hidden');
+      else viewTitleSeparator.classList.add('hidden');
+    }
 
-  const globalSearchInput = document.getElementById('global-search-input');
-  const globalSearchClearBtn = document.getElementById('global-search-clear-btn');
-  const globalSearchDropdown = document.getElementById('global-search-dropdown');
-  if (!showControls) {
-    if (globalSearchInput) globalSearchInput.value = '';
-    if (globalSearchClearBtn) globalSearchClearBtn.classList.add('hidden');
-    if (globalSearchDropdown) globalSearchDropdown.classList.add('hidden');
-  }
-  
-  if (filterBtn) {
-    if (showControls) filterBtn.parentElement.classList.remove('hidden');
-    else filterBtn.parentElement.classList.add('hidden');
-  }
-  if (sortBtn) {
-    if (showControls) sortBtn.parentElement.classList.remove('hidden');
-    else sortBtn.parentElement.classList.add('hidden');
-  }
-  if (sortOrderToggle) {
-    if (showControls) sortOrderToggle.classList.remove('hidden');
-    else sortOrderToggle.classList.add('hidden');
-  }
-  if (shelfSizeControl) {
-    const currentStyle = localStorage.getItem('library-style') || 'shelf';
-    if (showShelfSize && (relPath !== '/library' || currentStyle !== 'list')) shelfSizeControl.classList.remove('hidden');
-    else shelfSizeControl.classList.add('hidden');
-  }
-  if (styleSwitcher) {
-    if (showControls) styleSwitcher.classList.remove('hidden');
-    else styleSwitcher.classList.add('hidden');
-  }
+    const globalSearchInput = document.getElementById('global-search-input');
+    const globalSearchClearBtn = document.getElementById('global-search-clear-btn');
+    const globalSearchDropdown = document.getElementById('global-search-dropdown');
+    if (!showControls) {
+      if (globalSearchInput) globalSearchInput.value = '';
+      if (globalSearchClearBtn) globalSearchClearBtn.classList.add('hidden');
+      if (globalSearchDropdown) globalSearchDropdown.classList.add('hidden');
+    }
+    
+    if (filterBtn) {
+      if (showControls) filterBtn.parentElement.classList.remove('hidden');
+      else filterBtn.parentElement.classList.add('hidden');
+    }
+    if (sortBtn) {
+      if (showControls) sortBtn.parentElement.classList.remove('hidden');
+      else sortBtn.parentElement.classList.add('hidden');
+    }
+    if (sortOrderToggle) {
+      if (showControls) sortOrderToggle.classList.remove('hidden');
+      else sortOrderToggle.classList.add('hidden');
+    }
+    if (shelfSizeControl) {
+      const currentStyle = localStorage.getItem('library-style') || 'shelf';
+      if (showShelfSize && (relPath !== '/library' || currentStyle !== 'list')) shelfSizeControl.classList.remove('hidden');
+      else shelfSizeControl.classList.add('hidden');
+    }
+    if (styleSwitcher) {
+      if (showControls) styleSwitcher.classList.remove('hidden');
+      else styleSwitcher.classList.add('hidden');
+    }
 
-  const savePresetBtn = document.getElementById('save-preset-btn');
-  const presetsContainer = document.getElementById('presets-pills-container');
-  if (savePresetBtn) {
-    if (showControls) savePresetBtn.classList.remove('hidden');
-    else savePresetBtn.classList.add('hidden');
-  }
-  if (presetsContainer) {
-    if (showControls) presetsContainer.classList.remove('hidden');
-    else presetsContainer.classList.add('hidden');
-  }
+    const savePresetBtn = document.getElementById('save-preset-btn');
+    const presetsContainer = document.getElementById('presets-pills-container');
+    if (savePresetBtn) {
+      if (showControls) savePresetBtn.classList.remove('hidden');
+      else savePresetBtn.classList.add('hidden');
+    }
+    if (presetsContainer) {
+      if (showControls) presetsContainer.classList.remove('hidden');
+      else presetsContainer.classList.add('hidden');
+    }
 
-  const activeLibId = getActiveLibraryId();
+    const activeLibId = getActiveLibraryId();
 
-  if (relPath === '/') {
-    const isMissing = localStorage.getItem('library-filterBy') === 'missing';
-    if (isMissing) {
-      highlightSidebarLink('Issues');
-    } else {
-      highlightSidebarLink('Home');
-    }
-    const viewTitle = document.getElementById('view-title');
-    if (viewTitle) viewTitle.textContent = isMissing ? 'Issues' : 'Home';
-    if (activeLibId) {
-      loadDashboard(activeLibId, true);
-    } else {
-      showNoLibrariesWelcome();
-    }
-  } else if (relPath === '/library') {
-    highlightSidebarLink('Library');
-    const viewTitle = document.getElementById('view-title');
-    if (viewTitle) {
-      const lib = getActiveLibrary();
-      viewTitle.textContent = lib ? lib.name : 'Library';
-    }
-    if (activeLibId) {
-      loadDashboard(activeLibId, false);
-    } else {
-      showNoLibrariesWelcome();
-    }
-  } else if (relPath === '/playlists') {
-    highlightSidebarLink('Playlists');
-    const viewTitle = document.getElementById('view-title');
-    if (viewTitle) viewTitle.textContent = 'Playlists';
-    if (activeLibId) loadPlaylists(activeLibId);
-  } else if (relPath === '/collections') {
-    highlightSidebarLink('Collections');
-    const viewTitle = document.getElementById('view-title');
-    if (viewTitle) viewTitle.textContent = 'Collections';
-    if (activeLibId) loadCollections(activeLibId);
-  } else if (relPath === '/authors') {
-    highlightSidebarLink('Authors');
-    const viewTitle = document.getElementById('view-title');
-    if (viewTitle) viewTitle.textContent = 'Authors';
-    if (activeLibId) loadAuthors(activeLibId);
-  } else if (relPath === '/series') {
-    highlightSidebarLink('Series');
-    const viewTitle = document.getElementById('view-title');
-    if (viewTitle) viewTitle.textContent = 'Series';
-    if (activeLibId) loadSeries(activeLibId);
-  } else if (relPath === '/narrators') {
-    highlightSidebarLink('Narrators');
-    const viewTitle = document.getElementById('view-title');
-    if (viewTitle) viewTitle.textContent = 'Narrators';
-    if (activeLibId) loadNarrators(activeLibId);
-  } else if (relPath === '/stats') {
-    highlightSidebarLink('Stats');
-    const viewTitle = document.getElementById('view-title');
-    if (viewTitle) viewTitle.textContent = 'Stats';
-    loadStats();
-  } else if (relPath === '/podcast/latest') {
-    highlightSidebarLink('Latest');
-    const viewTitle = document.getElementById('view-title');
-    if (viewTitle) viewTitle.textContent = 'Latest Episodes';
-    if (activeLibId) loadPodcastLatestView(activeLibId);
-  } else if (relPath === '/podcast/add') {
-    highlightSidebarLink('Add');
-    const viewTitle = document.getElementById('view-title');
-    if (viewTitle) viewTitle.textContent = 'Add Podcast';
-    if (activeLibId) loadPodcastAddView(activeLibId);
-  } else if (relPath === '/podcast/download-queue') {
-    highlightSidebarLink('Download Queue');
-    const viewTitle = document.getElementById('view-title');
-    if (viewTitle) viewTitle.textContent = 'Download Queue';
-    if (activeLibId) loadPodcastDownloadQueueView(activeLibId);
-  } else if (relPath === '/settings') {
-    // Deselect sidebar highlights
-    document.querySelectorAll('#siderail-buttons-container a').forEach(l => {
-      l.classList.remove('bg-primary/80', 'text-white', 'text-accent');
-      l.classList.add('hover:bg-primary', 'hover:text-white', 'text-white/80', 'bg-bg/60');
-      const activeBar = l.querySelector('.active-indicator');
-      if (activeBar) activeBar.classList.remove('active');
-    });
-    loadSettings();
-  } else if (relPath.startsWith('/item/')) {
-    const itemId = relPath.substring('/item/'.length);
-    if (itemId) {
-      loadItemDetails(itemId, activeLibId, () => {
-        if (window.history.length > 1) {
-          window.history.back();
-        } else {
-          navigateTo('/');
-        }
-      });
-    }
-  } else if (relPath.startsWith('/author/')) {
-    const authorId = relPath.substring('/author/'.length);
-    if (authorId) {
-      highlightSidebarLink('Authors');
-      loadAuthorDetails(authorId);
-    }
-  } else if (relPath.startsWith('/series/')) {
-    const seriesId = relPath.substring('/series/'.length);
-    if (seriesId) {
-      highlightSidebarLink('Series');
-      loadSeriesDetails(seriesId);
-    }
-  } else if (relPath.startsWith('/playlist/')) {
-    const playlistId = relPath.substring('/playlist/'.length);
-    if (playlistId) {
+    if (relPath === '/') {
+      const isMissing = localStorage.getItem('library-filterBy') === 'missing';
+      if (isMissing) {
+        highlightSidebarLink('Issues');
+      } else {
+        highlightSidebarLink('Home');
+      }
+      const viewTitle = document.getElementById('view-title');
+      if (viewTitle) viewTitle.textContent = isMissing ? 'Issues' : 'Home';
+      if (activeLibId) {
+        loadDashboard(activeLibId, true);
+      } else {
+        showNoLibrariesWelcome();
+      }
+    } else if (relPath === '/library') {
+      highlightSidebarLink('Library');
+      const viewTitle = document.getElementById('view-title');
+      if (viewTitle) {
+        const lib = getActiveLibrary();
+        viewTitle.textContent = lib ? lib.name : 'Library';
+      }
+      if (activeLibId) {
+        loadDashboard(activeLibId, false);
+      } else {
+        showNoLibrariesWelcome();
+      }
+    } else if (relPath === '/playlists') {
       highlightSidebarLink('Playlists');
       const viewTitle = document.getElementById('view-title');
-      if (viewTitle) viewTitle.textContent = 'Playlist Details';
-      if (activeLibId) loadPlaylistDetails(playlistId, activeLibId);
-    }
-  } else if (relPath.startsWith('/collection/')) {
-    const collectionId = relPath.substring('/collection/'.length);
-    if (collectionId) {
+      if (viewTitle) viewTitle.textContent = 'Playlists';
+      if (activeLibId) loadPlaylists(activeLibId);
+    } else if (relPath === '/collections') {
       highlightSidebarLink('Collections');
       const viewTitle = document.getElementById('view-title');
-      if (viewTitle) viewTitle.textContent = 'Collection Details';
-      if (activeLibId) loadCollectionDetails(collectionId, activeLibId);
+      if (viewTitle) viewTitle.textContent = 'Collections';
+      if (activeLibId) loadCollections(activeLibId);
+    } else if (relPath === '/authors') {
+      highlightSidebarLink('Authors');
+      const viewTitle = document.getElementById('view-title');
+      if (viewTitle) viewTitle.textContent = 'Authors';
+      if (activeLibId) loadAuthors(activeLibId);
+    } else if (relPath === '/series') {
+      highlightSidebarLink('Series');
+      const viewTitle = document.getElementById('view-title');
+      if (viewTitle) viewTitle.textContent = 'Series';
+      if (activeLibId) loadSeries(activeLibId);
+    } else if (relPath === '/narrators') {
+      highlightSidebarLink('Narrators');
+      const viewTitle = document.getElementById('view-title');
+      if (viewTitle) viewTitle.textContent = 'Narrators';
+      if (activeLibId) loadNarrators(activeLibId);
+    } else if (relPath === '/stats') {
+      highlightSidebarLink('Stats');
+      const viewTitle = document.getElementById('view-title');
+      if (viewTitle) viewTitle.textContent = 'Stats';
+      loadStats();
+    } else if (relPath === '/podcast/latest') {
+      highlightSidebarLink('Latest');
+      const viewTitle = document.getElementById('view-title');
+      if (viewTitle) viewTitle.textContent = 'Latest Episodes';
+      if (activeLibId) loadPodcastLatestView(activeLibId);
+    } else if (relPath === '/podcast/add') {
+      highlightSidebarLink('Add');
+      const viewTitle = document.getElementById('view-title');
+      if (viewTitle) viewTitle.textContent = 'Add Podcast';
+      if (activeLibId) loadPodcastAddView(activeLibId);
+    } else if (relPath === '/podcast/download-queue') {
+      highlightSidebarLink('Download Queue');
+      const viewTitle = document.getElementById('view-title');
+      if (viewTitle) viewTitle.textContent = 'Download Queue';
+      if (activeLibId) loadPodcastDownloadQueueView(activeLibId);
+    } else if (relPath === '/settings') {
+      // Deselect sidebar highlights
+      document.querySelectorAll('#siderail-buttons-container a').forEach(l => {
+        l.classList.remove('bg-primary/80', 'text-white', 'text-accent');
+        l.classList.add('hover:bg-primary', 'hover:text-white', 'text-white/80', 'bg-bg/60');
+        const activeBar = l.querySelector('.active-indicator');
+        if (activeBar) activeBar.classList.remove('active');
+      });
+      loadSettings();
+    } else if (relPath.startsWith('/item/')) {
+      const itemId = relPath.substring('/item/'.length);
+      if (itemId) {
+        loadItemDetails(itemId, activeLibId, () => {
+          if (window.history.length > 1) {
+            window.history.back();
+          } else {
+            navigateTo('/');
+          }
+        });
+      }
+    } else if (relPath.startsWith('/author/')) {
+      const authorId = relPath.substring('/author/'.length);
+      if (authorId) {
+        highlightSidebarLink('Authors');
+        loadAuthorDetails(authorId);
+      }
+    } else if (relPath.startsWith('/series/')) {
+      const seriesId = relPath.substring('/series/'.length);
+      if (seriesId) {
+        highlightSidebarLink('Series');
+        loadSeriesDetails(seriesId);
+      }
+    } else if (relPath.startsWith('/playlist/')) {
+      const playlistId = relPath.substring('/playlist/'.length);
+      if (playlistId) {
+        highlightSidebarLink('Playlists');
+        const viewTitle = document.getElementById('view-title');
+        if (viewTitle) viewTitle.textContent = 'Playlist Details';
+        if (activeLibId) loadPlaylistDetails(playlistId, activeLibId);
+      }
+    } else if (relPath.startsWith('/collection/')) {
+      const collectionId = relPath.substring('/collection/'.length);
+      if (collectionId) {
+        highlightSidebarLink('Collections');
+        const viewTitle = document.getElementById('view-title');
+        if (viewTitle) viewTitle.textContent = 'Collection Details';
+        if (activeLibId) loadCollectionDetails(collectionId, activeLibId);
+      }
+    } else {
+      highlightSidebarLink('Home');
+      if (activeLibId) loadDashboard(activeLibId, true);
     }
+  };
+
+  if (document.startViewTransition) {
+    document.startViewTransition(() => {
+      performTransition();
+    });
   } else {
-    highlightSidebarLink('Home');
-    if (activeLibId) loadDashboard(activeLibId, true);
+    performTransition();
   }
 }
 window.navigateTo = navigateTo;

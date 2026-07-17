@@ -138,25 +138,35 @@ export async function loadSettings() {
   const tabs = document.querySelectorAll('#settings-tabs button');
   tabs.forEach(tab => {
     tab.onclick = () => {
-      tabs.forEach(t => {
-        t.className = 'flex-shrink-0 w-auto md:w-full text-left px-3 py-2 rounded-md md:rounded-l-none md:rounded-r-md font-semibold text-sm transition-all text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2 border-b-2 border-b-transparent md:border-b-0 md:border-l-4 md:border-l-transparent';
-        t.setAttribute('aria-selected', 'false');
-      });
-      tab.className = 'flex-shrink-0 w-auto md:w-full text-left px-3 py-2 rounded-md md:rounded-l-none md:rounded-r-md font-semibold text-sm transition-all text-accent bg-black-500/80 flex items-center space-x-2 border-b-2 border-b-accent md:border-b-0 md:border-l-4 md:border-l-accent';
-      tab.setAttribute('aria-selected', 'true');
- 
       const activeTabId = tab.dataset.tab;
-      document.querySelectorAll('#settings-tab-content > div').forEach(content => {
-        if (content.id === `tab-${activeTabId}`) {
-          content.classList.remove('hidden');
-        } else {
-          content.classList.add('hidden');
+      const updateTabs = () => {
+        tabs.forEach(t => {
+          t.className = 'flex-shrink-0 w-auto md:w-full text-left px-3 py-2 rounded-md md:rounded-l-none md:rounded-r-md font-semibold text-sm transition-all text-black-50 hover:bg-black-500/30 hover:text-white flex items-center space-x-2 border-b-2 border-b-transparent md:border-b-0 md:border-l-4 md:border-l-transparent';
+          t.setAttribute('aria-selected', 'false');
+        });
+        tab.className = 'flex-shrink-0 w-auto md:w-full text-left px-3 py-2 rounded-md md:rounded-l-none md:rounded-r-md font-semibold text-sm transition-all text-accent bg-black-500/80 flex items-center space-x-2 border-b-2 border-b-accent md:border-b-0 md:border-l-4 md:border-l-accent';
+        tab.setAttribute('aria-selected', 'true');
+ 
+        document.querySelectorAll('#settings-tab-content > div').forEach(content => {
+          if (content.id === `tab-${activeTabId}`) {
+            content.classList.remove('hidden');
+          } else {
+            content.classList.add('hidden');
+          }
+        });
+        if (activeTabId === 'tasks') {
+          renderTasksTab();
+        } else if (activeTabId === 'feeds') {
+          renderFeedsTab();
         }
-      });
-      if (activeTabId === 'tasks') {
-        renderTasksTab();
-      } else if (activeTabId === 'feeds') {
-        renderFeedsTab();
+      };
+
+      if (document.startViewTransition) {
+        document.startViewTransition(() => {
+          updateTabs();
+        });
+      } else {
+        updateTabs();
       }
       
       // Update hash without triggering router reload

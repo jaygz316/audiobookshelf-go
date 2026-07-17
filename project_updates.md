@@ -30,6 +30,16 @@
 *This log is updated by developers/agents whenever an API, design pattern, or library is deprecated or updated.*
 
 ### 2026-07-17
+- **Smooth SPA View & Settings Tab Transitions**:
+  - Implemented the modern CSS View Transitions API in [router.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/router.js) and [settings.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/settings.js), wrapping page switching and Settings tab navigation view updates. This replaces abrupt route and tab jumps with beautiful, hardware-accelerated transitions that match the premium visual standards of Vue.js frameworks.
+- **Library Dropdown Polishing and Active Highlighting**:
+  - Styled the library dropdown button in [index.html](file:///home/jay/projects/audiobookshelf-go/frontend/index.html) to perfectly match the user menu button style (`bg-black-600 border border-black-400/50 hover:bg-black-500 rounded px-2.5 h-8 flex items-center text-xs font-semibold text-white/90`).
+  - Added active highlighting and checkmark support to the library dropdown items in [library.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/library.js), formatting the selected library with a gold checkmark icon and highlighted accent styles (`text-accent font-semibold bg-black-400/20`).
+- **Search Suggestions & Filter Submenu Placement Audit**:
+  - Cleaned up inline Tailwind background and border styles from search dropdown section headers and items in [app.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/app.js) to allow project-standard CSS variables and hover/active states to apply cleanly without overrides. Simplified selection highlighting logic.
+  - Implemented dynamic submenu horizontal positioning in [app.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/app.js) to detect available viewport space and overlay categories or shift position on narrow devices, avoiding horizontal off-screen drawer overflows.
+- **Login and Onboarding Setup Wizard Theme Standardization**:
+  - Replaced legacy Tailwind gray text and border classes on the login page and initial setup onboarding wizard screens in [index.html](file:///home/jay/projects/audiobookshelf-go/frontend/index.html) with standardized, premium semantic variables (`text-black-50`, `text-black-100`, `border-black-400/50`, and custom focus border states).
 - **Global Interactive Button Cursors**:
   - Injected global CSS cursor rules inside [base.css](file:///home/jay/projects/audiobookshelf-go/frontend/css/base.css) to apply pointer indicators (`cursor: pointer`) to all `<button>` and `[role="button"]` elements, and a `not-allowed` pointer state to all disabled buttons. This ensures that every interactive button, modal action, and dropdown trigger across the entire application consistently displays the standard hand cursor.
 - **User and Settings Management Action Controls Styling**:
@@ -306,3 +316,7 @@
   - Constrained drag-and-drop initiation for table/list row reordering (settings libraries, collections, playlists, and player queue) to trigger only on the `.drag-handle` element (by checking `e.target.closest('.drag-handle')` in the `dragstart` event). This prevents accidental row dragging and matches the original project's behavior.
   - Refined global search suggestion dropdown categories (Books, Podcasts, Episodes, Authors, Series, Narrators, Tags, Genres) to show result counts in parentheses (e.g., `Books (3)`) matching original Audiobookshelf suggestion behavior.
   - Aligned search dropdown headers to use consistent design-system variables (`text-black-50` and `bg-black-700/60`) for smooth dark theme transitions.
+
+- **Bookshelf View & Card Layout Wood Texture Refinement**:
+  - Replaced solid back-wall colors (`var(--color-bg)`) inside `.bookshelfRow` in [components.css](file:///home/jay/projects/audiobookshelf-go/frontend/css/components.css) and `.library-shelf-grid` in [layout.css](file:///home/jay/projects/audiobookshelf-go/frontend/css/layout.css) with a translucent 3D shadow gradient overlay (`rgba(20, 20, 20, 0.75)` to `rgba(20, 20, 20, 0.55)`). This reveals the underlying wood default texture on the bookshelf back wall with realistic depth, matching the premium visual style of the original Audiobookshelf bookshelf view.
+

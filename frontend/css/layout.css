@@ -26,10 +26,10 @@
       rgba(0, 0, 0, 0.15) calc(var(--bookshelf-row-height) - var(--bookshelf-plank-height) + 2px),
       rgba(0, 0, 0, 0.35) var(--bookshelf-row-height)
     ),
-    /* 3. Solid back wall color covering the wood texture, and overlay tint on the plank */
+    /* 3. Translucent back wall overlay to reveal wood texture behind books with 3D depth, and overlay tint on the plank */
     linear-gradient(to bottom,
-      var(--color-bg) 0px,
-      var(--color-bg) calc(var(--bookshelf-row-height) - var(--bookshelf-plank-height)),
+      rgba(20, 20, 20, 0.75) 0px,
+      rgba(20, 20, 20, 0.55) calc(var(--bookshelf-row-height) - var(--bookshelf-plank-height)),
       var(--bookshelf-overlay) calc(var(--bookshelf-row-height) - var(--bookshelf-plank-height)),
       var(--bookshelf-overlay) var(--bookshelf-row-height)
     ),

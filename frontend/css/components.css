@@ -12,10 +12,10 @@
       rgba(0, 0, 0, 0.15) calc(var(--bookshelf-row-height) - var(--bookshelf-plank-height) + 2px),
       rgba(0, 0, 0, 0.35) var(--bookshelf-row-height)
     ),
-    /* 3. Solid back wall color covering the wood texture, and overlay tint on the plank */
+    /* 3. Translucent back wall overlay to reveal wood texture behind books with 3D depth, and overlay tint on the plank */
     linear-gradient(to bottom,
-      var(--color-bg) 0px,
-      var(--color-bg) calc(var(--bookshelf-row-height) - var(--bookshelf-plank-height)),
+      rgba(20, 20, 20, 0.75) 0px,
+      rgba(20, 20, 20, 0.55) calc(var(--bookshelf-row-height) - var(--bookshelf-plank-height)),
       var(--bookshelf-overlay) calc(var(--bookshelf-row-height) - var(--bookshelf-plank-height)),
       var(--bookshelf-overlay) var(--bookshelf-row-height)
     ),
@@ -762,12 +762,12 @@ input:checked + .abs-slider:before {
 #library-dropdown-menu,
 #user-dropdown,
 #header-notification-dropdown {
-  background-color: rgba(26, 26, 26, 0.96) !important;
+  background-color: color-mix(in oklab, var(--color-primary) 96%, transparent) !important;
   backdrop-filter: blur(16px) !important;
   -webkit-backdrop-filter: blur(16px) !important;
-  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid color-mix(in oklab, var(--color-black-400) 60%, transparent) !important;
   border-radius: 8px !important;
-  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.6), 0 8px 12px -6px rgba(0, 0, 0, 0.6) !important;
+  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.3), 0 8px 12px -6px rgba(0, 0, 0, 0.3) !important;
   padding: 4px !important;
 }
 
@@ -783,8 +783,8 @@ input:checked + .abs-slider:before {
 .sort-option-btn:hover,
 .filter-submenu-option-btn:hover,
 .filter-cat-row-btn:hover {
-  background-color: rgba(255, 255, 255, 0.06) !important;
-  color: #ffffff !important;
+  background-color: var(--color-black-400) !important;
+  color: var(--color-white) !important;
 }
 
 .sort-option-btn:active,
