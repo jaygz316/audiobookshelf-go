@@ -29,6 +29,12 @@
 
 *This log is updated by developers/agents whenever an API, design pattern, or library is deprecated or updated.*
 
+### 2026-07-17
+- **Responsive Mobile Navigation Drawer**:
+  - Redesigned the mobile navigation sidebar drawer (`#sidebar`) to be a widescreen (16rem / 256px wide) slide-out panel matching standard native drawer menus.
+  - Formatted sidebar navigation link items horizontally on mobile viewports, displaying the page icon and text label side-by-side with improved text sizes and alignment.
+  - Adjusted the mobile sidebar drawer's footer (help, version, and source buttons) to layout as a clean horizontal flex row with subtle styling.
+
 ### 2026-07-14
 - **Established Project Updates Tracker**: Created `project_updates.md` and integrated it into the startup check of `AGENTS.md`, `scheduled_prompt.md`, and `ux_scheduled_prompt.md`.
 - **Sidebar & Siderail Navigation Styling**: Switched navigation styling to exactly match the original client's layout (`bg-bg` and custom icons). Removed custom template overrides in favor of native CSS styles.
@@ -242,6 +248,11 @@
   - Added smooth card lift elevations (`hover:-translate-y-1 hover:shadow-lg`) and duration transition properties to playlist cards (`playlists.js`) and collection cards (`collections.js`), finishing with gold-accented detail links.
 
 ### 2026-07-17
+- **Typography, Font Parity & Header Spacing Polish**:
+  - Embedded Google Fonts `Source Sans Pro` link globally in [index.html](file:///home/jay/projects/audiobookshelf-go/frontend/index.html) and applied it as the primary font-family for `body` in [base.css](file:///home/jay/projects/audiobookshelf-go/frontend/css/base.css) to achieve complete typography parity with the original Audiobookshelf project.
+  - Adjusted top header brand logo and title (`audiobookshelf`) sizes, weights, and tracking (`text-lg font-semibold tracking-wide`) to match original brand specs.
+  - Expanded the top header search bar (`global-search-container`) maximum width to `max-w-md` and adjusted spacing (`mx-8` margin) on desktop viewports to match original layout proportions.
+  - Performed a responsive layout audit of the Series list and Series detail pages, ensuring cover stacks (`series-detail-cover-stack`) and versions grid containers behave fluidly on both desktop and mobile viewports.
 - **Library Configuration Selection Highlighting**:
   - Implemented dynamic gold border outlines for selected library rows, unselected library rows hover highlights, and active drag-and-drop event targets inside the Libraries settings sub-tab in `frontend/js/settings.js`.
 - **Toggle Switch Restored to Green**:

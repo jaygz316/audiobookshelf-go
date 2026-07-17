@@ -117,16 +117,63 @@
     bottom: 0 !important;
     height: calc(100vh - 4rem) !important;
     z-index: 50 !important;
+    width: 16rem !important; /* 256px wide drawer on mobile */
     transform: translateX(-100%);
     transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
     display: flex !important; /* ensure it's flex even on mobile when open */
+    flex-direction: column !important;
     visibility: hidden;
+    background-color: var(--color-primary, #232323) !important;
   }
   
   #sidebar.open {
     transform: translateX(0) !important;
     visibility: visible !important;
     box-shadow: 4px 0 16px rgba(0, 0, 0, 0.6) !important;
+  }
+
+  /* Make nav buttons horizontal on mobile */
+  #siderail-buttons-container a {
+    flex-direction: row !important;
+    justify-content: flex-start !important;
+    align-items: center !important;
+    height: 3.25rem !important; /* 52px height instead of 80px */
+    padding: 0 1.25rem !important;
+  }
+
+  #siderail-buttons-container a p {
+    padding-top: 0 !important;
+    margin-left: 1rem !important;
+    font-size: 0.85rem !important;
+    text-align: left !important;
+  }
+
+  #siderail-buttons-container a .active-indicator {
+    width: 4px !important;
+    height: 100% !important;
+    position: absolute;
+    left: 0;
+    top: 0;
+  }
+
+  /* Layout footer at bottom of sidebar horizontally on mobile drawer */
+  #sidebar div.border-t {
+    flex-direction: row !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    padding: 0.75rem 1.25rem !important;
+    height: 3.5rem !important;
+    background-color: rgba(0, 0, 0, 0.15) !important;
+  }
+
+  #sidebar div.border-t #sidebar-help-btn {
+    margin-bottom: 0 !important;
+    order: 2;
+  }
+
+  #sidebar div.border-t div.text-xxs {
+    align-items: flex-start !important;
+    order: 1;
   }
 }
 
