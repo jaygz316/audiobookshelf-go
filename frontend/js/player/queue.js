@@ -257,7 +257,7 @@ export function triggerQueueModal() {
   dialog = document.createElement('dialog');
   dialog.id = 'player-queue-dialog';
   dialog.setAttribute('closedby', 'any');
-  dialog.className = 'bg-primary border border-black-400 rounded-lg max-w-md w-full p-6 shadow-2xl space-y-4 focus:outline-none select-none text-white backdrop:bg-black-900/80 backdrop:backdrop-blur-sm open:flex open:flex-col open:items-stretch';
+  dialog.className = 'bg-primary border border-black-400 rounded-lg max-w-md w-full p-6 shadow-2xl space-y-4 focus:outline-none text-white backdrop:bg-black-900/80 backdrop:backdrop-blur-sm open:flex open:flex-col open:items-stretch';
 
   dialog.innerHTML = `
     <div class="flex items-center justify-between border-b border-black-500 pb-3">

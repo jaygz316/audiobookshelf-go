@@ -2,6 +2,7 @@
 
 import { request, resolvePath } from './api.js';
 import { showToast } from './toast.js';
+import { getLibrariesList } from './library.js';
 
 let uploadModal = null;
 let fileQueue = []; // Array of { file, path }
@@ -146,7 +147,7 @@ function updateQueueUI() {
   
   // Render list of files in queue
   const list = document.createElement('div');
-  list.className = 'space-y-1 max-h-[16rem] overflow-y-auto pr-1 scrollbar-thin';
+  list.className = 'space-y-1 max-h-[16rem] overflow-y-auto pr-1 no-scroll';
   
   fileQueue.forEach((item, index) => {
     totalSize += item.file.size;
@@ -185,8 +186,48 @@ function updateQueueUI() {
   queueSummary.textContent = `${fileQueue.length} file(s) (${formatBytes(totalSize)})`;
 }
 
+async function fetchLibraryFoldersAndSwitch(newLibId, currentLibId) {
+  // Show loading indicator
+  const body = uploadModal.querySelector('#upload-modal-body');
+  if (body) {
+    body.innerHTML = `
+      <div class="flex flex-col items-center justify-center py-16 text-black-100 text-xs gap-3">
+        <span class="animate-spin text-accent material-symbols text-xl">sync</span>
+        <span>Loading library folders...</span>
+      </div>
+    `;
+  }
+  
+  try {
+    const lib = await request('GET', `/api/libraries/${newLibId}`);
+    return lib.folders || [];
+  } catch (err) {
+    console.error('Failed to switch library:', err);
+    showToast('Failed to switch library: ' + err.message, 'error');
+    // Revert select dropdown if possible or reload original
+    openUploadModal(currentLibId);
+    return null;
+  }
+}
+
 function renderModal(libraryId, libraryName, folders) {
   if (!uploadModal) return;
+
+  const libraries = getLibrariesList();
+  const showLibrarySelect = libraries && libraries.length > 1;
+  const configGridClass = showLibrarySelect ? 'grid grid-cols-1 md:grid-cols-2 gap-4' : 'flex flex-col';
+
+  let librarySelectHtml = '';
+  if (showLibrarySelect) {
+    librarySelectHtml = `
+      <div class="flex flex-col space-y-1">
+        <label for="upload-target-library" class="text-xs font-semibold text-black-50">Target Library</label>
+        <select id="upload-target-library" class="w-full bg-black-500 text-white border border-black-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-accent">
+          ${libraries.map(lib => `<option value="${lib.id}" ${lib.id === libraryId ? 'selected' : ''}>${escapeHtml(lib.name)} (${lib.mediaType})</option>`).join('')}
+        </select>
+      </div>
+    `;
+  }
 
   uploadModal.innerHTML = `
     <div class="bg-primary border border-black-300 w-full max-w-2xl p-6 rounded-md shadow-2xl flex flex-col max-h-[90vh]">
@@ -202,14 +243,18 @@ function renderModal(libraryId, libraryName, folders) {
       </div>
 
       <!-- Main Scrollable Body -->
-      <div id="upload-modal-body" class="flex-grow overflow-y-auto pr-1 space-y-4 scrollbar-thin">
+      <div id="upload-modal-body" class="flex-grow overflow-y-auto pr-1 space-y-4 no-scroll">
         
-        <!-- Target Folder Selection -->
-        <div class="flex flex-col space-y-1">
-          <label for="upload-target-folder" class="text-xs font-semibold text-black-50">Target Library Folder</label>
-          <select id="upload-target-folder" class="bg-black-500 text-white border border-black-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-accent">
-            ${folders.map(f => `<option value="${f.id}">${escapeHtml(f.path)}</option>`).join('')}
-          </select>
+        <div class="${configGridClass} bg-black-500/10 p-3.5 rounded border border-black-400/20">
+          ${librarySelectHtml}
+          
+          <!-- Target Folder Selection -->
+          <div class="flex flex-col space-y-1">
+            <label for="upload-target-folder" class="text-xs font-semibold text-black-50">Target Library Folder</label>
+            <select id="upload-target-folder" class="w-full bg-black-500 text-white border border-black-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-accent">
+              ${folders.map(f => `<option value="${f.id}">${escapeHtml(f.path)}</option>`).join('')}
+            </select>
+          </div>
         </div>
 
         <!-- Drag & Drop Zone -->
@@ -277,6 +322,23 @@ function renderModal(libraryId, libraryName, folders) {
 
   closeBtn.onclick = closeModal;
   cancelBtn.onclick = closeModal;
+
+  const librarySelect = uploadModal.querySelector('#upload-target-library');
+  if (librarySelect) {
+    librarySelect.onchange = async (e) => {
+      const newLibId = e.target.value;
+      const targetFolders = await fetchLibraryFoldersAndSwitch(newLibId, libraryId);
+      if (targetFolders) {
+        const lib = getLibrariesList().find(l => l.id === newLibId);
+        const isPodcast = lib && lib.mediaType === 'podcast';
+        if (isPodcast) {
+          renderPodcastModal(newLibId, lib.name, targetFolders);
+        } else {
+          renderModal(newLibId, lib.name, targetFolders);
+        }
+      }
+    };
+  }
 
   clearBtn.onclick = () => {
     fileQueue = [];
@@ -576,6 +638,22 @@ function escapeHtml(str) {
 function renderPodcastModal(libraryId, libraryName, folders) {
   if (!uploadModal) return;
 
+  const libraries = getLibrariesList();
+  const showLibrarySelect = libraries && libraries.length > 1;
+  const configGridClass = showLibrarySelect ? 'grid grid-cols-1 md:grid-cols-2 gap-4' : 'flex flex-col';
+
+  let librarySelectHtml = '';
+  if (showLibrarySelect) {
+    librarySelectHtml = `
+      <div class="flex flex-col space-y-1">
+        <label for="podcast-target-library" class="text-[11px] font-bold text-black-50 uppercase tracking-wider">Target Library</label>
+        <select id="podcast-target-library" class="w-full bg-black-500 text-white border border-black-300 rounded px-2.5 py-1.5 text-xs focus:outline-none focus:border-accent">
+          ${libraries.map(lib => `<option value="${lib.id}" ${lib.id === libraryId ? 'selected' : ''}>${escapeHtml(lib.name)} (${lib.mediaType})</option>`).join('')}
+        </select>
+      </div>
+    `;
+  }
+
   uploadModal.innerHTML = `
     <div class="bg-primary border border-black-300 w-full max-w-2xl p-6 rounded-md shadow-2xl flex flex-col max-h-[90vh]">
       <!-- Header -->
@@ -590,17 +668,21 @@ function renderPodcastModal(libraryId, libraryName, folders) {
       </div>
 
       <!-- Config (Shared across both tabs) -->
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 flex-shrink-0 bg-black-500/10 p-3.5 rounded border border-black-400/20">
-        <!-- Target Folder Selection -->
-        <div class="flex flex-col space-y-1">
-          <label for="podcast-target-folder" class="text-[11px] font-bold text-black-50 uppercase tracking-wider">Target Folder</label>
-          <select id="podcast-target-folder" class="bg-black-500 text-white border border-black-300 rounded px-2.5 py-1.5 text-xs focus:outline-none focus:border-accent">
-            ${folders.map(f => `<option value="${f.id}">${escapeHtml(f.path)}</option>`).join('')}
-          </select>
+      <div class="flex flex-col gap-4 mb-4 flex-shrink-0 bg-black-500/10 p-3.5 rounded border border-black-400/20">
+        <div class="${configGridClass}">
+          ${librarySelectHtml}
+
+          <!-- Target Folder Selection -->
+          <div class="flex flex-col space-y-1">
+            <label for="podcast-target-folder" class="text-[11px] font-bold text-black-50 uppercase tracking-wider">Target Folder</label>
+            <select id="podcast-target-folder" class="w-full bg-black-500 text-white border border-black-300 rounded px-2.5 py-1.5 text-xs focus:outline-none focus:border-accent">
+              ${folders.map(f => `<option value="${f.id}">${escapeHtml(f.path)}</option>`).join('')}
+            </select>
+          </div>
         </div>
 
         <!-- Auto-download Toggle -->
-        <div class="flex items-center justify-between">
+        <div class="flex items-center justify-between border-t border-black-400/30 pt-3">
           <div class="flex flex-col pr-2">
             <span class="text-[11px] font-bold text-white uppercase tracking-wider">Auto-download episodes</span>
             <span class="text-[9px] text-black-100 font-medium leading-tight">Automatically download new episodes</span>
@@ -623,7 +705,7 @@ function renderPodcastModal(libraryId, libraryName, folders) {
       </div>
 
       <!-- Main Scrollable Body -->
-      <div id="upload-modal-body" class="flex-grow overflow-y-auto pr-1 scrollbar-thin">
+      <div id="upload-modal-body" class="flex-grow overflow-y-auto pr-1 no-scroll">
         
         <!-- Tab 1: Search iTunes Pane -->
         <div id="pane-search-itunes" class="space-y-4">
@@ -635,7 +717,7 @@ function renderPodcastModal(libraryId, libraryName, folders) {
           </form>
           
           <!-- Podcast Search Results -->
-          <div id="podcast-search-results" class="space-y-2 max-h-[18rem] overflow-y-auto pr-1 scrollbar-thin">
+          <div id="podcast-search-results" class="space-y-2 max-h-[18rem] overflow-y-auto pr-1 no-scroll">
             <div class="text-center py-8 text-black-100 text-xs">
               Search above to find podcasts to subscribe to.
             </div>
@@ -679,6 +761,23 @@ function renderPodcastModal(libraryId, libraryName, folders) {
 
   closeBtn.onclick = closeModal;
   cancelBtn.onclick = closeModal;
+
+  const librarySelect = uploadModal.querySelector('#podcast-target-library');
+  if (librarySelect) {
+    librarySelect.onchange = async (e) => {
+      const newLibId = e.target.value;
+      const targetFolders = await fetchLibraryFoldersAndSwitch(newLibId, libraryId);
+      if (targetFolders) {
+        const lib = getLibrariesList().find(l => l.id === newLibId);
+        const isPodcast = lib && lib.mediaType === 'podcast';
+        if (isPodcast) {
+          renderPodcastModal(newLibId, lib.name, targetFolders);
+        } else {
+          renderModal(newLibId, lib.name, targetFolders);
+        }
+      }
+    };
+  }
 
   // Tabs wiring
   const tabSearch = uploadModal.querySelector('#tab-search-itunes');
