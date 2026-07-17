@@ -607,7 +607,7 @@ export function createCard(item, isContinue, libraryId, shelfId = '') {
     </div>
     
     <!-- Hover overlay -->
-    <div class="absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col justify-between p-3 select-none text-left z-30 font-sans">
+    <div class="card-hover-overlay absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col justify-between p-3 select-none text-left z-30 font-sans">
       <div class="overflow-y-auto no-scroll pr-4">
         <h4 class="font-semibold text-xs md:text-sm text-white leading-tight mb-1 truncate" title="${escapeHtml(title)}">${escapeHtml(title)}</h4>
         <p class="text-[10px] md:text-xs text-black-100 truncate" title="${escapeHtml(author)}">${escapeHtml(author)}</p>

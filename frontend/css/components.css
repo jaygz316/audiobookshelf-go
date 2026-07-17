@@ -46,7 +46,8 @@
 .bookshelf-card:hover,
 .bookshelf-card:focus-visible,
 .bookshelf-card:focus-within {
-  transform: translateY(-6px) !important;
+  transform: translateY(-8px) scale(1.03) !important;
+  z-index: 10;
 }
 
 .bookshelf-card .book-cover-wrapper {
@@ -65,7 +66,7 @@
 .bookshelf-card:hover .book-cover-wrapper,
 .bookshelf-card:focus-visible .book-cover-wrapper,
 .bookshelf-card:focus-within .book-cover-wrapper {
-  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.65), 0 4px 10px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.7), 0 6px 12px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(229, 169, 59, 0.12);
 }
 
 .bookshelf-card:focus-within .group-hover\:opacity-100,
@@ -95,6 +96,12 @@ div[tabindex="0"].cursor-pointer:focus-within {
   width: 100% !important;
 }
 
+/* Glassmorphic hover overlay — adds frosted-glass premium feel to card info overlays */
+.card-hover-overlay {
+  backdrop-filter: blur(4px) !important;
+  -webkit-backdrop-filter: blur(4px) !important;
+}
+
 /* Row-scoped specific overrides and group styles */
 .bookshelfRow .bookshelf-card,
 .bookshelfRow .group {
@@ -110,7 +117,8 @@ div[tabindex="0"].cursor-pointer:focus-within {
 }
 
 .bookshelfRow .group:hover {
-  transform: translateY(-6px) !important;
+  transform: translateY(-8px) scale(1.03) !important;
+  z-index: 10;
 }
 
 .bookshelfRow .group .book-cover-wrapper {
@@ -123,7 +131,7 @@ div[tabindex="0"].cursor-pointer:focus-within {
 }
 
 .bookshelfRow .group:hover .book-cover-wrapper {
-  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.65), 0 4px 10px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.7), 0 6px 12px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(229, 169, 59, 0.12);
 }
 
 .bookshelfRow .group img {
@@ -273,7 +281,7 @@ input:checked + .abs-slider:before {
 .group:hover .series-cover-front,
 .series-cover-stack:hover .series-cover-front {
   transform: scale(1.05);
-  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.6), 0 4px 8px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.7), 0 6px 12px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(229, 169, 59, 0.12);
 }
 
 .series-cover-middle {
@@ -1547,4 +1555,89 @@ google-cast-launcher:hover {
 }
 
 
+/* ─── Library Toolbar Visual Polish ───────────────────────────────────────── */
+
+/* Book/Podcast count - styled as a subtle pill badge */
+#book-count {
+  display: inline-flex !important;
+  align-items: center !important;
+  background-color: rgba(229, 169, 59, 0.1) !important;
+  border: 1px solid rgba(229, 169, 59, 0.25) !important;
+  color: var(--color-accent, #e5a93b) !important;
+  border-radius: 9999px !important;
+  padding: 0.05rem 0.6rem !important;
+  font-size: 0.7rem !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.03em !important;
+}
+
+/* Library view style switcher — active state button */
+#style-switcher button.active-style-btn {
+  color: var(--color-accent, #e5a93b) !important;
+  background-color: rgba(229, 169, 59, 0.12) !important;
+  border: 1px solid rgba(229, 169, 59, 0.3) !important;
+  border-radius: 4px !important;
+}
+
+/* Filter / Sort buttons enhanced hover glow */
+#filter-dropdown-btn:hover,
+#sort-dropdown-btn:hover,
+#save-preset-btn:hover,
+#batch-edit-toggle-btn:hover {
+  border-color: rgba(229, 169, 59, 0.25) !important;
+}
+
+/* Active filter pill styling — when a filter is applied, show accent outline */
+#filter-dropdown-btn.filter-active {
+  color: var(--color-accent, #e5a93b) !important;
+  border-color: rgba(229, 169, 59, 0.4) !important;
+  background-color: rgba(229, 169, 59, 0.08) !important;
+}
+
+/* ─── Category Placard (Wooden Shelf Label) ─────────────────────────────── */
+
+/* Override shinyBlack to use proper dark gradient and gold text from original ABS */
+.categoryPlacard .shinyBlack {
+  background-image: linear-gradient(315deg, #19191a 0%, rgb(15, 15, 15) 74%) !important;
+  background-color: #2d3436 !important;
+  border-color: rgba(255, 244, 182, 0.6) !important;
+  color: #fce3a6 !important;
+  letter-spacing: 0.12em !important;
+  font-size: 0.7rem !important;
+  padding: 0.2rem 0.8rem !important;
+  border-radius: 4px !important;
+}
+
+/* Category placard label h3 style */
+.categoryPlacard .shinyBlack h3 {
+  color: #fce3a6 !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.1em !important;
+}
+
+/* ─── Card Progress Bar Enhancements ────────────────────────────────────── */
+
+/* Ensure progress bar sits correctly above the book spine */
+.bookshelf-card .h-1\.5.bg-black\/40 {
+  z-index: 25 !important;
+  background: linear-gradient(to right, rgba(0,0,0,0.5) 0, rgba(0,0,0,0.3) 100%) !important;
+}
+
+/* Gold progress bar fill with subtle glow */
+.bookshelf-card .h-full.bg-accent {
+  background: linear-gradient(to right, var(--color-accent, #e5a93b) 0%, #f0c060 100%) !important;
+  box-shadow: 0 0 4px rgba(229, 169, 59, 0.6) !important;
+}
+
+/* ─── Book Cover Drop Shadow (resting state) ─────────────────────────────── */
+
+/* Subtle multi-layer shadow for depth even when not hovering */
+.bookshelf-card .book-cover-wrapper,
+.bookshelfRow .group .book-cover-wrapper {
+  box-shadow: 
+    4px 0 10px rgba(0, 0, 0, 0.4),
+    -2px 0 6px rgba(0, 0, 0, 0.25),
+    0 6px 12px rgba(0, 0, 0, 0.45),
+    0 1px 3px rgba(0, 0, 0, 0.3) !important;
+}
 
