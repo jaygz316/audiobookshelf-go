@@ -220,7 +220,13 @@ function renderListeningSessionsListRows(sessions) {
     if (canClose) {
       const closeBtn = tr.querySelector('.close-session-btn');
       closeBtn.onclick = async () => {
-        if (confirm(`Are you sure you want to close this playback session for ${session.username || 'user'}?`)) {
+        const confirmed = await window.showConfirm(
+          'Close Playback Session',
+          `Are you sure you want to close this playback session for ${session.username || 'user'}?`,
+          'Close',
+          'Cancel'
+        );
+        if (confirmed) {
           try {
             await request('DELETE', `/api/playback-sessions/${session.id}`);
             // Note: socket listener will automatically remove it and re-render.
@@ -370,7 +376,14 @@ async function loadAndRenderLoginSessions(userId) {
           ? 'Are you sure you want to revoke your CURRENT login session? This will immediately log you out of this browser.'
           : 'Are you sure you want to revoke this login session?';
 
-        if (confirm(confirmMsg)) {
+        const title = session.isCurrent ? 'Revoke Current Session' : 'Revoke Login Session';
+        const confirmed = await window.showConfirm(
+          title,
+          confirmMsg,
+          'Revoke',
+          'Cancel'
+        );
+        if (confirmed) {
           try {
             await request('DELETE', `/api/users/${userId}/sessions/${session.id}`);
             if (session.isCurrent) {
@@ -591,7 +604,13 @@ export async function renderTasksTab() {
 
   const cancelAllBtn = container.querySelector('#cancel-all-tasks-btn');
   cancelAllBtn.onclick = async () => {
-    if (confirm('Are you sure you want to cancel all running and queued tasks?')) {
+    const confirmed = await window.showConfirm(
+      'Cancel All Tasks',
+      'Are you sure you want to cancel all running and queued tasks?',
+      'Cancel Tasks',
+      'Cancel'
+    );
+    if (confirmed) {
       try {
         await request('POST', '/api/tasks/cancel-all');
         showToast('All tasks cancelled', 'success');

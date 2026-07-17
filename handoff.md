@@ -1,20 +1,17 @@
 # Handoff: Audiobookshelf Go Port
 
 ## Targeted Task & Accomplishments
-- **Target Task**: Audit and align secondary layouts (narrator grids, collections, playlists views, podcast details/search dialogs), verify focus rings, and implement drag-and-drop reordering for collections.
+- **Target Task**: Audit settings configuration forms, metadata providers, and visual/responsive sub-navigation on mobile viewports.
 - **Accomplishments**:
-  - **Narrators & Authors Card Hover Lift**: Added premium hover lift, border highlighting, and shadow transitions (`hover:-translate-y-1 hover:shadow-lg hover:border-black-100 transition-all duration-200`) to Narrator cards in [narrators.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/narrators.js) and Author cards in [authors.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/authors.js) to match Books/Collections/Playlists styling.
-  - **Global Input & Select Focus Rings**: Refactored focus state styles in [components.css](file:///home/jay/projects/audiobookshelf-go/frontend/css/components.css) to apply transitions and the brand's gold glow focus indicator (`0 0 0 2px rgba(229, 169, 59, 0.25)`) globally to all input fields, selects, and textareas across the application.
-  - **Collections Drag-and-Drop Reordering**: Audited collections details and implemented HTML5 drag-and-drop manual reordering with grab handle layout in [collections.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/collections.js) for standard (non-smart) collections, aligning with the playlist track sorting design while maintaining accessible up/down buttons.
-  - **Series Details Refinement**: Fixed a regression in the series detail view (`loadSeriesDetails`) by ensuring all variables (`name`, `description`, `progress`, `coversHtml`, `token`) are correctly defined before rendering.
-  - **Podcast Episode Covers Fix**: Corrected a bug in [podcasts.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/podcasts.js) where the cover images for recent podcast episodes were pointing to an invalid `/local/cover` endpoint. Changed this to the standard token-based `/api/items/:id/cover?token=...` endpoint.
-  - **Podcast Search/Subscribe Dialog Polish**: Styled podcast search & subscribe controls/results in [podcasts.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/podcasts.js) with precise CSS classes, loading spinners, and visual subscription feedback.
+  - **Custom Segmented Controls**: Replaced native select inputs with green/gray CSS pill-segmented controls for "Tag Filter Mode" ([users.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/settings/users.js)), "Media Type", and "Cover Aspect Ratio" ([settings.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/settings.js)) to match the original Audiobookshelf's segmented toggle switches.
+  - **Custom Confirmation Dialog (`showConfirm`)**: Designed and implemented a stylized global confirmation modal in [toast.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/toast.js) (`window.showConfirm`) using Tailwind and material icon components to replace default browser `confirm()` calls with a charcoal-background/gold-border layout that has smooth entry and scale transition animations.
+  - **Migrated Confirmations**: Replaced native `confirm` usages in library delete, custom provider delete, RSS feed deletion, device deletion, and share link deletion inside [settings.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/settings.js) with the new `showConfirm` dialog.
+  - **Mobile Viewport Responsiveness**: Audited settings layout on narrow screens and optimized right-column padding sizes (`p-4 md:p-6`) for better mobile readability.
   - **Verification**: Successfully ran `go run run.go run_commands.go build` and `go run run.go run_commands.go test` to confirm all code compiles and all integration/unit tests pass.
-  - **Docker Build & Push**: Successfully built and pushed docker image `jaygz/audiobookshelf-go:latest` to Docker Hub.
 
 ## Outstanding Work / Next Gaps
-- **Next Gaps**: Continue auditing settings tabs/dialogs and verify interactive dialogs/modals on mobile viewports for responsiveness.
+- **Next Gaps**: Continue replacing the remaining native `confirm()` dialogs across the wider codebase (e.g. details, playlists, collections, authors views) with `showConfirm` for visual consistency.
 
 ## Next Steps
-- Audit settings pages configuration forms and metadata providers.
-- Audit mobile viewports styling and behavior for settings sub-navigation.
+- Implement `showConfirm` in [itemDetails.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/itemDetails.js) and other main sub-views.
+- Perform a thorough user interaction flow walk-through for mobile streaming viewports.

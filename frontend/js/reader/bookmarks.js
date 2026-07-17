@@ -63,7 +63,13 @@ export async function refreshPdfBookmarksList(itemId, onBookmarkClick) {
     btn.onclick = async (e) => {
       e.stopPropagation();
       const timeVal = parseFloat(btn.getAttribute('data-time'));
-      if (confirm("Are you sure you want to delete this bookmark?")) {
+      const confirmed = await window.showConfirm(
+        'Delete Bookmark',
+        'Are you sure you want to delete this bookmark?',
+        'Delete',
+        'Cancel'
+      );
+      if (confirmed) {
         try {
           await request('DELETE', `/api/me/item/${itemId}/bookmark/${timeVal}`);
           await refreshPdfBookmarksList(itemId, onBookmarkClick);
@@ -159,7 +165,13 @@ export async function refreshBookmarksTab(itemId, onBookmarkClick) {
     btn.onclick = async (e) => {
       e.stopPropagation();
       const timeVal = parseFloat(btn.getAttribute('data-time'));
-      if (confirm("Are you sure you want to delete this highlight?")) {
+      const confirmed = await window.showConfirm(
+        'Delete Highlight',
+        'Are you sure you want to delete this highlight?',
+        'Delete',
+        'Cancel'
+      );
+      if (confirmed) {
         try {
           await request('DELETE', `/api/me/item/${itemId}/bookmark/${timeVal}`);
           await refreshBookmarksTab(itemId, onBookmarkClick);

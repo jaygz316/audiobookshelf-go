@@ -257,7 +257,13 @@ function renderCollectionsGrid(collections, libraryId) {
 
     card.querySelector('.delete-btn').onclick = async (e) => {
       e.stopPropagation();
-      if (!confirm(`Are you sure you want to delete collection "${c.name}"?`)) return;
+      const confirmed = await window.showConfirm(
+        'Delete Collection',
+        `Are you sure you want to delete collection "${c.name}"?`,
+        'Delete',
+        'Cancel'
+      );
+      if (!confirmed) return;
       try {
         await request('DELETE', `/api/collections/${c.id}`);
         loadCollections(libraryId);
@@ -500,7 +506,13 @@ export async function loadCollectionDetails(collectionId, libraryId) {
     };
     
     document.getElementById('delete-coll-btn').onclick = async () => {
-      if (!confirm(`Are you absolutely sure you want to delete collection "${collection.name}"?`)) return;
+      const confirmed = await window.showConfirm(
+        'Delete Collection',
+        `Are you absolutely sure you want to delete collection "${collection.name}"?`,
+        'Delete',
+        'Cancel'
+      );
+      if (!confirmed) return;
       try {
         await request('DELETE', `/api/collections/${collection.id}`);
         if (window.navigateTo) {
@@ -565,7 +577,13 @@ export async function loadCollectionDetails(collectionId, libraryId) {
           const actionBtn = document.getElementById('rss-action-btn');
           if (actionBtn) {
             actionBtn.onclick = async () => {
-              if (!confirm('Are you sure you want to close this RSS feed?')) return;
+              const confirmed = await window.showConfirm(
+                'Close RSS Feed',
+                'Are you sure you want to close this RSS feed?',
+                'Close',
+                'Cancel'
+              );
+              if (!confirmed) return;
               try {
                 await request('DELETE', `/api/feeds/${activeFeed.id}`);
                 showToast('RSS feed closed successfully', 'success');
@@ -723,7 +741,13 @@ function renderCollectionBooksRows(collection, booksDetails, libraryId) {
 
       li.querySelector('.remove-btn').onclick = async (e) => {
         e.stopPropagation();
-        if (!confirm(`Remove "${title}" from collection?`)) return;
+        const confirmed = await window.showConfirm(
+          'Remove from Collection',
+          `Remove "${title}" from collection?`,
+          'Remove',
+          'Cancel'
+        );
+        if (!confirmed) return;
         const newOrderIds = bookIds.filter(id => id !== item.id);
         try {
           await request('PATCH', `/api/collections/${collection.id}`, { books: newOrderIds });

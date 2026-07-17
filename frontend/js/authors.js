@@ -992,7 +992,13 @@ export async function loadSeriesDetails(seriesId) {
     const autoNumberBtn = document.getElementById('auto-number-series-btn');
     if (autoNumberBtn) {
       autoNumberBtn.onclick = async () => {
-        if (!confirm('Are you sure you want to automatically number all books in this series chronologically? This will overwrite existing sequences.')) {
+        const confirmed = await window.showConfirm(
+          'Auto-Number Series',
+          'Are you sure you want to automatically number all books in this series chronologically? This will overwrite existing sequences.',
+          'Auto-Number',
+          'Cancel'
+        );
+        if (!confirmed) {
           return;
         }
         try {
@@ -1088,7 +1094,13 @@ function openEditAuthorModal(author) {
   if (removeImgBtn) {
     removeImgBtn.onclick = async (e) => {
       e.preventDefault();
-      if (!confirm('Are you sure you want to remove the author image?')) return;
+      const confirmed = await window.showConfirm(
+        'Remove Image',
+        'Are you sure you want to remove the author image?',
+        'Remove',
+        'Cancel'
+      );
+      if (!confirmed) return;
       try {
         await request('DELETE', `/api/authors/${author.id}/image`);
         showToast('Author image removed successfully', 'success');

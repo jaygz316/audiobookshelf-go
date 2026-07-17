@@ -256,7 +256,13 @@ function renderPlaylistsGrid(playlists, libraryId) {
 
     card.querySelector('.delete-btn').onclick = async (e) => {
       e.stopPropagation();
-      if (!confirm(`Are you sure you want to delete playlist "${p.name}"?`)) return;
+      const confirmed = await window.showConfirm(
+        'Delete Playlist',
+        `Are you sure you want to delete playlist "${p.name}"?`,
+        'Delete',
+        'Cancel'
+      );
+      if (!confirmed) return;
       try {
         await request('DELETE', `/api/playlists/${p.id}`);
         loadPlaylists(libraryId);
@@ -434,7 +440,13 @@ export async function loadPlaylistDetails(playlistId, libraryId) {
     };
     
     document.getElementById('delete-playlist-btn').onclick = async () => {
-      if (!confirm(`Are you sure you want to delete playlist "${playlist.name}"?`)) return;
+      const confirmed = await window.showConfirm(
+        'Delete Playlist',
+        `Are you sure you want to delete playlist "${playlist.name}"?`,
+        'Delete',
+        'Cancel'
+      );
+      if (!confirmed) return;
       try {
         await request('DELETE', `/api/playlists/${playlist.id}`);
         if (window.navigateTo) {
@@ -503,7 +515,13 @@ export async function loadPlaylistDetails(playlistId, libraryId) {
           const actionBtn = document.getElementById('rss-action-btn');
           if (actionBtn) {
             actionBtn.onclick = async () => {
-              if (!confirm('Are you sure you want to close this RSS feed?')) return;
+              const confirmed = await window.showConfirm(
+                'Close RSS Feed',
+                'Are you sure you want to close this RSS feed?',
+                'Close',
+                'Cancel'
+              );
+              if (!confirmed) return;
               try {
                 await request('DELETE', `/api/feeds/${activeFeed.id}`);
                 updateRssSection();
@@ -662,7 +680,13 @@ function renderPlaylistItemsRows(playlist, itemsDetails, libraryId) {
 
     li.querySelector('.remove-btn').onclick = async (e) => {
       e.stopPropagation();
-      if (!confirm(`Remove "${title}" from playlist?`)) return;
+      const confirmed = await window.showConfirm(
+        'Remove from Playlist',
+        `Remove "${title}" from playlist?`,
+        'Remove',
+        'Cancel'
+      );
+      if (!confirmed) return;
       const newOrderIds = playlist.itemIds.filter(id => id !== item.id);
       try {
         await request('PATCH', `/api/playlists/${playlist.id}`, { items: newOrderIds });
