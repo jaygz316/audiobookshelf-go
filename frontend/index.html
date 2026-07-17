@@ -394,6 +394,7 @@
           <button id="global-search-clear-btn" class="absolute top-0 right-0 bottom-0 h-full flex items-center px-2 text-gray-400 cursor-pointer focus:outline-none" title="Search/Clear">
             <span id="global-search-icon-symbol" class="material-symbols text-lg select-none">search</span>
           </button>
+          <div id="global-search-announcement" class="sr-only" aria-live="polite"></div>
           
           <!-- Dropdown menu -->
           <div id="global-search-dropdown" class="absolute left-0 right-0 mt-1 bg-bg border border-black-300 rounded shadow-lg overflow-y-auto max-h-[calc(100vh-75px)] z-50 hidden p-2">
@@ -593,7 +594,7 @@
           <div class="flex items-center space-x-2 flex-wrap">
             <h2 id="view-title" class="font-semibold text-lg text-white">Home</h2>
             <span id="view-title-separator" class="text-xs text-black-100 pt-1">|</span>
-            <span id="book-count" class="text-xs text-black-50 pt-1 mr-2 font-semibold">0 Books</span>
+            <span id="book-count" class="text-xs text-black-50 pt-1 mr-2 font-semibold" aria-live="polite" role="status">0 Books</span>
             <!-- Saved Presets Pills -->
             <div id="presets-pills-container" class="flex items-center space-x-1.5 border-l border-black-600/50 pl-4 flex-wrap gap-1"></div>
           </div>

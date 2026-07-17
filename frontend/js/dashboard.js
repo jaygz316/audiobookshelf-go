@@ -210,16 +210,16 @@ export async function loadDashboard(libraryId, isHomeOnly = false, filterBy = ''
       let headerHtml = `<tr class="border-b border-black-600/50 text-black-100 font-semibold uppercase tracking-wider">`;
       
        const colDetails = {
-        cover: `<th class="p-3 w-16">Cover</th>`,
-        title: `<th class="p-3">Title</th>`,
-        author: `<th class="p-3">${lib.mediaType === 'podcast' ? 'Publisher' : 'Author'}</th>`,
-        narrator: `<th class="p-3">Narrator</th>`,
-        series: `<th class="p-3">Series</th>`,
-        duration: `<th class="p-3 font-mono">Duration</th>`,
-        dateAdded: `<th class="p-3">Date Added</th>`,
-        year: `<th class="p-3">Year</th>`,
-        progress: `<th class="p-3">Progress</th>`,
-        action: `<th class="p-3 w-20 text-center relative">
+        cover: `<th scope="col" class="p-3 w-16">Cover</th>`,
+        title: `<th scope="col" class="p-3">Title</th>`,
+        author: `<th scope="col" class="p-3">${lib.mediaType === 'podcast' ? 'Publisher' : 'Author'}</th>`,
+        narrator: `<th scope="col" class="p-3">Narrator</th>`,
+        series: `<th scope="col" class="p-3">Series</th>`,
+        duration: `<th scope="col" class="p-3 font-mono">Duration</th>`,
+        dateAdded: `<th scope="col" class="p-3">Date Added</th>`,
+        year: `<th scope="col" class="p-3">Year</th>`,
+        progress: `<th scope="col" class="p-3">Progress</th>`,
+        action: `<th scope="col" class="p-3 w-20 text-center relative">
           <div class="inline-flex items-center space-x-1.5 justify-center w-full">
             <span>Action</span>
             <button id="customize-columns-btn" class="hover:text-white text-black-200 transition-colors focus:outline-none flex items-center cursor-pointer" title="Customize Columns">
@@ -260,11 +260,15 @@ export async function loadDashboard(libraryId, isHomeOnly = false, filterBy = ''
       const dropdownMenu = table.querySelector('#columns-dropdown-menu');
       if (customizeBtn && dropdownMenu) {
         let isOpen = false;
+        customizeBtn.setAttribute('aria-haspopup', 'dialog');
+        customizeBtn.setAttribute('aria-expanded', 'false');
+        dropdownMenu.setAttribute('role', 'dialog');
         
         customizeBtn.onclick = (e) => {
           e.stopPropagation();
           if (isOpen) {
             dropdownMenu.classList.add('hidden');
+            customizeBtn.setAttribute('aria-expanded', 'false');
             isOpen = false;
           } else {
             // Render checkboxes
@@ -299,6 +303,7 @@ export async function loadDashboard(libraryId, isHomeOnly = false, filterBy = ''
             dropdownMenu.offsetHeight; // reflow
             dropdownMenu.classList.remove('scale-95', 'opacity-0');
             dropdownMenu.classList.add('scale-100', 'opacity-100');
+            customizeBtn.setAttribute('aria-expanded', 'true');
             isOpen = true;
           }
         };
@@ -306,6 +311,7 @@ export async function loadDashboard(libraryId, isHomeOnly = false, filterBy = ''
         // Close on outside click
         document.addEventListener('click', () => {
           dropdownMenu.classList.add('hidden');
+          customizeBtn.setAttribute('aria-expanded', 'false');
           isOpen = false;
         });
         dropdownMenu.onclick = (e) => e.stopPropagation();
@@ -512,6 +518,14 @@ export function createCard(item, isContinue, libraryId, shelfId = '') {
   const ts = item.updatedAt || item.addedAt || Date.now();
   const coverUrl = resolvePath(`/api/items/${item.id}/cover?token=${token}&ts=${ts}`);
   const narrator = item.media?.metadata?.narratorName || '';
+
+  card.setAttribute('tabindex', '0');
+  card.setAttribute('role', 'button');
+  let ariaLabelText = `${title} by ${author}`;
+  if (narrator) {
+    ariaLabelText += `, narrated by ${narrator}`;
+  }
+  card.setAttribute('aria-label', ariaLabelText);
 
   const userCanUpdate = window.currentUser?.type === 'root' || window.currentUser?.type === 'admin';
   const hasAudio = item.mediaType === 'podcast' || (item.media && (item.media.numTracks > 0 || item.media.numAudioFiles > 0));
@@ -823,6 +837,13 @@ export function createCard(item, isContinue, libraryId, shelfId = '') {
     }
   });
 
+  card.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      card.click();
+    }
+  });
+
   return card;
 }
 
@@ -1111,6 +1132,8 @@ function formatDuration(seconds) {
 function createListRow(item, libraryId, visibleCols = ['cover', 'title', 'author', 'series', 'duration', 'action']) {
   const tr = document.createElement('tr');
   tr.className = 'border-b border-black-600/30 hover:bg-black-500/40 cursor-pointer transition-colors';
+  tr.setAttribute('tabindex', '0');
+  tr.setAttribute('role', 'link');
   
   let title = '';
   let author = '';
@@ -1138,6 +1161,12 @@ function createListRow(item, libraryId, visibleCols = ['cover', 'title', 'author
     duration = durSec ? formatDuration(durSec) : 'N/A';
     year = metadata.publishedYear || 'N/A';
   }
+
+  let ariaLabelText = `${title} by ${author}`;
+  if (narrator && narrator !== 'Unknown') {
+    ariaLabelText += `, narrated by ${narrator}`;
+  }
+  tr.setAttribute('aria-label', ariaLabelText);
 
   const token = localStorage.getItem('token');
   const ts = item.updatedAt || item.addedAt || Date.now();
@@ -1237,7 +1266,7 @@ function createListRow(item, libraryId, visibleCols = ['cover', 'title', 'author
       case 'action':
         rowHtml += `
           <td class="p-3 text-center w-20">
-            <button class="play-btn bg-accent text-primary w-8 h-8 rounded-full flex items-center justify-center hover:scale-105 transition-transform mx-auto" title="Play">
+            <button class="play-btn bg-accent text-primary w-8 h-8 rounded-full flex items-center justify-center hover:scale-105 transition-transform mx-auto" title="Play" aria-label="Play ${escapeHtml(title)}">
               <span class="material-symbols text-sm">play_arrow</span>
             </button>
           </td>
@@ -1280,9 +1309,11 @@ function createListRow(item, libraryId, visibleCols = ['cover', 'title', 'author
         if (isCurrent && isPlaying) {
           playIcon.textContent = 'pause';
           pBtn.title = 'Pause';
+          pBtn.setAttribute('aria-label', `Pause ${title}`);
         } else {
           playIcon.textContent = 'play_arrow';
           pBtn.title = 'Play';
+          pBtn.setAttribute('aria-label', `Play ${title}`);
         }
       }
     }
@@ -1374,6 +1405,14 @@ function createListRow(item, libraryId, visibleCols = ['cover', 'title', 'author
     window.history.pushState(null, '', resolvePath(`/item/${item.id}`));
     window.dispatchEvent(new CustomEvent('popstate'));
   };
+
+  tr.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      if (document.activeElement && document.activeElement.closest('.play-btn')) return;
+      e.preventDefault();
+      tr.click();
+    }
+  });
 
   return tr;
 }
