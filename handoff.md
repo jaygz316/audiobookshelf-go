@@ -1,16 +1,17 @@
 # Handoff: Audiobookshelf Go Port
 
 ## Targeted Task & Accomplishments
-- **Target Task**: Polish header dashboard title, search bar spacing, main content top padding alignment, and audit series list / details layouts.
+- **Target Task**: Audit and align secondary layouts (narrator grids, collections, playlists views), verify focus rings, and implement drag-and-drop reordering for collections.
 - **Accomplishments**:
-  - **Typography & Font Parity**: Integrated the Google Fonts `Source Sans Pro` link and preconnect elements into [index.html](file:///home/jay/projects/audiobookshelf-go/frontend/index.html) and applied it as the global body font family in [base.css](file:///home/jay/projects/audiobookshelf-go/frontend/css/base.css).
-  - **Header Brand & Search Layout Tuning**: Tuned the desktop header brand title (`audiobookshelf`) font sizes, weights, and tracking (`text-lg font-semibold tracking-wide`). Expanded the global search bar container size to `max-w-md` and margins to `mx-8` to align with the original desktop layout.
-  - **Series Views Layout Audit**: Audited the series list view and series details page, ensuring that cover stack visuals, grid alignments, back buttons, and text layouts scale responsively across all viewports.
-  - **Verification**: Rebuilt Go WebAssembly frontend and backend binaries (`go run run.go run_commands.go build`) and ran the full integration test suite (`go run run.go run_commands.go test`) successfully.
+  - **Narrators & Authors Card Hover Lift**: Added premium hover lift, border highlighting, and shadow transitions (`hover:-translate-y-1 hover:shadow-lg hover:border-black-100 transition-all duration-200`) to Narrator cards in [narrators.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/narrators.js) and Author cards in [authors.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/authors.js) to match Books/Collections/Playlists styling.
+  - **Global Input & Select Focus Rings**: Refactored focus state styles in [components.css](file:///home/jay/projects/audiobookshelf-go/frontend/css/components.css) to apply transitions and the brand's gold glow focus indicator (`0 0 0 2px rgba(229, 169, 59, 0.25)`) globally to all input fields, selects, and textareas across the application.
+  - **Collections Drag-and-Drop Reordering**: Audited collections details and implemented HTML5 drag-and-drop manual reordering with grab handle layout in [collections.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/collections.js) for standard (non-smart) collections, aligning with the playlist track sorting design while maintaining accessible up/down buttons.
+  - **Verification**: Successfully ran `go run run.go run_commands.go build` and `go run run.go run_commands.go test` to confirm all code compiles and all integration/unit tests pass.
 
 ## Outstanding Work / Next Gaps
-- **Next Gaps**: Continue auditing secondary layouts (narrator grids, collections list table/grid layouts) and test interactive dialog/modals on mobile viewports for responsiveness.
+- **Next Gaps**: Continue auditing secondary details views (Authors, Series, Podcasts) and verify interactive dialogs/modals on mobile viewports for responsiveness.
 
 ## Next Steps
-- Verify narrator grid view card design and filters.
-- Conduct a layout and functionality audit on playlists and collections views.
+- Audit author detail views and verify author bio panels and filter interactions.
+- Audit series details stack layouts and track list tables.
+- Audit podcast search/subscribe dialogs and playback controls.

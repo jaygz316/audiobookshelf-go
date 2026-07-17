@@ -209,7 +209,19 @@ export function navigateTo(path, pushState = true) {
 
   const showControls = (relPath === '/library');
   const showBookCount = (relPath === '/library' || relPath === '/series' || relPath === '/authors' || relPath === '/collections' || relPath === '/playlists' || relPath === '/narrators');
-  const showShelfSize = (relPath === '/' || relPath === '/library' || relPath === '/series' || relPath === '/authors' || relPath === '/collections' || relPath === '/playlists' || relPath === '/narrators');
+  const showShelfSize = (
+    relPath === '/' || 
+    relPath === '/library' || 
+    relPath === '/series' || 
+    relPath === '/authors' || 
+    relPath === '/collections' || 
+    relPath === '/playlists' || 
+    relPath === '/narrators' ||
+    relPath.startsWith('/author/') ||
+    relPath.startsWith('/series/') ||
+    relPath.startsWith('/playlist/') ||
+    relPath.startsWith('/collection/')
+  );
   
   const bookCount = document.getElementById('book-count');
   const viewTitleSeparator = document.getElementById('view-title-separator');
