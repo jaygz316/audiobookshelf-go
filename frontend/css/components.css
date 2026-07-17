@@ -50,8 +50,12 @@
   height: 100% !important;
   border-radius: 4px;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5), 0 2px 4px rgba(0, 0, 0, 0.4);
-  -webkit-box-reflect: var(--bookshelf-reflect);
   transition: box-shadow 0.2s ease;
+}
+
+.bookshelfRow .bookshelf-card .book-cover-wrapper,
+.library-shelf-grid .bookshelf-card .book-cover-wrapper {
+  -webkit-box-reflect: var(--bookshelf-reflect);
 }
 
 .bookshelf-card:hover .book-cover-wrapper,
@@ -247,6 +251,10 @@ input:checked + .abs-slider:before {
   left: 5%;
   z-index: 20;
   box-shadow: 0 8px 16px rgba(0, 0, 0, 0.5), 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.bookshelfRow .series-cover-front,
+.library-shelf-grid .series-cover-front {
   -webkit-box-reflect: var(--bookshelf-reflect);
 }
 
@@ -475,7 +483,6 @@ input:checked + .abs-slider:before {
   left: 5%;
   z-index: 20;
   box-shadow: 0 8px 16px rgba(0, 0, 0, 0.5), 0 2px 4px rgba(0, 0, 0, 0.3);
-  -webkit-box-reflect: var(--bookshelf-reflect);
 }
 .group:hover .series-detail-cover-stack .series-cover-front,
 .series-detail-cover-stack:hover .series-cover-front {
@@ -933,13 +940,13 @@ textarea:focus {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--color-scrollbar);
   border-radius: 9999px;
   border: 2px solid transparent;
   background-clip: padding-box;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.25);
+  background: var(--color-scrollbar-hover);
   border: 2px solid transparent;
   background-clip: padding-box;
 }

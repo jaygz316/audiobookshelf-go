@@ -198,10 +198,16 @@ export function renderQueueDialogContent(dialog) {
     };
 
     // Attach drag and drop events
+    row.addEventListener('mousedown', (e) => {
+      if (e.target.closest('.drag-handle')) {
+        row.setAttribute('draggable', 'true');
+      } else {
+        row.setAttribute('draggable', 'false');
+      }
+    });
+
     row.addEventListener('dragstart', (e) => {
-      // Only allow dragging from the drag handle
-      const handle = e.target.closest('.drag-handle');
-      if (!handle) {
+      if (row.getAttribute('draggable') !== 'true') {
         e.preventDefault();
         return;
       }
