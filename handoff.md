@@ -1,22 +1,15 @@
-# Handoff: Audiobookshelf Go Port — Theme & Visual Parity Audit
+# Handoff: Audiobookshelf Go Port
 
-## Current Screen Under Audit
-- **Screen**: Theme & Overall Visual Parity
-- **Status**: ✅ Completed Left Sidebar active indicators, Series cover progress bars, card action controls, and category placard typography alignment.
+## Targeted Task & Accomplishments
+- **Target Task**: Audit the Playback History / Listening Sessions view and item sorting controls styling to match the original layout.
+- **Accomplishments**:
+  - Expanded the library sort controls in [app.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/app.js) to support and validate all 12 backend-supported options (Author Last/First, Size, Dates Created/Modified, Sequence, Progress, Duration, etc.) for both books and podcasts.
+  - Refined the item playback history section inside [itemDetails.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/itemDetails.js) to display sessions as responsive cards containing device-specific Material symbols, play method badges (HLS vs Direct Play), calendar markers, and gold listening duration pills.
+  - Verified compilation and test suite passing (`go run run.go run_commands.go build` and `go run run.go run_commands.go test`).
 
-## What Was Fixed/Enhanced This Run
-- **Active Indicator Dynamic Coloring**:
-  - Replaced hardcoded `bg-yellow-400` with the theme-dynamic `bg-accent` color in the left navigation sidebar links (`frontend/index.html`), allowing active highlights to seamlessly transition between gold (dark/sepia themes) and emerald (light theme).
-- **Progress Bar & Controls Accent Color Integration**:
-  - Modified the series progress bar fill in `authors.js` and the Edit Details action button hover state in `dashboard.js` to utilize the dynamic `bg-accent` and `hover:text-accent` classes instead of hardcoded yellow shades.
-- **Category Placard Typography Refinement**:
-  - Removed the non-matching `font-mono` class from category placards in `dashboard.js` (`createShelfSection` and `createShelfGridSection`), matching the clean sans-serif typography of the original project.
+## Outstanding Work / Next Gaps
+- **Next Gaps**: Continue visual audits on the user stats dashboard and playlist cards to match the original Audiobookshelf design elements.
 
-## Remaining Issues on This Screen
-- None.
+## Next Steps
+- Implement remaining detail views styling alignment.
 
-## Next Screen in Queue
-- **Settings Screen forms, pill toggles, and library list visual updates**: Continue visual adjustments on user administration, settings layouts, and active/inactive status pill designs to match the original's layout hierarchy.
-
-## Buttons/Controls Verified Working This Run
-- Sidebar links, active navigation indicator transitions, card details actions, series cover stacks progress fills, and all system/e2e test suites passed successfully.

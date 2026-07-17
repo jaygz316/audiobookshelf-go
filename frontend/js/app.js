@@ -1005,12 +1005,18 @@ function setupEventHandlers() {
     const sortLabels = {
       "media.metadata.title": "Sort: Title",
       "media.metadata.authorName": "Sort: Author",
+      "media.metadata.authorNameLF": "Sort: Author (Last, First)",
       "media.metadata.author": "Sort: Publisher",
       "media.metadata.publishedYear": "Sort: Year",
       "addedAt": "Sort: Date Added",
+      "birthtimeMs": "Sort: Date Created",
+      "mtimeMs": "Sort: Date Modified",
+      "sequence": "Sort: Sequence",
+      "progress": "Sort: Progress",
       "media.duration": "Sort: Duration",
-      "media.numTracks": "Sort: Episodes",
-      "random": "Sort: Random"
+      "size": "Sort: Size",
+      "random": "Sort: Random",
+      "media.numTracks": "Sort: Episodes"
     };
 
     const updateSortLabel = (val) => {
@@ -1034,17 +1040,43 @@ function setupEventHandlers() {
       const mediaType = activeLib ? activeLib.mediaType : 'book';
       let currentSort = localStorage.getItem('library-sortBy') || 'media.metadata.title';
 
+      const podcastAllowed = [
+        'media.metadata.title',
+        'media.metadata.author',
+        'addedAt',
+        'birthtimeMs',
+        'mtimeMs',
+        'progress',
+        'media.numTracks',
+        'size',
+        'random'
+      ];
+      const bookAllowed = [
+        'media.metadata.title',
+        'media.metadata.authorName',
+        'media.metadata.authorNameLF',
+        'media.metadata.publishedYear',
+        'addedAt',
+        'birthtimeMs',
+        'mtimeMs',
+        'sequence',
+        'progress',
+        'media.duration',
+        'size',
+        'random'
+      ];
+
       // Validate/map sort options based on mediaType
       if (mediaType === 'podcast') {
         if (currentSort === 'media.metadata.authorName') {
           currentSort = 'media.metadata.author';
-        } else if (currentSort !== 'media.metadata.title' && currentSort !== 'media.metadata.author' && currentSort !== 'addedAt' && currentSort !== 'media.numTracks' && currentSort !== 'random') {
+        } else if (!podcastAllowed.includes(currentSort)) {
           currentSort = 'media.metadata.title';
         }
       } else {
         if (currentSort === 'media.metadata.author') {
           currentSort = 'media.metadata.authorName';
-        } else if (currentSort !== 'media.metadata.title' && currentSort !== 'media.metadata.authorName' && currentSort !== 'media.metadata.publishedYear' && currentSort !== 'addedAt' && currentSort !== 'media.duration' && currentSort !== 'random') {
+        } else if (!bookAllowed.includes(currentSort)) {
           currentSort = 'media.metadata.title';
         }
       }
@@ -1056,16 +1088,26 @@ function setupEventHandlers() {
           { value: 'media.metadata.title', label: 'Title' },
           { value: 'media.metadata.author', label: 'Publisher' },
           { value: 'addedAt', label: 'Date Added' },
+          { value: 'birthtimeMs', label: 'Date Created' },
+          { value: 'mtimeMs', label: 'Date Modified' },
+          { value: 'progress', label: 'Progress' },
           { value: 'media.numTracks', label: 'Episodes' },
+          { value: 'size', label: 'Size' },
           { value: 'random', label: 'Random' }
         ];
       } else {
         options = [
           { value: 'media.metadata.title', label: 'Title' },
           { value: 'media.metadata.authorName', label: 'Author' },
+          { value: 'media.metadata.authorNameLF', label: 'Author (Last, First)' },
           { value: 'media.metadata.publishedYear', label: 'Year' },
           { value: 'addedAt', label: 'Date Added' },
+          { value: 'birthtimeMs', label: 'Date Created' },
+          { value: 'mtimeMs', label: 'Date Modified' },
+          { value: 'sequence', label: 'Sequence' },
+          { value: 'progress', label: 'Progress' },
           { value: 'media.duration', label: 'Duration' },
+          { value: 'size', label: 'Size' },
           { value: 'random', label: 'Random' }
         ];
       }

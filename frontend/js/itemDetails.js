@@ -2188,15 +2188,44 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
                 dateStr = sess.updatedAt;
               }
             }
+
+            const getDeviceIcon = (dev) => {
+              const d = (dev || '').toLowerCase();
+              if (d.includes('android') || d.includes('iphone') || d.includes('ipad') || d.includes('mobile')) {
+                return 'smartphone';
+              }
+              if (d.includes('chromecast') || d.includes('cast')) {
+                return 'cast';
+              }
+              if (d.includes('tv') || d.includes('firetv') || d.includes('googletv') || d.includes('appletv')) {
+                return 'tv';
+              }
+              return 'computer';
+            };
+
+            const deviceIcon = getDeviceIcon(sess.deviceInfo);
+            const playMethodClass = (sess.playMethod || '').toUpperCase() === 'HLS' 
+              ? 'bg-accent/15 text-accent border-accent/25' 
+              : 'bg-emerald-500/15 text-emerald-400 border-emerald-500/25';
+
             return `
-              <div class="border-b border-black-500/40 pb-1.5 last:border-b-0 last:pb-0 text-[10px] space-y-0.5">
-                <div class="flex justify-between items-center text-white">
-                  <span class="font-bold font-mono">${dateStr}</span>
-                  <span class="text-accent font-semibold">${formatDuration(sess.timeListened)}</span>
+              <div class="p-2 bg-black-500/20 hover:bg-black-500/30 border border-black-400/30 rounded flex flex-col space-y-1 transition-all duration-150 text-[10px]">
+                <div class="flex justify-between items-center">
+                  <div class="flex items-center space-x-1 text-black-50 font-medium">
+                    <span class="material-symbols text-[14px] text-black-100">${deviceIcon}</span>
+                    <span class="truncate max-w-[130px]" title="${escapeHtml(sess.deviceInfo || 'Web Client')}">${escapeHtml(sess.deviceInfo || 'Web Client')}</span>
+                  </div>
+                  <span class="px-1.5 py-0.5 rounded text-[8px] font-mono border uppercase tracking-wider font-semibold ${playMethodClass}">${escapeHtml(sess.playMethod || 'HLS')}</span>
                 </div>
-                <div class="flex justify-between items-center text-black-100 font-semibold">
-                  <span class="truncate pr-1">${escapeHtml(sess.deviceInfo || 'Web Client')}</span>
-                  <span class="bg-black-500 px-1 rounded-[3px] text-[8px] font-mono border border-black-400/50">${escapeHtml(sess.playMethod || 'HLS')}</span>
+                <div class="flex justify-between items-center text-black-100 font-semibold pt-0.5">
+                  <div class="flex items-center space-x-1">
+                    <span class="material-symbols text-[12px] text-black-100">calendar_today</span>
+                    <span>${dateStr}</span>
+                  </div>
+                  <div class="flex items-center space-x-1 bg-black-500/60 px-1.5 py-0.5 rounded-[3px] border border-black-400/30 text-white font-mono text-[9px]">
+                    <span class="material-symbols text-[11px] text-accent">headphones</span>
+                    <span>${formatDuration(sess.timeListened)}</span>
+                  </div>
                 </div>
               </div>
             `;

@@ -216,7 +216,7 @@ function renderCollectionsGrid(collections, libraryId) {
 
   collections.forEach(c => {
     const card = document.createElement('div');
-    card.className = 'bg-primary border border-black-300 rounded overflow-hidden shadow hover:border-black-100 transition-all flex flex-col justify-between p-3 relative group cursor-pointer';
+    card.className = 'bg-primary border border-black-300 rounded overflow-hidden shadow hover:border-black-100 hover:-translate-y-1 transition-all duration-200 flex flex-col justify-between p-3 relative group cursor-pointer';
     card.style.width = '100%';
     
     const bookIds = c.books || c.itemIds || [];
@@ -224,7 +224,7 @@ function renderCollectionsGrid(collections, libraryId) {
     
     card.innerHTML = `
       <div class="space-y-2">
-        <div class="w-full bg-black-500 rounded overflow-hidden flex items-center justify-center text-accent/80 border border-black-400 mb-2 relative" style="aspect-ratio: 2/3;">
+        <div class="w-full bg-black-500 rounded overflow-hidden flex items-center justify-center text-accent/80 border border-black-400 mb-2 relative" style="aspect-ratio: 1/1;">
           ${c.isSmart ? `<span class="absolute top-2 left-2 bg-accent/20 text-accent border border-accent/30 px-1.5 py-0.5 text-[0.65rem] rounded font-bold uppercase tracking-wide z-10">Smart</span>` : ''}
           ${renderCoversPreview(bookIds, token)}
           <span class="absolute bottom-2 right-2 bg-black-600/80 px-2 py-0.5 text-[10px] text-white rounded font-semibold z-10">${count} books</span>
@@ -238,7 +238,10 @@ function renderCollectionsGrid(collections, libraryId) {
           <span class="material-symbols text-[13px]">delete</span>
           <span>Delete</span>
         </button>
-        <span class="text-[9px] text-black-100">View Details</span>
+        <span class="text-[10px] text-accent font-semibold flex items-center space-x-0.5">
+          <span>Details</span>
+          <span class="material-symbols text-[12px]">chevron_right</span>
+        </span>
       </div>
     `;
 
