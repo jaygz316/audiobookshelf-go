@@ -1093,7 +1093,7 @@ function openEditAuthorModal(author) {
             <img src="${resolvePath(`/api/authors/${author.id}/image?token=${localStorage.getItem('token')}`)}" class="w-12 h-12 rounded-full object-cover">
             <span class="text-xs text-white font-medium">Author Photo</span>
           </div>
-          <button id="remove-author-image-btn" class="bg-red-950/40 hover:bg-red-900 border border-red-500/50 text-red-200 text-xs px-3 py-1.5 rounded transition-colors font-semibold">Remove Image</button>
+          <button id="remove-author-image-btn" class="bg-red-900/40 hover:bg-red-900/60 border border-red-500/30 text-error hover:text-white hover:border-red-500/50 text-xs px-3 py-1.5 rounded transition-colors font-semibold cursor-pointer">Remove Image</button>
         </div>
         ` : ''}
       </div>

@@ -614,7 +614,7 @@ async function renderServerSettingsTab() {
     }
 
   } catch (err) {
-    container.innerHTML = `<p class="text-red-400 text-sm">Failed to load server settings: ${err.message}</p>`;
+    container.innerHTML = `<p class="text-error text-sm">Failed to load server settings: ${err.message}</p>`;
   }
 }
 
@@ -864,7 +864,7 @@ async function renderAuthSettingsTab() {
     };
 
   } catch (err) {
-    container.innerHTML = `<p class="text-red-400 text-sm">Failed to load auth settings: ${err.message}</p>`;
+    container.innerHTML = `<p class="text-error text-sm">Failed to load auth settings: ${err.message}</p>`;
   }
 }
 
@@ -1009,7 +1009,7 @@ async function renderProvidersTab() {
     };
 
   } catch (err) {
-    container.innerHTML = `<p class="text-red-400 text-sm">Failed to load metadata providers: ${err.message}</p>`;
+    container.innerHTML = `<p class="text-error text-sm">Failed to load metadata providers: ${err.message}</p>`;
   }
 }
 
@@ -1034,7 +1034,7 @@ function renderCustomProvidersRows(customProviders) {
       <td class="px-4 py-3 uppercase text-xs">${escapeHtml(p.mediaType)}</td>
       <td class="px-4 py-3 font-mono text-xs truncate max-w-xs">${escapeHtml(p.url)}</td>
       <td class="px-4 py-3 text-right">
-        <button class="delete-prov-btn bg-red-900 hover:bg-red-800 text-red-200 text-xs font-semibold px-2.5 py-1 rounded inline-flex items-center space-x-1" data-id="${p.id}">
+        <button class="delete-prov-btn bg-red-900/40 hover:bg-red-900/60 border border-red-500/30 text-error hover:text-white hover:border-red-500/50 text-xs font-semibold px-2.5 py-1 rounded inline-flex items-center space-x-1 transition-colors cursor-pointer" data-id="${p.id}">
           <span class="material-symbols text-sm">delete</span>
           <span>Delete</span>
         </button>
@@ -1327,7 +1327,7 @@ export async function renderNotificationsTab() {
     };
 
   } catch (err) {
-    container.innerHTML = `<p class="text-red-400 text-sm">Failed to load notifications settings: ${escapeHtml(err.message)}</p>`;
+    container.innerHTML = `<p class="text-error text-sm">Failed to load notifications settings: ${escapeHtml(err.message)}</p>`;
   }
 }
 
@@ -1353,15 +1353,15 @@ function renderNotificationsListRows(notifications, allSettings) {
     tr.className = 'hover:bg-black-500/30';
 
     const enabledBadge = notif.enabled 
-      ? `<span class="bg-green-900/50 text-green-200 text-[10px] px-1.5 py-0.5 rounded font-normal uppercase">Enabled</span>`
-      : `<span class="bg-red-900/50 text-red-200 text-[10px] px-1.5 py-0.5 rounded font-normal uppercase">Disabled</span>`;
+      ? `<span class="bg-green-900/50 text-success text-[10px] px-1.5 py-0.5 rounded font-normal uppercase">Enabled</span>`
+      : `<span class="bg-red-900/50 text-error text-[10px] px-1.5 py-0.5 rounded font-normal uppercase">Disabled</span>`;
 
     tr.innerHTML = `
       <td class="px-4 py-3 font-mono text-xs text-white">${escapeHtml(notif.id || '')}</td>
       <td class="px-4 py-3 text-black-50">${escapeHtml(notif.eventName || '')}</td>
       <td class="px-4 py-3">${enabledBadge}</td>
       <td class="px-4 py-3 text-right">
-        <button class="delete-notif-btn text-red-500 hover:text-red-400 font-semibold text-xs inline-flex items-center space-x-1" data-id="${notif.id}">
+        <button class="delete-notif-btn text-error hover:text-red-400 font-semibold text-xs inline-flex items-center space-x-1" data-id="${notif.id}">
           <span class="material-symbols text-sm">delete</span>
           <span>Delete</span>
         </button>
@@ -1901,7 +1901,7 @@ export async function renderEmailsTab() {
     };
 
   } catch (err) {
-    container.innerHTML = `<p class="text-red-400 text-sm">Failed to load email settings: ${escapeHtml(err.message)}</p>`;
+    container.innerHTML = `<p class="text-error text-sm">Failed to load email settings: ${escapeHtml(err.message)}</p>`;
   }
 }
 
@@ -1927,13 +1927,13 @@ function renderEreaderDevicesRows(devices, users, settings) {
     if (dev.availabilityOption === 'allUsers') {
       availText = '<span class="text-accent">All Users</span>';
     } else if (dev.availabilityOption === 'adminOrUp') {
-      availText = '<span class="text-yellow-400">Admin or Up</span>';
+      availText = '<span class="text-warning">Admin or Up</span>';
     } else if (dev.availabilityOption === 'specificUsers') {
       const allowedNames = (dev.users || []).map(uId => {
         const u = users.find(x => x.id === uId);
         return u ? u.username : uId;
       }).join(', ');
-      availText = `<span class="text-blue-400 font-semibold">Specific Users</span> <span class="text-xs text-black-100">(${escapeHtml(allowedNames || 'none')})</span>`;
+      availText = `<span class="text-info font-semibold">Specific Users</span> <span class="text-xs text-black-100">(${escapeHtml(allowedNames || 'none')})</span>`;
     }
 
     tr.innerHTML = `
@@ -1945,7 +1945,7 @@ function renderEreaderDevicesRows(devices, users, settings) {
           <span class="material-symbols text-sm">edit</span>
           <span>Edit</span>
         </button>
-        <button class="delete-dev-btn text-red-400 hover:text-red-300 text-xs font-semibold inline-flex items-center space-x-1" data-index="${idx}">
+        <button class="delete-dev-btn text-error hover:text-red-400 text-xs font-semibold inline-flex items-center space-x-1" data-index="${idx}">
           <span class="material-symbols text-sm">delete</span>
           <span>Delete</span>
         </button>
@@ -2165,7 +2165,7 @@ async function renderSharesTab() {
                     <td class="px-4 py-3">${s.hasPassword ? 'Yes' : 'No'}</td>
                     <td class="px-4 py-3 text-black-100">${expiresStr}</td>
                     <td class="px-4 py-3 text-right">
-                      <button data-id="${s.id}" class="delete-share-btn bg-red-950 hover:bg-red-900 border border-red-500/50 hover:border-red-500 text-red-100 px-2.5 py-1 rounded text-xs transition-colors flex items-center space-x-1 ml-auto">
+                      <button data-id="${s.id}" class="delete-share-btn bg-red-900/40 hover:bg-red-900/60 border border-red-500/30 text-error hover:text-white hover:border-red-500/50 px-2.5 py-1 rounded text-xs transition-colors flex items-center space-x-1 ml-auto cursor-pointer">
                         <span class="material-symbols text-xs">link_off</span>
                         <span>Revoke</span>
                       </button>
@@ -2204,7 +2204,7 @@ async function renderSharesTab() {
 
   } catch (err) {
     console.error(err);
-    container.innerHTML = `<div class="text-red-500 text-xs text-center py-4">Failed to load public shares: ${err.message}</div>`;
+    container.innerHTML = `<div class="text-error text-xs text-center py-4">Failed to load public shares: ${err.message}</div>`;
   }
 }
 
@@ -2255,7 +2255,7 @@ async function renderLibrariesTab() {
           <div class="library-row border ${borderClass} border-l-4 ${isSelected ? 'border-l-accent' : 'border-l-transparent'} bg-black-500 rounded p-4 flex flex-col md:flex-row justify-between items-start md:items-center space-y-4 md:space-y-0 transition-colors hover:bg-black-400" draggable="true" data-id="${lib.id}">
             <div class="flex items-center space-x-3 w-full md:w-auto">
               <!-- Reorder Handle -->
-              <span class="material-symbols text-black-200 hover:text-white text-xl select-none mr-1 cursor-grab active:cursor-grabbing" title="Drag to reorder">drag_handle</span>
+              <span class="drag-handle material-symbols text-black-200 hover:text-white text-xl select-none mr-1 cursor-grab active:cursor-grabbing" title="Drag to reorder">drag_handle</span>
               
               <!-- Content -->
               <div class="space-y-1">
@@ -2325,6 +2325,12 @@ async function renderLibrariesTab() {
     const libraryRows = container.querySelectorAll('.library-row');
     libraryRows.forEach(row => {
       row.addEventListener('dragstart', (e) => {
+        // Only allow dragging from the drag handle
+        const handle = e.target.closest('.drag-handle');
+        if (!handle) {
+          e.preventDefault();
+          return;
+        }
         draggedRow = row;
         row.classList.add('opacity-40');
         e.dataTransfer.effectAllowed = 'move';
@@ -2458,7 +2464,7 @@ async function renderLibrariesTab() {
 
   } catch (err) {
     container.innerHTML = `
-      <div class="bg-red-900/25 border border-red-900 text-red-200 p-4 rounded text-sm">
+      <div class="bg-red-900/40 border border-red-500/30 text-error p-4 rounded text-sm">
         Failed to load libraries: ${err.message}
       </div>
     `;
@@ -2730,7 +2736,7 @@ function showLibraryModal(lib) {
           selectedPath = '/';
           loadPath('/', 0);
         } else {
-          dirsListEl.innerHTML = `<div class="text-xs text-red-400 p-2">Error: ${escapeHtml(err.message)}</div>`;
+          dirsListEl.innerHTML = `<div class="text-xs text-error p-2">Error: ${escapeHtml(err.message)}</div>`;
         }
       }
     }
@@ -2892,7 +2898,7 @@ function showLibraryModal(lib) {
         subdirs = data.directories || [];
         renderSubdirs();
       } catch (err) {
-        subdirsListEl.innerHTML = `<div class="text-xs text-red-400 p-2">Error: ${escapeHtml(err.message)}</div>`;
+        subdirsListEl.innerHTML = `<div class="text-xs text-error p-2">Error: ${escapeHtml(err.message)}</div>`;
       }
     }
 
@@ -2933,7 +2939,7 @@ function showLibraryModal(lib) {
     row.innerHTML = `
       <input type="text" class="lib-folder-path flex-grow bg-black-500 text-white px-3 py-1.5 rounded border border-black-300 focus:outline-none focus:border-accent text-sm" placeholder="e.g. /path/to/media" value="${escapeHtml(val)}" data-id="${id}">
       <button type="button" class="btn-browse-folder text-accent hover:opacity-85 material-symbols text-lg focus:outline-none flex items-center justify-center p-1 hover:bg-white/5 rounded" title="Browse Folder">folder_open</button>
-      <button type="button" class="btn-remove-folder-row text-red-500 hover:text-red-400 material-symbols text-lg focus:outline-none flex items-center justify-center p-1 hover:bg-white/5 rounded" title="Remove Folder">delete</button>
+      <button type="button" class="btn-remove-folder-row text-error hover:text-red-400 material-symbols text-lg focus:outline-none flex items-center justify-center p-1 hover:bg-white/5 rounded" title="Remove Folder">delete</button>
     `;
     const input = row.querySelector('.lib-folder-path');
     row.querySelector('.btn-browse-folder').onclick = () => openFolderPicker(input);

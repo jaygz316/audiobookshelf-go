@@ -295,3 +295,14 @@
   - Styled delete confirmation buttons with red border details and low opacity red background highlights (`bg-black-400 hover:bg-red-900/40 border border-red-500/30 text-error hover:text-white hover:border-red-500/50`) matching the main item details view delete buttons.
   - Added clean inline Material Symbols icons (`edit`, `delete`, `find_replace`, `play_arrow`, `format_list_numbered`) to detail action controls for a premium look and feel.
   - Aligned Podcast Download Queue cancel/pause/resume buttons with identical premium button classes and added `cursor-pointer` to episode play/download items.
+
+- **Settings Tabs & Color Token Parity Audit**:
+  - Audited all settings tab forms (Server, Auth, Notifications, Providers, Email, and Users settings) for design system compliance and color token purity.
+  - Replaced legacy Tailwind red/green/yellow/blue text and background color classes (`text-red-400`, `text-red-500`, `text-green-400`, `text-yellow-400`, `bg-red-500`, etc.) with custom theme variables (`text-error`, `text-success`, `text-warning`, `text-info`) across all settings screens, user modals, backup list rows, active tasks list rows, and logging console rows.
+  - Refined settings active task list status badges (Downloading, Paused, Failed, Completed) to use consistent, premium border-badge styles (e.g., `bg-info/10 text-info border border-info/30`, `bg-success/10 text-success border border-success/30`).
+  - Rebuilt and verified full Go backend and WebAssembly integration and test integrity successfully.
+
+- **Drag-and-Drop Constraints & Search Dropdown Category Count**:
+  - Constrained drag-and-drop initiation for table/list row reordering (settings libraries, collections, playlists, and player queue) to trigger only on the `.drag-handle` element (by checking `e.target.closest('.drag-handle')` in the `dragstart` event). This prevents accidental row dragging and matches the original project's behavior.
+  - Refined global search suggestion dropdown categories (Books, Podcasts, Episodes, Authors, Series, Narrators, Tags, Genres) to show result counts in parentheses (e.g., `Books (3)`) matching original Audiobookshelf suggestion behavior.
+  - Aligned search dropdown headers to use consistent design-system variables (`text-black-50` and `bg-black-700/60`) for smooth dark theme transitions.

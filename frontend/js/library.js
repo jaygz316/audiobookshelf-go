@@ -97,7 +97,7 @@ function setupDropdown() {
   dropdownMenu.innerHTML = '';
   libraries.forEach(lib => {
     const item = document.createElement('button');
-    item.className = 'w-full text-left flex items-center px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-black-400 transition-colors focus:outline-none cursor-pointer';
+    item.className = 'w-full text-left flex items-center px-4 py-2 text-sm text-black-50 hover:text-white hover:bg-black-400 transition-colors focus:outline-none cursor-pointer';
     item.type = 'button';
     
     // Choose icon based on mediaType or icon property

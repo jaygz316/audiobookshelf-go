@@ -656,6 +656,12 @@ function renderPlaylistItemsRows(playlist, itemsDetails, libraryId) {
 
     // Attach HTML5 drag and drop events
     li.addEventListener('dragstart', (e) => {
+      // Only allow dragging from the drag handle
+      const handle = e.target.closest('.drag-handle');
+      if (!handle) {
+        e.preventDefault();
+        return;
+      }
       draggedIndex = index;
       li.classList.add('opacity-40');
       e.dataTransfer.effectAllowed = 'move';

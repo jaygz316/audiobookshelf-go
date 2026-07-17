@@ -199,6 +199,12 @@ export function renderQueueDialogContent(dialog) {
 
     // Attach drag and drop events
     row.addEventListener('dragstart', (e) => {
+      // Only allow dragging from the drag handle
+      const handle = e.target.closest('.drag-handle');
+      if (!handle) {
+        e.preventDefault();
+        return;
+      }
       draggedQueueIndex = idx;
       row.classList.add('opacity-40');
       e.dataTransfer.effectAllowed = 'move';
@@ -263,7 +269,7 @@ export function triggerQueueModal() {
     </div>
 
     <div class="flex items-center justify-between pt-3 border-t border-black-500">
-      <button id="clear-queue-btn" class="bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded text-xs transition-colors flex items-center space-x-1">
+      <button id="clear-queue-btn" class="bg-red-900/40 hover:bg-red-900/60 border border-red-500/30 text-error hover:text-white hover:border-red-500/50 px-3 py-1.5 rounded text-xs transition-colors flex items-center space-x-1 cursor-pointer">
         <span class="material-symbols text-sm">clear_all</span>
         <span>Clear Queue</span>
       </button>
