@@ -928,16 +928,28 @@ async function renderProvidersTab() {
           
           <div>
             <h4 class="text-xs font-semibold text-black-100 uppercase tracking-wider mb-2">Book Metadata</h4>
-            <ul class="space-y-1 text-sm list-disc pl-5">
-              ${booksProviders.map(p => `<li>${escapeHtml(p.text)} <span class="text-xs text-black-100">(${escapeHtml(p.value)})</span></li>`).join('')}
-            </ul>
+            <div class="flex flex-wrap gap-2">
+              ${booksProviders.map(p => `
+                <div class="flex items-center space-x-1.5 bg-black-500/40 border border-black-400/30 rounded-md px-2.5 py-1 text-xs text-white">
+                  <span class="material-symbols text-sm text-accent">book</span>
+                  <span>${escapeHtml(p.text)}</span>
+                  <span class="text-[10px] text-black-200">(${escapeHtml(p.value)})</span>
+                </div>
+              `).join('')}
+            </div>
           </div>
           
           <div class="pt-4 border-t border-black-400">
             <h4 class="text-xs font-semibold text-black-100 uppercase tracking-wider mb-2">Podcast Metadata</h4>
-            <ul class="space-y-1 text-sm list-disc pl-5">
-              ${podcastProviders.map(p => `<li>${escapeHtml(p.text)} <span class="text-xs text-black-100">(${escapeHtml(p.value)})</span></li>`).join('')}
-            </ul>
+            <div class="flex flex-wrap gap-2">
+              ${podcastProviders.map(p => `
+                <div class="flex items-center space-x-1.5 bg-black-500/40 border border-black-400/30 rounded-md px-2.5 py-1 text-xs text-white">
+                  <span class="material-symbols text-sm text-accent">podcasts</span>
+                  <span>${escapeHtml(p.text)}</span>
+                  <span class="text-[10px] text-black-200">(${escapeHtml(p.value)})</span>
+                </div>
+              `).join('')}
+            </div>
           </div>
         </div>
 
@@ -2289,12 +2301,12 @@ async function renderLibrariesTab() {
         if (!foldersList) foldersList = 'No folders configured';
 
         const isSelected = lib.id === getActiveLibraryId();
-        const borderClass = isSelected ? 'border-accent' : 'border-black-300 hover:border-accent/50';
+        const borderClass = isSelected ? 'border-[#e88024]' : 'border-black-300 hover:border-[#e88024]/50';
         const isScanning = activeScans.has(lib.id);
         const spinClass = isScanning ? 'animate-spin' : '';
 
         html += `
-          <div class="library-row border ${borderClass} border-l-4 ${isSelected ? 'border-l-accent' : 'border-l-transparent'} bg-black-500 rounded p-4 flex flex-col md:flex-row justify-between items-start md:items-center space-y-4 md:space-y-0 transition-colors hover:bg-black-400" draggable="true" data-id="${lib.id}">
+          <div class="library-row border ${borderClass} border-l-4 ${isSelected ? 'border-l-[#e88024]' : 'border-l-transparent'} bg-black-500 rounded p-4 flex flex-col md:flex-row justify-between items-start md:items-center space-y-4 md:space-y-0 transition-colors hover:bg-black-400" draggable="true" data-id="${lib.id}">
             <div class="flex items-center space-x-3 w-full md:w-auto">
               <!-- Reorder Handle -->
               <span class="drag-handle material-symbols text-black-200 hover:text-white text-xl select-none mr-1 cursor-grab active:cursor-grabbing" title="Drag to reorder">drag_handle</span>

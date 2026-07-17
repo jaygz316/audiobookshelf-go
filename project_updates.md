@@ -30,6 +30,8 @@
 *This log is updated by developers/agents whenever an API, design pattern, or library is deprecated or updated.*
 
 ### 2026-07-17
+- **Library Selection Color Alignment**:
+  - Aligned the active settings library selection highlights with the authentic orange theme accent (`#e88024`) instead of default gold/theme accent classes.
 - **Interactive Modals & Metadata Provider Refinements**:
   - Converted checkboxes inside [editDetailsModal.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/modals/editDetailsModal.js) and [bookmarksModal.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/modals/bookmarksModal.js) to the premium sliding switch component (`.abs-switch`), standardizing configuration toggles across all user input forms.
   - Enabled metadata and cover search provider selection for podcast libraries inside [matchBookModal.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/modals/matchBookModal.js), resolving providers to podcasts-specific listings (iTunes) when handling podcast items.

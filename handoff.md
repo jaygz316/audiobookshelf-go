@@ -1,16 +1,19 @@
 # Handoff: Audiobookshelf Go Port
 
 ## Targeted Task & Accomplishments
-- **Target Task**: Audit dynamic modals/popovers and metadata providers search/filtering for visual and layout parity.
+- **Target Task**: Audit dynamic modals/popovers, settings views, and shelf-size-control inputs for visual and layout parity.
 - **Accomplishments**:
-  - **Dynamic Modals Switch Conversion**: Converted checkbox elements inside [editDetailsModal.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/modals/editDetailsModal.js) (Explicit / Abridged toggles) and [bookmarksModal.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/modals/bookmarksModal.js) (Overwrite Bookmarks toggle) to utilize the project-standard premium sliding switches (`.abs-switch`), completing the visual and touch-interaction parity for modals.
-  - **Podcast Metadata Match Integration**: Updated [matchBookModal.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/modals/matchBookModal.js) search provider fetching logic to dynamically switch to podcast metadata providers (iTunes) if the active library item is a podcast.
-  - **Podcast Filter Publisher Labeling**: Enhanced the filter dropdown rendering in [app.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/app.js) to dynamically label the "Author" filter category as "Publisher" when filtering a podcast library.
-  - **Grid Shelf Divider plank Styling**: Added the wooden shelf divider plank to the dynamic category shelf grid section placards in [dashboard.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/dashboard.js), ensuring complete design consistency with horizontal Row layout shelves.
-  - **Compilation & Test Pass**: Successfully recompiled the Go WebAssembly frontend and backend binaries, and ran the full integration E2E test suite to verify no regressions were introduced (100% test pass).
+  - **Duplicate CSS Cleanup**: Removed conflicting duplicate CSS styling block for `#shelf-size-slider` in [components.css](file:///home/jay/projects/audiobookshelf-go/frontend/css/components.css) (lines 1112-1169), ensuring only the cross-browser runnable track styling in lines 1313-1370 is applied.
+  - **Refined Shelf-Size-Slider Buttons**: Standardized the `-` and `+` decrement/increment buttons inside `#shelf-size-control` in [index.html](file:///home/jay/projects/audiobookshelf-go/frontend/index.html) to be text-only (`text-black-100 hover:text-accent font-bold cursor-pointer transition-colors bg-transparent border-none focus:outline-none`) matching the original design's capsule-only dark gray background.
+  - **Orange Highlight Borders**: Refactored the selected active library row border and left-border color styling inside the Libraries settings sub-pane in [settings.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/settings.js) to match the warm orange `#e88024` accent from the original interface.
+  - **Active Metadata Providers Badges**: Integrated premium styled badge rendering with Material icons (`book` and `podcasts` symbols) for book and podcast metadata listings in the Settings metadata providers tab, matching the visual specifications.
+  - **Compilation & Test Verification**: Successfully recompiled the WebAssembly frontend and backend binaries, and ran the full integration test suite (`go run run.go run_commands.go test`), ensuring all tests passed with 100% compliance.
 
-## Outstanding Work / Next Gaps
-- Continue visual audits on the item details page, search results header, and navigation transitions.
+## Current Status & Verification
+- Recompiled the Go WebAssembly frontend and backend binaries.
+- Ran the full integration E2E test suite successfully.
+- Verified that all settings screens, lists, shelf card scaling, active metadata provider badge styles, and slider controls are in full visual parity with the original client.
 
 ## Next Steps
-- Verify detail view layout grids on dynamic device aspect ratios.
+- Continue visual audits on navigation transitions and secondary pages.
+- Investigate and polish item details view responsiveness across various aspect ratios.

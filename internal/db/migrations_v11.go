@@ -22,7 +22,9 @@ var migrationV11 = migration{
 		if err != nil {
 			return err
 		}
-		defer rows.Close()
+		defer func() {
+			_ = rows.Close()
+		}()
 
 		hasEntityType := false
 		hasType := false
