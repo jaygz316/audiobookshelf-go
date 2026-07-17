@@ -2157,12 +2157,12 @@ async function renderLibrariesTab() {
 
     let html = `
       <div class="space-y-6 bg-primary border border-black-300 p-6 rounded-md">
-        <div class="flex justify-between items-center border-b border-black-400 pb-4">
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 sm:gap-0 border-b border-black-400 pb-4">
           <div>
             <h3 class="text-lg font-semibold">Libraries</h3>
             <p class="text-xs text-black-100 mt-1">Configure and manage separate folders/categories for audiobooks and podcasts.</p>
           </div>
-          <button type="button" id="btn-create-library" class="bg-accent hover:opacity-90 text-primary font-bold px-4 py-2 rounded text-sm transition-opacity flex items-center space-x-1">
+          <button type="button" id="btn-create-library" class="bg-accent hover:opacity-90 text-primary font-bold px-4 py-2 rounded text-sm transition-opacity flex items-center space-x-1 flex-shrink-0 w-full sm:w-auto justify-center sm:justify-start">
             <span class="material-symbols text-sm">add</span>
             <span>Add Library</span>
           </button>
@@ -2184,12 +2184,12 @@ async function renderLibrariesTab() {
         if (!foldersList) foldersList = 'No folders configured';
 
         const isSelected = lib.id === getActiveLibraryId();
-        const borderClass = isSelected ? 'border-l-accent' : 'border-l-transparent';
+        const borderClass = isSelected ? 'border-accent' : 'border-black-300 hover:border-accent/50';
         const isScanning = activeScans.has(lib.id);
         const spinClass = isScanning ? 'animate-spin' : '';
 
         html += `
-          <div class="library-row border border-black-300 border-l-4 ${borderClass} bg-black-500 rounded p-4 flex flex-col md:flex-row justify-between items-start md:items-center space-y-4 md:space-y-0 transition-colors hover:bg-black-400" draggable="true" data-id="${lib.id}">
+          <div class="library-row border ${borderClass} border-l-4 ${isSelected ? 'border-l-accent' : 'border-l-transparent'} bg-black-500 rounded p-4 flex flex-col md:flex-row justify-between items-start md:items-center space-y-4 md:space-y-0 transition-colors hover:bg-black-400" draggable="true" data-id="${lib.id}">
             <div class="flex items-center space-x-3 w-full md:w-auto">
               <!-- Reorder Handle -->
               <span class="material-symbols text-black-200 hover:text-white text-xl select-none mr-1 cursor-grab active:cursor-grabbing" title="Drag to reorder">drag_handle</span>
@@ -2280,17 +2280,27 @@ async function renderLibrariesTab() {
 
       row.addEventListener('dragenter', (e) => {
         if (row !== draggedRow) {
-          row.classList.add('bg-black-400');
+          row.classList.add('bg-black-400', 'border-accent');
+          row.classList.remove('border-black-300');
         }
       });
 
-      row.addEventListener('dragleave', () => {
+      const resetRowStyles = () => {
         row.classList.remove('bg-black-400');
-      });
+        if (row.dataset.id === getActiveLibraryId()) {
+          row.classList.add('border-accent');
+          row.classList.remove('border-black-300', 'hover:border-accent/50');
+        } else {
+          row.classList.remove('border-accent');
+          row.classList.add('border-black-300');
+        }
+      };
+
+      row.addEventListener('dragleave', resetRowStyles);
 
       row.addEventListener('drop', (e) => {
         e.preventDefault();
-        row.classList.remove('bg-black-400');
+        resetRowStyles();
         if (row !== draggedRow) {
           const children = Array.from(row.parentNode.children);
           const draggedIndex = children.indexOf(draggedRow);

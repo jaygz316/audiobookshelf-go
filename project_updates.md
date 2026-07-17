@@ -233,7 +233,29 @@
   - Replaced all legacy browser `alert()` modal calls across the entire frontend javascript codebase with modern, custom `showToast()` notifications.
   - Exposed `showToast` globally to the `window` object in `frontend/js/toast.js` and added support for a `'warning'` state alongside `'success'` and `'error'` states.
   - Successfully migrated 30+ alert instances across `collections.js`, `dashboard.js`, `itemDetails.js`, `bookmarksModal.js`, `chaptersModal.js`, `coverEditorModal.js`, `editDetailsModal.js`, `matchBookModal.js`, `playlistModal.js`, `shareModal.js`, `player.js`, `player/ui.js`, `playlists.js`, `presets.js`, `reader.js`, and `reader/bookmarks.js`.
-- **Toggle Switch Gold Highlight Alignment**:
-  - Re-aligned the custom checked switch checkbox color (`input:checked + .abs-slider`) in `frontend/css/components.css` to use the premium signature gold highlight color (`#e5a93b`) instead of the generic green (`#10b981`), maintaining consistent visual design and branding.
+- **Toggle Switch Color Alignment**:
+  - Re-aligned the custom checked switch checkbox color (`input:checked + .abs-slider`) in `frontend/css/components.css` to use the standard emerald green (`#10b981`), maintaining consistent visual design and branding.
+- **Stats Dashboard & Card / Layout Auditing**:
+  - Upgraded the "Recent Playback Sessions" dashboard list in `stats.js` to premium card-like components styling featuring dynamic device icons, play method badges (HLS vs Direct Play), and formatted dates.
+  - Aligned "All Playback Sessions" log table in Server Stats tab to render device icons and styled play method badges with appropriate color tokens.
+  - Implemented thorough HTML escaping for stats dashboard metadata (genres, authors, titles, usernames) to prevent script injection or broken layouts.
+  - Added smooth card lift elevations (`hover:-translate-y-1 hover:shadow-lg`) and duration transition properties to playlist cards (`playlists.js`) and collection cards (`collections.js`), finishing with gold-accented detail links.
+
+### 2026-07-17
+- **Library Configuration Selection Highlighting**:
+  - Implemented dynamic gold border outlines for selected library rows, unselected library rows hover highlights, and active drag-and-drop event targets inside the Libraries settings sub-tab in `frontend/js/settings.js`.
+- **Toggle Switch Restored to Green**:
+  - Updated settings toggle switch checked state background color to `#10b981` (emerald green) in `frontend/css/components.css` to match the green/gray look and feel of the original Audiobookshelf settings panels.
+- **Responsive Layout Audits & Toolbar Enhancements**:
+  - Added full responsiveness constraints to the primary Home/Dashboard header toolbar in [index.html](file:///home/jay/projects/audiobookshelf-go/frontend/index.html), allowing layout elements to wrap dynamically and hiding verbose button text (`Batch Edit`, `OPML`, `Save View`) on mobile screen sizes while retaining the icon.
+  - Refactored the Libraries settings tab header layout in [settings.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/settings.js) to wrap description text and stack actions vertically on small viewports.
+- **Media Player Responsiveness Auditing & Enhancements**:
+  - Aligned sticky bottom `#player-bar` padding to be responsive (`px-4` on mobile, scaling up to `px-6` on tablet/desktop viewports).
+  - Redesigned the full-screen expanded player dialog (`triggerExpandedPlayer`) in [ui.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/player/ui.js) to be fully responsive for vertical height constraints and narrow screen widths:
+    - Set the cover art image container to scale dynamically based on viewport height (`max-h-[30vh] max-w-[30vh] aspect-square`) to prevent vertical layout overflow.
+    - Switched dialog padding, container margins, and inner layout spacing from static large spacing to responsive sizing (`p-4 sm:p-6`, `py-4 sm:py-6`, `space-y-4 sm:space-y-6`).
+    - Adjusted font sizes (`text-lg sm:text-xl` for titles, `text-xs sm:text-sm` for author, `text-[10px] sm:text-xs` for chapters) and icon sizes (`text-base sm:text-lg` for secondary buttons) to remain perfectly proportional on mobile.
+
+
 
 
