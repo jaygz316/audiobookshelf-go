@@ -655,10 +655,16 @@ function renderPlaylistItemsRows(playlist, itemsDetails, libraryId) {
     };
 
     // Attach HTML5 drag and drop events
+    li.addEventListener('mousedown', (e) => {
+      if (e.target.closest('.drag-handle')) {
+        li.setAttribute('draggable', 'true');
+      } else {
+        li.setAttribute('draggable', 'false');
+      }
+    });
+
     li.addEventListener('dragstart', (e) => {
-      // Only allow dragging from the drag handle
-      const handle = e.target.closest('.drag-handle');
-      if (!handle) {
+      if (li.getAttribute('draggable') !== 'true') {
         e.preventDefault();
         return;
       }
