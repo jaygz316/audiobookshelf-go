@@ -191,4 +191,6 @@
 - **WebAssembly Setup Wizard Modularization**:
   - Modularized `frontend/go/setup.go` by splitting it into three smaller files under 200 lines: `setup.go` (UI screen rendering/transitions), `setup_validation.go` (step validation logic), and `setup_submit.go` (asynchronous submission/API interaction logic).
   - All files retain build tag `//go:build js && wasm` and package `main` declaration, ensuring successful compilation and passing test status.
+- **Bookshelf Divider Restoration**:
+  - Restored visual display of horizontal wooden divider planks (`.bookshelfDividerCategorized`) beneath categorized bookshelf rows on the Home/Dashboard view, matching the 3D wooden aesthetics of the original client.
 
