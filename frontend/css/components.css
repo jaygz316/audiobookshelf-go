@@ -1547,4 +1547,27 @@ details.group > div > * {
   min-height: 0;
 }
 
+/* Google Cast Launcher customization */
+google-cast-launcher {
+  --connected-color: var(--color-accent, #e5a93b) !important;
+  --disconnected-color: rgba(255, 255, 255, 0.4) !important;
+  width: 24px !important;
+  height: 24px !important;
+  cursor: pointer !important;
+  transition: opacity 0.2s ease;
+}
+google-cast-launcher:hover {
+  opacity: 0.95;
+}
+
+/* Smooth transitions for card resizing controls */
+.bookshelf-card,
+.bookshelfRow .bookshelf-card,
+.bookshelfRow .group,
+.library-grid .bookshelf-card,
+.library-shelf-grid > .bookshelf-card {
+  transition: transform 0.2s ease, width 0.2s cubic-bezier(0.4, 0, 0.2, 1), height 0.2s cubic-bezier(0.4, 0, 0.2, 1), max-width 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+
 

@@ -342,3 +342,13 @@
   }
 }
 
+/* Mobile Header Button Adjustments to prevent crowding */
+@media (max-width: 767.98px) {
+  #header-settings-btn,
+  #header-activity-btn,
+  #header-upload-btn {
+    display: none !important;
+  }
+}
+
+
