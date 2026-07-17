@@ -492,14 +492,18 @@ func TestScanPodcastLibraryIntegration(t *testing.T) {
 
 func TestScanNestedDirectoriesResilience(t *testing.T) {
 	db := setupScannerTestDB(t)
-	defer db.Close()
+	defer func() {
+		_ = db.Close()
+	}()
 
 	// 1. Create a temp directory for the multi-media nested library
 	tempDir, err := os.MkdirTemp("", "abs-nested-library-test")
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tempDir)
+	defer func() {
+		_ = os.RemoveAll(tempDir)
+	}()
 
 	// Define a nested book layout:
 	// - SciFi/Isaac Asimov/Foundation/01 - Foundation.mp3

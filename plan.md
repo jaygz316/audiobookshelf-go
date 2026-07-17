@@ -1,15 +1,5 @@
-# Implementation Plan - Settings Modals Scroll Containment
+# Plan - Aligning Bookshelf View & Cards Visuals
 
-1. Identify Settings modals that lack proper viewport scaling constraints and overflow scroll containment. These are:
-   - `showLibraryModal(lib)` in `frontend/js/settings.js`
-   - `triggerCreateNotificationModal(allSettings, onSaveSuccess)` in `frontend/js/settings.js`
-   - `triggerEreaderDeviceModal(device, devices, users, settings)` in `frontend/js/settings.js`
-
-2. Refactor the wrapper element in these modals to support max height and flex-col layout:
-   - Add classes `flex flex-col max-h-[90vh]` to the main modal card wrapper.
-   - Separate the modal header and footer from the form fields.
-   - Place all input fields inside a container class `flex-grow overflow-y-auto pr-1 no-scroll space-y-4` to handle scroll containment on narrow screens.
-
-3. Verify that these modals compile and display correctly.
-
-4. Run tests to confirm zero regressions.
+1. **Clean up Duplicate CSS**: Consolidated the styling of `#shelf-size-slider` in `frontend/css/components.css` by removing the redundant block at lines 1112-1169, keeping only the correct and refined block at lines 1313-1370.
+2. **Refine Sizing Slider Buttons**: Modify `#shelf-size-control` in `frontend/index.html` to match the exact aesthetic from the original Audiobookshelf screenshots (the `-` and `+` buttons should be clean, text-only buttons without circular grey backgrounds, transitioning to the gold accent color `#e5a93b` on hover).
+3. **Verify and Compile**: Run tests and build the package to verify compilation correctness.

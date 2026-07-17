@@ -278,7 +278,7 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
           </div>
 
           <!-- Middle & Right Columns: Metadata & Info -->
-          <div class="md:col-span-2 space-y-6 text-left">
+          <div class="space-y-6 text-left min-w-0">
             <div>
               <h2 class="text-3xl font-bold text-white tracking-wide">${escapeHtml(title)}</h2>
               ${subtitle ? `<p class="text-base text-black-50 mt-1">${escapeHtml(subtitle)}</p>` : ''}
@@ -434,9 +434,11 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
                     <span class="text-[10px] font-bold text-white uppercase tracking-wider">Auto-download episodes</span>
                     <span class="text-[8px] text-black-100 font-medium leading-tight">Check for and download new episodes</span>
                   </div>
-                  <label class="relative inline-flex items-center cursor-pointer flex-shrink-0">
-                    <input type="checkbox" id="podcast-details-auto-download" class="sr-only peer" ${item.media.autoDownloadEpisodes ? 'checked' : ''}>
-                    <div class="w-8 h-4 bg-black-400 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-[#10b981]"></div>
+                  <label class="flex items-center cursor-pointer select-none">
+                    <span class="abs-switch">
+                      <input type="checkbox" id="podcast-details-auto-download" ${item.media.autoDownloadEpisodes ? 'checked' : ''}>
+                      <span class="abs-slider"></span>
+                    </span>
                   </label>
                 </div>
 
@@ -446,9 +448,11 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
                     <span class="text-[10px] font-bold text-white uppercase tracking-wider">Auto-delete played episodes</span>
                     <span class="text-[8px] text-black-100 font-medium leading-tight">Remove files of episodes marked as played</span>
                   </div>
-                  <label class="relative inline-flex items-center cursor-pointer flex-shrink-0">
-                    <input type="checkbox" id="podcast-details-auto-delete-played" class="sr-only peer" ${item.media.autoDeletePlayed ? 'checked' : ''}>
-                    <div class="w-8 h-4 bg-black-400 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-[#10b981]"></div>
+                  <label class="flex items-center cursor-pointer select-none">
+                    <span class="abs-switch">
+                      <input type="checkbox" id="podcast-details-auto-delete-played" ${item.media.autoDeletePlayed ? 'checked' : ''}>
+                      <span class="abs-slider"></span>
+                    </span>
                   </label>
                 </div>
 
