@@ -30,6 +30,16 @@
 *This log is updated by developers/agents whenever an API, design pattern, or library is deprecated or updated.*
 
 ### 2026-07-17
+- **Player Speed and Premium Modals UI Polish**:
+  - Dynamically populated all speed dropdown selectors (`#player-speed`, `#expanded-speed`, and `#speed-default-select` in the settings dialog) to support fine-grained playback speed controls from 0.5x to 3.0x in 0.05x increments.
+  - Converted checkboxes in **Player Settings Modal** (`#speed-remember-input`) and **Sleep Timer Modal** (`#sleep-autorestart-input`, `#sleep-shaketoreset-input`) into premium sliding switches (`.abs-switch`), standardizing input elements and settings toggles to match design system guidelines.
+- **Upload Modal Target Library & Config Standardizations**:
+  - Implemented dynamic target library switching inside both the files upload modal and the podcast subscription modal in [upload.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/upload.js), allowing users to switch libraries seamlessly.
+  - Standardized target configuration elements in both modals inside structured grid cards, matching project-standard theme-aware input controls.
+  - Saved folders details dynamically upon target library change, switching display modes if changing between book and podcast library types.
+- **Upload Page Scrollbars & Background Opacity**:
+  - Replaced the non-existent class `scrollbar-thin` with standard `no-scroll` in [upload.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/upload.js) to ensure consistent, elegant scrollbars on the Upload media modal.
+  - Added missing transparent background utility classes `.bg-black-500/20`, `.bg-black-500/30`, `.bg-black-500/40`, `.bg-black-500/60`, and `.bg-black-500/70` in [components.css](file:///home/jay/projects/audiobookshelf-go/frontend/css/components.css) to support theme-aware background rendering.
 - **Podcast Cover Aspect Ratios & Details Styling**:
   - Introduced `.podcast-library` class to dynamically override bookshelf card height (`--bookshelf-card-height: var(--bookshelf-card-width) !important`) and recalculate row heights inside `layout.css`.
   - Configured `loadDashboard` in `dashboard.js` to automatically toggle `.podcast-library` class on the bookshelf container.

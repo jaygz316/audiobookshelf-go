@@ -32,6 +32,25 @@ export function formatTime(secs) {
   return `${minutes}:${formattedSeconds}`;
 }
 
+export function populateSpeedOptions(selectEl, selectedValue, isDefaultSelect = false) {
+  if (!selectEl) return;
+  selectEl.innerHTML = '';
+  for (let s = 0.5; s <= 3.01; s += 0.05) {
+    const val = Math.round(s * 100) / 100;
+    const opt = document.createElement('option');
+    opt.value = val.toString();
+    let label = val % 1 === 0 ? `${val}.0x` : `${val}x`;
+    if (val === 1 && isDefaultSelect) {
+      label += ' (Default)';
+    }
+    opt.textContent = label;
+    if (Math.abs(val - selectedValue) < 0.01) {
+      opt.selected = true;
+    }
+    selectEl.appendChild(opt);
+  }
+}
+
 export function updateTimelineUI() {
   if (!playerController) return;
   const currentItem = playerController.getCurrentItem();
@@ -541,16 +560,22 @@ export function triggerSleepTimerModal() {
       <div class="space-y-3 pt-2">
         <label class="text-[0.65rem] uppercase font-bold text-black-100 tracking-wider block">Settings</label>
         
-        <label class="flex items-center space-x-2.5 cursor-pointer select-none">
-          <input type="checkbox" id="sleep-autorestart-input" class="rounded text-accent bg-black-500 border-black-300 focus:ring-0 focus:ring-offset-0">
+        <label class="flex items-center space-x-3 cursor-pointer select-none">
+          <div class="abs-switch">
+            <input type="checkbox" id="sleep-autorestart-input">
+            <span class="abs-slider"></span>
+          </div>
           <div class="text-left">
             <span class="text-xs text-white font-medium block">Auto-Restart Timer on Play</span>
             <span class="text-[0.65rem] text-black-100">Automatically restart timer when resuming playback</span>
           </div>
         </label>
 
-        <label class="flex items-center space-x-2.5 cursor-pointer select-none">
-          <input type="checkbox" id="sleep-shaketoreset-input" class="rounded text-accent bg-black-500 border-black-300 focus:ring-0 focus:ring-offset-0">
+        <label class="flex items-center space-x-3 cursor-pointer select-none">
+          <div class="abs-switch">
+            <input type="checkbox" id="sleep-shaketoreset-input">
+            <span class="abs-slider"></span>
+          </div>
           <div class="text-left">
             <span class="text-xs text-white font-medium block">Shake-to-Reset</span>
             <span class="text-[0.65rem] text-black-100">Shake device in the last 30s to extend/reset timer</span>
@@ -678,8 +703,11 @@ export function triggerPlayerSettingsModal() {
       <div class="space-y-3">
         <label class="text-[0.65rem] uppercase font-bold text-black-100 tracking-wider block">Playback Speed Settings</label>
         
-        <label class="flex items-center space-x-2.5 cursor-pointer select-none">
-          <input type="checkbox" id="speed-remember-input" class="rounded text-accent bg-black-500 border-black-300 focus:ring-0 focus:ring-offset-0">
+        <label class="flex items-center space-x-3 cursor-pointer select-none">
+          <div class="abs-switch">
+            <input type="checkbox" id="speed-remember-input">
+            <span class="abs-slider"></span>
+          </div>
           <div class="text-left">
             <span class="text-xs text-white font-medium block">Remember speed per book</span>
             <span class="text-[0.65rem] text-black-100">Automatically save and restore playback speed for each individual book</span>
@@ -753,7 +781,7 @@ export function triggerPlayerSettingsModal() {
   const skipForwardSelect = dialog.querySelector('#skip-forward-select');
 
   rememberInput.checked = playerController.getRememberSpeedPerBook();
-  defaultSelect.value = playerController.getGlobalDefaultSpeed().toString();
+  populateSpeedOptions(defaultSelect, playerController.getGlobalDefaultSpeed(), true);
   boostSlider.value = playerController.getVolumeBoostLevel();
   skipBackSelect.value = playerController.getPlayerSkipBackSeconds().toString();
   skipForwardSelect.value = playerController.getPlayerSkipForwardSeconds().toString();
@@ -1058,10 +1086,14 @@ export function triggerExpandedPlayer() {
     author = 'Unknown';
   }
 
-  const speedOptions = [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0].map(s => {
-    const currentRate = audio ? audio.playbackRate : 1.0;
-    return `<option value="${s}" ${currentRate === s ? 'selected' : ''}>${s}x</option>`;
-  }).join('');
+  let speedOptions = '';
+  const currentRate = audio ? audio.playbackRate : 1.0;
+  for (let s = 0.5; s <= 3.01; s += 0.05) {
+    const val = Math.round(s * 100) / 100;
+    const isSelected = Math.abs(val - currentRate) < 0.01;
+    let label = val % 1 === 0 ? `${val}.0x` : `${val}x`;
+    speedOptions += `<option value="${val.toString()}" ${isSelected ? 'selected' : ''}>${label}</option>`;
+  }
 
   dialog.innerHTML = `
     <!-- Header -->
@@ -1509,7 +1541,17 @@ export function setupUIEventListeners() {
   };
   ['player-speed', 'expanded-speed'].forEach(id => {
     const el = document.getElementById(id);
-    if (el) el.onchange = () => handleSpeedChange(el);
+    if (el) {
+      let speedToUse = playerController.getGlobalDefaultSpeed();
+      if (currentItem && playerController.getRememberSpeedPerBook()) {
+        const storedSpeed = localStorage.getItem(`abs-speed-book-${currentItem.id}`);
+        if (storedSpeed) {
+          speedToUse = parseFloat(storedSpeed);
+        }
+      }
+      populateSpeedOptions(el, speedToUse);
+      el.onchange = () => handleSpeedChange(el);
+    }
   });
 
   bindClick(['player-close'], () => {
