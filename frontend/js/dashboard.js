@@ -491,7 +491,7 @@ function createShelfGridSection(shelfId, label, entities, libraryId) {
 }
 export function createCard(item, isContinue, libraryId, shelfId = '') {
   const card = document.createElement('div');
-  card.className = 'bookshelf-card w-28e h-40e relative cursor-pointer select-none box-shadow-book rounded-sm overflow-hidden flex-shrink-0 transition-transform hover:scale-105 group';
+  card.className = 'bookshelf-card w-28e h-40e relative cursor-pointer select-none box-shadow-book rounded-sm overflow-hidden flex-shrink-0 transition-transform group';
   
   let title = '';
   let author = '';

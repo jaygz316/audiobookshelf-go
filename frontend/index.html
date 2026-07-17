@@ -387,7 +387,7 @@
 
         <!-- Search bar -->
         <div id="global-search-container" class="grow max-w-xs mx-6 hidden md:block relative text-sm h-8">
-          <input type="text" id="global-search-input" placeholder="Search.." class="w-full h-full bg-black/20 border border-white/10 focus:border-white/20 rounded shadow-sm pl-2 pr-8 text-gray-200 placeholder-gray-400 focus:outline-none text-sm animate-none" autocomplete="off">
+          <input type="text" id="global-search-input" placeholder="Search.." class="w-full h-full bg-black/35 border border-white/5 focus:border-white/15 focus:bg-black/50 rounded-full shadow-inner pl-4 pr-8 text-gray-200 placeholder-gray-400 focus:outline-none text-sm transition-all duration-200 animate-none" autocomplete="off">
           <button id="global-search-clear-btn" class="absolute top-0 right-0 bottom-0 h-full flex items-center px-2 text-gray-400 cursor-pointer focus:outline-none" title="Search/Clear">
             <span id="global-search-icon-symbol" class="material-symbols text-lg select-none">search</span>
           </button>
@@ -486,84 +486,84 @@
           <!-- Home Link (Active by default) -->
           <a id="sidebar-home" href="#" class="w-full h-20 flex flex-col items-center justify-center text-white border-b border-primary/70 hover:bg-primary cursor-pointer relative bg-primary/80">
             <span class="material-symbols text-2xl">home</span>
-            <p class="pt-1.5 text-center leading-4 text-[0.9rem]">Home</p>
+            <p class="pt-1.5 text-center leading-4 text-xs font-semibold">Home</p>
             <div class="active-indicator h-full w-0.5 bg-accent absolute top-0 left-0 active"></div>
           </a>
 
           <!-- Library Link -->
           <a id="sidebar-library" href="#" class="w-full h-20 flex flex-col items-center justify-center text-white/80 border-b border-primary/70 hover:bg-primary cursor-pointer relative bg-bg/60">
             <span class="material-symbols text-2xl">import_contacts</span>
-            <p class="pt-1.5 text-center leading-4 text-[0.9rem]">Library</p>
+            <p class="pt-1.5 text-center leading-4 text-xs">Library</p>
             <div class="active-indicator h-full w-0.5 bg-accent absolute top-0 left-0"></div>
           </a>
 
           <!-- Podcast Latest Link -->
           <a id="sidebar-latest" href="#" class="w-full h-20 flex flex-col items-center justify-center text-white/80 border-b border-primary/70 hover:bg-primary cursor-pointer relative bg-bg/60 hidden">
             <span class="material-symbols text-2xl">podcasts</span>
-            <p class="pt-1 text-center leading-4 text-[0.9rem]">Latest</p>
+            <p class="pt-1 text-center leading-4 text-xs">Latest</p>
             <div class="active-indicator h-full w-0.5 bg-accent absolute top-0 left-0"></div>
           </a>
 
           <!-- Series Link -->
           <a id="sidebar-series" href="#" class="w-full h-20 flex flex-col items-center justify-center text-white/80 border-b border-primary/70 hover:bg-primary cursor-pointer relative bg-bg/60 hidden">
             <span class="material-symbols text-2.5xl">view_column</span>
-            <p class="pt-1 text-center leading-4 text-[0.9rem]">Series</p>
+            <p class="pt-1 text-center leading-4 text-xs">Series</p>
             <div class="active-indicator h-full w-0.5 bg-accent absolute top-0 left-0"></div>
           </a>
 
           <!-- Collections Link -->
           <a id="sidebar-collections" href="#" class="w-full h-20 flex flex-col items-center justify-center text-white/80 border-b border-primary/70 hover:bg-primary cursor-pointer relative bg-bg/60 hidden">
             <span class="material-symbols text-2.5xl">bookmarks</span>
-            <p class="pt-1 text-center leading-4 text-[0.9rem]">Collections</p>
+            <p class="pt-1 text-center leading-4 text-xs">Collections</p>
             <div class="active-indicator h-full w-0.5 bg-accent absolute top-0 left-0"></div>
           </a>
 
           <!-- Playlists Link -->
           <a id="sidebar-playlists" href="#" class="w-full h-20 flex flex-col items-center justify-center text-white/80 border-b border-primary/70 hover:bg-primary cursor-pointer relative bg-bg/60 hidden">
             <span class="material-symbols text-2.5xl">playlist_play</span>
-            <p class="pt-1 text-center leading-4 text-[0.9rem]">Playlists</p>
+            <p class="pt-1 text-center leading-4 text-xs">Playlists</p>
             <div class="active-indicator h-full w-0.5 bg-accent absolute top-0 left-0"></div>
           </a>
 
           <!-- Authors Link -->
           <a id="sidebar-authors" href="#" class="w-full h-20 flex flex-col items-center justify-center text-white/80 border-b border-primary/70 hover:bg-primary cursor-pointer relative bg-bg/60 hidden">
             <span class="material-symbols text-2xl">groups</span>
-            <p class="pt-1 text-center leading-4 text-[0.9rem]">Authors</p>
+            <p class="pt-1 text-center leading-4 text-xs">Authors</p>
             <div class="active-indicator h-full w-0.5 bg-accent absolute top-0 left-0"></div>
           </a>
 
           <!-- Narrators Link -->
           <a id="sidebar-narrators" href="#" class="w-full h-20 flex flex-col items-center justify-center text-white/80 border-b border-primary/70 hover:bg-primary cursor-pointer relative bg-bg/60 hidden">
             <span class="material-symbols text-2xl">record_voice_over</span>
-            <p class="pt-1 text-center leading-4 text-[0.9rem]">Narrators</p>
+            <p class="pt-1 text-center leading-4 text-xs">Narrators</p>
             <div class="active-indicator h-full w-0.5 bg-accent absolute top-0 left-0"></div>
           </a>
 
           <!-- Stats Link -->
           <a id="sidebar-stats" href="#" class="w-full h-20 flex flex-col items-center justify-center text-white/80 border-b border-primary/70 hover:bg-primary cursor-pointer relative bg-bg/60 hidden">
             <span class="material-symbols text-2xl">bar_chart</span>
-            <p class="pt-1 text-center leading-4 text-[0.9rem]">Stats</p>
+            <p class="pt-1 text-center leading-4 text-xs">Stats</p>
             <div class="active-indicator h-full w-0.5 bg-accent absolute top-0 left-0"></div>
           </a>
 
           <!-- Podcast Add Link -->
           <a id="sidebar-add" href="#" class="w-full h-20 flex flex-col items-center justify-center text-white/80 border-b border-primary/70 hover:bg-primary cursor-pointer relative bg-bg/60 hidden">
             <span class="abs-icons icon-podcast text-xl"></span>
-            <p class="pt-1.5 text-center leading-4 text-[0.9rem]">Add</p>
+            <p class="pt-1.5 text-center leading-4 text-xs">Add</p>
             <div class="active-indicator h-full w-0.5 bg-accent absolute top-0 left-0"></div>
           </a>
 
           <!-- Podcast Download Queue Link -->
           <a id="sidebar-download-queue" href="#" class="w-full h-20 flex flex-col items-center justify-center text-white/80 border-b border-primary/70 hover:bg-primary cursor-pointer relative bg-bg/60 hidden">
             <span class="material-symbols text-2xl">downloading</span>
-            <p class="pt-1.5 text-center leading-4 text-[0.9rem]">Download Queue</p>
+            <p class="pt-1.5 text-center leading-4 text-xs">Download Queue</p>
             <div class="active-indicator h-full w-0.5 bg-accent absolute top-0 left-0"></div>
           </a>
 
           <!-- Issues Link -->
           <a id="sidebar-issues" href="#" class="w-full h-20 flex flex-col items-center justify-center text-white/80 border-b border-primary/70 hover:bg-error/40 cursor-pointer relative bg-error/20 hidden">
             <span class="material-symbols text-2xl">warning</span>
-            <p class="pt-1.5 text-center leading-4 text-[1rem]">Issues</p>
+            <p class="pt-1.5 text-center leading-4 text-xs">Issues</p>
             <div class="active-indicator h-full w-0.5 bg-accent absolute top-0 left-0"></div>
             <div class="absolute top-1 right-1 w-4 h-4 rounded-full bg-white/30 flex items-center justify-center">
               <p class="issues-badge-text text-[9px] font-mono pb-0.5">0</p>
