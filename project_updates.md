@@ -30,6 +30,11 @@
 *This log is updated by developers/agents whenever an API, design pattern, or library is deprecated or updated.*
 
 ### 2026-07-17
+- **Global Interactive Button Cursors**:
+  - Injected global CSS cursor rules inside [base.css](file:///home/jay/projects/audiobookshelf-go/frontend/css/base.css) to apply pointer indicators (`cursor: pointer`) to all `<button>` and `[role="button"]` elements, and a `not-allowed` pointer state to all disabled buttons. This ensures that every interactive button, modal action, and dropdown trigger across the entire application consistently displays the standard hand cursor.
+- **User and Settings Management Action Controls Styling**:
+  - Upgraded unlink OIDC, edit, and delete action buttons inside [users.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/settings/users.js) to utilize standard warning (`bg-warning/20 text-warning border-warning/30`) and error (`bg-red-900/40 text-error border-red-500/30`) theme variables instead of legacy Tailwind colors.
+  - Aligned API key delete action buttons to use warning/error color variables.
 - **Interactive Bookshelf Row Scroll Buttons**:
   - Added left/right scroll buttons on personalized shelves ("Continue Listening", "Recently Added", etc.) with auto-hidden states on overflow start/end boundaries, complete with smooth scroll triggers and premium CSS hover/active effects, bringing complete visual and functional parity to horizontal shelf navigation.
 - **Settings Form Segmented Controls & Custom Dialogs**:
