@@ -259,7 +259,7 @@ function renderCollectionsGrid(collections, libraryId) {
         await request('DELETE', `/api/collections/${c.id}`);
         loadCollections(libraryId);
       } catch (err) {
-        alert('Failed to delete collection: ' + err.message);
+        showToast('Failed to delete collection: ' + err.message, 'error');
       }
     };
 
@@ -375,7 +375,7 @@ async function triggerCreateCollectionModal(libraryId) {
     const name = document.getElementById('new-coll-name').value.trim();
     const description = document.getElementById('new-coll-desc').value.trim();
     if (!name) {
-      alert('Collection name is required');
+      showToast('Collection name is required', 'warning');
       return;
     }
 
@@ -408,7 +408,7 @@ async function triggerCreateCollectionModal(libraryId) {
       closeModal();
       loadCollections(libraryId);
     } catch (err) {
-      alert('Failed to create collection: ' + err.message);
+      showToast('Failed to create collection: ' + err.message, 'error');
     }
   };
 }
@@ -506,7 +506,7 @@ export async function loadCollectionDetails(collectionId, libraryId) {
           loadCollections(libraryId);
         }
       } catch (err) {
-        alert('Delete failed: ' + err.message);
+        showToast('Delete failed: ' + err.message, 'error');
       }
     };
 
@@ -686,7 +686,7 @@ function renderCollectionBooksRows(collection, booksDetails, libraryId) {
           await request('PATCH', `/api/collections/${collection.id}`, { books: newOrderIds });
           loadCollectionDetails(collection.id, libraryId);
         } catch (err) {
-          alert('Failed to reorder collection books: ' + err.message);
+          showToast('Failed to reorder collection books: ' + err.message, 'error');
         }
       };
 
@@ -700,7 +700,7 @@ function renderCollectionBooksRows(collection, booksDetails, libraryId) {
           await request('PATCH', `/api/collections/${collection.id}`, { books: newOrderIds });
           loadCollectionDetails(collection.id, libraryId);
         } catch (err) {
-          alert('Failed to reorder collection books: ' + err.message);
+          showToast('Failed to reorder collection books: ' + err.message, 'error');
         }
       };
 
@@ -711,7 +711,7 @@ function renderCollectionBooksRows(collection, booksDetails, libraryId) {
           await request('PATCH', `/api/collections/${collection.id}`, { books: newOrderIds });
           loadCollectionDetails(collection.id, libraryId);
         } catch (err) {
-          alert('Failed to remove book: ' + err.message);
+          showToast('Failed to remove book: ' + err.message, 'error');
         }
       };
     }
@@ -836,7 +836,7 @@ async function triggerEditCollectionDetailsModal(collection, libraryId) {
     const name = document.getElementById('edit-coll-name').value.trim();
     const description = document.getElementById('edit-coll-desc').value.trim();
     if (!name) {
-      alert('Collection name is required');
+      showToast('Collection name is required', 'warning');
       return;
     }
 
@@ -868,7 +868,7 @@ async function triggerEditCollectionDetailsModal(collection, libraryId) {
       closeModal();
       loadCollectionDetails(collection.id, libraryId);
     } catch (err) {
-      alert('Failed to update collection: ' + err.message);
+      showToast('Failed to update collection: ' + err.message, 'error');
     }
   };
 }

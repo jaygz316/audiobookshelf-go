@@ -90,7 +90,7 @@ export async function renderBookmarks(item) {
             renderBookmarks(item);
           } catch (err) {
             console.error('Failed to delete bookmark:', err);
-            alert('Failed to delete bookmark.');
+            showToast('Failed to delete bookmark.', 'error');
           }
         }
       };
@@ -186,7 +186,7 @@ export function triggerEditBookmarkModal(item, bookmark) {
   document.getElementById('save-edit-bookmark-btn').onclick = async () => {
     const titleVal = titleInput.value.trim();
     if (!titleVal) {
-      alert("Title is required");
+      showToast("Title is required", "warning");
       return;
     }
 
@@ -201,7 +201,7 @@ export function triggerEditBookmarkModal(item, bookmark) {
       renderBookmarks(item);
     } catch (err) {
       console.error('Failed to update bookmark:', err);
-      alert('Failed to update bookmark: ' + (err.message || 'Unknown error'));
+      showToast('Failed to update bookmark: ' + (err.message || 'Unknown error'), 'error');
     }
   };
 }
@@ -311,7 +311,7 @@ export function triggerAddBookmarkOnDetailsModal(item) {
     const titleVal = titleInput.value.trim();
 
     if (!rawTime || !titleVal) {
-      alert("Both time and title are required.");
+      showToast("Both time and title are required.", "warning");
       return;
     }
 
@@ -319,7 +319,7 @@ export function triggerAddBookmarkOnDetailsModal(item) {
     if (rawTime.includes(':')) {
       const parts = rawTime.split(':').map(Number);
       if (parts.some(isNaN)) {
-        alert("Invalid time format. Please use HH:MM:SS or simple seconds.");
+        showToast("Invalid time format. Please use HH:MM:SS or simple seconds.", "warning");
         return;
       }
       if (parts.length === 3) {
@@ -327,13 +327,13 @@ export function triggerAddBookmarkOnDetailsModal(item) {
       } else if (parts.length === 2) {
         parsedTime = parts[0] * 60 + parts[1];
       } else {
-        alert("Invalid time format. Please use HH:MM:SS or simple seconds.");
+        showToast("Invalid time format. Please use HH:MM:SS or simple seconds.", "warning");
         return;
       }
     } else {
       parsedTime = Number(rawTime);
       if (isNaN(parsedTime)) {
-        alert("Invalid time format. Please use HH:MM:SS or simple seconds.");
+        showToast("Invalid time format. Please use HH:MM:SS or simple seconds.", "warning");
         return;
       }
     }
@@ -349,7 +349,7 @@ export function triggerAddBookmarkOnDetailsModal(item) {
       renderBookmarks(item);
     } catch (err) {
       console.error('Failed to create bookmark:', err);
-      alert('Failed to save bookmark: ' + (err.message || 'Unknown error'));
+      showToast('Failed to save bookmark: ' + (err.message || 'Unknown error'), 'error');
     }
   };
 }
@@ -360,7 +360,7 @@ export async function triggerExportBookmarksModal(item) {
   bookmarks.sort((a, b) => a.time - b.time);
 
   if (bookmarks.length === 0) {
-    alert("No bookmarks to export.");
+    showToast("No bookmarks to export.", "warning");
     return;
   }
 
@@ -646,7 +646,7 @@ export function triggerImportBookmarksModal(item) {
         previewArea.classList.remove('hidden');
         startBtn.disabled = false;
       } catch (err) {
-        alert("Error parsing file: " + err.message);
+        showToast("Error parsing file: " + err.message, "error");
         fileNameSpan.textContent = "Error parsing file";
         previewArea.classList.add('hidden');
         startBtn.disabled = true;
@@ -698,7 +698,7 @@ export function triggerImportBookmarksModal(item) {
       renderBookmarks(item);
     } catch (err) {
       console.error('Import failed:', err);
-      alert('Import failed: ' + (err.message || 'Unknown error'));
+      showToast('Import failed: ' + (err.message || 'Unknown error'), 'error');
       startBtn.disabled = false;
       startBtn.textContent = "Import Bookmarks";
     }

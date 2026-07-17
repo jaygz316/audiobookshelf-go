@@ -229,6 +229,11 @@
   - Enhanced the "Listening Sessions" logs tab in `frontend/js/settings/logs.js` with comprehensive client-side text search and play method selection dropdown filtering.
 - **Visual Parity and Scrollbar Refinements**:
   - Removed `no-scroll` styling from the Playback History (`history-controls`) list, Chapters list (`chapters-list-container`), Podcast Episode lists (`podcast-episodes-list`), and EPUB/PDF E-Reader Sidebars (table of contents, bookmarks, highlights, and thumbnails containers) to allow floating macOS-style scrollbars.
-  - Added physical book spine crease decoration (`.book-spine-crease`) to the cover template on the Item Details page (`itemDetails.js`), aligning detail page cover graphics with the main dashboard card aesthetics.
+- **Codebase-wide Toast Notification Migration**:
+  - Replaced all legacy browser `alert()` modal calls across the entire frontend javascript codebase with modern, custom `showToast()` notifications.
+  - Exposed `showToast` globally to the `window` object in `frontend/js/toast.js` and added support for a `'warning'` state alongside `'success'` and `'error'` states.
+  - Successfully migrated 30+ alert instances across `collections.js`, `dashboard.js`, `itemDetails.js`, `bookmarksModal.js`, `chaptersModal.js`, `coverEditorModal.js`, `editDetailsModal.js`, `matchBookModal.js`, `playlistModal.js`, `shareModal.js`, `player.js`, `player/ui.js`, `playlists.js`, `presets.js`, `reader.js`, and `reader/bookmarks.js`.
+- **Toggle Switch Gold Highlight Alignment**:
+  - Re-aligned the custom checked switch checkbox color (`input:checked + .abs-slider`) in `frontend/css/components.css` to use the premium signature gold highlight color (`#e5a93b`) instead of the generic green (`#10b981`), maintaining consistent visual design and branding.
 
 

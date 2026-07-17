@@ -320,7 +320,7 @@ export async function playItem(item, startTime = 0) {
     
   } catch (err) {
     console.error('Failed to play item:', err);
-    alert('Failed to initialize playback session.');
+    showToast('Failed to initialize playback session.', 'error');
   }
 }
 

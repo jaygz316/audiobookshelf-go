@@ -98,8 +98,8 @@ function renderUsersListRows(users, currentUser) {
     tr.innerHTML = `
       <td class="px-4 py-3 font-semibold text-white flex items-center space-x-2">
         <span>${escapeHtml(u.username)}</span>
-        ${u.isActive ? '' : '<span class="bg-red-900/50 text-red-200 text-[10px] px-1.5 py-0.5 rounded font-normal uppercase">Inactive</span>'}
-        ${u.hasOpenIDLink ? '<span class="bg-blue-900/50 text-blue-200 text-[10px] px-1.5 py-0.5 rounded font-normal uppercase">OIDC</span>' : ''}
+        ${u.isActive ? '<span class="bg-success/10 text-success border border-success/30 text-[10px] px-1.5 py-0.5 rounded font-semibold uppercase">Active</span>' : '<span class="bg-error/10 text-error border border-error/30 text-[10px] px-1.5 py-0.5 rounded font-semibold uppercase">Inactive</span>'}
+        ${u.hasOpenIDLink ? '<span class="bg-accent/10 text-accent border border-accent/30 text-[10px] px-1.5 py-0.5 rounded font-semibold uppercase">OIDC</span>' : ''}
       </td>
       <td class="px-4 py-3 text-xs capitalize">${typeDisplay}</td>
       <td class="px-4 py-3 text-xs text-black-100">${lastSeenFormatted}</td>

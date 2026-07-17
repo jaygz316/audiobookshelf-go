@@ -69,7 +69,7 @@ export async function refreshPdfBookmarksList(itemId, onBookmarkClick) {
           await refreshPdfBookmarksList(itemId, onBookmarkClick);
         } catch (err) {
           console.error("Failed to delete PDF bookmark:", err);
-          alert("Failed to delete bookmark");
+          showToast("Failed to delete bookmark", "error");
         }
       }
     };
@@ -165,7 +165,7 @@ export async function refreshBookmarksTab(itemId, onBookmarkClick) {
           await refreshBookmarksTab(itemId, onBookmarkClick);
         } catch (err) {
           console.error("Failed to delete bookmark:", err);
-          alert("Failed to delete bookmark");
+          showToast("Failed to delete bookmark", "error");
         }
       }
     };

@@ -65,7 +65,7 @@ export function triggerAddToPlaylistModal(item, libraryId) {
         const newName = newNameInput ? newNameInput.value.trim() : '';
 
         if (!playlistId && !newName) {
-          alert('Please select an existing playlist or enter a name for a new one.');
+          showToast('Please select an existing playlist or enter a name for a new one.', 'warning');
           return;
         }
 
@@ -76,13 +76,13 @@ export function triggerAddToPlaylistModal(item, libraryId) {
               name: newName,
               items: [item.id]
             });
-            alert(`Created playlist "${newName}" and added this item.`);
+            showToast(`Created playlist "${newName}" and added this item.`, 'success');
           } else {
             // Add to existing playlist
             const playlist = await request('GET', `/api/playlists/${playlistId}`);
             const items = playlist.itemIds || [];
             if (items.includes(item.id)) {
-              alert('Item is already in this playlist.');
+              showToast('Item is already in this playlist.', 'warning');
               closeModal();
               return;
             }
@@ -90,15 +90,15 @@ export function triggerAddToPlaylistModal(item, libraryId) {
             await request('PATCH', `/api/playlists/${playlistId}`, {
               items
             });
-            alert('Item added to playlist successfully.');
+            showToast('Item added to playlist successfully.', 'success');
           }
           closeModal();
         } catch (err) {
-          alert('Failed to update playlist: ' + err.message);
+          showToast('Failed to update playlist: ' + err.message, 'error');
         }
       };
     })
     .catch(err => {
-      alert('Failed to load playlists: ' + err.message);
+      showToast('Failed to load playlists: ' + err.message, 'error');
     });
 }

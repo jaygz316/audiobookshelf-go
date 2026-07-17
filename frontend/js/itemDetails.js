@@ -781,7 +781,7 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
 
               loadItemDetails(itemId, libraryId, backCallback);
             } catch (err) {
-              alert('Failed to upload cover: ' + err.message);
+              showToast('Failed to upload cover: ' + err.message, 'error');
               loadItemDetails(itemId, libraryId, backCallback);
             }
           }
@@ -797,9 +797,9 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
           embedMetadataBtn.innerHTML = '<span class="material-symbols text-sm animate-spin">sync</span><span>Embedding...</span>';
           try {
             const resp = await request('POST', `/api/items/${item.id}/embed-metadata`);
-            alert(resp.message || 'Metadata embedded successfully!');
+            showToast(resp.message || 'Metadata embedded successfully!', 'success');
           } catch (err) {
-            alert('Failed to embed metadata: ' + (err.message || err));
+            showToast('Failed to embed metadata: ' + (err.message || err), 'error');
           } finally {
             embedMetadataBtn.disabled = false;
             embedMetadataBtn.innerHTML = '<span class="material-symbols text-sm">settings_suggest</span><span>Embed Metadata</span>';
@@ -816,10 +816,10 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
           mergeAudioBtn.innerHTML = '<span class="material-symbols text-sm animate-spin">sync</span><span>Merging...</span>';
           try {
             const resp = await request('POST', `/api/items/${item.id}/merge`);
-            alert(resp.message || 'Audio files merged successfully!');
+            showToast(resp.message || 'Audio files merged successfully!', 'success');
             loadItemDetails(itemId, libraryId, backCallback);
           } catch (err) {
-            alert('Failed to merge audio files: ' + (err.message || err));
+            showToast('Failed to merge audio files: ' + (err.message || err), 'error');
           } finally {
             mergeAudioBtn.disabled = false;
             mergeAudioBtn.innerHTML = '<span class="material-symbols text-sm">call_merge</span><span>Merge Audio Files</span>';
@@ -1677,7 +1677,7 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
             // Fetch available devices
             const devices = await request('GET', '/api/emails/devices');
             if (!devices || devices.length === 0) {
-              alert('No e-reader devices are currently configured or available for your account.');
+              showToast('No e-reader devices are currently configured or available for your account.', 'warning');
               return;
             }
 
@@ -1720,17 +1720,17 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
                   libraryItemId: item.id,
                   deviceName: selectedDevice
                 });
-                alert(`E-Book successfully queued to send to "${selectedDevice}"!`);
+                showToast(`E-Book successfully queued to send to "${selectedDevice}"!`, 'success');
                 closeModal();
               } catch (err) {
-                alert('Failed to send e-book: ' + err.message);
+                showToast('Failed to send e-book: ' + err.message, 'error');
                 sendBtn.textContent = 'Send';
                 sendBtn.disabled = false;
               }
             };
 
           } catch (err) {
-            alert('Error loading devices: ' + err.message);
+            showToast('Error loading devices: ' + err.message, 'error');
           }
         };
       }
@@ -1909,10 +1909,10 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
           }
           try {
             await request('DELETE', `/api/items/${item.id}`);
-            alert('Library item deleted successfully.');
+            showToast('Library item deleted successfully.', 'success');
             backCallback();
           } catch (err) {
-            alert('Failed to delete library item: ' + err.message);
+            showToast('Failed to delete library item: ' + err.message, 'error');
           }
         };
       }
@@ -2071,7 +2071,7 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
                     // Reload item details to reflect changes
                     loadItemDetails(itemId, libraryId, backCallback);
                   } catch (err) {
-                    alert('Failed to update progress: ' + err.message);
+                    showToast('Failed to update progress: ' + err.message, 'error');
                   }
                 };
               }
@@ -2084,7 +2084,7 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
                     await request('DELETE', `/api/me/progress/${item.id}`);
                     loadItemDetails(itemId, libraryId, backCallback);
                   } catch (err) {
-                    alert('Failed to reset progress: ' + err.message);
+                    showToast('Failed to reset progress: ' + err.message, 'error');
                   }
                 };
               }
@@ -2138,7 +2138,7 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
                     });
                     loadItemDetails(itemId, libraryId, backCallback);
                   } catch (err) {
-                    alert('Failed to update progress: ' + err.message);
+                    showToast('Failed to update progress: ' + err.message, 'error');
                   }
                 };
               }

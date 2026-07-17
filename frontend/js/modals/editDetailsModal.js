@@ -258,7 +258,7 @@ export function triggerEditItemDetailsModal(item, libraryId, onSaveSuccess) {
 
     const titleVal = document.getElementById('edit-item-title').value.trim();
     if (!titleVal) {
-      alert('Title is required');
+      showToast('Title is required', 'warning');
       return;
     }
 
@@ -290,7 +290,7 @@ export function triggerEditItemDetailsModal(item, libraryId, onSaveSuccess) {
         onSaveSuccess();
       }
     } catch (err) {
-      alert('Failed to save changes: ' + err.message);
+      showToast('Failed to save changes: ' + err.message, 'error');
     }
   };
 }
