@@ -1249,11 +1249,22 @@ function setupEventHandlers() {
   if (styleBtnGrid) styleBtnGrid.onclick = () => setStyle('grid');
   if (styleBtnList) styleBtnList.onclick = () => setStyle('list');
 
-  // Mobile Menu Drawer Toggle
+  // Mobile / Desktop Menu Drawer Toggle
   const mobileMenuBtn = document.getElementById('mobile-menu-btn');
   const sidebar = document.getElementById('sidebar');
   const backdrop = document.getElementById('sidebar-backdrop');
   if (mobileMenuBtn && sidebar) {
+    // Initialize desktop sidebar collapse state from localStorage
+    const initSidebarCollapse = () => {
+      const isCollapsed = localStorage.getItem('sidebar-collapsed') === 'true';
+      if (isCollapsed) {
+        sidebar.classList.add('collapsed');
+      } else {
+        sidebar.classList.remove('collapsed');
+      }
+    };
+    initSidebarCollapse();
+
     const openMobileSidebar = () => {
       sidebar.classList.remove('hidden');
       // Trigger layout reflow for CSS transition
@@ -1287,11 +1298,17 @@ function setupEventHandlers() {
 
     mobileMenuBtn.onclick = (e) => {
       e.stopPropagation();
-      const isOpen = sidebar.classList.contains('open');
-      if (isOpen) {
-        closeMobileSidebar();
+      if (window.innerWidth < 768) {
+        const isOpen = sidebar.classList.contains('open');
+        if (isOpen) {
+          closeMobileSidebar();
+        } else {
+          openMobileSidebar();
+        }
       } else {
-        openMobileSidebar();
+        sidebar.classList.toggle('collapsed');
+        const isCollapsedNow = sidebar.classList.contains('collapsed');
+        localStorage.setItem('sidebar-collapsed', isCollapsedNow ? 'true' : 'false');
       }
     };
 

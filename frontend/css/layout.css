@@ -243,3 +243,96 @@
   -ms-overflow-style: none !important;  /* IE and Edge */
   scrollbar-width: none !important;  /* Firefox */
 }
+
+/* Desktop Collapsible Sidebar Styling */
+@media (min-width: 768px) {
+  #sidebar {
+    width: 15rem !important; /* Expanded width by default */
+    min-width: 15rem !important;
+    transition: width 0.2s cubic-bezier(0.4, 0, 0.2, 1), min-width 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  }
+
+  /* When collapsed class is set */
+  #sidebar.collapsed {
+    width: 5rem !important; /* 80px */
+    min-width: 5rem !important;
+  }
+
+  #sidebar.collapsed #sidebar-branding {
+    display: none !important;
+  }
+
+  /* Buttons container when expanded */
+  #sidebar:not(.collapsed) #siderail-buttons-container a {
+    flex-direction: row !important;
+    justify-content: flex-start !important;
+    align-items: center !important;
+    height: 3.5rem !important;
+    padding: 0 1.25rem !important;
+    border-bottom: none !important;
+  }
+
+  #sidebar:not(.collapsed) #siderail-buttons-container a p {
+    padding-top: 0 !important;
+    margin-left: 1rem !important;
+    font-size: 0.85rem !important;
+    text-align: left !important;
+    display: block !important;
+  }
+
+  #sidebar:not(.collapsed) #siderail-buttons-container a .active-indicator {
+    width: 4px !important;
+    height: 100% !important;
+  }
+
+  /* Buttons container when collapsed */
+  #sidebar.collapsed #siderail-buttons-container a {
+    flex-direction: column !important;
+    justify-content: center !important;
+    align-items: center !important;
+    height: 3.5rem !important;
+    padding: 0 !important;
+  }
+
+  #sidebar.collapsed #siderail-buttons-container a p {
+    display: none !important;
+  }
+
+  #sidebar.collapsed #siderail-buttons-container a .active-indicator {
+    width: 3px !important;
+    height: 100% !important;
+  }
+
+  /* Footer when expanded */
+  #sidebar:not(.collapsed) div.border-t {
+    flex-direction: row !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    padding: 0.75rem 1.25rem !important;
+    height: 3.5rem !important;
+    background-color: rgba(0, 0, 0, 0.15) !important;
+  }
+
+  #sidebar:not(.collapsed) div.border-t #sidebar-help-btn {
+    margin-bottom: 0 !important;
+    order: 2;
+  }
+
+  #sidebar:not(.collapsed) div.border-t div.text-xxs {
+    align-items: flex-start !important;
+    order: 1;
+  }
+
+  /* Footer when collapsed */
+  #sidebar.collapsed div.border-t {
+    flex-direction: column !important;
+    justify-content: center !important;
+    align-items: center !important;
+    padding: 0.5rem 0 !important;
+  }
+
+  #sidebar.collapsed div.border-t #sidebar-help-btn {
+    margin-bottom: 0.5rem !important;
+  }
+}
+

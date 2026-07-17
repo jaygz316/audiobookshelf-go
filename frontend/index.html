@@ -349,8 +349,8 @@
         
         <!-- Brand & Library Selector -->
         <div class="flex items-center space-x-4">
-          <!-- Hamburger menu for mobile -->
-          <button id="mobile-menu-btn" class="md:hidden p-1.5 hover:bg-black-500 rounded-full text-black-50 hover:text-white flex items-center justify-center mr-1" aria-label="Toggle Menu">
+          <!-- Hamburger menu -->
+          <button id="mobile-menu-btn" class="p-1.5 hover:bg-black-500 rounded-full text-black-50 hover:text-white flex items-center justify-center mr-1" aria-label="Toggle Menu">
             <span class="material-symbols text-xl">menu</span>
           </button>
           <!-- Logo & Brand links -->
@@ -358,7 +358,7 @@
             <img src="assets/images/icon.svg" alt="Home" class="w-8 min-w-8 h-8 mr-2 sm:w-10 sm:min-w-10 sm:h-10 sm:mr-4 select-none cursor-pointer">
           </a>
           <a href="#" id="header-title-link" class="focus:outline-none">
-            <h1 class="text-lg mr-6 hidden lg:block hover:underline cursor-pointer select-none font-semibold tracking-wide">audiobookshelf</h1>
+            <h1 class="text-lg mr-6 hidden lg:block hover:underline cursor-pointer select-none font-semibold tracking-wide text-white">audiobook<span class="text-accent">shelf</span></h1>
           </a>
           
           <!-- Library Dropdown -->
@@ -483,8 +483,13 @@
       <!-- Sidebar Backdrop for Mobile -->
       <div id="sidebar-backdrop" class="hidden"></div>
       
-      <!-- Left Navigation Sidebar (Side Rail) -->
-      <aside id="sidebar" role="toolbar" aria-orientation="vertical" class="w-20 bg-bg h-full border-r border-black-600/50 hidden md:flex flex-col justify-between select-none z-40 box-shadow-side" style="min-width: 80px;">
+      <!-- Left Navigation Sidebar -->
+      <aside id="sidebar" role="toolbar" aria-orientation="vertical" class="bg-bg h-full border-r border-black-600/50 hidden md:flex flex-col justify-between select-none z-40 box-shadow-side">
+        <!-- Sidebar Branding Header -->
+        <div id="sidebar-branding" class="w-full flex items-center px-5 py-4 border-b border-primary/70 select-none">
+          <img src="assets/images/icon.svg" alt="audiobookshelf" class="w-7 h-7 mr-3">
+          <span class="text-white font-bold text-sm tracking-wide">audiobook<span class="text-accent">shelf</span></span>
+        </div>
         <nav id="siderail-buttons-container" class="w-full flex flex-col overflow-y-auto overflow-x-hidden">
           
           <!-- Home Link (Active by default) -->

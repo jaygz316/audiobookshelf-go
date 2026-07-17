@@ -371,15 +371,26 @@ function createSeriesCard(series) {
     if (books.length === 1) {
       const ts = books[0].updatedAt || books[0].addedAt || Date.now();
       const coverUrl = resolvePath(`/api/items/${books[0].id}/cover?token=${token}&ts=${ts}`);
-      imagesHtml = `<img src="${coverUrl}" class="series-cover-front" onerror="this.onerror=null; this.src='assets/images/logo.png'">`;
+      imagesHtml = `
+        <div class="series-cover-front series-cover-book book-cover-wrapper">
+          <img src="${coverUrl}" onerror="this.onerror=null; this.src='assets/images/logo.png'">
+          <div class="book-spine-crease"></div>
+        </div>
+      `;
     } else if (books.length === 2) {
       const ts0 = books[0].updatedAt || books[0].addedAt || Date.now();
       const ts1 = books[1].updatedAt || books[1].addedAt || Date.now();
       const cover0 = resolvePath(`/api/items/${books[0].id}/cover?token=${token}&ts=${ts0}`);
       const cover1 = resolvePath(`/api/items/${books[1].id}/cover?token=${token}&ts=${ts1}`);
       imagesHtml = `
-        <img src="${cover1}" class="series-cover-back-two" onerror="this.onerror=null; this.src='assets/images/logo.png'">
-        <img src="${cover0}" class="series-cover-front" onerror="this.onerror=null; this.src='assets/images/logo.png'">
+        <div class="series-cover-back-two series-cover-book book-cover-wrapper">
+          <img src="${cover1}" onerror="this.onerror=null; this.src='assets/images/logo.png'">
+          <div class="book-spine-crease"></div>
+        </div>
+        <div class="series-cover-front series-cover-book book-cover-wrapper">
+          <img src="${cover0}" onerror="this.onerror=null; this.src='assets/images/logo.png'">
+          <div class="book-spine-crease"></div>
+        </div>
       `;
     } else {
       const ts0 = books[0].updatedAt || books[0].addedAt || Date.now();
@@ -389,9 +400,18 @@ function createSeriesCard(series) {
       const cover1 = resolvePath(`/api/items/${books[1].id}/cover?token=${token}&ts=${ts1}`);
       const cover2 = resolvePath(`/api/items/${books[2].id}/cover?token=${token}&ts=${ts2}`);
       imagesHtml = `
-        <img src="${cover2}" class="series-cover-back" onerror="this.onerror=null; this.src='assets/images/logo.png'">
-        <img src="${cover1}" class="series-cover-middle" onerror="this.onerror=null; this.src='assets/images/logo.png'">
-        <img src="${cover0}" class="series-cover-front" onerror="this.onerror=null; this.src='assets/images/logo.png'">
+        <div class="series-cover-back series-cover-book book-cover-wrapper">
+          <img src="${cover2}" onerror="this.onerror=null; this.src='assets/images/logo.png'">
+          <div class="book-spine-crease"></div>
+        </div>
+        <div class="series-cover-middle series-cover-book book-cover-wrapper">
+          <img src="${cover1}" onerror="this.onerror=null; this.src='assets/images/logo.png'">
+          <div class="book-spine-crease"></div>
+        </div>
+        <div class="series-cover-front series-cover-book book-cover-wrapper">
+          <img src="${cover0}" onerror="this.onerror=null; this.src='assets/images/logo.png'">
+          <div class="book-spine-crease"></div>
+        </div>
       `;
     }
     coversHtml = `
@@ -767,15 +787,26 @@ export async function loadSeriesDetails(seriesId) {
       if (items.length === 1) {
         const ts = items[0].updatedAt || items[0].addedAt || Date.now();
         const coverUrl = resolvePath(`/api/items/${items[0].id}/cover?token=${token}&ts=${ts}`);
-        coversHtml = `<img src="${coverUrl}" class="series-cover-front" onerror="this.onerror=null; this.src='assets/images/logo.png'">`;
+        coversHtml = `
+          <div class="series-cover-front series-cover-book book-cover-wrapper">
+            <img src="${coverUrl}" onerror="this.onerror=null; this.src='assets/images/logo.png'">
+            <div class="book-spine-crease"></div>
+          </div>
+        `;
       } else if (items.length === 2) {
         const ts0 = items[0].updatedAt || items[0].addedAt || Date.now();
         const ts1 = items[1].updatedAt || items[1].addedAt || Date.now();
         const cover0 = resolvePath(`/api/items/${items[0].id}/cover?token=${token}&ts=${ts0}`);
         const cover1 = resolvePath(`/api/items/${items[1].id}/cover?token=${token}&ts=${ts1}`);
         coversHtml = `
-          <img src="${cover1}" class="series-cover-back-two" onerror="this.onerror=null; this.src='assets/images/logo.png'">
-          <img src="${cover0}" class="series-cover-front" onerror="this.onerror=null; this.src='assets/images/logo.png'">
+          <div class="series-cover-back-two series-cover-book book-cover-wrapper">
+            <img src="${cover1}" onerror="this.onerror=null; this.src='assets/images/logo.png'">
+            <div class="book-spine-crease"></div>
+          </div>
+          <div class="series-cover-front series-cover-book book-cover-wrapper">
+            <img src="${cover0}" onerror="this.onerror=null; this.src='assets/images/logo.png'">
+            <div class="book-spine-crease"></div>
+          </div>
         `;
       } else {
         const ts0 = items[0].updatedAt || items[0].addedAt || Date.now();
@@ -785,9 +816,18 @@ export async function loadSeriesDetails(seriesId) {
         const cover1 = resolvePath(`/api/items/${items[1].id}/cover?token=${token}&ts=${ts1}`);
         const cover2 = resolvePath(`/api/items/${items[2].id}/cover?token=${token}&ts=${ts2}`);
         coversHtml = `
-          <img src="${cover2}" class="series-cover-back" onerror="this.onerror=null; this.src='assets/images/logo.png'">
-          <img src="${cover1}" class="series-cover-middle" onerror="this.onerror=null; this.src='assets/images/logo.png'">
-          <img src="${cover0}" class="series-cover-front" onerror="this.onerror=null; this.src='assets/images/logo.png'">
+          <div class="series-cover-back series-cover-book book-cover-wrapper">
+            <img src="${cover2}" onerror="this.onerror=null; this.src='assets/images/logo.png'">
+            <div class="book-spine-crease"></div>
+          </div>
+          <div class="series-cover-middle series-cover-book book-cover-wrapper">
+            <img src="${cover1}" onerror="this.onerror=null; this.src='assets/images/logo.png'">
+            <div class="book-spine-crease"></div>
+          </div>
+          <div class="series-cover-front series-cover-book book-cover-wrapper">
+            <img src="${cover0}" onerror="this.onerror=null; this.src='assets/images/logo.png'">
+            <div class="book-spine-crease"></div>
+          </div>
         `;
       }
     } else {

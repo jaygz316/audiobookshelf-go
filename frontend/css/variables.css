@@ -73,4 +73,5 @@
   --bookshelf-plank-bottom: rgb(71, 48, 25);
   --bookshelf-overlay: rgba(0, 0, 0, 0);
   --bookshelf-reflect: below 2px linear-gradient(to bottom, rgba(0, 0, 0, 0.25) 0px, transparent var(--bookshelf-plank-height));
+  --bookshelf-texture-img: url(../assets/textures/wood_default.jpg);
 }

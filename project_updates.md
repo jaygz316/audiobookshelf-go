@@ -30,8 +30,22 @@
 *This log is updated by developers/agents whenever an API, design pattern, or library is deprecated or updated.*
 
 ### 2026-07-17
+- **Modal Input & Native Dialog Visual Standardization**:
+  - Implemented theme-aware overrides (`var(--color-black-500)`, `var(--color-black-300)`, and `var(--color-white)`) for inputs, selects, and textareas inside dynamic overlays (`div[class*="fixed"][class*="z-50"]`), settings panel content (`#settings-tab-content`), onboarding wizard (`#setup-screen`), and native `dialog` containers.
+  - Standardized transition animations and active focus outlines (accent colors and glow shadows) for form fields to guarantee visual alignment and high-contrast accessibility.
+- **Desktop Collapsible Sidebar, Header Branding & State Persistence**:
+  - Implemented a premium desktop collapsible sidebar navigation that defaults to a wide layout (`15rem / 240px`) showing text next to icons, and collapses to a compact rail (`5rem / 80px`) showing only icons.
+  - Linked the hamburger menu toggle button in the header on desktop viewports to toggle the sidebar's collapse state with smooth CSS transitions.
+  - Standardized state persistence by storing the sidebar collapse state in `localStorage` under `sidebar-collapsed` and initializing the layout dynamically on application bootstrap.
+  - Styled the header branding title text using white and orange accent variables (`audiobook<span class="text-accent">shelf</span>`) and added a dedicated `#sidebar-branding` block inside the sidebar itself, visible only when expanded.
+  - Removed hardcoded inline layout widths from the HTML to allow pure, responsive CSS control.
+- **Cascading Fanned Series Cover Cards with 3D Spine Creases & Reflections**:
+  - Wrapped stacked series covers on both the series list card and details view in `.series-cover-book.book-cover-wrapper` containers.
+  - Injected `.book-spine-crease` overlays onto stacked covers to mimic realistic 3D book cover depth.
+  - Styled `.series-cover-front` in [components.css](file:///home/jay/projects/audiobookshelf-go/frontend/css/components.css) to support percentage-based reflections (`-webkit-box-reflect: var(--bookshelf-reflect)`), aligning series cover styling with individual bookshelf card views.
 - **3D Bookshelf Side Borders, Theme-Aware Planks & Premium Sizing Slider**:
-  - Implemented left and right vertical wooden side panels on `.library-shelf-grid` to complete the premium wooden bookshelf aesthetic across all themes.
+  - Implemented left and right vertical wooden side panels on `.library-shelf-grid` and `.shelf-wrapper` (Home page scrolling rows) to complete the premium wooden bookshelf aesthetic across all views and themes.
+  - Standardized the `--bookshelf-texture-img` variable definition directly inside [variables.css](file:///home/jay/projects/audiobookshelf-go/frontend/css/variables.css) to guarantee its availability across all stylesheets.
   - Integrated theme-aware overlays (`--bookshelf-overlay`) into `.bookshelfDividerCategorized` backgrounds, ensuring sepia and light themes dynamically tint the planks correctly.
   - Custom-styled the `#shelf-size-slider` runnable track and thumb with dedicated hover scale effects, consistent borders, and cross-browser (Webkit/Firefox) support.
   - Defined explicit `:root[data-theme="dark"]` stylesheet variables in [variables.css](file:///home/jay/projects/audiobookshelf-go/frontend/css/variables.css) to guarantee clean, robust variables overriding during theme toggling.
