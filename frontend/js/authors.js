@@ -300,7 +300,7 @@ export async function loadSeries(libraryId) {
 
 function createAuthorCard(author) {
   const card = document.createElement('div');
-  card.className = 'flex flex-col items-center p-3 bg-primary border border-black-400 rounded-md hover:bg-black-500 cursor-pointer transition-colors group';
+  card.className = 'flex flex-col items-center p-3 bg-primary border border-black-400 rounded hover:bg-black-500 hover:border-black-100 hover:-translate-y-1 shadow hover:shadow-lg cursor-pointer transition-all duration-200 group';
   card.style.width = '100%';
 
   const token = localStorage.getItem('token');
@@ -515,6 +515,27 @@ export async function loadAuthorDetails(authorId) {
     const token = localStorage.getItem('token');
     const imageUrl = resolvePath(`/api/authors/${author.id}/image?token=${token}`);
 
+    let bioHtml = '';
+    if (description) {
+      if (description.length > 350) {
+        const shortBio = description.substring(0, 350) + '...';
+        bioHtml = `
+          <div class="mt-4 text-sm text-black-50 leading-relaxed max-w-3xl">
+            <span id="author-bio-text" class="whitespace-pre-line">${escapeHtml(shortBio)}</span>
+            <button id="toggle-bio-btn" class="text-accent hover:underline font-semibold ml-1 text-xs focus:outline-none">Read More</button>
+          </div>
+        `;
+      } else {
+        bioHtml = `
+          <div class="mt-4 text-sm text-black-50 leading-relaxed max-w-3xl whitespace-pre-line">
+            <span>${escapeHtml(description)}</span>
+          </div>
+        `;
+      }
+    } else {
+      bioHtml = `<p class="text-sm text-black-200 italic mt-4">No biography available.</p>`;
+    }
+
     let html = `
       <div class="p-6 max-w-6xl mx-auto space-y-6 text-left">
         <div class="flex items-center space-x-2">
@@ -545,29 +566,42 @@ export async function loadAuthorDetails(authorId) {
               ${lastFirst ? `<p class="text-sm text-black-100 mt-1">Sorting Name: ${escapeHtml(lastFirst)}</p>` : ''}
               ${asin ? `<p class="text-sm text-black-100 mt-1">ASIN: ${escapeHtml(asin)}</p>` : ''}
             </div>
-            ${description ? `
-              <div class="mt-4 text-sm text-black-50 leading-relaxed max-w-3xl">
-                ${escapeHtml(description)}
-              </div>
-            ` : `<p class="text-sm text-black-200 italic mt-4">No biography available.</p>`}
+            ${bioHtml}
           </div>
         </div>
-
+ 
         <!-- Series / Books sections -->
         <div class="space-y-8" id="author-books-container">
         </div>
       </div>
     `;
-
+ 
     container.innerHTML = html;
-
+ 
+    const toggleBioBtn = document.getElementById('toggle-bio-btn');
+    if (toggleBioBtn) {
+      let isExpanded = false;
+      toggleBioBtn.onclick = () => {
+        const bioTextSpan = document.getElementById('author-bio-text');
+        if (!isExpanded) {
+          bioTextSpan.textContent = description;
+          toggleBioBtn.textContent = 'Read Less';
+          isExpanded = true;
+        } else {
+          bioTextSpan.textContent = description.substring(0, 350) + '...';
+          toggleBioBtn.textContent = 'Read More';
+          isExpanded = false;
+        }
+      };
+    }
+ 
     const backBtn = container.querySelector('#back-authors-btn');
     if (backBtn) {
       backBtn.onclick = () => {
         navigateTo('/authors');
       };
     }
-
+ 
     const detailImg = document.getElementById('author-detail-img');
     if (detailImg) {
       detailImg.addEventListener('error', function() {
@@ -612,7 +646,7 @@ export async function loadAuthorDetails(authorId) {
       sDiv.appendChild(header);
 
       const itemsGrid = document.createElement('div');
-      itemsGrid.className = 'flex flex-wrap gap-4 pt-2';
+      itemsGrid.className = 'library-grid w-full pt-2';
 
       const sortedItems = [...(s.items || [])].sort((a, b) => {
         const seqA = parseFloat(a.sequence) || 0;
@@ -647,7 +681,7 @@ export async function loadAuthorDetails(authorId) {
         </div>
       `;
       const itemsGrid = document.createElement('div');
-      itemsGrid.className = 'flex flex-wrap gap-4 pt-2';
+      itemsGrid.className = 'library-grid w-full pt-2';
       standaloneBooks.forEach(item => {
         const card = createCard(item, false, libraryId);
         itemsGrid.appendChild(card);
@@ -735,7 +769,28 @@ export async function loadSeriesDetails(seriesId) {
     } else {
       coversHtml = `<span class="material-symbols text-5xl text-black-300">layers</span>`;
     }
-    
+
+    let bioHtml = '';
+    if (description) {
+      if (description.length > 350) {
+        const shortBio = description.substring(0, 350) + '...';
+        bioHtml = `
+          <div class="text-sm text-black-50 leading-relaxed max-w-3xl border-t border-black-400/40 pt-3 mt-3 text-left">
+            <span id="series-bio-text" class="whitespace-pre-line">${escapeHtml(shortBio)}</span>
+            <button id="toggle-series-bio-btn" class="text-accent hover:underline font-semibold ml-1 text-xs focus:outline-none">Read More</button>
+          </div>
+        `;
+      } else {
+        bioHtml = `
+          <div class="text-sm text-black-50 leading-relaxed max-w-3xl border-t border-black-400/40 pt-3 mt-3 text-left whitespace-pre-line">
+            <span>${escapeHtml(description)}</span>
+          </div>
+        `;
+      }
+    } else {
+      bioHtml = `<p class="text-sm text-black-200 italic border-t border-black-400/40 pt-3 mt-3 text-left">No description available.</p>`;
+    }
+
     let html = `
       <div class="p-6 max-w-6xl mx-auto space-y-6 text-left">
         <div class="flex items-center space-x-2">
@@ -775,11 +830,7 @@ export async function loadSeriesDetails(seriesId) {
                 </div>
               </div>
 
-              ${description ? `
-                <div class="text-sm text-black-50 leading-relaxed max-w-3xl border-t border-black-400/40 pt-3 mt-3 text-left">
-                  ${escapeHtml(description)}
-                </div>
-              ` : `<p class="text-sm text-black-200 italic border-t border-black-400/40 pt-3 mt-3 text-left">No description available.</p>`}
+              ${bioHtml}
             </div>
           </div>
         </div>
@@ -801,6 +852,22 @@ export async function loadSeriesDetails(seriesId) {
 
     container.innerHTML = html;
 
+    const toggleSeriesBioBtn = document.getElementById('toggle-series-bio-btn');
+    if (toggleSeriesBioBtn) {
+      let isExpanded = false;
+      toggleSeriesBioBtn.onclick = () => {
+        const bioTextSpan = document.getElementById('series-bio-text');
+        if (!isExpanded) {
+          bioTextSpan.textContent = description;
+          toggleSeriesBioBtn.textContent = 'Read Less';
+          isExpanded = true;
+        } else {
+          bioTextSpan.textContent = description.substring(0, 350) + '...';
+          toggleSeriesBioBtn.textContent = 'Read More';
+          isExpanded = false;
+        }
+      };
+    }
 
     const backBtn = container.querySelector('#back-series-btn');
     if (backBtn) {

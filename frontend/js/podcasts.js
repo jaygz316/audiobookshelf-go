@@ -75,10 +75,12 @@ export async function loadPodcastLatestView(libraryId) {
 
     episodes.forEach((ep, idx) => {
       const isDownloaded = ep.audioFile && ep.audioFile.metadata && ep.audioFile.metadata.path;
-      const coverUrl = ep.podcastCover ? `/local/cover/${ep.podcastId}?updatedAt=${ep.podcastItem.updatedAt}` : null;
+      const token = localStorage.getItem('token');
+      const ts = ep.podcastItem.updatedAt || ep.podcastItem.addedAt || Date.now();
+      const coverUrl = ep.podcastCover ? resolvePath(`/api/items/${ep.podcastId}/cover?token=${token}&ts=${ts}`) : null;
       
       const coverHtml = coverUrl 
-        ? `<img src="${coverUrl}" class="w-12 h-12 bg-black-500 rounded border border-black-400 object-cover flex-shrink-0" alt="">`
+        ? `<img src="${coverUrl}" class="w-12 h-12 bg-black-500 rounded border border-black-400 object-cover flex-shrink-0" onerror="this.onerror=null; this.src='assets/images/logo.png'">`
         : `<div class="w-12 h-12 bg-black-500 rounded border border-black-400 flex items-center justify-center flex-shrink-0"><span class="material-symbols text-xl text-black-200">podcasts</span></div>`;
 
       html += `
@@ -181,11 +183,17 @@ export async function loadPodcastAddView(libraryId) {
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
         <!-- Search Card -->
-        <div class="bg-primary/20 border border-black-400/50 p-5 rounded-md flex flex-col space-y-4">
-          <h3 class="font-bold text-sm text-white">Search iTunes</h3>
+        <div class="bg-primary border border-black-400 p-5 rounded flex flex-col space-y-4 shadow-md">
+          <h3 class="font-bold text-sm text-white flex items-center space-x-1.5">
+            <span class="material-symbols text-sm text-accent">search</span>
+            <span>Search iTunes</span>
+          </h3>
           <div class="flex space-x-2">
             <input id="podcast-search-input" type="text" placeholder="Podcast Title or Author..." class="flex-1 bg-black-500 border border-black-400 text-white rounded px-3 py-2 text-xs focus:outline-none focus:border-accent">
-            <button id="podcast-search-btn" class="bg-accent text-primary font-bold px-4 py-2 rounded text-xs hover:opacity-90 transition-opacity">Search</button>
+            <button id="podcast-search-btn" class="bg-accent hover:bg-accent/80 text-primary font-bold px-4 py-2 rounded text-xs transition-colors flex items-center justify-center space-x-1.5 focus:outline-none focus:ring-2 focus:ring-accent/50">
+              <span class="material-symbols text-sm">search</span>
+              <span>Search</span>
+            </button>
           </div>
           <div id="podcast-search-results" class="space-y-2 max-h-96 overflow-y-auto no-scroll pt-2">
             <p class="text-xs text-black-200 text-center py-10">Search results will appear here.</p>
@@ -193,11 +201,17 @@ export async function loadPodcastAddView(libraryId) {
         </div>
 
         <!-- Direct Subscribe Card -->
-        <div class="bg-primary/20 border border-black-400/50 p-5 rounded-md flex flex-col space-y-4 h-fit">
-          <h3 class="font-bold text-sm text-white">Subscribe via RSS URL</h3>
+        <div class="bg-primary border border-black-400 p-5 rounded flex flex-col space-y-4 h-fit shadow-md">
+          <h3 class="font-bold text-sm text-white flex items-center space-x-1.5">
+            <span class="material-symbols text-sm text-accent">rss_feed</span>
+            <span>Subscribe via RSS URL</span>
+          </h3>
           <div class="space-y-3">
             <input id="podcast-rss-input" type="text" placeholder="https://example.com/feed.xml" class="w-full bg-black-500 border border-black-400 text-white rounded px-3 py-2 text-xs focus:outline-none focus:border-accent">
-            <button id="podcast-rss-subscribe-btn" class="w-full bg-accent text-primary font-bold py-2 rounded text-xs hover:opacity-90 transition-opacity">Subscribe</button>
+            <button id="podcast-rss-subscribe-btn" class="w-full bg-accent hover:bg-accent/80 text-primary font-bold py-2 rounded text-xs transition-colors flex items-center justify-center space-x-1.5 focus:outline-none focus:ring-2 focus:ring-accent/50">
+              <span class="material-symbols text-sm">rss_feed</span>
+              <span>Subscribe</span>
+            </button>
           </div>
         </div>
       </div>
@@ -216,8 +230,16 @@ export async function loadPodcastAddView(libraryId) {
     if (!query) return;
 
     searchBtn.disabled = true;
-    searchBtn.textContent = 'Searching...';
-    resultsContainer.innerHTML = `<div class="animate-spin rounded-full h-8 w-8 border-b-2 border-accent mx-auto my-10"></div>`;
+    searchBtn.innerHTML = `
+      <div class="animate-spin rounded-full h-3 w-3 border-b-2 border-primary mr-1.5 inline-block align-middle"></div>
+      <span class="align-middle">Searching...</span>
+    `;
+    resultsContainer.innerHTML = `
+      <div class="flex flex-col items-center justify-center py-16 space-y-2">
+        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-accent"></div>
+        <p class="text-xs text-black-200">Querying iTunes Directory...</p>
+      </div>
+    `;
 
     try {
       const results = await request('GET', `/api/search/podcast?term=${encodeURIComponent(query)}`);
@@ -235,7 +257,7 @@ export async function loadPodcastAddView(libraryId) {
         const authorText = pod.authors && pod.authors.length > 0 ? pod.authors.join(', ') : 'Unknown Author';
         
         return `
-          <div class="flex items-center justify-between p-2 hover:bg-black-500/40 rounded border border-black-400/30 transition-colors text-xs bg-primary/10">
+          <div class="flex items-center justify-between p-2.5 hover:bg-black-500/50 rounded border border-black-400/40 transition-colors text-xs bg-primary/10 hover:border-black-400">
             <div class="flex items-center space-x-3 min-w-0 mr-2">
               ${coverHtml}
               <div class="min-w-0">
@@ -243,7 +265,7 @@ export async function loadPodcastAddView(libraryId) {
                 <p class="text-[10px] text-black-100 truncate mt-0.5">${escapeHtml(authorText)}</p>
               </div>
             </div>
-            <button class="subscribe-search-btn bg-accent text-primary font-bold px-3 py-1.5 rounded text-[11px] hover:opacity-90 flex-shrink-0" data-idx="${idx}">
+            <button class="subscribe-search-btn bg-accent hover:bg-accent/80 text-primary font-bold px-3 py-1.5 rounded text-[11px] transition-colors flex-shrink-0 focus:outline-none focus:ring-2 focus:ring-accent/50" data-idx="${idx}">
               Subscribe
             </button>
           </div>
@@ -256,15 +278,21 @@ export async function loadPodcastAddView(libraryId) {
           const idx = parseInt(btn.getAttribute('data-idx'), 10);
           const pod = results[idx];
           btn.disabled = true;
-          btn.textContent = 'Subscribing...';
+          btn.innerHTML = `
+            <div class="animate-spin rounded-full h-3 w-3 border-b-2 border-primary mr-1 inline-block align-middle"></div>
+            <span class="align-middle">Subscribing...</span>
+          `;
           try {
             await request('POST', `/api/podcasts`, {
               libraryId: libraryId,
               feedUrl: pod.feedUrl
             });
             if (window.showToast) window.showToast('Subscribed to podcast successfully!', 'success');
-            btn.className = "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[11px] font-bold px-3 py-1.5 rounded cursor-default";
-            btn.textContent = 'Subscribed';
+            btn.className = "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[11px] font-bold px-3 py-1.5 rounded cursor-default flex items-center space-x-1";
+            btn.innerHTML = `
+              <span class="material-symbols text-[13px]">check</span>
+              <span>Subscribed</span>
+            `;
           } catch (err) {
             console.error(err);
             if (window.showToast) window.showToast('Subscription failed: ' + err.message, 'error');
@@ -279,7 +307,10 @@ export async function loadPodcastAddView(libraryId) {
       resultsContainer.innerHTML = `<p class="text-xs text-red-400 text-center py-10">Search failed: ${escapeHtml(err.message)}</p>`;
     } finally {
       searchBtn.disabled = false;
-      searchBtn.textContent = 'Search';
+      searchBtn.innerHTML = `
+        <span class="material-symbols text-sm">search</span>
+        <span>Search</span>
+      `;
     }
   };
 
@@ -294,7 +325,10 @@ export async function loadPodcastAddView(libraryId) {
     if (!feedUrl) return;
 
     rssSubscribeBtn.disabled = true;
-    rssSubscribeBtn.textContent = 'Subscribing...';
+    rssSubscribeBtn.innerHTML = `
+      <div class="animate-spin rounded-full h-3 w-3 border-b-2 border-primary mr-1.5 inline-block align-middle"></div>
+      <span class="align-middle">Subscribing...</span>
+    `;
 
     try {
       await request('POST', `/api/podcasts`, {
@@ -308,7 +342,10 @@ export async function loadPodcastAddView(libraryId) {
       if (window.showToast) window.showToast('Subscription failed: ' + err.message, 'error');
     } finally {
       rssSubscribeBtn.disabled = false;
-      rssSubscribeBtn.textContent = 'Subscribe';
+      rssSubscribeBtn.innerHTML = `
+        <span class="material-symbols text-sm">rss_feed</span>
+        <span>Subscribe</span>
+      `;
     }
   };
 }

@@ -157,7 +157,7 @@ async function renderNarratorsView(container, libraryId) {
 
 function createNarratorCard(narrator) {
   const card = document.createElement('div');
-  card.className = 'flex flex-col items-center p-3 bg-primary border border-black-400 rounded-md hover:bg-black-500 cursor-pointer transition-colors group';
+  card.className = 'flex flex-col items-center p-3 bg-primary border border-black-400 rounded hover:bg-black-500 hover:border-black-100 hover:-translate-y-1 shadow hover:shadow-lg cursor-pointer transition-all duration-200 group';
   card.style.width = '100%';
 
   const numBooks = narrator.numBooks || 0;

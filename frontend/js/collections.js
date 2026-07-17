@@ -634,26 +634,38 @@ function renderCollectionBooksRows(collection, booksDetails, libraryId) {
 
   const bookIds = collection.books || collection.itemIds || [];
   const isSmart = !!collection.isSmart;
+  let draggedIndex = null;
 
   booksDetails.forEach((item, index) => {
     const li = document.createElement('li');
-    li.className = 'flex items-center justify-between bg-black-500/40 hover:bg-black-500/80 p-3 rounded border border-black-400/50 transition-colors';
+    if (!isSmart) {
+      li.className = 'flex items-center justify-between bg-black-500/40 hover:bg-black-500/80 p-3 rounded border border-black-400/50 transition-colors cursor-move';
+      li.draggable = true;
+    } else {
+      li.className = 'flex items-center justify-between bg-black-500/40 hover:bg-black-500/80 p-3 rounded border border-black-400/50 transition-colors';
+    }
 
     const token = localStorage.getItem('token');
     const title = item.media?.metadata?.title || item.title || 'Untitled';
     const subtitle = item.mediaType === 'book' ? item.media?.metadata?.authorName || 'Unknown Author' : item.media?.metadata?.author || 'Unknown Author';
 
     li.innerHTML = `
-      <div class="flex items-center space-x-3 flex-grow cursor-pointer play-trigger">
-        <img src="${resolvePath(`/api/items/${item.id}/cover?token=${token}&width=80`)}" class="h-12 w-12 object-cover rounded shadow" alt="Cover">
-        <div class="truncate">
-          <p class="font-semibold text-white text-sm truncate">${escapeHtml(title)}</p>
-          <p class="text-xs text-black-50 truncate">${escapeHtml(subtitle)}</p>
+      <div class="flex items-center space-x-2 flex-grow min-w-0">
+        ${!isSmart ? `
+          <!-- Drag Handle -->
+          <span class="material-symbols text-black-200 hover:text-white text-xl cursor-grab select-none mr-1 drag-handle">drag_handle</span>
+        ` : ''}
+        <div class="flex items-center space-x-3 flex-grow cursor-pointer play-trigger min-w-0">
+          <img src="${resolvePath(`/api/items/${item.id}/cover?token=${token}&width=80`)}" class="h-12 w-12 object-cover rounded shadow flex-shrink-0" alt="Cover">
+          <div class="truncate">
+            <p class="font-semibold text-white text-sm truncate">${escapeHtml(title)}</p>
+            <p class="text-xs text-black-50 truncate">${escapeHtml(subtitle)}</p>
+          </div>
         </div>
       </div>
 
       ${!isSmart ? `
-      <div class="flex items-center space-x-3 ml-4">
+      <div class="flex items-center space-x-3 ml-4 flex-shrink-0">
         <!-- Reorder triggers -->
         <button class="up-btn text-black-50 hover:text-white p-1" ${index === 0 ? 'disabled opacity-20' : ''}>
           <span class="material-symbols text-lg">arrow_upward</span>
@@ -679,7 +691,8 @@ function renderCollectionBooksRows(collection, booksDetails, libraryId) {
 
     if (!isSmart) {
       // Reorder actions
-      li.querySelector('.up-btn').onclick = async () => {
+      li.querySelector('.up-btn').onclick = async (e) => {
+        e.stopPropagation();
         const newOrderIds = [...bookIds];
         const temp = newOrderIds[index];
         newOrderIds[index] = newOrderIds[index - 1];
@@ -693,7 +706,8 @@ function renderCollectionBooksRows(collection, booksDetails, libraryId) {
         }
       };
 
-      li.querySelector('.down-btn').onclick = async () => {
+      li.querySelector('.down-btn').onclick = async (e) => {
+        e.stopPropagation();
         const newOrderIds = [...bookIds];
         const temp = newOrderIds[index];
         newOrderIds[index] = newOrderIds[index + 1];
@@ -707,7 +721,8 @@ function renderCollectionBooksRows(collection, booksDetails, libraryId) {
         }
       };
 
-      li.querySelector('.remove-btn').onclick = async () => {
+      li.querySelector('.remove-btn').onclick = async (e) => {
+        e.stopPropagation();
         if (!confirm(`Remove "${title}" from collection?`)) return;
         const newOrderIds = bookIds.filter(id => id !== item.id);
         try {
@@ -717,6 +732,50 @@ function renderCollectionBooksRows(collection, booksDetails, libraryId) {
           showToast('Failed to remove book: ' + err.message, 'error');
         }
       };
+
+      // HTML5 Drag & Drop event listeners
+      li.addEventListener('dragstart', (e) => {
+        draggedIndex = index;
+        li.classList.add('opacity-40');
+        e.dataTransfer.effectAllowed = 'move';
+      });
+
+      li.addEventListener('dragend', () => {
+        li.classList.remove('opacity-40');
+        draggedIndex = null;
+      });
+
+      li.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+      });
+
+      li.addEventListener('dragenter', () => {
+        if (draggedIndex !== null && index !== draggedIndex) {
+          li.classList.add('bg-black-400/80');
+        }
+      });
+
+      li.addEventListener('dragleave', () => {
+        li.classList.remove('bg-black-400/80');
+      });
+
+      li.addEventListener('drop', async (e) => {
+        e.preventDefault();
+        li.classList.remove('bg-black-400/80');
+        if (draggedIndex !== null && draggedIndex !== index) {
+          const newOrderIds = [...bookIds];
+          const element = newOrderIds.splice(draggedIndex, 1)[0];
+          newOrderIds.splice(index, 0, element);
+
+          try {
+            await request('PATCH', `/api/collections/${collection.id}`, { books: newOrderIds });
+            loadCollectionDetails(collection.id, libraryId);
+          } catch (err) {
+            showToast('Failed to reorder collection books: ' + err.message, 'error');
+          }
+        }
+      });
     }
 
     list.appendChild(li);

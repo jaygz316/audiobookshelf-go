@@ -775,33 +775,21 @@ input:checked + .abs-slider:before {
 }
 
 /* Form Input Focus States */
-#settings-tab-content input[type="text"],
-#settings-tab-content input[type="password"],
-#settings-tab-content input[type="number"],
-#settings-tab-content input[type="email"],
-#settings-tab-content select,
-#settings-tab-content textarea,
-.bg-primary input[type="text"],
-.bg-primary input[type="password"],
-.bg-primary input[type="number"],
-.bg-primary input[type="email"],
-.bg-primary select,
-.bg-primary textarea {
-  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+input[type="text"],
+input[type="password"],
+input[type="number"],
+input[type="email"],
+select,
+textarea {
+  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out !important;
 }
 
-#settings-tab-content input[type="text"]:focus,
-#settings-tab-content input[type="password"]:focus,
-#settings-tab-content input[type="number"]:focus,
-#settings-tab-content input[type="email"]:focus,
-#settings-tab-content select:focus,
-#settings-tab-content textarea:focus,
-.bg-primary input[type="text"]:focus,
-.bg-primary input[type="password"]:focus,
-.bg-primary input[type="number"]:focus,
-.bg-primary input[type="email"]:focus,
-.bg-primary select:focus,
-.bg-primary textarea:focus {
+input[type="text"]:focus,
+input[type="password"]:focus,
+input[type="number"]:focus,
+input[type="email"]:focus,
+select:focus,
+textarea:focus {
   border-color: var(--color-accent, #e5a93b) !important;
   box-shadow: 0 0 0 2px rgba(229, 169, 59, 0.25) !important;
   outline: none !important;
