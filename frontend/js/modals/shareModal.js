@@ -74,19 +74,19 @@ export function triggerShareLinkModal(item) {
         body.querySelector('#copy-share-link-btn').onclick = async () => {
           try {
             await navigator.clipboard.writeText(shareUrl);
-            alert('Share link copied to clipboard!');
+            showToast('Share link copied to clipboard!', 'success');
           } catch (err) {
-            alert('Failed to copy share link: ' + err.message);
+            showToast('Failed to copy share link: ' + err.message, 'error');
           }
         };
 
         body.querySelector('#delete-share-link-btn').onclick = async () => {
           try {
             await request('DELETE', `/api/share/mediaitem/${itemShare.id}`);
-            alert('Share link removed successfully');
+            showToast('Share link removed successfully', 'success');
             checkAndRender();
           } catch (err) {
-            alert('Failed to delete share link: ' + err.message);
+            showToast('Failed to delete share link: ' + err.message, 'error');
           }
         };
 
@@ -208,10 +208,10 @@ export function triggerShareLinkModal(item) {
               embeddable: embeddableVal
             });
 
-            alert('Share link generated successfully!');
+            showToast('Share link generated successfully!', 'success');
             checkAndRender();
           } catch (err) {
-            alert('Failed to generate share link: ' + err.message);
+            showToast('Failed to generate share link: ' + err.message, 'error');
           }
         };
       }

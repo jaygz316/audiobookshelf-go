@@ -91,7 +91,7 @@ function openSavePresetModal() {
     submitBtn.onclick = () => {
       const name = nameInput.value.trim();
       if (!name) {
-        alert('Please enter a name for the preset.');
+        showToast('Please enter a name for the preset.', 'warning');
         return;
       }
 

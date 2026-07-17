@@ -139,7 +139,7 @@
   border-radius: 50%;
 }
 input:checked + .abs-slider {
-  background-color: #10b981 !important;
+  background-color: var(--color-success, #22c55e) !important;
 }
 input:checked + .abs-slider:before {
   transform: translateX(20px);
@@ -889,3 +889,18 @@ input:checked + .abs-slider:before {
   color: #ffffff !important;
   font-weight: 600 !important;
 }
+
+/* Settings Active Border Utilities */
+.border-l-accent {
+  border-left-color: var(--color-accent, #e5a93b) !important;
+}
+.border-b-accent {
+  border-bottom-color: var(--color-accent, #e5a93b) !important;
+}
+.border-l-transparent {
+  border-left-color: transparent !important;
+}
+.border-b-transparent {
+  border-bottom-color: transparent !important;
+}
+

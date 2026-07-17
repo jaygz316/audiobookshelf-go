@@ -244,7 +244,7 @@ function triggerMatchModal(item, libraryId, mode, onSaveSuccess) {
   // Helper function to handle direct cover art import with spinner feedback
   async function executeCoverImport(res, itemEl) {
     if (!res.coverUrl) {
-      alert('Selected item does not have cover art.');
+      showToast('Selected item does not have cover art.', 'warning');
       return;
     }
 
@@ -284,7 +284,7 @@ function triggerMatchModal(item, libraryId, mode, onSaveSuccess) {
       }
     } catch (err) {
       console.error('Import failed:', err);
-      alert('Import failed: ' + err.message);
+      showToast('Import failed: ' + err.message, 'error');
 
       // Re-enable everything
       resultItems.forEach(el => el.style.pointerEvents = 'auto');
@@ -498,7 +498,7 @@ function triggerMatchModal(item, libraryId, mode, onSaveSuccess) {
         }
       } catch (err) {
         console.error('Import failed:', err);
-        alert('Import failed: ' + err.message);
+        showToast('Import failed: ' + err.message, 'error');
         importBtn.disabled = false;
         importBtn.textContent = 'Import Selected';
       }

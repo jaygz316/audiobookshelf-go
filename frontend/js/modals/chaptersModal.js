@@ -153,7 +153,7 @@ export function triggerEditChaptersModal(item, onSaveSuccess) {
   document.getElementById('editor-lookup-btn').onclick = async () => {
     const asinVal = item.media?.metadata?.asin;
     if (!asinVal) {
-      alert("Book must have an ASIN (under Edit Details) to perform Audnexus chapter lookup.");
+      showToast("Book must have an ASIN (under Edit Details) to perform Audnexus chapter lookup.", "warning");
       return;
     }
 
@@ -168,11 +168,11 @@ export function triggerEditChaptersModal(item, onSaveSuccess) {
         currentChapters = res.chapters;
         renderChaptersList();
       } else {
-        alert("Audnexus lookup returned no chapters for this book.");
+        showToast("Audnexus lookup returned no chapters for this book.", "warning");
       }
     } catch (err) {
       console.error("Audnexus lookup failed:", err);
-      alert("Audnexus lookup failed: " + (err.message || "Unknown error"));
+      showToast("Audnexus lookup failed: " + (err.message || "Unknown error"), "error");
     } finally {
       btn.disabled = false;
       btn.innerHTML = originalHTML;
@@ -183,15 +183,15 @@ export function triggerEditChaptersModal(item, onSaveSuccess) {
     for (let i = 0; i < currentChapters.length; i++) {
       const c = currentChapters[i];
       if (!c.title.trim()) {
-        alert(`Chapter ${i + 1} title cannot be empty.`);
+        showToast(`Chapter ${i + 1} title cannot be empty.`, "warning");
         return;
       }
       if (c.start < 0 || c.end < 0) {
-        alert(`Chapter ${i + 1} times must be non-negative.`);
+        showToast(`Chapter ${i + 1} times must be non-negative.`, "warning");
         return;
       }
       if (c.end <= c.start) {
-        alert(`Chapter ${i + 1} end time must be greater than start time.`);
+        showToast(`Chapter ${i + 1} end time must be greater than start time.`, "warning");
         return;
       }
     }
@@ -213,7 +213,7 @@ export function triggerEditChaptersModal(item, onSaveSuccess) {
       if (onSaveSuccess) onSaveSuccess();
     } catch (err) {
       console.error("Failed to save chapters:", err);
-      alert("Failed to save chapters: " + (err.message || "Unknown error"));
+      showToast("Failed to save chapters: " + (err.message || "Unknown error"), "error");
       saveBtn.disabled = false;
       saveBtn.textContent = "Save Chapters";
     }

@@ -457,7 +457,7 @@ export function triggerAddBookmarkModal() {
   document.getElementById('save-bookmark-btn').onclick = async () => {
     const titleVal = titleInput.value.trim();
     if (!titleVal) {
-      alert("Title is required");
+      showToast("Title is required", "warning");
       return;
     }
 
@@ -466,7 +466,7 @@ export function triggerAddBookmarkModal() {
       closeModal();
     } catch (err) {
       console.error('Failed to create bookmark:', err);
-      alert('Failed to save bookmark: ' + (err.message || 'Unknown error'));
+      showToast('Failed to save bookmark: ' + (err.message || 'Unknown error'), 'error');
     }
   };
 }

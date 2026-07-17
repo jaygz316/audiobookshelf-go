@@ -635,7 +635,7 @@ export async function openEbookReader(item, token) {
       
     } catch (err) {
       console.error("Failed to save highlight:", err);
-      alert("Failed to save highlight");
+      showToast("Failed to save highlight", "error");
     }
   };
 
@@ -1583,7 +1583,7 @@ export async function openEbookReader(item, token) {
 
       const speakCurrentSentence = () => {
         if (!('speechSynthesis' in window)) {
-          alert("Text-to-speech is not supported in this browser.");
+          showToast("Text-to-speech is not supported in this browser.", "warning");
           return;
         }
         
@@ -1644,7 +1644,7 @@ export async function openEbookReader(item, token) {
         }
         
         if (ttsSentences.length === 0) {
-          alert("No readable text found on this page.");
+          showToast("No readable text found on this page.", "warning");
           return;
         }
 

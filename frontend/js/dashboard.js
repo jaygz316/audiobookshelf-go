@@ -1039,7 +1039,7 @@ function triggerBatchEditModal(itemIds, libraryId) {
     const chkFlags = document.getElementById('batch-chk-flags').checked;
 
     if (!chkTags && !chkGenres && !chkAuthors && !chkNarrators && !chkSeries && !chkPublisher && !chkFlags) {
-      alert('Please check at least one field checkbox to update');
+      showToast('Please check at least one field checkbox to update', 'warning');
       return;
     }
 
@@ -1087,7 +1087,7 @@ function triggerBatchEditModal(itemIds, libraryId) {
       loadDashboard(libraryId);
     } catch (err) {
       console.error(err);
-      alert('Failed to update: ' + err.message);
+      showToast('Failed to update: ' + err.message, 'error');
     }
   };
 }

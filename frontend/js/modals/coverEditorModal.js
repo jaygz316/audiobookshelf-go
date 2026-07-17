@@ -262,7 +262,7 @@ export function triggerCoverEditorModal(item, libraryId, onSaveSuccess) {
             const localCoverUrl = resolvePath(`/api/items/${item.id}/cover?raw=1&token=${token}&ts=${ts}`);
             initEditor(localCoverUrl);
           } catch (err) {
-            alert('Failed to fetch cover from provider: ' + err.message);
+            showToast('Failed to fetch cover from provider: ' + err.message, 'error');
           } finally {
             overlay.textContent = origText;
             overlay.style.opacity = '';
@@ -669,7 +669,7 @@ export function triggerCoverEditorModal(item, libraryId, onSaveSuccess) {
         closeModal();
         if (onSaveSuccess) onSaveSuccess();
       } catch (err) {
-        alert('Failed to save cover: ' + err.message);
+        showToast('Failed to save cover: ' + err.message, 'error');
         document.getElementById('save-editor-cover-btn').disabled = false;
         document.getElementById('save-editor-cover-btn').textContent = 'Save Cover';
       }

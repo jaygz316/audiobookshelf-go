@@ -258,7 +258,7 @@ function renderPlaylistsGrid(playlists, libraryId) {
         await request('DELETE', `/api/playlists/${p.id}`);
         loadPlaylists(libraryId);
       } catch (err) {
-        alert('Failed to delete playlist: ' + err.message);
+        showToast('Failed to delete playlist: ' + err.message, 'error');
       }
     };
 
@@ -316,7 +316,7 @@ async function triggerCreatePlaylistModal(libraryId) {
   modal.querySelector('#save-playlist-btn').onclick = async () => {
     const name = document.getElementById('new-playlist-name').value.trim();
     if (!name) {
-      alert('Playlist name is required');
+      showToast('Playlist name is required', 'warning');
       return;
     }
 
@@ -331,7 +331,7 @@ async function triggerCreatePlaylistModal(libraryId) {
       closeModal();
       loadPlaylists(libraryId);
     } catch (err) {
-      alert('Failed to create playlist: ' + err.message);
+      showToast('Failed to create playlist: ' + err.message, 'error');
     }
   };
 }
@@ -440,7 +440,7 @@ export async function loadPlaylistDetails(playlistId, libraryId) {
           loadPlaylists(libraryId);
         }
       } catch (err) {
-        alert('Delete failed: ' + err.message);
+        showToast('Delete failed: ' + err.message, 'error');
       }
     };
 
@@ -449,7 +449,7 @@ export async function loadPlaylistDetails(playlistId, libraryId) {
       if (newName && newName.trim()) {
         request('PATCH', `/api/playlists/${playlist.id}`, { name: newName.trim() })
           .then(() => loadPlaylistDetails(playlist.id, libraryId))
-          .catch(err => alert('Rename failed: ' + err.message));
+          .catch(err => showToast('Rename failed: ' + err.message, 'error'));
       }
     };
 
@@ -505,7 +505,7 @@ export async function loadPlaylistDetails(playlistId, libraryId) {
                 await request('DELETE', `/api/feeds/${activeFeed.id}`);
                 updateRssSection();
               } catch (err) {
-                alert('Failed to close RSS feed: ' + err.message);
+                showToast('Failed to close RSS feed: ' + err.message, 'error');
               }
             };
           }
@@ -531,7 +531,7 @@ export async function loadPlaylistDetails(playlistId, libraryId) {
                   });
                   updateRssSection();
                 } catch (err) {
-                  alert('Failed to open RSS feed: ' + err.message);
+                  showToast('Failed to open RSS feed: ' + err.message, 'error');
                 }
               };
             }
@@ -652,7 +652,7 @@ function renderPlaylistItemsRows(playlist, itemsDetails, libraryId) {
           await request('PATCH', `/api/playlists/${playlist.id}`, { items: newOrderIds });
           loadPlaylistDetails(playlist.id, libraryId);
         } catch (err) {
-          alert('Failed to reorder: ' + err.message);
+          showToast('Failed to reorder: ' + err.message, 'error');
         }
       }
     });
@@ -665,7 +665,7 @@ function renderPlaylistItemsRows(playlist, itemsDetails, libraryId) {
         await request('PATCH', `/api/playlists/${playlist.id}`, { items: newOrderIds });
         loadPlaylistDetails(playlist.id, libraryId);
       } catch (err) {
-        alert('Failed to remove item: ' + err.message);
+        showToast('Failed to remove item: ' + err.message, 'error');
       }
     };
 
