@@ -141,8 +141,8 @@ export function triggerEditItemDetailsModal(item, libraryId, onSaveSuccess) {
 
         <!-- Series (Only Book) -->
         ${mediaType === 'book' ? `
-          <div class="grid grid-cols-3 gap-4">
-            <div class="col-span-2">
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div class="sm:col-span-2">
               ${getLockIconHtml('series')}
               <input type="text" id="edit-item-series" value="${escapeHtml(seriesName)}" class="w-full bg-black-500 text-white px-3 py-2 rounded border border-black-300 focus:outline-none focus:border-accent text-xs">
             </div>
@@ -162,7 +162,7 @@ export function triggerEditItemDetailsModal(item, libraryId, onSaveSuccess) {
         </div>
 
         <!-- Publisher & Dates -->
-        <div class="grid grid-cols-3 gap-4">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div>
             ${getLockIconHtml('publisher')}
             <input type="text" id="edit-item-publisher" value="${escapeHtml(publisher)}" class="w-full bg-black-500 text-white px-3 py-2 rounded border border-black-300 focus:outline-none focus:border-accent text-xs">
@@ -178,7 +178,7 @@ export function triggerEditItemDetailsModal(item, libraryId, onSaveSuccess) {
         </div>
 
         <!-- ISBN, ASIN, Language -->
-        <div class="grid grid-cols-3 gap-4">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div>
             ${getLockIconHtml('isbn')}
             <input type="text" id="edit-item-isbn" value="${escapeHtml(isbn)}" class="w-full bg-black-500 text-white px-3 py-2 rounded border border-black-300 focus:outline-none focus:border-accent text-xs">

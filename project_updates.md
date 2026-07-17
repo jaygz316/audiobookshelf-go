@@ -30,6 +30,9 @@
 *This log is updated by developers/agents whenever an API, design pattern, or library is deprecated or updated.*
 
 ### 2026-07-17
+- **Fullscreen Rotating Circular Cover Art**:
+  - Upgraded the cover art in the fullscreen overlay player to be circular (`rounded-full` with a defined border) across all media types.
+  - Implemented a smooth spin animation (`animate-spin-slow`) when playback is active, which seamlessly pauses/resumes in place using a toggleable `.animation-paused` class.
 - **Modal Input & Native Dialog Visual Standardization**:
   - Implemented theme-aware overrides (`var(--color-black-500)`, `var(--color-black-300)`, and `var(--color-white)`) for inputs, selects, and textareas inside dynamic overlays (`div[class*="fixed"][class*="z-50"]`), settings panel content (`#settings-tab-content`), onboarding wizard (`#setup-screen`), and native `dialog` containers.
   - Standardized transition animations and active focus outlines (accent colors and glow shadows) for form fields to guarantee visual alignment and high-contrast accessibility.
@@ -297,6 +300,10 @@
   - Added smooth card lift elevations (`hover:-translate-y-1 hover:shadow-lg`) and duration transition properties to playlist cards (`playlists.js`) and collection cards (`collections.js`), finishing with gold-accented detail links.
 
 ### 2026-07-17
+- **Library Grid Card Sizing & Main View Transition Animations**:
+  - Standardized card sizing logic globally in standard libraries grid views by defining `.library-grid .bookshelf-card` styling rules in [layout.css](file:///home/jay/projects/audiobookshelf-go/frontend/css/layout.css), ensuring book cards automatically scale with the active shelf-size slider across all grid pages (including authors, playlists, and collection detail views).
+  - Implemented high-performance View Transitions support and smooth fallback cross-fade transitions (`#bookshelf > div`) for the main content area in [components.css](file:///home/jay/projects/audiobookshelf-go/frontend/css/components.css) to achieve fluid view switches when navigating between pages.
+  - Enabled smooth scrolling and mobile touch momentum scrolling (`-webkit-overflow-scrolling: touch`) on horizontal bookshelf rows (`.bookshelfRow`) in [components.css](file:///home/jay/projects/audiobookshelf-go/frontend/css/components.css) to optimize touch responsiveness on iOS and Android devices.
 - **Typography, Font Parity & Header Spacing Polish**:
   - Embedded Google Fonts `Source Sans Pro` link globally in [index.html](file:///home/jay/projects/audiobookshelf-go/frontend/index.html) and applied it as the primary font-family for `body` in [base.css](file:///home/jay/projects/audiobookshelf-go/frontend/css/base.css) to achieve complete typography parity with the original Audiobookshelf project.
   - Adjusted top header brand logo and title (`audiobookshelf`) sizes, weights, and tracking (`text-lg font-semibold tracking-wide`) to match original brand specs.
@@ -341,4 +348,10 @@
 
 - **Bookshelf View & Card Layout Wood Texture Refinement**:
   - Replaced solid back-wall colors (`var(--color-bg)`) inside `.bookshelfRow` in [components.css](file:///home/jay/projects/audiobookshelf-go/frontend/css/components.css) and `.library-shelf-grid` in [layout.css](file:///home/jay/projects/audiobookshelf-go/frontend/css/layout.css) with a translucent 3D shadow gradient overlay (`rgba(20, 20, 20, 0.75)` to `rgba(20, 20, 20, 0.55)`). This reveals the underlying wood default texture on the bookshelf back wall with realistic depth, matching the premium visual style of the original Audiobookshelf bookshelf view.
+
+- **Responsive Layout Audits & Settings Tables**:
+  - Replaced `overflow-hidden` with `overflow-x-auto` in the primary library list view table wrapper (`.library-list-wrapper` in [dashboard.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/dashboard.js)) to guarantee horizontal scroll capabilities on mobile/tablet viewports and prevent table content clipping.
+  - Verified that all settings sub-tabs tables (RSS feeds, E-Reader devices, active share links, listening sessions, login sessions, task list rows, backup rows, API keys, and custom metadata providers) are fully wrapped in `.overflow-x-auto` containers to avoid horizontal layout breaks on narrow screens.
+  - Audited the Cover Art Canvas Editor modal layout structure in [coverEditorModal.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/modals/coverEditorModal.js) to ensure grid columns collapse smoothly (`grid-cols-1 md:grid-cols-2`) and tab headers support horizontal scrolling (`overflow-x-auto whitespace-nowrap scrollbar-none`).
+
 

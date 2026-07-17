@@ -200,7 +200,7 @@ export async function loadDashboard(libraryId, isHomeOnly = false, filterBy = ''
       bookshelfContainer.appendChild(gridContainer);
     } else if (activeStyle === 'list') {
       const tableWrapper = document.createElement('div');
-      tableWrapper.className = 'library-list-wrapper w-full bg-primary/30 border border-black-400/40 rounded-lg overflow-hidden shadow-lg p-2 text-white';
+      tableWrapper.className = 'library-list-wrapper w-full bg-primary/30 border border-black-400/40 rounded-lg overflow-x-auto shadow-lg p-2 text-white';
       
       const table = document.createElement('table');
       table.className = 'library-list-table w-full text-left text-xs';
