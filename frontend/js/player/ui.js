@@ -54,6 +54,21 @@ export function updateTimelineUI() {
   const remainingStr = formatTime(duration - elapsed);
   const timelineVal = duration > 0 ? Math.round((elapsed / duration) * 100) : 0;
 
+  if ('mediaSession' in navigator && 'setPositionState' in navigator.mediaSession) {
+    try {
+      if (duration > 0 && elapsed >= 0 && elapsed <= duration) {
+        const rate = isCasting() ? 1.0 : (audio ? audio.playbackRate : 1.0);
+        navigator.mediaSession.setPositionState({
+          duration: duration,
+          playbackRate: rate,
+          position: elapsed
+        });
+      }
+    } catch (err) {
+      console.warn('Failed to update MediaSession position state:', err);
+    }
+  }
+
   ['player-time-elapsed', 'expanded-time-elapsed'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.textContent = elapsedStr;
@@ -1031,6 +1046,7 @@ export function triggerExpandedPlayer() {
       <!-- Large Cover Image -->
       <div class="w-48 h-48 sm:w-64 sm:h-64 md:w-80 md:h-80 bg-black-500 rounded-lg shadow-2xl border border-black-400 overflow-hidden flex-shrink-0 relative group max-h-[30vh] max-w-[30vh] aspect-square">
         <img src="${coverUrl}" alt="${title}" class="w-full h-full object-cover">
+        ${currentItem.mediaType === 'book' ? '<div class="book-spine-crease"></div>' : ''}
       </div>
 
       <!-- Title / Author Info -->
@@ -1311,6 +1327,49 @@ export function setupUIEventListeners() {
       if (tooltip) tooltip.classList.add('hidden');
       drawWaveform();
     });
+
+    const handleTouch = (e) => {
+      if (!e.touches || e.touches.length === 0) return;
+      const rect = timeline.getBoundingClientRect();
+      const clientX = e.touches[0].clientX;
+      const x = clientX - rect.left;
+      const pct = Math.max(0, Math.min(1, x / rect.width));
+      
+      playerController.setHoverPct(pct);
+      playerController.setHoverX(x);
+
+      const duration = isCasting() ? (getRemotePlayer().duration || 0) : (playerController.getAudio() ? playerController.getAudio().duration : 0);
+      if (duration > 0) {
+        const hoverTime = pct * duration;
+        if (tooltip) {
+          const chapters = currentItem?.media?.chapters || [];
+          const activeChap = chapters.find(c => hoverTime >= c.start && hoverTime < c.end);
+          if (activeChap) {
+            tooltip.textContent = `${activeChap.title || 'Untitled'} (${formatTime(hoverTime)})`;
+          } else {
+            tooltip.textContent = formatTime(hoverTime);
+          }
+          tooltip.style.left = `${pct * 100}%`;
+        }
+      }
+      drawWaveform();
+    };
+
+    timeline.addEventListener('touchstart', (e) => {
+      if (tooltip) tooltip.classList.remove('hidden');
+      handleTouch(e);
+    }, { passive: true });
+
+    timeline.addEventListener('touchmove', (e) => {
+      handleTouch(e);
+    }, { passive: true });
+
+    timeline.addEventListener('touchend', () => {
+      playerController.setHoverPct(null);
+      playerController.setHoverX(null);
+      if (tooltip) tooltip.classList.add('hidden');
+      drawWaveform();
+    });
   };
 
   setupTimeline('player-timeline');
@@ -1457,6 +1516,11 @@ export function setupUIEventListeners() {
       navigator.mediaSession.setActionHandler('seekforward', handleSeekForward);
       navigator.mediaSession.setActionHandler('previoustrack', handlePrevChapter);
       navigator.mediaSession.setActionHandler('nexttrack', handleNext);
+      navigator.mediaSession.setActionHandler('seekto', (details) => {
+        if (details.seekTime !== undefined) {
+          playerController.seekTo(details.seekTime);
+        }
+      });
     } catch (err) {
       console.warn('Failed to set MediaSession action handlers:', err);
     }

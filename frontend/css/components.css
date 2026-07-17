@@ -281,6 +281,7 @@ input:checked + .abs-slider:before {
   appearance: none;
   background: transparent;
   height: 24px; /* full container height to receive mouse events easily */
+  touch-action: none;
 }
 
 #player-timeline::-webkit-slider-runnable-track, #expanded-timeline::-webkit-slider-runnable-track {
@@ -338,6 +339,7 @@ input:checked + .abs-slider:before {
   border-radius: 2px !important;
   outline: none !important;
   transition: background 0.15s ease-in-out !important;
+  touch-action: none;
 }
 
 #player-volume-slider:hover, #expanded-volume-slider:hover {
