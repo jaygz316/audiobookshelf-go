@@ -1,17 +1,21 @@
 # Handoff: Audiobookshelf Go Port
 
 ## Targeted Task & Accomplishments
-- **Target Task**: Audit settings configuration forms, metadata providers, and visual/responsive sub-navigation on mobile viewports.
+- **Target Task**: Migrate all remaining native browser `confirm()` calls to the custom `window.showConfirm` dialog across all sub-views of the application (e.g., bookmarks, playback sessions, reader highlights, backup restore, users, API keys, etc.) to achieve full UI consistency.
 - **Accomplishments**:
-  - **Custom Segmented Controls**: Replaced native select inputs with green/gray CSS pill-segmented controls for "Tag Filter Mode" ([users.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/settings/users.js)), "Media Type", and "Cover Aspect Ratio" ([settings.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/settings.js)) to match the original Audiobookshelf's segmented toggle switches.
-  - **Custom Confirmation Dialog (`showConfirm`)**: Designed and implemented a stylized global confirmation modal in [toast.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/toast.js) (`window.showConfirm`) using Tailwind and material icon components to replace default browser `confirm()` calls with a charcoal-background/gold-border layout that has smooth entry and scale transition animations.
-  - **Migrated Confirmations**: Replaced native `confirm` usages in library delete, custom provider delete, RSS feed deletion, device deletion, and share link deletion inside [settings.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/settings.js) with the new `showConfirm` dialog.
-  - **Mobile Viewport Responsiveness**: Audited settings layout on narrow screens and optimized right-column padding sizes (`p-4 md:p-6`) for better mobile readability.
-  - **Verification**: Successfully ran `go run run.go run_commands.go build` and `go run run.go run_commands.go test` to confirm all code compiles and all integration/unit tests pass.
+  - **Replaced all remaining `confirm()` instances**: Checked and refactored the entire frontend codebase. No native browser `confirm()` calls remain.
+  - **Sub-views migrated**:
+    - **Bookmarks Modal** ([bookmarksModal.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/modals/bookmarksModal.js)): Replaced confirmation for deleting bookmarks.
+    - **E-Book Reader Bookmarks** ([reader/bookmarks.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/reader/bookmarks.js)): Replaced confirmation for deleting PDF bookmarks and reader highlights.
+    - **Backups Sub-view** ([settings/backups.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/settings/backups.js)): Replaced confirmation for restoring and deleting backups.
+    - **Logs/Sessions Sub-view** ([settings/logs.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/settings/logs.js)): Replaced confirmation for closing active playback sessions, revoking login sessions, and cancelling all running/queued tasks.
+    - **Users Sub-view** ([settings/users.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/settings/users.js)): Replaced confirmation for unlinking OpenID Connect (OIDC) links, deleting user accounts, and deleting API keys.
+  - **Verification**: Fully compiled the Go WebAssembly frontend and backend binary with `go run run.go run_commands.go build` and ran the test suite (`go run run.go run_commands.go test`), confirming all unit and integration tests are passing perfectly.
+  - **Docker Build & Push**: Successfully built the updated Docker image (`jaygz/audiobookshelf-go:latest`) and pushed it to Docker Hub.
 
 ## Outstanding Work / Next Gaps
-- **Next Gaps**: Continue replacing the remaining native `confirm()` dialogs across the wider codebase (e.g. details, playlists, collections, authors views) with `showConfirm` for visual consistency.
+- **Next Gaps**: Perform a thorough review of the mobile interaction flows and mobile media streaming layouts (especially lock-screen media controls or responsive player details).
 
 ## Next Steps
-- Implement `showConfirm` in [itemDetails.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/itemDetails.js) and other main sub-views.
-- Perform a thorough user interaction flow walk-through for mobile streaming viewports.
+- Verify visual and functional rendering on mobile viewports for streaming views.
+- Test touch interactions on media scrubbers and progress bars in mobile viewports.
