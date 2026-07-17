@@ -555,7 +555,7 @@ function createShelfGridSection(shelfId, label, entities, libraryId) {
 }
 export function createCard(item, isContinue, libraryId, shelfId = '') {
   const card = document.createElement('div');
-  card.className = 'bookshelf-card w-28e h-40e relative cursor-pointer select-none box-shadow-book rounded-sm overflow-hidden flex-shrink-0 transition-transform group';
+  card.className = 'bookshelf-card w-28e h-40e relative cursor-pointer select-none box-shadow-book rounded-sm flex-shrink-0 transition-transform group';
   
   let title = '';
   let author = '';
@@ -594,7 +594,7 @@ export function createCard(item, isContinue, libraryId, shelfId = '') {
   const isBook = item.mediaType !== 'podcast';
 
   card.innerHTML = `
-    <div class="book-cover-wrapper relative w-full h-full rounded-sm overflow-hidden">
+    <div class="book-cover-wrapper relative w-full h-full rounded-sm">
       <img class="w-full h-full object-cover" src="${coverUrl}" alt="${escapeHtml(title)}" onerror="this.onerror=null; this.src='assets/images/logo.png'">
       ${isBook ? `<div class="book-spine-crease"></div>` : ''}
     </div>
