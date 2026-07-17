@@ -15,6 +15,16 @@ function parseSQLiteTime(s) {
   return new Date(s);
 }
 
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 export async function loadStats() {
   const opmlBtn = document.getElementById('opml-btn');
   if (opmlBtn) opmlBtn.classList.add('hidden');
@@ -389,48 +399,57 @@ export async function loadStats() {
           <!-- 7-day Line Chart -->
           <div class="bg-primary border border-black-400 p-6 rounded-lg shadow-md flex flex-col items-center">
             <h1 class="text-xl mb-4 font-semibold w-full text-left">Minutes Listening</h1>
-            <div class="relative w-[384px] h-[288px] my-4">
-              <!-- Y Axis Grid and Labels -->
-              ${yAxisLabels.map((lbl, idx) => {
-                const y = (288 - chartContentMarginBottom) - (200 * ((6 - idx) / 6));
-                return `
-                  <div class="absolute right-[360px] text-xs font-semibold text-black-100 pr-2" style="top: ${y - 8}px;">${lbl}</div>
-                  <div class="absolute left-[34px] right-0 h-px bg-white/10" style="top: ${y}px; width: 330px;"></div>
-                `;
-              }).join('')}
-
-              <!-- The SVGs -->
-              <svg width="384" height="288" class="absolute inset-0 overflow-visible pointer-events-none">
+            <div class="w-full max-w-[384px] aspect-[4/3] my-4 relative">
+              <!-- Responsive SVG Chart containing grid, labels, path, and dots -->
+              <svg viewBox="0 0 384 288" class="w-full h-full overflow-visible">
                 <defs>
                   <linearGradient id="chart-grad" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stop-color="var(--color-accent)" stop-opacity="0.3"></stop>
                     <stop offset="100%" stop-color="var(--color-accent)" stop-opacity="0"></stop>
                   </linearGradient>
                 </defs>
+
+                <!-- Y Axis Grid and Labels -->
+                ${yAxisLabels.map((lbl, idx) => {
+                  const y = (288 - chartContentMarginBottom) - (200 * ((6 - idx) / 6));
+                  return `
+                    <text x="26" y="${y + 3}" fill="var(--color-black-100)" font-size="10" font-weight="600" text-anchor="end">${lbl}</text>
+                    <line x1="34" y1="${y}" x2="364" y2="${y}" stroke="rgba(255,255,255,0.08)" stroke-width="1" />
+                  `;
+                }).join('')}
+
+                <!-- X Axis Labels (Day Labels) -->
+                ${last7DaysOfListening.map((d, idx) => {
+                  const x = chartContentMarginLeft + daySpacing * idx;
+                  return `
+                    <text x="${x}" y="280" fill="var(--color-black-100)" font-size="10" font-weight="600" text-anchor="middle">${d.label}</text>
+                  `;
+                }).join('')}
+
                 <!-- SVG area fill path -->
                 <path d="${areaD}" fill="url(#chart-grad)" stroke="none"></path>
                 <!-- SVG path line -->
                 <path d="${pathD}" fill="none" style="stroke: var(--color-accent);" stroke-width="2"></path>
+ 
+                <!-- Points and Tooltips -->
+                ${points.map((p, idx) => {
+                  const mins = last7DaysOfListening[idx].minutesListening;
+                  return `
+                    <g class="group cursor-pointer">
+                      <!-- Invisible larger hover target -->
+                      <circle cx="${p.x}" cy="${p.y}" r="8" fill="transparent" />
+                      <!-- Visual point circle with responsive scaling on hover -->
+                      <circle cx="${p.x}" cy="${p.y}" r="3.5" fill="var(--color-accent)" class="transition-transform duration-150 group-hover:scale-[1.4]" style="transform-origin: ${p.x}px ${p.y}px;" />
+                      
+                      <!-- Tooltip (scaled within the SVG coordinate space) -->
+                      <g class="opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-150">
+                        <rect x="${p.x - 32}" y="${p.y - 28}" width="64" height="18" rx="3" fill="#18181b" stroke="rgba(255,255,255,0.15)" stroke-width="1" />
+                        <text x="${p.x}" y="${p.y - 16}" fill="#ffffff" font-size="9" font-weight="600" text-anchor="middle">${mins} min</text>
+                      </g>
+                    </g>
+                  `;
+                }).join('')}
               </svg>
- 
-               <!-- Points and Tooltips -->
-              ${points.map((p, idx) => `
-                <div class="absolute group cursor-pointer z-20" style="left: ${p.x - 4}px; top: ${p.y - 4}px; width: 8px; height: 8px;">
-                  <div class="h-2 w-2 bg-accent hover:opacity-85 rounded-full transform duration-150 transition-transform hover:scale-125"></div>
-                  <!-- Tooltip -->
-                  <div class="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-black-700 text-white text-xs px-2 py-1 rounded shadow whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
-                    ${last7DaysOfListening[idx].minutesListening} mins
-                  </div>
-                </div>
-              `).join('')}
- 
-               <!-- Day Labels -->
-              ${last7DaysOfListening.map((d, idx) => {
-                const x = chartContentMarginLeft + daySpacing * idx;
-                return `
-                  <div class="absolute text-xs text-black-100 text-center font-semibold" style="left: ${x - 20}px; width: 40px; bottom: 4px;">${d.label}</div>
-                `;
-              }).join('')}
             </div>
  
              <!-- Chart summary row -->
@@ -529,13 +548,46 @@ export async function loadStats() {
                   });
                 }
               }
+              const getDeviceIcon = (dev) => {
+                const d = (dev || '').toLowerCase();
+                if (d.includes('android') || d.includes('iphone') || d.includes('ipad') || d.includes('mobile')) {
+                  return 'smartphone';
+                }
+                if (d.includes('chromecast') || d.includes('cast')) {
+                  return 'cast';
+                }
+                if (d.includes('tv') || d.includes('firetv') || d.includes('googletv') || d.includes('appletv')) {
+                  return 'tv';
+                }
+                return 'computer';
+              };
+              const deviceIcon = getDeviceIcon(sess.deviceInfo);
+              const playMethodClass = (sess.playMethod || '').toUpperCase() === 'HLS' 
+                ? 'bg-accent/15 text-accent border-accent/25' 
+                : 'bg-emerald-500/15 text-emerald-400 border-emerald-500/25';
               return `
-                <div class="flex justify-between items-center border-b border-black-500 pb-2 text-sm">
-                  <div class="truncate max-w-[70%] cursor-pointer group" onclick="window.navigateTo('/item/${sess.mediaItemId}')">
-                    <span class="font-medium text-white group-hover:text-accent transition-colors block truncate font-semibold">${sess.title || 'Unknown'}</span>
-                    <span class="text-xs text-black-100 block truncate group-hover:text-accent/80 transition-colors">${dateStr} via ${sess.deviceInfo || 'Web'}</span>
+                <div class="p-3 bg-black-500/20 hover:bg-black-500/30 border border-black-400/30 rounded flex items-center justify-between gap-3 transition-all duration-150 text-sm">
+                  <div class="truncate max-w-[70%] cursor-pointer group flex-grow" onclick="window.navigateTo('/item/${sess.mediaItemId}')">
+                    <span class="font-medium text-white group-hover:text-accent transition-colors block truncate font-semibold">${escapeHtml(sess.title) || 'Unknown'}</span>
+                    <div class="flex items-center space-x-2 text-xs text-black-100 mt-1">
+                      <div class="flex items-center space-x-1">
+                        <span class="material-symbols text-[13px]">${deviceIcon}</span>
+                        <span class="truncate max-w-[120px]" title="${escapeHtml(sess.deviceInfo || 'Web')}">${escapeHtml(sess.deviceInfo || 'Web')}</span>
+                      </div>
+                      <span>&bull;</span>
+                      <div class="flex items-center space-x-1">
+                        <span class="material-symbols text-[13px]">calendar_today</span>
+                        <span>${dateStr}</span>
+                      </div>
+                    </div>
                   </div>
-                  <span class="text-xs font-mono text-accent font-medium">${formatDuration(sess.timeListened)}</span>
+                  <div class="flex flex-col items-end space-y-1.5 flex-shrink-0">
+                    <span class="px-1.5 py-0.5 rounded text-[8px] font-mono border uppercase tracking-wider font-semibold ${playMethodClass}">${escapeHtml(sess.playMethod || 'HLS')}</span>
+                    <div class="flex items-center space-x-1 bg-black-500/60 px-2 py-0.5 rounded-[3px] border border-black-400/30 text-white font-mono text-[10px]">
+                      <span class="material-symbols text-[12px] text-accent">headphones</span>
+                      <span>${formatDuration(sess.timeListened)}</span>
+                    </div>
+                  </div>
                 </div>
               `;
             }).join('');
@@ -637,7 +689,7 @@ export async function loadStats() {
                 return `
                   <div class="space-y-1 text-sm">
                     <div class="flex justify-between items-center">
-                      <span class="font-medium text-white truncate max-w-[80%]">${item.Genre}</span>
+                      <span class="font-medium text-white truncate max-w-[80%]">${escapeHtml(item.Genre)}</span>
                       <span class="text-xs font-mono text-accent font-semibold">${item.Count}</span>
                     </div>
                     <div class="w-full bg-black-500 h-1.5 rounded-full overflow-hidden">
@@ -665,7 +717,7 @@ export async function loadStats() {
                   return `
                     <div class="space-y-1 text-sm">
                       <div class="flex justify-between items-center">
-                        <span class="font-medium text-white truncate max-w-[80%] cursor-pointer hover:text-accent transition-colors block" onclick="window.navigateTo('/author/${item.ID}')">${item.Name}</span>
+                        <span class="font-medium text-white truncate max-w-[80%] cursor-pointer hover:text-accent transition-colors block" onclick="window.navigateTo('/author/${item.ID}')">${escapeHtml(item.Name)}</span>
                         <span class="text-xs font-mono text-accent font-semibold">${item.Count}</span>
                       </div>
                       <div class="w-full bg-black-500 h-1.5 rounded-full overflow-hidden">
@@ -693,7 +745,7 @@ export async function loadStats() {
                 return `
                   <div class="space-y-1 text-sm">
                     <div class="flex justify-between items-center">
-                      <span class="font-medium text-white truncate max-w-[70%] cursor-pointer hover:text-accent transition-colors block" onclick="window.navigateTo('/item/${item.id}')">${item.title}</span>
+                      <span class="font-medium text-white truncate max-w-[70%] cursor-pointer hover:text-accent transition-colors block" onclick="window.navigateTo('/item/${item.id}')">${escapeHtml(item.title)}</span>
                       <span class="text-xs font-mono text-accent font-semibold">${formatDuration(item.duration)}</span>
                     </div>
                     <div class="w-full bg-black-500 h-1.5 rounded-full overflow-hidden">
@@ -720,7 +772,7 @@ export async function loadStats() {
                 return `
                   <div class="space-y-1 text-sm">
                     <div class="flex justify-between items-center">
-                      <span class="font-medium text-white truncate max-w-[70%] cursor-pointer hover:text-accent transition-colors block" onclick="window.navigateTo('/item/${item.id}')">${item.title}</span>
+                      <span class="font-medium text-white truncate max-w-[70%] cursor-pointer hover:text-accent transition-colors block" onclick="window.navigateTo('/item/${item.id}')">${escapeHtml(item.title)}</span>
                       <span class="text-xs font-mono text-accent font-semibold">${formatBytes(item.size)}</span>
                     </div>
                     <div class="w-full bg-black-500 h-1.5 rounded-full overflow-hidden">
@@ -959,8 +1011,8 @@ export async function loadStats() {
                   <div class="space-y-1">
                     <div class="flex justify-between items-center text-sm">
                       <div class="truncate max-w-[70%] cursor-pointer group" onclick="window.navigateTo('/item/${item.id}')">
-                        <span class="font-medium text-white group-hover:text-accent transition-colors block truncate font-semibold">${item.title}</span>
-                        ${item.author ? `<span class="text-xs text-black-100 block truncate group-hover:text-accent/80 transition-colors">by ${item.author}</span>` : ''}
+                        <span class="font-medium text-white group-hover:text-accent transition-colors block truncate font-semibold">${escapeHtml(item.title)}</span>
+                        ${item.author ? `<span class="text-xs text-black-100 block truncate group-hover:text-accent/80 transition-colors">by ${escapeHtml(item.author)}</span>` : ''}
                       </div>
                       <span class="text-xs font-mono text-accent font-semibold">${formatDuration(item.timeListened)}</span>
                     </div>
@@ -988,7 +1040,7 @@ export async function loadStats() {
                 return `
                   <div class="space-y-1">
                     <div class="flex justify-between items-center text-sm">
-                      <span class="font-medium text-white truncate max-w-[70%]">${author}</span>
+                      <span class="font-medium text-white truncate max-w-[70%]">${escapeHtml(author)}</span>
                       <span class="text-xs font-mono text-accent font-semibold">${formatDuration(seconds)}</span>
                     </div>
                     <div class="w-full bg-black-500 h-1.5 rounded-full overflow-hidden">
@@ -1015,7 +1067,7 @@ export async function loadStats() {
                 return `
                   <div class="space-y-1">
                     <div class="flex justify-between items-center text-sm">
-                      <span class="font-medium text-white truncate max-w-[70%]">${username}</span>
+                      <span class="font-medium text-white truncate max-w-[70%]">${escapeHtml(username)}</span>
                       <span class="text-xs font-mono text-accent font-semibold">${formatDuration(seconds)}</span>
                     </div>
                     <div class="w-full bg-black-500 h-1.5 rounded-full overflow-hidden">
@@ -1105,16 +1157,42 @@ export async function loadStats() {
                 dateStr = sess.updatedAt;
               }
             }
+            const getDeviceIcon = (dev) => {
+              const d = (dev || '').toLowerCase();
+              if (d.includes('android') || d.includes('iphone') || d.includes('ipad') || d.includes('mobile')) {
+                return 'smartphone';
+              }
+              if (d.includes('chromecast') || d.includes('cast')) {
+                return 'cast';
+              }
+              if (d.includes('tv') || d.includes('firetv') || d.includes('googletv') || d.includes('appletv')) {
+                return 'tv';
+              }
+              return 'computer';
+            };
+            const deviceIcon = getDeviceIcon(sess.deviceInfo);
+            const playMethodClass = (sess.playMethod || '').toUpperCase() === 'HLS' 
+              ? 'bg-accent/15 text-accent border-accent/25' 
+              : 'bg-emerald-500/15 text-emerald-400 border-emerald-500/25';
             return `
               <tr class="border-b border-black-500 hover:bg-black-500/20">
                 <td class="py-3 pr-4 font-medium text-white max-w-[200px] truncate cursor-pointer group" onclick="window.navigateTo('/item/${sess.mediaItemId}')">
-                  <span class="group-hover:text-accent transition-colors block truncate font-semibold">${sess.title || 'Unknown Item'}</span>
-                  ${sess.author ? `<span class="text-xs text-black-100 block truncate group-hover:text-accent/80 transition-colors">by ${sess.author}</span>` : ''}
+                  <span class="group-hover:text-accent transition-colors block truncate font-semibold">${escapeHtml(sess.title) || 'Unknown Item'}</span>
+                  ${sess.author ? `<span class="text-xs text-black-100 block truncate group-hover:text-accent/80 transition-colors">by ${escapeHtml(sess.author)}</span>` : ''}
                 </td>
-                <td class="py-3 pr-4 text-black-50 font-semibold">${sess.username || 'Unknown User'}</td>
+                <td class="py-3 pr-4 text-black-50 font-semibold">${escapeHtml(sess.username) || 'Unknown User'}</td>
                 <td class="py-3 pr-4 text-black-50 font-semibold">${dateStr}</td>
-                <td class="py-3 pr-4 text-black-50 font-semibold">${sess.deviceInfo || 'Web Client'}</td>
-                <td class="py-3 pr-4"><span class="bg-black-500 px-2 py-0.5 rounded text-xs border border-black-400 font-mono font-semibold">${sess.playMethod || 'HLS'}</span></td>
+                <td class="py-3 pr-4 text-black-50 font-semibold">
+                  <div class="inline-flex items-center space-x-1.5">
+                    <span class="material-symbols text-[16px] text-black-100">${deviceIcon}</span>
+                    <span class="truncate max-w-[130px]" title="${escapeHtml(sess.deviceInfo || 'Web Client')}">${escapeHtml(sess.deviceInfo || 'Web Client')}</span>
+                  </div>
+                </td>
+                <td class="py-3 pr-4">
+                  <span class="px-1.5 py-0.5 rounded text-[10px] font-mono border uppercase tracking-wider font-semibold ${playMethodClass}">
+                    ${escapeHtml(sess.playMethod || 'HLS')}
+                  </span>
+                </td>
                 <td class="py-3 text-right font-mono font-medium text-accent">${formatDuration(sess.timeListened)}</td>
               </tr>
             `;

@@ -216,7 +216,7 @@ function renderPlaylistsGrid(playlists, libraryId) {
 
   playlists.forEach(p => {
     const card = document.createElement('div');
-    card.className = 'bg-primary border border-black-300 rounded overflow-hidden shadow hover:border-black-100 transition-all flex flex-col justify-between p-3 relative group cursor-pointer';
+    card.className = 'bg-primary border border-black-300 rounded overflow-hidden shadow hover:border-black-100 hover:-translate-y-1 transition-all duration-200 flex flex-col justify-between p-3 relative group cursor-pointer';
     card.style.width = '100%';
     
     const bookIds = p.itemIds || [];
@@ -224,7 +224,7 @@ function renderPlaylistsGrid(playlists, libraryId) {
     
     card.innerHTML = `
       <div class="space-y-2">
-        <div class="w-full bg-black-500 rounded overflow-hidden flex items-center justify-center text-accent/80 border border-black-400 mb-2 relative" style="aspect-ratio: 2/3;">
+        <div class="w-full bg-black-500 rounded overflow-hidden flex items-center justify-center text-accent/80 border border-black-400 mb-2 relative" style="aspect-ratio: 1/1;">
           ${renderCoversPreview(bookIds, token)}
           <span class="absolute bottom-2 right-2 bg-black-600/80 px-2 py-0.5 text-[10px] text-white rounded font-semibold z-10">${count} items</span>
         </div>
@@ -237,7 +237,10 @@ function renderPlaylistsGrid(playlists, libraryId) {
           <span class="material-symbols text-[13px]">delete</span>
           <span>Delete</span>
         </button>
-        <span class="text-[9px] text-black-100">View Details</span>
+        <span class="text-[10px] text-accent font-semibold flex items-center space-x-0.5">
+          <span>Details</span>
+          <span class="material-symbols text-[12px]">chevron_right</span>
+        </span>
       </div>
     `;
 
