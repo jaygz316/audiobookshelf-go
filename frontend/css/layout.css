@@ -9,11 +9,12 @@
 
 /* Library Bookshelf Wrap-Around Grid Layout */
 .library-shelf-grid {
+  position: relative;
   display: grid !important;
   grid-template-columns: repeat(auto-fill, minmax(var(--bookshelf-card-width, 120px), 1fr)) !important;
   grid-auto-rows: var(--bookshelf-row-height) !important;
   gap: 0 1.5rem !important;
-  padding: 1.5rem !important;
+  padding: 1.5rem 2rem !important;
   background-image: 
     /* 1. Shadow cast by the shelf above onto the back wall */
     linear-gradient(to bottom, rgba(0, 0, 0, 0.45) 0px, rgba(0, 0, 0, 0) 16px),
@@ -40,6 +41,44 @@
   box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.6);
   border-radius: 8px;
   overflow: hidden;
+}
+
+/* Left vertical wood border panel */
+.library-shelf-grid::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 14px;
+  background-image: 
+    linear-gradient(to bottom, var(--bookshelf-overlay), var(--bookshelf-overlay)),
+    var(--bookshelf-texture-img);
+  background-size: 100% 100%, auto var(--bookshelf-row-height);
+  background-repeat: no-repeat, repeat-y;
+  box-shadow: inset -3px 0 6px rgba(0, 0, 0, 0.7), 2px 0 5px rgba(0, 0, 0, 0.5);
+  z-index: 30;
+  border-top-left-radius: 8px;
+  border-bottom-left-radius: 8px;
+}
+
+/* Right vertical wood border panel */
+.library-shelf-grid::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  width: 14px;
+  background-image: 
+    linear-gradient(to bottom, var(--bookshelf-overlay), var(--bookshelf-overlay)),
+    var(--bookshelf-texture-img);
+  background-size: 100% 100%, auto var(--bookshelf-row-height);
+  background-repeat: no-repeat, repeat-y;
+  box-shadow: inset 3px 0 6px rgba(0, 0, 0, 0.7), -2px 0 5px rgba(0, 0, 0, 0.5);
+  z-index: 30;
+  border-top-right-radius: 8px;
+  border-bottom-right-radius: 8px;
 }
 
 .library-shelf-grid > .bookshelf-card,
