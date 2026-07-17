@@ -360,9 +360,12 @@
           
           <!-- Library Dropdown -->
           <div class="relative h-8 max-w-52 md:min-w-32 flex items-center">
-            <button id="library-dropdown-btn" class="w-10 sm:w-full relative h-full border border-white/10 hover:border-opacity-20 rounded-sm shadow-xs px-2 text-left text-sm cursor-pointer bg-black/20 text-gray-400 hover:text-gray-200 flex items-center transition-colors focus:outline-none" title="Select Library">
-              <span id="library-dropdown-icon" class="material-symbols text-lg sm:mr-1.5 flex items-center justify-center">local_library</span>
-              <span id="library-dropdown-selected-name" class="hidden sm:block truncate">Loading...</span>
+            <button id="library-dropdown-btn" class="w-10 sm:w-full relative h-full border border-white/10 hover:border-opacity-20 rounded shadow-sm px-2 text-left text-sm cursor-pointer bg-black/20 text-gray-400 hover:text-gray-200 flex items-center justify-between transition-colors focus:outline-none" title="Select Library">
+              <div class="flex items-center min-w-0">
+                <span id="library-dropdown-icon" class="material-symbols text-lg sm:mr-1.5 flex items-center justify-center">local_library</span>
+                <span id="library-dropdown-selected-name" class="hidden sm:block truncate">Loading...</span>
+              </div>
+              <span class="material-symbols text-base hidden sm:block ml-1">expand_more</span>
             </button>
             <div id="library-dropdown-menu" class="absolute z-10 -mt-px left-0 top-full w-full min-w-48 bg-primary border border-black-200 shadow-lg rounded-b-md py-1 overflow-auto focus:outline-none sm:text-sm hidden">
               <!-- Dynamically populated -->
@@ -384,7 +387,7 @@
 
         <!-- Search bar -->
         <div id="global-search-container" class="grow max-w-xs mx-6 hidden md:block relative text-sm h-8">
-          <input type="text" id="global-search-input" placeholder="Search.." class="w-full h-full bg-black/20 border border-white/10 focus:border-white/20 rounded-sm shadow-xs pl-2 pr-8 text-gray-200 placeholder-gray-400 focus:outline-none text-sm animate-none" autocomplete="off">
+          <input type="text" id="global-search-input" placeholder="Search.." class="w-full h-full bg-black/20 border border-white/10 focus:border-white/20 rounded shadow-sm pl-2 pr-8 text-gray-200 placeholder-gray-400 focus:outline-none text-sm animate-none" autocomplete="off">
           <button id="global-search-clear-btn" class="absolute top-0 right-0 bottom-0 h-full flex items-center px-2 text-gray-400 cursor-pointer focus:outline-none" title="Search/Clear">
             <span id="global-search-icon-symbol" class="material-symbols text-lg select-none">search</span>
           </button>
@@ -409,7 +412,7 @@
 
           <!-- Notification Widget (Bell/Spinner for active tasks) -->
           <div id="header-notification-widget" class="relative hidden flex items-center">
-            <button id="header-notification-btn" class="w-8 h-8 flex items-center justify-center mx-1 text-gray-400 hover:text-gray-200 transition-colors focus:outline-none hover:bg-black/10 rounded-sm cursor-pointer" title="Tasks">
+            <button id="header-notification-btn" class="w-9 h-9 flex items-center justify-center text-black-50 hover:text-white transition-colors duration-150 focus:outline-none hover:bg-black-500/50 rounded-full cursor-pointer" title="Tasks">
               <span id="header-notification-icon" class="material-symbols text-2xl font-normal">notifications</span>
             </button>
             <div id="header-notification-badge" class="w-2 h-2 rounded-full bg-success pointer-events-none absolute top-1 right-1.5 hidden"></div>
@@ -422,27 +425,26 @@
           </div>
 
           <!-- Server Activity Button -->
-          <button id="header-activity-btn" class="w-8 h-8 flex items-center justify-center mx-1 text-gray-400 hover:text-gray-200 transition-colors focus:outline-none hover:bg-black/10 rounded-sm" title="Server Activity">
-            <span class="material-symbols text-2xl font-normal">&#xe01d;</span>
+          <button id="header-activity-btn" class="w-9 h-9 flex items-center justify-center text-black-50 hover:text-white transition-colors duration-150 focus:outline-none hover:bg-black-500/50 rounded-full cursor-pointer" title="Server Activity">
+            <span class="material-symbols text-2xl font-normal">query_stats</span>
           </button>
 
           <!-- Upload Button (admin/root only) -->
-          <button id="header-upload-btn" class="hidden w-8 h-8 flex items-center justify-center mx-1 text-gray-400 hover:text-gray-200 transition-colors focus:outline-none hover:bg-black/10 rounded-sm" title="Upload Media">
+          <button id="header-upload-btn" class="hidden w-9 h-9 flex items-center justify-center text-black-50 hover:text-white transition-colors duration-150 focus:outline-none hover:bg-black-500/50 rounded-full cursor-pointer" title="Upload Media">
             <span class="material-symbols text-2xl font-normal">upload</span>
           </button>
 
           <!-- Settings Gear Button (admin/root only) -->
-          <button id="header-settings-btn" class="hidden w-8 h-8 flex items-center justify-center mx-1 text-gray-400 hover:text-gray-200 transition-colors focus:outline-none hover:bg-black/10 rounded-sm" title="Settings">
-            <span class="material-symbols text-2xl font-normal">&#xe8b8;</span>
+          <button id="header-settings-btn" class="hidden w-9 h-9 flex items-center justify-center text-black-50 hover:text-white transition-colors duration-150 focus:outline-none hover:bg-black-500/50 rounded-full cursor-pointer" title="Settings">
+            <span class="material-symbols text-2xl font-normal">settings</span>
           </button>
 
           <!-- User Profile Button Pill -->
           <div class="relative">
-            <button id="user-menu-btn" class="relative w-9 h-9 md:w-32 bg-fg border border-gray-500 rounded-sm shadow-xs ml-1.5 sm:ml-3 md:ml-5 md:pl-3 md:pr-10 py-1.5 text-left text-sm cursor-pointer hover:bg-bg/40 focus:outline-none flex items-center justify-center md:justify-between transition-colors" aria-label="User Profile">
-              <span id="user-menu-username" class="hidden md:block truncate text-xs font-semibold text-white">jaygz</span>
-              <span class="h-full md:absolute inset-y-0 right-0 flex items-center justify-center md:pr-2 pointer-events-none text-gray-100">
-                <span class="material-symbols text-xl">&#xe7fd;</span>
-              </span>
+            <button id="user-menu-btn" class="relative bg-black-600 border border-black-400/50 hover:bg-black-500 rounded-full px-2 py-1 flex items-center space-x-2 text-xs font-semibold text-white shadow transition-colors duration-150 focus:outline-none select-none cursor-pointer" aria-label="User Profile">
+              <div class="w-6 h-6 rounded-full bg-accent text-primary font-bold flex items-center justify-center text-[10px] uppercase shadow-inner" id="user-initials">JG</div>
+              <span id="user-menu-username" class="hidden md:block truncate text-xs font-bold text-white">jaygz</span>
+              <span class="material-symbols text-[14px] text-black-100">keyboard_arrow_down</span>
             </button>
 
             <!-- User Dropdown (Mockup) -->
@@ -497,7 +499,7 @@
 
           <!-- Podcast Latest Link -->
           <a id="sidebar-latest" href="#" class="w-full h-20 flex flex-col items-center justify-center text-white/80 border-b border-primary/70 hover:bg-primary cursor-pointer relative bg-bg/60 hidden">
-            <span class="material-symbols text-2xl">&#xe241;</span>
+            <span class="material-symbols text-2xl">podcasts</span>
             <p class="pt-1 text-center leading-4 text-[0.9rem]">Latest</p>
             <div class="active-indicator h-full w-0.5 bg-yellow-400 absolute top-0 left-0"></div>
           </a>
@@ -511,14 +513,14 @@
 
           <!-- Collections Link -->
           <a id="sidebar-collections" href="#" class="w-full h-20 flex flex-col items-center justify-center text-white/80 border-b border-primary/70 hover:bg-primary cursor-pointer relative bg-bg/60 hidden">
-            <span class="material-symbols text-2.5xl">&#xe431;</span>
+            <span class="material-symbols text-2.5xl">bookmarks</span>
             <p class="pt-1 text-center leading-4 text-[0.9rem]">Collections</p>
             <div class="active-indicator h-full w-0.5 bg-yellow-400 absolute top-0 left-0"></div>
           </a>
 
           <!-- Playlists Link -->
           <a id="sidebar-playlists" href="#" class="w-full h-20 flex flex-col items-center justify-center text-white/80 border-b border-primary/70 hover:bg-primary cursor-pointer relative bg-bg/60 hidden">
-            <span class="material-symbols text-2.5xl">&#xe03d;</span>
+            <span class="material-symbols text-2.5xl">playlist_play</span>
             <p class="pt-1 text-center leading-4 text-[0.9rem]">Playlists</p>
             <div class="active-indicator h-full w-0.5 bg-yellow-400 absolute top-0 left-0"></div>
           </a>
@@ -532,14 +534,14 @@
 
           <!-- Narrators Link -->
           <a id="sidebar-narrators" href="#" class="w-full h-20 flex flex-col items-center justify-center text-white/80 border-b border-primary/70 hover:bg-primary cursor-pointer relative bg-bg/60 hidden">
-            <span class="material-symbols text-2xl">&#xe91f;</span>
+            <span class="material-symbols text-2xl">record_voice_over</span>
             <p class="pt-1 text-center leading-4 text-[0.9rem]">Narrators</p>
             <div class="active-indicator h-full w-0.5 bg-yellow-400 absolute top-0 left-0"></div>
           </a>
 
           <!-- Stats Link -->
           <a id="sidebar-stats" href="#" class="w-full h-20 flex flex-col items-center justify-center text-white/80 border-b border-primary/70 hover:bg-primary cursor-pointer relative bg-bg/60 hidden">
-            <span class="material-symbols text-2xl">&#xf190;</span>
+            <span class="material-symbols text-2xl">bar_chart</span>
             <p class="pt-1 text-center leading-4 text-[0.9rem]">Stats</p>
             <div class="active-indicator h-full w-0.5 bg-yellow-400 absolute top-0 left-0"></div>
           </a>
@@ -553,7 +555,7 @@
 
           <!-- Podcast Download Queue Link -->
           <a id="sidebar-download-queue" href="#" class="w-full h-20 flex flex-col items-center justify-center text-white/80 border-b border-primary/70 hover:bg-primary cursor-pointer relative bg-bg/60 hidden">
-            <span class="material-symbols text-2xl">&#xf090;</span>
+            <span class="material-symbols text-2xl">downloading</span>
             <p class="pt-1.5 text-center leading-4 text-[0.9rem]">Download Queue</p>
             <div class="active-indicator h-full w-0.5 bg-yellow-400 absolute top-0 left-0"></div>
           </a>
@@ -695,7 +697,7 @@
           <!-- 1. Recently Added Shelf -->
           <div class="relative w-full">
             <!-- Shelf Row background repeat -->
-            <div class="w-full h-56 relative overflow-x-auto no-scroll overflow-y-hidden z-10 bg-repeat-x bookshelfRow">
+            <div class="w-full relative overflow-x-auto no-scroll overflow-y-hidden z-10 bg-repeat-x bookshelfRow">
               <div id="recently-added-shelf" class="w-max h-full pt-4e flex items-center pl-8e pr-8e">
                 <!-- Dynamically rendered by app.js -->
               </div>
@@ -717,7 +719,7 @@
           <!-- 2. Continue Reading Shelf -->
           <div class="relative w-full">
             <!-- Shelf Row background repeat -->
-            <div class="w-full h-56 relative overflow-x-auto no-scroll overflow-y-hidden z-10 bg-repeat-x bookshelfRow">
+            <div class="w-full relative overflow-x-auto no-scroll overflow-y-hidden z-10 bg-repeat-x bookshelfRow">
               <div id="continue-reading-shelf" class="w-max h-full pt-4e flex items-center pl-8e pr-8e">
                 <!-- Dynamically rendered by app.js -->
               </div>
@@ -739,7 +741,7 @@
           <!-- 3. All Books Shelf -->
           <div class="relative w-full">
             <!-- Shelf Row background repeat -->
-            <div class="w-full h-56 relative overflow-x-auto no-scroll overflow-y-hidden z-10 bg-repeat-x bookshelfRow">
+            <div class="w-full relative overflow-x-auto no-scroll overflow-y-hidden z-10 bg-repeat-x bookshelfRow">
               <div id="all-books-shelf" class="w-max h-full pt-4e flex items-center pl-8e pr-8e">
                 <!-- Dynamically rendered by app.js -->
               </div>
@@ -763,6 +765,7 @@
         <!-- Shelf Sizing Control Slider -->
         <div id="shelf-size-control" class="absolute bottom-4 right-4 z-40 bg-black-600/90 border border-black-400/50 rounded-full px-3 py-1.5 flex items-center space-x-2 text-xs font-semibold text-white shadow-lg backdrop-blur select-none">
           <button id="shelf-size-dec" class="hover:text-accent w-6 h-6 flex items-center justify-center rounded-full bg-black-500 hover:bg-black-400 transition-colors focus:outline-none text-base font-bold cursor-pointer" title="Decrease Card Size">-</button>
+          <input type="range" id="shelf-size-slider" min="80" max="240" step="10" value="120" class="w-20 md:w-24 accent-accent bg-black-400 rounded-lg appearance-none cursor-pointer h-1" title="Adjust Card Size">
           <span id="shelf-size-val" class="w-8 text-center font-mono">120</span>
           <button id="shelf-size-inc" class="hover:text-accent w-6 h-6 flex items-center justify-center rounded-full bg-black-500 hover:bg-black-400 transition-colors focus:outline-none text-base font-bold cursor-pointer" title="Increase Card Size">+</button>
         </div>

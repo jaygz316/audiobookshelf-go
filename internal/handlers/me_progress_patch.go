@@ -116,4 +116,3 @@ func handleCreateUpdateMeProgress(db *sql.DB) http.HandlerFunc {
 		w.WriteHeader(http.StatusOK)
 	}
 }
-
