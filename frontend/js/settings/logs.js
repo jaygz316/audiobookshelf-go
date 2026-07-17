@@ -575,7 +575,7 @@ export async function renderTasksTab() {
           <h3 class="text-lg font-semibold text-white">Active Tasks & Downloads</h3>
           <p class="text-xs text-black-100 font-medium">Monitor and manage real-time episode downloads and background operations.</p>
         </div>
-        <button id="cancel-all-tasks-btn" class="bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 font-bold px-3 py-1.5 rounded text-xs transition-colors flex items-center gap-1 focus:outline-none">
+        <button id="cancel-all-tasks-btn" class="bg-black-400 hover:bg-red-900/40 border border-red-500/30 text-error hover:text-white hover:border-red-500/50 font-bold px-3 py-1.5 rounded text-xs transition-colors flex items-center gap-1 focus:outline-none cursor-pointer">
           <span class="material-symbols text-sm">cancel</span>
           <span>Cancel All Tasks</span>
         </button>

@@ -971,7 +971,7 @@ export async function loadItemDetails(itemId, libraryId, backCallback) {
                     <span class="material-symbols text-sm">radio_button_unchecked</span>
                     <span>Mark Unplayed</span>
                   </button>
-                  <button id="batch-delete-btn" class="bg-red-600/20 hover:bg-red-600/30 border border-red-500/30 text-red-400 text-xs font-bold px-3 py-1.5 rounded transition-colors flex items-center space-x-1">
+                  <button id="batch-delete-btn" class="bg-black-400 hover:bg-red-900/40 border border-red-500/30 text-error hover:text-white hover:border-red-500/50 text-xs font-bold px-3 py-1.5 rounded transition-colors flex items-center space-x-1 cursor-pointer">
                     <span class="material-symbols text-sm">delete</span>
                     <span>Delete</span>
                   </button>

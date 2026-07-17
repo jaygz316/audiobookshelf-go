@@ -441,7 +441,7 @@ function startMultipartUpload(libraryId) {
   `;
 
   footerContainer.innerHTML = `
-    <button id="abort-upload-btn" class="bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 px-4 py-2 rounded text-sm font-semibold transition-colors focus:outline-none">
+    <button id="abort-upload-btn" class="bg-black-400 hover:bg-red-900/40 border border-red-500/30 text-error hover:text-white hover:border-red-500/50 px-4 py-2 rounded text-sm font-semibold transition-colors focus:outline-none cursor-pointer">
       Cancel & Abort
     </button>
   `;

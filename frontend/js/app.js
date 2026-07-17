@@ -2256,7 +2256,7 @@ function initNotificationWidget(user) {
           </div>
         </div>
         ${(isTaskActive) ? `
-          <button class="bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 px-2 py-1 rounded text-[10px] transition-colors flex-shrink-0 cursor-pointer" data-cancel-id="${task.id}">
+          <button class="bg-black-400 hover:bg-red-900/40 border border-red-500/30 text-error hover:text-white hover:border-red-500/50 px-2 py-1 rounded text-[10px] transition-colors flex-shrink-0 cursor-pointer" data-cancel-id="${task.id}">
             Cancel
           </button>
         ` : ''}
