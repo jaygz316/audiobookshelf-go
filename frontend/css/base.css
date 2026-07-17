@@ -16,3 +16,11 @@ summary::-webkit-details-marker {
 summary {
   list-style: none !important;
 }
+
+button, [role="button"] {
+  cursor: pointer;
+}
+button:disabled, [role="button"]:disabled {
+  cursor: not-allowed;
+}
+
