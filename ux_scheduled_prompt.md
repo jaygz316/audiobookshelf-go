@@ -42,16 +42,16 @@ Work through screens in this **strict priority order**. Each run should focus on
 - [x] **FS Directory Picker**: Interactive folder browse modal overlay querying `GET /api/filesystem` to navigate/select paths.
 
 ### Priority 2 — Home / Dashboard
-- [ ] **Bookshelf view**: Wooden shelf texture/background, shelf rows ("Continue Listening", "Continue Reading", "Continue Series", "Recently Added"), book cover cards, cover reflections, card hover shadows, shelf sizing slider (`- 120 +`) in bottom-right.
-- [ ] **List/grid toggle**: Switching between bookshelf and grid modes.
-- [ ] **Continue Listening row**: Play button overlay on cards, progress indicator bar on each card, card click → item detail navigation.
+- [x] **Bookshelf view**: Wooden shelf texture/background, shelf rows ("Continue Listening", "Continue Reading", "Continue Series", "Recently Added"), book cover cards, cover reflections, card hover shadows, shelf sizing slider (`- 120 +`) in bottom-right.
+- [x] **List/grid toggle**: Switching between bookshelf and grid modes.
+- [x] **Continue Listening row**: Play button overlay on cards, progress indicator bar on each card, card click → item detail navigation.
 - [x] **Onboarding Welcome Screen**: `showNoLibrariesWelcome()` screen offering a direct "Add Your First Library" shortcut button when libraries list is empty.
-- [ ] **Empty states**: Correct messaging when no items exist in a category.
+- [x] **Empty states**: Correct messaging when no items exist in a category.
 
 ### Priority 3 — Header Bar
 - [x] **Logo & brand**: Gold/brown insignia, "audiobookshelf" text label.
-- [ ] **Library switcher dropdown**: Current library name (e.g. "Books"), dropdown with all libraries.
-- [ ] **Search**: Input field with "Search.." placeholder, search results dropdown, keyboard navigation.
+- [x] **Library switcher dropdown**: Current library name (e.g. "Books"), dropdown with all libraries.
+- [x] **Search**: Input field with "Search.." placeholder, search results dropdown, keyboard navigation.
 - [x] **Notification Tasks Widget**: Periodic query to `/api/tasks` showing a spinning bell icon during execution and an unseen success badge when tasks finish.
 - [x] **User badge**: Profile icon + username, dropdown menu with settings/administration links wired to the correct hash pages.
 
@@ -61,11 +61,11 @@ Work through screens in this **strict priority order**. Each run should focus on
 - [x] **Footer**: Version tag and context tags (`docker` etc.) loaded dynamically from `/status`, documentation help links.
 
 ### Priority 5 — Library Grid/List View
-- [ ] **Results header**: Item count (e.g. "717 Books"), filter dropdown ("All"), sort controls ("Title" dropdown + sort order toggle button).
-- [ ] **Card rendering**: Cover image, title, author/narrator, progress bar overlays, badges (e.g. audiobook length, file count).
-- [ ] **Card interactions**: Click → item detail, right-click context menu (if applicable), hover states.
-- [ ] **Pagination / infinite scroll**: Correct loading behavior, loading indicators.
-- [ ] **Filter & sort controls**: All dropdown options populated and functional, sort toggle (asc/desc) works.
+- [x] **Results header**: Item count (e.g. "717 Books"), filter dropdown ("All"), sort controls ("Title" dropdown + sort order toggle button).
+- [x] **Card rendering**: Cover image, title, author/narrator, progress bar overlays, badges (e.g. audiobook length, file count).
+- [x] **Card interactions**: Click → item detail, right-click context menu (if applicable), hover states.
+- [x] **Pagination / infinite scroll**: Correct loading behavior, loading indicators.
+- [x] **Filter & sort controls**: All dropdown options populated and functional, sort toggle (asc/desc) works.
 
 ### Priority 6 — Series View
 - [x] **Cascading stacked cards**: Fanned, overlapping book covers for each series.
@@ -77,30 +77,30 @@ Work through screens in this **strict priority order**. Each run should focus on
 - [x] **Cover art & Action buttons**: Play, Read, Add to Playlist, Mark as Finished, Download, Delete (admin restricted).
 - [x] **Listening/Reading Progress**: Dedicated progress card to track, reset, and toggle completion status.
 - [x] **Podcast episodes view**: iTunes/RSS subscriptions, filter/sorting, downloading/queueing, episode actions (play, mark played/unplayed, delete, hard delete).
-- [ ] **Metadata display**: Subtitle, author(s), narrator(s), series, publish year, description, genres/tags.
-- [ ] **Chapter list**: Expandable chapters with timestamps, click-to-seek.
-- [ ] **Audio files list**: Track listing with file names, durations.
-- [ ] **Edit modal**: All metadata fields editable, save/cancel buttons work.
-- [ ] **Match modal**: Metadata matching/search from providers.
+- [x] **Metadata display**: Subtitle, author(s), narrator(s), series, publish year, description, genres/tags.
+- [x] **Chapter list**: Expandable chapters with timestamps, click-to-seek.
+- [x] **Audio files list**: Track listing with file names, durations.
+- [x] **Edit modal**: All metadata fields editable, save/cancel buttons work.
+- [x] **Match modal**: Metadata matching/search from providers.
 
 ### Priority 8 — Audio Player
 - [x] **Chapter Navigation**: Previous/Next chapter seek controls, scrubber timeline hover tooltips with chapter titles, active chapter text display.
 - [x] **Chapters List Dialog**: Triggered by chapter button, auto-scrolls to active chapter, shows timestamps and durations.
 - [x] **Seek Settings**: Custom skip forward/backward durations in Player Settings syncing to `localStorage`.
-- [ ] **Player bar (bottom)**: Play/pause, seek bar with progress, volume slider, speed selector, sleep timer, queue/playlist button, cast button, close button.
-- [ ] **Expanded player view**: Full-screen player mode if applicable.
+- [x] **Player bar (bottom)**: Play/pause, seek bar with progress, volume slider, speed selector, sleep timer, queue/playlist button, cast button, close button.
+- [x] **Expanded player view**: Full-screen player mode if applicable.
 
 ### Priority 9 — Collections, Playlists, Authors, Narrators Pages
 - [x] **Collections**: Grid of collection cards, create/edit/delete collection modals, add/remove items.
 - [x] **Playlists**: Create/edit/delete, drag-and-drop reorder, Play Playlist header button, track play button supporting sequential queue playback.
 - [x] **Authors page**: Cards with cover photo/name/book count, search input, sort fields (Name/Book Count), sort direction toggles.
-- [ ] **Narrators page**: Narrator list, click → filtered library view.
+- [x] **Narrators page**: Narrator list, click → filtered library view.
 
 ### Priority 10 — Settings Screens
 - [x] **Bookmarkable Tab Hashes**: Sync active settings tab with `window.location.hash` to preserve active sub-tab on refresh.
-- [ ] **Libraries settings**: Library list with orange left-border on selected, scan buttons, action menus, drag-and-drop reorder handles, add/edit library modals.
-- [ ] **Users settings**: User list, create/edit/delete user modals, permission toggles, library access checkboxes.
-- [ ] **Server settings**: General settings toggles, display layouts, date/time formats, security CORS origins.
+- [x] **Libraries settings**: Library list with orange left-border on selected, scan buttons, action menus, drag-and-drop reorder handles, add/edit library modals.
+- [x] **Users settings**: User list, create/edit/delete user modals, permission toggles, library access checkboxes.
+- [x] **Server settings**: General settings toggles, display layouts, date/time formats, security CORS origins.
 - [x] **Form control styling**: Pill-shaped toggles (sliding green when active, gray when inactive), dark grey rounded buttons, inputs matching original design.
 
 ### Priority 11 — Stats Page
