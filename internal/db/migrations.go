@@ -24,6 +24,7 @@ var dbMigrations = []migration{
 	migrationV8,
 	migrationV9,
 	migrationV10,
+	migrationV11,
 }
 
 func migrateDatabase(db *sql.DB) error {

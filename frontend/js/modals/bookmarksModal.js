@@ -497,9 +497,14 @@ export function triggerImportBookmarksModal(item) {
           <p class="text-xs font-bold text-white" id="import-preview-status"></p>
           <div class="max-h-32 overflow-y-auto no-scroll text-[0.7rem] text-black-100 space-y-1" id="import-preview-list"></div>
           
-          <div class="flex items-center space-x-2 pt-2 border-t border-black-500/50">
-            <input type="checkbox" id="import-overwrite-checkbox" class="rounded border-black-300 bg-black-500 text-accent focus:ring-accent w-3.5 h-3.5">
-            <label for="import-overwrite-checkbox" class="text-[0.7rem] text-black-100 select-none">Overwrite existing bookmarks</label>
+          <div class="flex items-center pt-2 border-t border-black-500/50">
+            <label class="flex items-center space-x-3 cursor-pointer text-xs">
+              <span class="abs-switch">
+                <input type="checkbox" id="import-overwrite-checkbox">
+                <span class="abs-slider"></span>
+              </span>
+              <span class="font-medium text-white">Overwrite existing bookmarks</span>
+            </label>
           </div>
         </div>
       </div>

@@ -105,8 +105,8 @@ function renderUsersListRows(users, currentUser) {
       <td class="px-4 py-3 text-xs text-black-100">${lastSeenFormatted}</td>
       <td class="px-4 py-3 text-xs text-black-100">${createdAtFormatted}</td>
       <td class="px-4 py-3 text-right space-x-2">
-        ${u.hasOpenIDLink && canEdit ? '<button class="unlink-oidc-btn bg-warning/20 hover:bg-warning/30 border border-warning/30 text-warning text-xs font-semibold px-2 py-1 rounded inline-flex items-center space-x-1 transition-colors cursor-pointer" data-id="' + u.id + '"><span class="material-symbols text-sm">link_off</span><span>Unlink</span></button>' : ''}
-        <button class="edit-user-btn bg-black-400 hover:bg-black-300 text-white text-xs font-semibold px-2.5 py-1 rounded disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center space-x-1 transition-colors cursor-pointer" ${canEdit ? '' : 'disabled'} data-id="${u.id}">
+        ${u.hasOpenIDLink && canEdit ? '<button class="unlink-oidc-btn bg-warning/20 hover:bg-warning/30 border border-warning/30 text-warning hover:text-white hover:border-warning/50 text-xs font-semibold px-2.5 py-1 rounded inline-flex items-center space-x-1 transition-colors cursor-pointer" data-id="' + u.id + '"><span class="material-symbols text-sm">link_off</span><span>Unlink</span></button>' : ''}
+        <button class="edit-user-btn bg-accent/20 hover:bg-accent/30 border border-accent/30 hover:border-accent/50 text-accent hover:text-white text-xs font-semibold px-2.5 py-1 rounded disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center space-x-1 transition-colors cursor-pointer" ${canEdit ? '' : 'disabled'} data-id="${u.id}">
           <span class="material-symbols text-sm">edit</span>
           <span>Edit</span>
         </button>
@@ -596,7 +596,7 @@ function renderApiKeysListRows(apiKeys, users) {
       <td class="px-4 py-3 text-black-100">${escapeHtml(expiresAtFormatted)}</td>
       <td class="px-4 py-3 text-black-100">${escapeHtml(createdAtFormatted)}</td>
       <td class="px-4 py-3 text-right">
-        <button class="delete-apikey-btn text-error hover:text-red-400 font-semibold text-xs inline-flex items-center space-x-1 transition-colors cursor-pointer" data-id="${key.id}">
+        <button class="delete-apikey-btn bg-red-900/40 hover:bg-red-900/60 border border-red-500/30 text-error hover:text-white hover:border-red-500/50 text-xs font-semibold px-2.5 py-1 rounded inline-flex items-center space-x-1 transition-colors cursor-pointer" data-id="${key.id}">
           <span class="material-symbols text-sm">delete</span>
           <span>Delete</span>
         </button>

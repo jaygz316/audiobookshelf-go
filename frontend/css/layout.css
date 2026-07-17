@@ -35,8 +35,8 @@
     ),
     /* 3. Translucent back wall overlay to reveal wood texture behind books with 3D depth, and overlay tint on the plank */
     linear-gradient(to bottom,
-      rgba(20, 20, 20, 0.75) 0px,
-      rgba(20, 20, 20, 0.55) calc(var(--bookshelf-row-height) - var(--bookshelf-plank-height)),
+      var(--bookshelf-wall-overlay-top) 0px,
+      var(--bookshelf-wall-overlay-bottom) calc(var(--bookshelf-row-height) - var(--bookshelf-plank-height)),
       var(--bookshelf-overlay) calc(var(--bookshelf-row-height) - var(--bookshelf-plank-height)),
       var(--bookshelf-overlay) var(--bookshelf-row-height)
     ),

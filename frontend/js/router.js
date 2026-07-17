@@ -417,5 +417,18 @@ export function navigateTo(path, pushState = true) {
 window.navigateTo = navigateTo;
 
 window.addEventListener('popstate', () => {
+  let relPath = window.location.pathname;
+  const basePath = window.ROUTER_BASE_PATH || '';
+  if (basePath && relPath.startsWith(basePath)) {
+    relPath = relPath.substring(basePath.length);
+  }
+  if (!relPath.startsWith('/')) {
+    relPath = '/' + relPath;
+  }
+
+  const isCurrentlySettings = !!document.getElementById('settings-tabs');
+  if (isCurrentlySettings && relPath === '/settings') {
+    return;
+  }
   navigateTo(window.location.pathname, false);
 });

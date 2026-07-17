@@ -144,16 +144,23 @@ function triggerMatchModal(item, libraryId, mode, onSaveSuccess) {
   // Fetch Providers
   request('GET', '/api/search/providers')
     .then(data => {
-      const providers = isCoverMode ? (data.providers?.booksCovers || []) : (data.providers?.books || []);
+      const providers = mediaType === 'podcast'
+        ? (data.providers?.podcasts || [])
+        : (isCoverMode ? (data.providers?.booksCovers || []) : (data.providers?.books || []));
       providerSelect.innerHTML = providers.map(p => `<option value="${p.value}">${escapeHtml(p.text)}</option>`).join('');
-      // Set default provider (Google Books is a good default, or fallback to first)
-      if (providers.some(p => p.value === 'google')) {
-        providerSelect.value = 'google';
+      // Set default provider (Google Books for books, iTunes for podcasts, or fallback)
+      const defaultVal = mediaType === 'podcast' ? 'itunes' : 'google';
+      if (providers.some(p => p.value === defaultVal)) {
+        providerSelect.value = defaultVal;
       }
     })
     .catch(err => {
       console.error('Failed to load search providers:', err);
-      providerSelect.innerHTML = `<option value="google">Google Books</option><option value="openlibrary">Open Library</option>`;
+      if (mediaType === 'podcast') {
+        providerSelect.innerHTML = `<option value="itunes">iTunes</option>`;
+      } else {
+        providerSelect.innerHTML = `<option value="google">Google Books</option><option value="openlibrary">Open Library</option>`;
+      }
     });
 
   // Search Action
