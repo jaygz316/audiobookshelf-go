@@ -50,6 +50,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Audiobookshelf</title>
   <link rel="icon" type="image/x-icon" href="assets/favicon.ico">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Source+Sans+Pro:ital,wght@0,300;0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
   <!-- Stylesheet compiled via Tailwind CSS -->
   <link rel="stylesheet" href="css/styles.css">
   <!-- Google Cast Sender SDK -->
@@ -83,7 +86,7 @@
     <div class="absolute z-0 top-0 left-0 px-6 py-3">
       <div class="flex items-center">
         <img src="assets/images/icon.svg" alt="Audiobookshelf Logo" class="w-10 min-w-10 h-10" />
-        <h1 class="text-xl ml-4 hidden lg:block hover:underline">audiobookshelf</h1>
+        <h1 class="text-lg ml-4 hidden lg:block hover:underline font-semibold tracking-wide">audiobookshelf</h1>
       </div>
     </div>
 
@@ -355,7 +358,7 @@
             <img src="assets/images/icon.svg" alt="Home" class="w-8 min-w-8 h-8 mr-2 sm:w-10 sm:min-w-10 sm:h-10 sm:mr-4 select-none cursor-pointer">
           </a>
           <a href="#" id="header-title-link" class="focus:outline-none">
-            <h1 class="text-xl mr-6 hidden lg:block hover:underline cursor-pointer select-none font-semibold">audiobookshelf</h1>
+            <h1 class="text-lg mr-6 hidden lg:block hover:underline cursor-pointer select-none font-semibold tracking-wide">audiobookshelf</h1>
           </a>
           
           <!-- Library Dropdown -->
@@ -386,7 +389,7 @@
         </div>
 
         <!-- Search bar -->
-        <div id="global-search-container" class="grow max-w-xs mx-6 hidden md:block relative text-sm h-8">
+        <div id="global-search-container" class="grow max-w-md mx-8 hidden md:block relative text-sm h-8">
           <input type="text" id="global-search-input" placeholder="Search.." class="w-full h-full bg-black/35 border border-white/5 focus:border-white/15 focus:bg-black/50 rounded-full shadow-inner pl-4 pr-8 text-gray-200 placeholder-gray-400 focus:outline-none text-sm transition-all duration-200 animate-none" autocomplete="off">
           <button id="global-search-clear-btn" class="absolute top-0 right-0 bottom-0 h-full flex items-center px-2 text-gray-400 cursor-pointer focus:outline-none" title="Search/Clear">
             <span id="global-search-icon-symbol" class="material-symbols text-lg select-none">search</span>

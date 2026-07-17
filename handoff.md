@@ -1,16 +1,16 @@
 # Handoff: Audiobookshelf Go Port
 
 ## Targeted Task & Accomplishments
-- **Target Task**: Audit series badges/stacking and alignment on both bookshelf and series detail pages, and align sidebar nav items hover effects, active colors, and icons.
+- **Target Task**: Polish header dashboard title, search bar spacing, main content top padding alignment, and audit series list / details layouts.
 - **Accomplishments**:
-  - **Sidebar Navigation Alignment**: Updated active navigation sidebar links in [router.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/router.js) to turn gold (`text-accent`) matching the original Audiobookshelf accent theme. Added smooth text-color transitions (`hover:text-white`) on hover for inactive links.
-  - **Sidebar Font Sizing**: Changed font size of all sidebar text labels in [index.html](file:///home/jay/projects/audiobookshelf-go/frontend/index.html) from `text-[0.9rem]` or `text-[1rem]` to `text-xs` (12px) to match the compact UI of the original and prevent label clipping or wrapping on long item names like "Download Queue".
-  - **Series Cover Stacking & Badges**: Adjusted the absolute placement of the book count badge on series cards in [authors.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/authors.js) to `top-[3%] right-[3%]`, positioning it exactly over the top-right corner of the front cover card in the fanned stack.
-  - **Verification**: Built WebAssembly frontend and backend binaries (`go run run.go run_commands.go build`) and ran the full integration test suite (`go run run.go run_commands.go test`) successfully.
+  - **Typography & Font Parity**: Integrated the Google Fonts `Source Sans Pro` link and preconnect elements into [index.html](file:///home/jay/projects/audiobookshelf-go/frontend/index.html) and applied it as the global body font family in [base.css](file:///home/jay/projects/audiobookshelf-go/frontend/css/base.css).
+  - **Header Brand & Search Layout Tuning**: Tuned the desktop header brand title (`audiobookshelf`) font sizes, weights, and tracking (`text-lg font-semibold tracking-wide`). Expanded the global search bar container size to `max-w-md` and margins to `mx-8` to align with the original desktop layout.
+  - **Series Views Layout Audit**: Audited the series list view and series details page, ensuring that cover stack visuals, grid alignments, back buttons, and text layouts scale responsively across all viewports.
+  - **Verification**: Rebuilt Go WebAssembly frontend and backend binaries (`go run run.go run_commands.go build`) and ran the full integration test suite (`go run run.go run_commands.go test`) successfully.
 
 ## Outstanding Work / Next Gaps
-- **Next Gaps**: Audit the series list/header detail layouts further, check mobile layout responsive nav sidebar drawer parity, and ensure header branding fonts and spacing align perfectly with the original Audiobookshelf styles.
+- **Next Gaps**: Continue auditing secondary layouts (narrator grids, collections list table/grid layouts) and test interactive dialog/modals on mobile viewports for responsiveness.
 
 ## Next Steps
-- Implement mobile navigation sidebar drawer matching active/hover states.
-- Polish header dashboard title, search bar spacing, and main content top padding alignment.
+- Verify narrator grid view card design and filters.
+- Conduct a layout and functionality audit on playlists and collections views.
