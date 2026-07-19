@@ -40,27 +40,27 @@ export async function loadSettings() {
       <div role="tablist" aria-label="Settings categories" class="w-full md:w-64 flex-shrink-0 bg-primary/50 border border-black-400/50 rounded-lg p-2 flex flex-row md:flex-col overflow-x-auto md:overflow-x-visible space-x-1 md:space-x-0 space-y-0 md:space-y-1 h-fit scrollbar-none" id="settings-tabs">
         <!-- SERVER GROUP -->
         <div class="hidden md:block text-[10px] font-bold text-accent uppercase tracking-wider px-3 py-1 mt-2 mb-1">Server</div>
-        <button role="tab" aria-selected="true" class="settings-tab-btn" data-tab="libraries">
+        <button role="tab" aria-selected="true" class="settings-tab-btn flex items-center space-x-3 w-full px-4 py-2 rounded-md transition-colors hover:bg-black-400/50" data-tab="libraries">
           <span class="material-symbols text-lg">local_library</span>
           <span>Libraries</span>
         </button>
-        <button role="tab" aria-selected="false" class="settings-tab-btn" data-tab="users">
+        <button role="tab" aria-selected="false" class="settings-tab-btn flex items-center space-x-3 w-full px-4 py-2 rounded-md transition-colors hover:bg-black-400/50" data-tab="users">
           <span class="material-symbols text-lg">group</span>
           <span>Users</span>
         </button>
-        <button role="tab" aria-selected="false" class="settings-tab-btn" data-tab="listening-sessions">
+        <button role="tab" aria-selected="false" class="settings-tab-btn flex items-center space-x-3 w-full px-4 py-2 rounded-md transition-colors hover:bg-black-400/50" data-tab="listening-sessions">
           <span class="material-symbols text-lg">insights</span>
           <span>Playback Sessions</span>
         </button>
-        <button role="tab" aria-selected="false" class="settings-tab-btn" data-tab="backups">
+        <button role="tab" aria-selected="false" class="settings-tab-btn flex items-center space-x-3 w-full px-4 py-2 rounded-md transition-colors hover:bg-black-400/50" data-tab="backups">
           <span class="material-symbols text-lg">backup</span>
           <span>Backups</span>
         </button>
-        <button role="tab" aria-selected="false" class="settings-tab-btn" data-tab="providers">
+        <button role="tab" aria-selected="false" class="settings-tab-btn flex items-center space-x-3 w-full px-4 py-2 rounded-md transition-colors hover:bg-black-400/50" data-tab="providers">
           <span class="material-symbols text-lg">api</span>
           <span>Custom Metadata Providers</span>
         </button>
-        <button role="tab" aria-selected="false" class="settings-tab-btn" data-tab="logs">
+        <button role="tab" aria-selected="false" class="settings-tab-btn flex items-center space-x-3 w-full px-4 py-2 rounded-md transition-colors hover:bg-black-400/50" data-tab="logs">
           <span class="material-symbols text-lg">description</span>
           <span>System Logs</span>
         </button>
@@ -142,8 +142,10 @@ export async function loadSettings() {
       const updateTabs = () => {
         tabs.forEach(t => {
           t.setAttribute('aria-selected', 'false');
+          t.classList.remove('bg-accent/20', 'text-accent');
         });
         tab.setAttribute('aria-selected', 'true');
+        tab.classList.add('bg-accent/20', 'text-accent');
 
         document.querySelectorAll('#settings-tab-content > div').forEach(content => {
           if (content.id === `tab-${activeTabId}`) {
