@@ -832,13 +832,13 @@ input:checked + .abs-slider:before {
 #library-dropdown-menu,
 #user-dropdown,
 #header-notification-dropdown {
-  background-color: color-mix(in oklab, var(--color-primary) 96%, transparent) !important;
-  backdrop-filter: blur(16px) !important;
-  -webkit-backdrop-filter: blur(16px) !important;
-  border: 1px solid color-mix(in oklab, var(--color-black-400) 60%, transparent) !important;
-  border-radius: 8px !important;
-  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.3), 0 8px 12px -6px rgba(0, 0, 0, 0.3) !important;
-  padding: 4px !important;
+  background-color: color-mix(in oklab, var(--color-primary) 98%, transparent) !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+  border: 1px solid color-mix(in oklab, var(--color-black-400) 80%, transparent) !important;
+  border-radius: 10px !important;
+  box-shadow: 0 15px 35px -10px rgba(0, 0, 0, 0.4), 0 5px 10px -5px rgba(0, 0, 0, 0.2) !important;
+  padding: 6px !important;
 }
 
 /* Make dropdown option hover highlights look clean and responsive */
@@ -855,12 +855,13 @@ input:checked + .abs-slider:before {
 .filter-cat-row-btn:hover {
   background-color: var(--color-black-400) !important;
   color: var(--color-white) !important;
+  transform: translateY(-1px);
 }
 
 .sort-option-btn:active,
 .filter-submenu-option-btn:active,
 .filter-cat-row-btn:active {
-  transform: scale(0.98);
+  transform: scale(0.97);
 }
 
 /* Form Input Focus States */

@@ -199,7 +199,7 @@ async function triggerUserModal(user = null, currentUser, onSaveSuccess) {
       <h3 class="text-lg font-bold border-b border-black-400 pb-2 flex-shrink-0">${isEdit ? 'Edit User' : 'Add User'}</h3>
       
       <form id="user-form" class="space-y-4 flex flex-col flex-grow overflow-hidden">
-        <div class="flex-grow overflow-y-auto pr-1 no-scroll space-y-4">
+        <div class="flex-grow overflow-y-auto pr-2 pb-4 space-y-6">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label class="block text-xs text-black-100 mb-1">Username</label>
@@ -238,10 +238,10 @@ async function triggerUserModal(user = null, currentUser, onSaveSuccess) {
         </div>
 
         <!-- Permissions Section -->
-        <div class="border-t border-black-400 pt-3 space-y-3">
-          <h4 class="text-xs font-semibold text-accent uppercase tracking-wider">Permissions</h4>
+        <div class="space-y-4">
+          <h4 class="text-xs font-semibold text-accent uppercase tracking-wider border-b border-black-400 pb-2">Permissions</h4>
           
-          <div class="flex flex-col space-y-3">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-y-3 gap-x-6">
             <label class="flex items-center space-x-3 cursor-pointer text-sm">
               <span class="abs-switch">
                 <input type="checkbox" id="perm-download" ${perms.download !== false ? 'checked' : ''}>
