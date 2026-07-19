@@ -255,6 +255,31 @@
   scrollbar-width: none !important;  /* Firefox */
 }
 
+#sidebar {
+  background-color: var(--color-primary, #232323) !important;
+}
+
+#siderail-buttons-container a {
+  background-color: transparent !important;
+  color: var(--color-black-50, #bbbbbb) !important;
+  border-bottom: none !important;
+}
+
+#siderail-buttons-container a:hover {
+  background-color: var(--color-black-400, #333333) !important;
+  color: var(--color-white, #ffffff) !important;
+}
+
+#siderail-buttons-container a.active {
+  background-color: rgba(229, 169, 59, 0.12) !important;
+  color: var(--color-accent, #e5a93b) !important;
+}
+
+#siderail-buttons-container a.active .active-indicator {
+  transform: scaleY(1) !important;
+  opacity: 1 !important;
+}
+
 /* Desktop Collapsible Sidebar Styling */
 @media (min-width: 768px) {
   #sidebar {

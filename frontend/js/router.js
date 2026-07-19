@@ -17,16 +17,14 @@ export function highlightSidebarLink(pageName) {
     if (!p) return;
     const name = p.textContent.trim();
     if (name === pageName) {
-      link.classList.remove('hover:bg-primary', 'hover:text-white', 'text-white/80', 'text-white', 'bg-bg/60');
-      link.classList.add('bg-primary/80', 'text-accent');
+      link.classList.add('active');
       p.classList.add('font-semibold');
       const activeBar = link.querySelector('.active-indicator');
       if (activeBar) {
         activeBar.classList.add('active');
       }
     } else {
-      link.classList.remove('bg-primary/80', 'text-accent', 'text-white');
-      link.classList.add('hover:bg-primary', 'hover:text-white', 'text-white/80', 'bg-bg/60');
+      link.classList.remove('active');
       p.classList.remove('font-semibold');
       const activeBar = link.querySelector('.active-indicator');
       if (activeBar) {
@@ -355,8 +353,7 @@ export function navigateTo(path, pushState = true) {
     } else if (relPath === '/settings') {
       // Deselect sidebar highlights
       document.querySelectorAll('#siderail-buttons-container a').forEach(l => {
-        l.classList.remove('bg-primary/80', 'text-white', 'text-accent');
-        l.classList.add('hover:bg-primary', 'hover:text-white', 'text-white/80', 'bg-bg/60');
+        l.classList.remove('active');
         const activeBar = l.querySelector('.active-indicator');
         if (activeBar) activeBar.classList.remove('active');
       });

@@ -390,9 +390,10 @@
 
         <!-- Search bar -->
         <div id="global-search-container" class="grow max-w-md mx-8 hidden md:block relative text-sm h-8">
-          <input type="text" id="global-search-input" placeholder="Search.." class="w-full h-full bg-black/35 border border-white/5 focus:border-white/15 focus:bg-black/50 rounded-full shadow-inner pl-4 pr-8 text-gray-200 placeholder-gray-400 focus:outline-none text-sm transition-all duration-200 animate-none" autocomplete="off">
-          <button id="global-search-clear-btn" class="absolute top-0 right-0 bottom-0 h-full flex items-center px-2 text-gray-400 cursor-pointer focus:outline-none" title="Search/Clear">
-            <span id="global-search-icon-symbol" class="material-symbols text-lg select-none">search</span>
+          <span class="material-symbols absolute left-3 top-1/2 -translate-y-1/2 text-lg text-gray-400 pointer-events-none select-none">search</span>
+          <input type="text" id="global-search-input" placeholder="Search.." class="w-full h-full bg-black/35 border border-white/5 focus:border-white/15 focus:bg-black/50 rounded-full shadow-inner pl-10 pr-9 text-gray-200 placeholder-gray-400 focus:outline-none text-sm transition-all duration-200 animate-none" autocomplete="off">
+          <button id="global-search-clear-btn" class="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center justify-center p-1 rounded-full text-black-100 hover:text-white hover:bg-black-400/60 focus:outline-none hidden" title="Clear Search">
+            <span class="material-symbols text-[16px]">close</span>
           </button>
           <div id="global-search-announcement" class="sr-only" aria-live="polite"></div>
           
@@ -493,84 +494,84 @@
         <nav id="siderail-buttons-container" class="w-full flex flex-col overflow-y-auto overflow-x-hidden">
           
           <!-- Home Link (Active by default) -->
-          <a id="sidebar-home" href="#" class="w-full h-20 flex flex-col items-center justify-center text-white border-b border-primary/70 hover:bg-primary cursor-pointer relative bg-primary/80" title="Home">
+          <a id="sidebar-home" href="#" class="w-full h-20 flex flex-col items-center justify-center cursor-pointer relative active" title="Home">
             <span class="material-symbols text-2xl">home</span>
             <p class="pt-1.5 text-center leading-4 text-xs font-semibold">Home</p>
             <div class="active-indicator h-full w-0.5 bg-accent absolute top-0 left-0 active"></div>
           </a>
 
           <!-- Library Link -->
-          <a id="sidebar-library" href="#" class="w-full h-20 flex flex-col items-center justify-center text-white/80 border-b border-primary/70 hover:bg-primary cursor-pointer relative bg-bg/60" title="Library">
+          <a id="sidebar-library" href="#" class="w-full h-20 flex flex-col items-center justify-center cursor-pointer relative" title="Library">
             <span class="material-symbols text-2xl">import_contacts</span>
             <p class="pt-1.5 text-center leading-4 text-xs">Library</p>
             <div class="active-indicator h-full w-0.5 bg-accent absolute top-0 left-0"></div>
           </a>
 
           <!-- Podcast Latest Link -->
-          <a id="sidebar-latest" href="#" class="w-full h-20 flex flex-col items-center justify-center text-white/80 border-b border-primary/70 hover:bg-primary cursor-pointer relative bg-bg/60 hidden" title="Latest">
+          <a id="sidebar-latest" href="#" class="w-full h-20 flex flex-col items-center justify-center cursor-pointer relative hidden" title="Latest">
             <span class="material-symbols text-2xl">podcasts</span>
             <p class="pt-1 text-center leading-4 text-xs">Latest</p>
             <div class="active-indicator h-full w-0.5 bg-accent absolute top-0 left-0"></div>
           </a>
 
           <!-- Series Link -->
-          <a id="sidebar-series" href="#" class="w-full h-20 flex flex-col items-center justify-center text-white/80 border-b border-primary/70 hover:bg-primary cursor-pointer relative bg-bg/60 hidden" title="Series">
+          <a id="sidebar-series" href="#" class="w-full h-20 flex flex-col items-center justify-center cursor-pointer relative hidden" title="Series">
             <span class="material-symbols text-2.5xl">layers</span>
             <p class="pt-1 text-center leading-4 text-xs">Series</p>
             <div class="active-indicator h-full w-0.5 bg-accent absolute top-0 left-0"></div>
           </a>
 
           <!-- Collections Link -->
-          <a id="sidebar-collections" href="#" class="w-full h-20 flex flex-col items-center justify-center text-white/80 border-b border-primary/70 hover:bg-primary cursor-pointer relative bg-bg/60 hidden" title="Collections">
+          <a id="sidebar-collections" href="#" class="w-full h-20 flex flex-col items-center justify-center cursor-pointer relative hidden" title="Collections">
             <span class="material-symbols text-2.5xl">bookmarks</span>
             <p class="pt-1 text-center leading-4 text-xs">Collections</p>
             <div class="active-indicator h-full w-0.5 bg-accent absolute top-0 left-0"></div>
           </a>
 
           <!-- Playlists Link -->
-          <a id="sidebar-playlists" href="#" class="w-full h-20 flex flex-col items-center justify-center text-white/80 border-b border-primary/70 hover:bg-primary cursor-pointer relative bg-bg/60 hidden" title="Playlists">
+          <a id="sidebar-playlists" href="#" class="w-full h-20 flex flex-col items-center justify-center cursor-pointer relative hidden" title="Playlists">
             <span class="material-symbols text-2.5xl">playlist_play</span>
             <p class="pt-1 text-center leading-4 text-xs">Playlists</p>
             <div class="active-indicator h-full w-0.5 bg-accent absolute top-0 left-0"></div>
           </a>
 
           <!-- Authors Link -->
-          <a id="sidebar-authors" href="#" class="w-full h-20 flex flex-col items-center justify-center text-white/80 border-b border-primary/70 hover:bg-primary cursor-pointer relative bg-bg/60 hidden" title="Authors">
+          <a id="sidebar-authors" href="#" class="w-full h-20 flex flex-col items-center justify-center cursor-pointer relative hidden" title="Authors">
             <span class="material-symbols text-2xl">groups</span>
             <p class="pt-1 text-center leading-4 text-xs">Authors</p>
             <div class="active-indicator h-full w-0.5 bg-accent absolute top-0 left-0"></div>
           </a>
 
           <!-- Narrators Link -->
-          <a id="sidebar-narrators" href="#" class="w-full h-20 flex flex-col items-center justify-center text-white/80 border-b border-primary/70 hover:bg-primary cursor-pointer relative bg-bg/60 hidden" title="Narrators">
+          <a id="sidebar-narrators" href="#" class="w-full h-20 flex flex-col items-center justify-center cursor-pointer relative hidden" title="Narrators">
             <span class="material-symbols text-2xl">record_voice_over</span>
             <p class="pt-1 text-center leading-4 text-xs">Narrators</p>
             <div class="active-indicator h-full w-0.5 bg-accent absolute top-0 left-0"></div>
           </a>
 
           <!-- Stats Link -->
-          <a id="sidebar-stats" href="#" class="w-full h-20 flex flex-col items-center justify-center text-white/80 border-b border-primary/70 hover:bg-primary cursor-pointer relative bg-bg/60 hidden" title="Stats">
+          <a id="sidebar-stats" href="#" class="w-full h-20 flex flex-col items-center justify-center cursor-pointer relative hidden" title="Stats">
             <span class="material-symbols text-2xl">bar_chart</span>
             <p class="pt-1 text-center leading-4 text-xs">Stats</p>
             <div class="active-indicator h-full w-0.5 bg-accent absolute top-0 left-0"></div>
           </a>
 
           <!-- Podcast Add Link -->
-          <a id="sidebar-add" href="#" class="w-full h-20 flex flex-col items-center justify-center text-white/80 border-b border-primary/70 hover:bg-primary cursor-pointer relative bg-bg/60 hidden" title="Add Episode/Podcast">
+          <a id="sidebar-add" href="#" class="w-full h-20 flex flex-col items-center justify-center cursor-pointer relative hidden" title="Add Episode/Podcast">
             <span class="material-symbols text-2xl">add_circle</span>
             <p class="pt-1.5 text-center leading-4 text-xs">Add</p>
             <div class="active-indicator h-full w-0.5 bg-accent absolute top-0 left-0"></div>
           </a>
 
           <!-- Podcast Download Queue Link -->
-          <a id="sidebar-download-queue" href="#" class="w-full h-20 flex flex-col items-center justify-center text-white/80 border-b border-primary/70 hover:bg-primary cursor-pointer relative bg-bg/60 hidden" title="Download Queue">
+          <a id="sidebar-download-queue" href="#" class="w-full h-20 flex flex-col items-center justify-center cursor-pointer relative hidden" title="Download Queue">
             <span class="material-symbols text-2xl">downloading</span>
             <p class="pt-1.5 text-center leading-4 text-xs">Download Queue</p>
             <div class="active-indicator h-full w-0.5 bg-accent absolute top-0 left-0"></div>
           </a>
 
           <!-- Issues Link -->
-          <a id="sidebar-issues" href="#" class="w-full h-20 flex flex-col items-center justify-center text-white/80 border-b border-primary/70 hover:bg-error/40 cursor-pointer relative bg-error/20 hidden" title="Issues">
+          <a id="sidebar-issues" href="#" class="w-full h-20 flex flex-col items-center justify-center cursor-pointer relative bg-error/20 hover:bg-error/30 hidden" title="Issues">
             <span class="material-symbols text-2xl">warning</span>
             <p class="pt-1.5 text-center leading-4 text-xs">Issues</p>
             <div class="active-indicator h-full w-0.5 bg-accent absolute top-0 left-0"></div>
