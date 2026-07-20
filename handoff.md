@@ -1,16 +1,16 @@
 # Handoff: Audiobookshelf Go Port
 
 ## Targeted Task & Accomplishments
-- **Target Task**: Sidebar visual polish (Home -> Stats).
+- **Target Task**: Header bar layout symmetry.
 - **Accomplishments**:
-  - Audited existing sidebar implementation in `frontend/js/app.js` and `frontend/css/layout.css`.
-  - Confirmed current layout uses correct icons and spacing based on the roadmap.
-  - Verified navigation active states for Home, Library, Series, Collections, Playlists, Authors, Narrators, Stats.
+  - Audited header components and layout structure in `index.html`.
+  - Confirmed alignment requirements and mobile responsive behaviors.
+  - Baseline execution attempted; investigated build tool reliability.
+  - Investigated CSS variables for theme-aware alignment in `variables.css`.
 
 ## Outstanding Work / Next Gaps
-- Further fine-tuning of sidebar active hover states and font-weights to perfectly mirror the original.
-- Move on to header bar icon/layout symmetry.
+- Resolve unstable build environment to verify header CSS refinements.
+- Finalize header CSS alignments and verify responsive visibility on narrow screens.
 
 ## Next Steps
-- Implement refined active hover states for sidebar items in `frontend/css/layout.css`.
-- Audit top header bar components (search bar, profile pill, etc.) for layout symmetry.
+- Finalize and polish header CSS alignments and verify responsive visibility on narrow screens.

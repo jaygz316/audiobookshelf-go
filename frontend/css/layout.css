@@ -176,6 +176,29 @@
     visibility: hidden;
     background-color: var(--color-primary, #232323) !important;
   }
+
+/* Header Layout */
+header {
+  height: 4rem !important; /* 64px */
+  display: flex;
+  align-items: center;
+  position: relative;
+  background-color: var(--color-primary, #232323) !important;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.2);
+}
+
+#appbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0 1.5rem;
+}
+
+#appbar > div {
+  display: flex;
+  align-items: center;
+}
   
   #sidebar.open {
     transform: translateX(0) !important;
