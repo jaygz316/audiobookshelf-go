@@ -100,6 +100,14 @@ div[tabindex="0"].cursor-pointer:focus-within {
 .card-hover-overlay {
   backdrop-filter: blur(4px) !important;
   -webkit-backdrop-filter: blur(4px) !important;
+  pointer-events: none;
+}
+
+.bookshelf-card:hover .card-hover-overlay,
+.bookshelf-card:focus-visible .card-hover-overlay,
+.bookshelf-card:focus-within .card-hover-overlay {
+  opacity: 1 !important;
+  pointer-events: auto;
 }
 
 /* Row-scoped specific overrides and group styles */
@@ -1562,14 +1570,14 @@ google-cast-launcher:hover {
 #book-count {
   display: inline-flex !important;
   align-items: center !important;
-  background-color: rgba(229, 169, 59, 0.1) !important;
-  border: 1px solid rgba(229, 169, 59, 0.25) !important;
-  color: var(--color-accent, #e5a93b) !important;
+  background-color: #2c2c2c !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  color: var(--color-white, #ffffff) !important;
   border-radius: 9999px !important;
-  padding: 0.05rem 0.6rem !important;
-  font-size: 0.7rem !important;
-  font-weight: 700 !important;
-  letter-spacing: 0.03em !important;
+  padding: 0.15rem 0.8rem !important;
+  font-size: 0.75rem !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.02em !important;
 }
 
 /* Library view style switcher — active state button */

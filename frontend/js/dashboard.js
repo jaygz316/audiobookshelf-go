@@ -607,7 +607,8 @@ export function createCard(item, isContinue, libraryId, shelfId = '') {
     </div>
     
     <!-- Hover overlay -->
-    <div class="card-hover-overlay absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col justify-between p-3 select-none text-left z-30 font-sans">
+    <div class="card-hover-overlay absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col justify-between p-3 select-none text-left z-30 font-sans pointer-events-none group-focus-within:opacity-100">
+
       <div class="overflow-y-auto no-scroll pr-4">
         <h4 class="font-semibold text-xs md:text-sm text-white leading-tight mb-1 truncate" title="${escapeHtml(title)}">${escapeHtml(title)}</h4>
         <p class="text-[10px] md:text-xs text-black-100 truncate" title="${escapeHtml(author)}">${escapeHtml(author)}</p>
@@ -629,7 +630,7 @@ export function createCard(item, isContinue, libraryId, shelfId = '') {
 
       <!-- Top-right Edit button -->
       ${userCanUpdate ? `
-        <button class="absolute top-2 right-2 cursor-pointer text-white/80 hover:text-accent hover:scale-110 transition-transform duration-150 edit-btn p-1 pointer-events-auto focus:outline-none" title="Edit Details">
+        <button class="absolute top-2 right-2 cursor-pointer text-white/80 hover:text-accent hover:scale-110 transition-transform duration-150 edit-btn p-1 pointer-events-auto" title="Edit Details">
           <span class="material-symbols text-base">edit</span>
         </button>
       ` : ''}
