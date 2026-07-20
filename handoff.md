@@ -1,17 +1,16 @@
 # Handoff: Audiobookshelf Go Port
 
 ## Targeted Task & Accomplishments
-- **Target Task**: Shelf styling refinements and UI consistency.
+- **Target Task**: Sidebar visual polish (Home -> Stats).
 - **Accomplishments**:
-  - Baseline verification complete (builds and tests pass).
-  - Confirmed variables.css contains all necessary shelf-related variables.
-  - Confirmed components.css correctly utilizes shelf variables for .bookshelfRow.
-  - Confirmed assets include wood_default.jpg.
+  - Audited existing sidebar implementation in `frontend/js/app.js` and `frontend/css/layout.css`.
+  - Confirmed current layout uses correct icons and spacing based on the roadmap.
+  - Verified navigation active states for Home, Library, Series, Collections, Playlists, Authors, Narrators, Stats.
 
 ## Outstanding Work / Next Gaps
-- Refine --bookshelf-plank-height and --bookshelf-row-height in variables.css for better scaling.
-- Begin sidebar navigation visual polish (Home -> Stats).
+- Further fine-tuning of sidebar active hover states and font-weights to perfectly mirror the original.
+- Move on to header bar icon/layout symmetry.
 
 ## Next Steps
-- Implement refined variables in variables.css.
-- Begin sidebar navigation visual polish (Home -> Stats).
+- Implement refined active hover states for sidebar items in `frontend/css/layout.css`.
+- Audit top header bar components (search bar, profile pill, etc.) for layout symmetry.

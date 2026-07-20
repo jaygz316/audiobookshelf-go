@@ -709,14 +709,18 @@ input:checked + .abs-slider:before {
 #siderail-buttons-container a {
   transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
 }
+#siderail-buttons-container a:hover {
+  background-color: var(--color-black-400, #333333);
+  color: var(--color-white, #ffffff);
+}
 
 /* Active indicator transition */
 .active-indicator {
   transition: opacity 0.2s ease-in-out, transform 0.2s ease-in-out !important;
   transform: scaleY(0);
   opacity: 0;
-  width: 3px !important;
-  background-color: var(--color-accent, #f59e0b) !important;
+  width: 4px !important;
+  background-color: var(--color-accent, #e5a93b) !important;
   display: block !important; /* Overrides hidden utility if needed */
 }
 
