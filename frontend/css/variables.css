@@ -78,8 +78,8 @@
 :root {
   --bookshelf-card-width: 120px;
   --bookshelf-card-height: calc(var(--bookshelf-card-width) * 1.5);
-  --bookshelf-plank-height: calc(var(--bookshelf-card-width) * 0.15 + 6px);
-  --bookshelf-row-height: calc(var(--bookshelf-card-height) + var(--bookshelf-plank-height) + 30px);
+  --bookshelf-plank-height: calc(var(--bookshelf-card-width) * 0.12 + 4px);
+  --bookshelf-row-height: calc(var(--bookshelf-card-height) + var(--bookshelf-plank-height) + 20px);
   --bookshelf-plank-top: #a3795a;
   --bookshelf-plank-mid: rgb(122, 94, 68);
   --bookshelf-plank-bottom: rgb(71, 48, 25);
