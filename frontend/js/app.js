@@ -520,6 +520,9 @@ function setupEventHandlers() {
         sliderInput.value = currentSize;
       }
       document.documentElement.style.setProperty('--bookshelf-card-width', `${currentSize}px`);
+      document.documentElement.style.setProperty('--bookshelf-card-height', `${currentSize * 1.5}px`);
+      document.documentElement.style.setProperty('--bookshelf-plank-height', `${currentSize * 0.15 + 6}px`);
+      document.documentElement.style.setProperty('--bookshelf-row-height', `${currentSize * 1.5 + (currentSize * 0.15 + 6) + 30}px`);
     };
 
     updateSize(currentSize);

@@ -2,8 +2,8 @@
 .library-grid {
   display: grid !important;
   grid-template-columns: repeat(auto-fill, minmax(var(--bookshelf-card-width, 120px), 1fr)) !important;
-  gap: 1.5rem !important;
-  padding: 1.5rem !important;
+  gap: 2rem !important;
+  padding: 2rem !important;
   justify-items: center !important;
 }
 
@@ -11,6 +11,7 @@
 .library-grid .bookshelf-card {
   width: var(--bookshelf-card-width) !important;
   height: var(--bookshelf-card-height) !important;
+  margin-bottom: 1rem !important;
 }
 
 /* Library Bookshelf Wrap-Around Grid Layout */
