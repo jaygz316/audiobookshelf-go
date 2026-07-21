@@ -1,4 +1,4 @@
-const CACHE_NAME = 'audiobookshelf-v3';
+const CACHE_NAME = 'audiobookshelf-v4';
 const ASSETS = [
   '/',
   '/index.html',
@@ -55,6 +55,28 @@ self.addEventListener('fetch', (event) => {
     url.pathname.endsWith('/init') ||
     event.request.method !== 'GET'
   ) {
+    return;
+  }
+
+  // Network-First strategy for JS, CSS, and WASM assets to ensure latest build is always loaded
+  if (
+    url.pathname.startsWith('/js/') ||
+    url.pathname.startsWith('/css/') ||
+    url.pathname.endsWith('.wasm') ||
+    url.pathname === '/' ||
+    url.pathname === '/index.html'
+  ) {
+    event.respondWith(
+      fetch(event.request).then((networkResponse) => {
+        if (networkResponse && networkResponse.status === 200) {
+          const responseToCache = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, responseToCache);
+          });
+        }
+        return networkResponse;
+      }).catch(() => caches.match(event.request))
+    );
     return;
   }
 
