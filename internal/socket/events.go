@@ -22,6 +22,8 @@ func InitAuthority(database interface {
 // InitSocketAuthority initializes the global Socket.IO server and handlers using a proper db.
 func InitSocketAuthority(sa *Authority) http.Handler {
 	opts := gosocket.DefaultServerOptions()
+	opts.SetPath("/socket.io")
+	opts.SetAllowEIO3(true)
 	cors := &types.Cors{
 		Origin:      "*",
 		Methods:     []string{"GET", "POST"},
@@ -29,7 +31,7 @@ func InitSocketAuthority(sa *Authority) http.Handler {
 	}
 	opts.SetCors(cors)
 	opts.SetAllowUpgrades(true)
-	opts.SetTransports(types.NewSet("websocket", "polling"))
+	opts.SetTransports(types.NewSet("polling", "websocket"))
 
 	server := gosocket.NewServer(nil, opts)
 	sa.io = server

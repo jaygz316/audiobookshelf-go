@@ -95,7 +95,7 @@
 .library-shelf-grid > .bookshelf-card,
 .library-shelf-grid > .group {
   align-self: end !important;
-  margin-bottom: var(--bookshelf-plank-height) !important;
+  margin-bottom: calc(var(--bookshelf-plank-height) + 4px) !important;
   width: var(--bookshelf-card-width) !important;
   height: var(--bookshelf-card-height) !important;
 }
@@ -406,6 +406,36 @@ header {
 #bookshelf.podcast-library {
   --bookshelf-card-height: var(--bookshelf-card-width) !important;
   --bookshelf-row-height: calc(var(--bookshelf-card-height) + var(--bookshelf-plank-height) + 30px) !important;
+}
+
+/* Responsive toolbar adjustments */
+.library-grid-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 1.5rem;
+  background-color: var(--color-primary, #232323);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.4);
+  gap: 1rem;
+  flex-wrap: wrap;
+  min-height: 3.5rem;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.library-grid-toolbar .toolbar-left,
+.library-grid-toolbar .toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+@media (max-width: 767.98px) {
+  .library-grid-toolbar {
+    padding: 0.5rem 1rem;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
 }
 
 
