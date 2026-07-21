@@ -283,6 +283,7 @@ input:checked + .abs-slider:before {
 
 .bookshelfRow .series-cover-front,
 .library-shelf-grid .series-cover-front,
+.library-grid .series-cover-front,
 .series-detail-cover-stack .series-cover-front {
   -webkit-box-reflect: var(--bookshelf-reflect);
 }
