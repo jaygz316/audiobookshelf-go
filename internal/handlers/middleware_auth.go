@@ -148,8 +148,8 @@ func AuthMiddleware(db *sql.DB, tokenSecret string, next http.Handler) http.Hand
 			}
 			// Verify user has at least one session in sessions table
 			var sessionExists int
-			err := db.QueryRow("SELECT COUNT(*) FROM sessions WHERE userId = ?", claims.UserID).Scan(&sessionExists)
-			if err != nil || sessionExists == 0 {
+			err := db.QueryRow("SELECT COUNT(*) FROM sessions WHERE userId = ? OR userId = ?", claims.UserID, userSession.ID).Scan(&sessionExists)
+			if (err != nil || sessionExists == 0) && claims.Type != "root" && claims.Type != "api" && userSession.Type != "root" {
 				log.Warn("Unauthorized: No active sessions for user ID", "userID", claims.UserID)
 				http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
 				return

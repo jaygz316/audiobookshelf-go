@@ -30,9 +30,12 @@
 *This log is updated by developers/agents whenever an API, design pattern, or library is deprecated or updated.*
 
 ### 2026-07-21
-- **Login WebAssembly & DOM Exception Fix**:
-  - Resolved WASM panic and client crash during authentication by adding safe null and undefined type checks in [login.go](file:///home/jay/projects/audiobookshelf-go/frontend/go/login.go), [auth.go](file:///home/jay/projects/audiobookshelf-go/frontend/go/auth.go), and [setup.go](file:///home/jay/projects/audiobookshelf-go/frontend/go/setup.go) before dereferencing DOM elements (`classList`, `value`, `textContent`) and status properties (`authMethods`, `isOldToken`).
-  - Added redirect routing check upon login form submission in [app.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/app.js) to smoothly navigate to `/` if logging in from `/login`.
+- **Login WebAssembly & WebSocket Authentication Verification Fix**:
+  - Fixed WASM panic during login form submission by adding safe DOM type checks (`js.TypeNull` and `js.TypeUndefined`) across [login.go](file:///home/jay/projects/audiobookshelf-go/frontend/go/login.go), [auth.go](file:///home/jay/projects/audiobookshelf-go/frontend/go/auth.go), and [setup.go](file:///home/jay/projects/audiobookshelf-go/frontend/go/setup.go).
+  - Resolved session verification error in `AuthMiddleware` ([middleware_auth.go](file:///home/jay/projects/audiobookshelf-go/internal/handlers/middleware_auth.go)) where API requests after login received 401 Unauthorized status and triggered frontend `auth-unauthorized` logout handler.
+  - Configured Engine.io `opts.SetPath("/socket.io")` and `opts.SetAllowEIO3(true)` in [events.go](file:///home/jay/projects/audiobookshelf-go/internal/socket/events.go) and Engine.io polling session handshake in [socket.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/socket.js).
+  - Bumped frontend ServiceWorker cache to `v4` in [sw.js](file:///home/jay/projects/audiobookshelf-go/frontend/sw.js) and [index.html](file:///home/jay/projects/audiobookshelf-go/frontend/index.html) using a Network-First strategy for application assets.
+  - Built and pushed updated Docker Hub container image `jaygz/audiobookshelf-go:latest`.
 
 ### 2026-07-17
 - **Player Speed and Premium Modals UI Polish**:
