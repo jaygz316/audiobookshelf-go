@@ -905,7 +905,7 @@
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        const CURRENT_VERSION = 'v3'; // Increment when sw.js changes to force cleanup
+        const CURRENT_VERSION = 'v4'; // Increment when sw.js changes to force cleanup
         const cachedVersion = localStorage.getItem('sw_version');
         
         if (cachedVersion !== CURRENT_VERSION) {

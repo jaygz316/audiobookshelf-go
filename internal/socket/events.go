@@ -28,6 +28,8 @@ func InitSocketAuthority(sa *Authority) http.Handler {
 		Credentials: true,
 	}
 	opts.SetCors(cors)
+	opts.SetAllowUpgrades(true)
+	opts.SetTransports(types.NewSet("websocket", "polling"))
 
 	server := gosocket.NewServer(nil, opts)
 	sa.io = server

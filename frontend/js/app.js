@@ -120,6 +120,9 @@ function setupEventHandlers() {
         if (token) {
           localStorage.setItem('token', token);
           bootstrapApp(response);
+          if (window.location.pathname === '/login') {
+            navigateTo('/', true);
+          }
         } else {
           throw new Error('Invalid response structure from server');
         }

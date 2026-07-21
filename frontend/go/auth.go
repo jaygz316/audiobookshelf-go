@@ -3,7 +3,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"syscall/js"
 )
@@ -76,24 +75,29 @@ func initAuthGo(this js.Value, args []js.Value) any {
 			if payload.Type() != js.TypeUndefined && payload.Type() != js.TypeNull {
 				user := payload.Get("user")
 				if user.Type() != js.TypeUndefined && user.Type() != js.TypeNull {
-					if user.Get("isOldToken").Type() != js.TypeUndefined && user.Get("isOldToken").Bool() {
+					isOldTokenVal := user.Get("isOldToken")
+					if isOldTokenVal.Type() != js.TypeUndefined && isOldTokenVal.Type() != js.TypeNull && isOldTokenVal.Bool() {
 						fmt.Println("User has old token. Forcing re-login.")
 						js.Global().Get("localStorage").Call("removeItem", "token")
 						showLoginScreenGo(js.Undefined(), []js.Value{status})
 
 						usernameInput := js.Global().Get("document").Call("getElementById", "username")
-						if usernameInput.Type() != js.TypeNull {
+						if usernameInput.Type() != js.TypeNull && usernameInput.Type() != js.TypeUndefined {
 							usernameInput.Set("value", user.Get("username"))
 						}
 
 						authWarning := js.Global().Get("document").Call("getElementById", "login-auth-warning")
-						if authWarning.Type() != js.TypeNull {
+						if authWarning.Type() != js.TypeNull && authWarning.Type() != js.TypeUndefined {
 							authWarning.Get("classList").Call("remove", "hidden")
 							authWarning.Get("classList").Call("add", "flex")
 
 							moreInfoLink := js.Global().Get("document").Call("getElementById", "login-auth-warning-more-info")
-							if moreInfoLink.Type() != js.TypeNull {
-								userType := user.Get("type").String()
+							if moreInfoLink.Type() != js.TypeNull && moreInfoLink.Type() != js.TypeUndefined {
+								userTypeVal := user.Get("type")
+								var userType string
+								if userTypeVal.Type() != js.TypeUndefined && userTypeVal.Type() != js.TypeNull {
+									userType = userTypeVal.String()
+								}
 								if userType == "admin" || userType == "root" {
 									moreInfoLink.Get("classList").Call("remove", "hidden")
 								} else {
@@ -109,10 +113,7 @@ func initAuthGo(this js.Value, args []js.Value) any {
 
 			showAppContainerGo(js.Undefined(), nil)
 
-			// Convert payload object back to JS context return
-			var result any
-			json.Unmarshal([]byte(js.Global().Get("JSON").Call("stringify", payload).String()), &result)
-			resolve.Invoke(valueToJS(result))
+			resolve.Invoke(payload)
 		}()
 		return nil
 	}))

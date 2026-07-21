@@ -9,12 +9,18 @@ import (
 
 func showLoginScreenGo(this js.Value, args []js.Value) any {
 	doc := js.Global().Get("document")
-	doc.Call("getElementById", "login-screen").Get("classList").Call("remove", "hidden")
-	doc.Call("getElementById", "setup-screen").Get("classList").Call("add", "hidden")
-	doc.Call("getElementById", "app-container").Get("classList").Call("add", "hidden")
+	if loginScreen := doc.Call("getElementById", "login-screen"); loginScreen.Type() != js.TypeNull && loginScreen.Type() != js.TypeUndefined {
+		loginScreen.Get("classList").Call("remove", "hidden")
+	}
+	if setupScreen := doc.Call("getElementById", "setup-screen"); setupScreen.Type() != js.TypeNull && setupScreen.Type() != js.TypeUndefined {
+		setupScreen.Get("classList").Call("add", "hidden")
+	}
+	if appContainer := doc.Call("getElementById", "app-container"); appContainer.Type() != js.TypeNull && appContainer.Type() != js.TypeUndefined {
+		appContainer.Get("classList").Call("add", "hidden")
+	}
 
 	authWarning := doc.Call("getElementById", "login-auth-warning")
-	if authWarning.Type() != js.TypeNull {
+	if authWarning.Type() != js.TypeNull && authWarning.Type() != js.TypeUndefined {
 		authWarning.Get("classList").Call("add", "hidden")
 		authWarning.Get("classList").Call("remove", "flex")
 	}
@@ -36,10 +42,15 @@ func applyStatusToLoginScreenGo(status js.Value) {
 	customMessageEl := doc.Call("getElementById", "login-custom-message")
 
 	var methods []string
-	if status.Type() != js.TypeUndefined && status.Type() != js.TypeNull && status.Get("authMethods").Type() != js.TypeUndefined {
-		length := status.Get("authMethods").Get("length").Int()
-		for i := 0; i < length; i++ {
-			methods = append(methods, status.Get("authMethods").Index(i).String())
+	if status.Type() != js.TypeUndefined && status.Type() != js.TypeNull {
+		authMethods := status.Get("authMethods")
+		if authMethods.Type() != js.TypeUndefined && authMethods.Type() != js.TypeNull {
+			length := authMethods.Get("length").Int()
+			for i := 0; i < length; i++ {
+				methods = append(methods, authMethods.Index(i).String())
+			}
+		} else {
+			methods = []string{"local"}
 		}
 	} else {
 		methods = []string{"local"}
@@ -56,13 +67,13 @@ func applyStatusToLoginScreenGo(status js.Value) {
 		}
 	}
 
-	if hasLocal && localForm.Type() != js.TypeNull {
+	if hasLocal && localForm.Type() != js.TypeNull && localForm.Type() != js.TypeUndefined {
 		localForm.Get("classList").Call("remove", "hidden")
-	} else if localForm.Type() != js.TypeNull {
+	} else if localForm.Type() != js.TypeNull && localForm.Type() != js.TypeUndefined {
 		localForm.Get("classList").Call("add", "hidden")
 	}
 
-	if customMessageEl.Type() != js.TypeNull {
+	if customMessageEl.Type() != js.TypeNull && customMessageEl.Type() != js.TypeUndefined {
 		hasCustom := false
 		var customHTML string
 		if status.Type() != js.TypeUndefined && status.Type() != js.TypeNull {
@@ -86,9 +97,9 @@ func applyStatusToLoginScreenGo(status js.Value) {
 		}
 	}
 
-	if hasOpenID && oidcBtn.Type() != js.TypeNull {
+	if hasOpenID && oidcBtn.Type() != js.TypeNull && oidcBtn.Type() != js.TypeUndefined {
 		oidcBtn.Get("classList").Call("remove", "hidden")
-		if divider.Type() != js.TypeNull {
+		if divider.Type() != js.TypeNull && divider.Type() != js.TypeUndefined {
 			divider.Get("classList").Call("remove", "hidden")
 		}
 
@@ -110,7 +121,7 @@ func applyStatusToLoginScreenGo(status js.Value) {
 			}
 		}
 
-		if oidcBtnText.Type() != js.TypeNull {
+		if oidcBtnText.Type() != js.TypeNull && oidcBtnText.Type() != js.TypeUndefined {
 			oidcBtnText.Set("textContent", btnText)
 		}
 
@@ -135,9 +146,9 @@ func applyStatusToLoginScreenGo(status js.Value) {
 				triggerOidcRedirect()
 			}
 		}
-	} else if oidcBtn.Type() != js.TypeNull {
+	} else if oidcBtn.Type() != js.TypeNull && oidcBtn.Type() != js.TypeUndefined {
 		oidcBtn.Get("classList").Call("add", "hidden")
-		if divider.Type() != js.TypeNull {
+		if divider.Type() != js.TypeNull && divider.Type() != js.TypeUndefined {
 			divider.Get("classList").Call("add", "hidden")
 		}
 	}
@@ -145,8 +156,14 @@ func applyStatusToLoginScreenGo(status js.Value) {
 
 func showAppContainerGo(this js.Value, args []js.Value) any {
 	doc := js.Global().Get("document")
-	doc.Call("getElementById", "login-screen").Get("classList").Call("add", "hidden")
-	doc.Call("getElementById", "setup-screen").Get("classList").Call("add", "hidden")
-	doc.Call("getElementById", "app-container").Get("classList").Call("remove", "hidden")
+	if loginScreen := doc.Call("getElementById", "login-screen"); loginScreen.Type() != js.TypeNull && loginScreen.Type() != js.TypeUndefined {
+		loginScreen.Get("classList").Call("add", "hidden")
+	}
+	if setupScreen := doc.Call("getElementById", "setup-screen"); setupScreen.Type() != js.TypeNull && setupScreen.Type() != js.TypeUndefined {
+		setupScreen.Get("classList").Call("add", "hidden")
+	}
+	if appContainer := doc.Call("getElementById", "app-container"); appContainer.Type() != js.TypeNull && appContainer.Type() != js.TypeUndefined {
+		appContainer.Get("classList").Call("remove", "hidden")
+	}
 	return nil
 }

@@ -9,9 +9,15 @@ import (
 
 func showSetupScreenGo(this js.Value, args []js.Value) any {
 	doc := js.Global().Get("document")
-	doc.Call("getElementById", "setup-screen").Get("classList").Call("remove", "hidden")
-	doc.Call("getElementById", "login-screen").Get("classList").Call("add", "hidden")
-	doc.Call("getElementById", "app-container").Get("classList").Call("add", "hidden")
+	if setupScreen := doc.Call("getElementById", "setup-screen"); setupScreen.Type() != js.TypeNull && setupScreen.Type() != js.TypeUndefined {
+		setupScreen.Get("classList").Call("remove", "hidden")
+	}
+	if loginScreen := doc.Call("getElementById", "login-screen"); loginScreen.Type() != js.TypeNull && loginScreen.Type() != js.TypeUndefined {
+		loginScreen.Get("classList").Call("add", "hidden")
+	}
+	if appContainer := doc.Call("getElementById", "app-container"); appContainer.Type() != js.TypeNull && appContainer.Type() != js.TypeUndefined {
+		appContainer.Get("classList").Call("add", "hidden")
+	}
 
 	var status js.Value
 	if len(args) > 0 {

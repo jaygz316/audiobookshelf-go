@@ -282,7 +282,8 @@ input:checked + .abs-slider:before {
 }
 
 .bookshelfRow .series-cover-front,
-.library-shelf-grid .series-cover-front {
+.library-shelf-grid .series-cover-front,
+.series-detail-cover-stack .series-cover-front {
   -webkit-box-reflect: var(--bookshelf-reflect);
 }
 
@@ -299,14 +300,14 @@ input:checked + .abs-slider:before {
   left: 7%;
   z-index: 15;
   opacity: 0.85;
-  transform: translate(calc(var(--bookshelf-card-width, 120px) * 0.1), calc(var(--bookshelf-card-width, 120px) * 0.05)) rotate(8deg);
+  transform: translate(calc(var(--bookshelf-card-width) * 0.12), calc(var(--bookshelf-card-width) * 0.04)) rotate(8deg);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
 }
 
 .group:hover .series-cover-middle,
 .series-cover-stack:hover .series-cover-middle {
-  transform: translate(calc(var(--bookshelf-card-width, 120px) * 0.15), calc(var(--bookshelf-card-width, 120px) * 0.067)) rotate(12deg);
-  opacity: 0.95;
+  transform: translate(calc(var(--bookshelf-card-width) * 0.25), calc(var(--bookshelf-card-width) * 0.1)) rotate(24deg);
+  opacity: 1;
 }
 
 .series-cover-back {
@@ -316,14 +317,14 @@ input:checked + .abs-slider:before {
   left: 9%;
   z-index: 10;
   opacity: 0.65;
-  transform: translate(calc(var(--bookshelf-card-width, 120px) * -0.133), calc(var(--bookshelf-card-width, 120px) * 0.067)) rotate(-12deg);
+  transform: translate(calc(var(--bookshelf-card-width) * -0.12), calc(var(--bookshelf-card-width) * 0.06)) rotate(-12deg);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 .group:hover .series-cover-back,
 .series-cover-stack:hover .series-cover-back {
-  transform: translate(calc(var(--bookshelf-card-width, 120px) * -0.2), calc(var(--bookshelf-card-width, 120px) * 0.083)) rotate(-16deg);
-  opacity: 0.8;
+  transform: translate(calc(var(--bookshelf-card-width) * -0.25), calc(var(--bookshelf-card-width) * 0.1)) rotate(-24deg);
+  opacity: 0.9;
 }
 
 .series-cover-back-two {
@@ -333,14 +334,14 @@ input:checked + .abs-slider:before {
   left: 6%;
   z-index: 10;
   opacity: 0.8;
-  transform: translate(calc(var(--bookshelf-card-width, 120px) * -0.083), calc(var(--bookshelf-card-width, 120px) * 0.033)) rotate(-6deg);
+  transform: translate(calc(var(--bookshelf-card-width) * -0.083), calc(var(--bookshelf-card-width) * 0.033)) rotate(-6deg);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
 }
 
 .group:hover .series-cover-back-two,
 .series-cover-stack:hover .series-cover-back-two {
-  transform: translate(calc(var(--bookshelf-card-width, 120px) * -0.133), calc(var(--bookshelf-card-width, 120px) * 0.05)) rotate(-10deg);
-  opacity: 0.9;
+  transform: translate(calc(var(--bookshelf-card-width) * -0.22), calc(var(--bookshelf-card-width) * 0.08)) rotate(-16deg);
+  opacity: 0.95;
 }
 
 /* Interactive player timeline styling */

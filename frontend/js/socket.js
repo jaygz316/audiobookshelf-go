@@ -10,15 +10,37 @@ let ws = null;
 let pingIntervalId = null;
 const eventListeners = {};
 
-export function connectSocket(token) {
+export async function connectSocket(token) {
   if (ws) {
     disconnectSocket();
   }
 
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const httpProtocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
   const host = window.location.host;
-  const wsPath = resolvePath('/socket.io/');
-  const wsUrl = `${protocol}//${host}${wsPath}?EIO=4&transport=websocket`;
+  const basePath = resolvePath('/socket.io/');
+
+  let sid = '';
+  try {
+    const pollingUrl = `${httpProtocol}//${host}${basePath}?EIO=4&transport=polling&t=${Date.now()}`;
+    const res = await fetch(pollingUrl);
+    if (res.ok) {
+      const text = await res.text();
+      if (text.startsWith('0')) {
+        const payload = JSON.parse(text.substring(1));
+        if (payload && payload.sid) {
+          sid = payload.sid;
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('[Socket] Engine.io polling handshake failed:', err);
+  }
+
+  let wsUrl = `${protocol}//${host}${basePath}?EIO=4&transport=websocket`;
+  if (sid) {
+    wsUrl += `&sid=${sid}`;
+  }
 
   console.log('[Socket] Connecting to:', wsUrl);
   ws = new WebSocket(wsUrl);

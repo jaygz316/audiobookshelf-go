@@ -29,6 +29,11 @@
 
 *This log is updated by developers/agents whenever an API, design pattern, or library is deprecated or updated.*
 
+### 2026-07-21
+- **Login WebAssembly & DOM Exception Fix**:
+  - Resolved WASM panic and client crash during authentication by adding safe null and undefined type checks in [login.go](file:///home/jay/projects/audiobookshelf-go/frontend/go/login.go), [auth.go](file:///home/jay/projects/audiobookshelf-go/frontend/go/auth.go), and [setup.go](file:///home/jay/projects/audiobookshelf-go/frontend/go/setup.go) before dereferencing DOM elements (`classList`, `value`, `textContent`) and status properties (`authMethods`, `isOldToken`).
+  - Added redirect routing check upon login form submission in [app.js](file:///home/jay/projects/audiobookshelf-go/frontend/js/app.js) to smoothly navigate to `/` if logging in from `/login`.
+
 ### 2026-07-17
 - **Player Speed and Premium Modals UI Polish**:
   - Dynamically populated all speed dropdown selectors (`#player-speed`, `#expanded-speed`, and `#speed-default-select` in the settings dialog) to support fine-grained playback speed controls from 0.5x to 3.0x in 0.05x increments.
