@@ -467,6 +467,23 @@ function createSeriesCard(series) {
     }
   });
 
+  // If series object contains progress summary from backend (series.progress)
+  if (series.progress && (series.progress.libraryItemIds?.length || series.progress.libraryItemIdsFinished?.length)) {
+    const totalCount = series.progress.libraryItemIds?.length || (series.books?.length || 0);
+    const finishedCount = series.progress.libraryItemIdsFinished?.length || 0;
+    const isFinished = series.progress.isFinished || (totalCount > 0 && finishedCount === totalCount);
+    const percent = totalCount > 0 ? finishedCount / totalCount : 0;
+    if (percent > 0) {
+      const container = card.querySelector('.series-progress-bar-container');
+      const fill = card.querySelector('.series-progress-bar-fill');
+      if (container && fill) {
+        fill.style.width = `${percent * 100}%`;
+        fill.className = `series-progress-bar-fill h-full ${isFinished ? 'bg-success' : 'bg-accent'}`;
+        container.classList.remove('hidden');
+      }
+    }
+  }
+
   // Pre-populate progressCache with any userProgress returned in bulk from backend
   if (series.books) {
     series.books.forEach(b => {
@@ -873,7 +890,10 @@ export async function loadSeriesDetails(seriesId) {
         </div>
         <!-- Series Info Header -->
         <div class="flex flex-col md:flex-row gap-6 bg-black-600 p-6 rounded-lg border border-black-400">
-          <div class="series-detail-cover-stack mx-auto md:mx-0 flex-shrink-0">
+          <div class="series-detail-cover-stack mx-auto md:mx-0 flex-shrink-0 relative">
+            <div class="absolute top-[3%] right-[3%] bg-accent text-primary text-[11px] font-bold px-2 py-0.5 rounded-full z-30 shadow-md border border-accent/20">
+              ${totalBooks}
+            </div>
             ${coversHtml}
           </div>
           <div class="flex-grow flex flex-col justify-between text-center md:text-left space-y-4">

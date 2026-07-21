@@ -413,9 +413,9 @@ header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0.75rem 1.5rem;
-  background-color: var(--color-bg, #2c2c2c);
-  border-bottom: 1px solid rgba(0, 0, 0, 0.3);
+  padding: 0.5rem 1rem;
+  background-color: var(--color-black-500, #2c2c2c);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.4);
   gap: 1rem;
   flex-wrap: wrap;
   min-height: 4rem;
@@ -443,6 +443,18 @@ header {
     width: 100%;
     gap: 0.5rem;
   }
+}
+
+/* Header Dropdown Button Styling */
+#library-dropdown-btn {
+  background-color: var(--color-black-400, #333333) !important;
+  border-radius: 4px !important;
+  padding: 0.5rem 1rem !important;
+  transition: background-color 0.15s ease !important;
+}
+
+#library-dropdown-btn:hover {
+  background-color: var(--color-black-500, #404040) !important;
 }
 
 
