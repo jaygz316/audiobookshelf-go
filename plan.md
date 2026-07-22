@@ -1,16 +1,12 @@
-# Implementation Plan - Series Stack Cascading Cards Refinement
+# Plan: Bookshelf View & Cards Alignment
 
-## Target Goal
-Refine the Series Stack Cascading Cards across `/series` grid, Author Series lists, and Series Details views to ensure 3D reflections, count badge symmetry, dynamic progress bar rendering from backend payload, and smooth mobile viewport fanning.
+## Objective
+Implement `-webkit-box-reflect` and refine hover shadows for bookshelf cards in `frontend/css/layout.css` to match the original project's premium feel.
 
-## Proposed Changes
-1. **`frontend/css/components.css`**:
-   - Add `.library-grid .series-cover-front` to the `-webkit-box-reflect` rule so that series cards in the main `/series` grid show book cover reflections.
-   - Adjust `.series-cover-stack` and `.series-detail-cover-stack` styles for high-contrast count badge and responsive hover fanning.
-
-2. **`frontend/js/authors.js`**:
-   - Update `createSeriesCard`:
-     - Synchronously check `series.progress` (returned by `/api/libraries/:id/series`) to set the series progress bar width immediately without waiting for async `progressCache` resolution.
-     - Enforce exact badge positioning (`top-1 right-1`) and styling (`bg-accent text-primary text-[10px] font-bold px-2 py-0.5 rounded-full z-30 shadow-md`).
-   - Update `loadSeriesDetails`:
-     - Add the count badge (`top-1 right-1`) to the `.series-detail-cover-stack` header element.
+## Plan
+1. Edit `frontend/css/layout.css`.
+2. Locate `.library-shelf-grid > .group .book-cover-wrapper`.
+3. Add `-webkit-box-reflect` rule with reflection offset, gradient, and alpha settings.
+4. Refine `.library-shelf-grid > .group:hover .book-cover-wrapper` box-shadows to add a more pronounced glow/depth.
+5. Rebuild the frontend assets (since CSS changes require rebuilding the embedded assets).
+6. Verify visual changes with a local build.
