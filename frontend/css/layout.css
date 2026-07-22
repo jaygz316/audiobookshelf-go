@@ -117,12 +117,12 @@
   height: 100% !important;
   border-radius: 6px;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5), 0 2px 4px rgba(0, 0, 0, 0.4);
-  -webkit-box-reflect: below 6px linear-gradient(to bottom, rgba(255, 255, 255, 0.5) 0px, rgba(255, 255, 255, 0.15) 50%, transparent 85%);
-  transition: box-shadow 0.2s ease;
+  -webkit-box-reflect: below 8px linear-gradient(to bottom, rgba(255, 255, 255, 0.3) 0px, rgba(255, 255, 255, 0.05) 50%, transparent 80%);
+  transition: box-shadow 0.25s ease, transform 0.25s ease;
 }
 
 .library-shelf-grid > .group:hover .book-cover-wrapper {
-  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.9), 0 10px 20px rgba(0, 0, 0, 0.7), 0 4px 10px rgba(229, 169, 59, 0.35);
+  box-shadow: 0 35px 60px rgba(0, 0, 0, 0.9), 0 15px 30px rgba(0, 0, 0, 0.7), 0 0 20px rgba(229, 169, 59, 0.6);
 }
 
 .library-shelf-grid > .group img {
@@ -185,6 +185,8 @@ header {
   position: relative;
   background-color: var(--color-primary, #232323) !important;
   border-bottom: 1px solid rgba(0, 0, 0, 0.4);
+  padding: 0 1rem;
+  justify-content: space-between;
 }
 
 #appbar {
@@ -393,11 +395,17 @@ header {
 }
 
 /* Mobile Header Button Adjustments to prevent crowding */
-@media (max-width: 767.98px) {
-  #header-settings-btn,
-  #header-activity-btn,
-  #header-upload-btn {
+/* Mobile Header Button Adjustments to prevent crowding */
+@media (max-width: 450px) {
+  #header-actions-container {
     display: none !important;
+  }
+}
+
+@media (min-width: 451px) {
+  #header-actions-container {
+    display: flex !important;
+    gap: 0.5rem !important;
   }
 }
 
@@ -456,6 +464,32 @@ header {
 #library-dropdown-btn:hover {
   background-color: var(--color-black-500, #404040) !important;
 }
+
+/* Header Action Button Styling */
+#header-actions-container button {
+  background-color: var(--color-black-600, #111111) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 9999px !important;
+  transition: all 0.15s ease !important;
+  height: 2.25rem; /* Standardize height */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#user-menu-btn {
+  height: 2.25rem !important; /* Ensure user pill matches */
+  display: flex;
+  align-items: center;
+  padding: 0 0.75rem !important;
+}
+
+#header-actions-container button:hover {
+  background-color: var(--color-black-500, #222222) !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+  color: var(--color-white, #ffffff) !important;
+}
+
 
 
 

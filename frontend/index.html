@@ -429,45 +429,47 @@
             </div>
           </div>
 
-          <!-- Server Activity Button -->
-          <button id="header-activity-btn" class="w-9 h-9 flex items-center justify-center text-black-50 hover:text-white transition-colors duration-150 focus:outline-none hover:bg-black-500/50 rounded-full cursor-pointer" title="Server Activity">
-            <span class="material-symbols text-2xl font-normal">query_stats</span>
-          </button>
+          <div id="header-actions-container" class="flex items-center gap-2">
+            <!-- Server Activity Button -->
+            <button id="header-activity-btn" class="w-9 h-9 flex items-center justify-center text-black-50 hover:text-white transition-colors duration-150 focus:outline-none hover:bg-black-500/50 rounded-full cursor-pointer" title="Server Activity">
+              <span class="material-symbols text-2xl font-normal">query_stats</span>
+            </button>
 
-          <!-- Upload Button (admin/root only) -->
-          <button id="header-upload-btn" class="hidden w-9 h-9 flex items-center justify-center text-black-50 hover:text-white transition-colors duration-150 focus:outline-none hover:bg-black-500/50 rounded-full cursor-pointer" title="Upload Media">
-            <span class="material-symbols text-2xl font-normal">upload</span>
-          </button>
+            <!-- Upload Button (admin/root only) -->
+            <button id="header-upload-btn" class="hidden w-9 h-9 flex items-center justify-center text-black-50 hover:text-white transition-colors duration-150 focus:outline-none hover:bg-black-500/50 rounded-full cursor-pointer" title="Upload Media">
+              <span class="material-symbols text-2xl font-normal">upload</span>
+            </button>
 
-          <!-- Settings Gear Button (admin/root only) -->
-          <button id="header-settings-btn" class="hidden w-9 h-9 flex items-center justify-center text-black-50 hover:text-white transition-colors duration-150 focus:outline-none hover:bg-black-500/50 rounded-full cursor-pointer" title="Settings">
-            <span class="material-symbols text-2xl font-normal">settings</span>
-          </button>
+            <!-- Settings Gear Button (admin/root only) -->
+            <button id="header-settings-btn" class="hidden w-9 h-9 flex items-center justify-center text-black-50 hover:text-white transition-colors duration-150 focus:outline-none hover:bg-black-500/50 rounded-full cursor-pointer" title="Settings">
+              <span class="material-symbols text-2xl font-normal">settings</span>
+            </button>
+          </div>
 
           <!-- User Profile Button Pill -->
-          <div class="relative">
-            <button id="user-menu-btn" class="relative bg-black-600 border border-black-400/50 hover:bg-black-500 rounded-full px-2 py-1 flex items-center space-x-2 text-xs font-semibold text-white shadow transition-colors duration-150 focus:outline-none select-none cursor-pointer" aria-label="User Profile">
+          <div class="relative flex items-center h-full">
+            <button id="user-menu-btn" class="relative bg-black-600 border border-black-400/50 hover:bg-black-500 rounded-full px-3 py-1.5 flex items-center space-x-2 text-xs font-semibold text-white shadow transition-all duration-150 focus:outline-none select-none cursor-pointer hover:border-black-300" aria-label="User Profile">
               <div class="w-6 h-6 rounded-full bg-accent text-primary font-bold flex items-center justify-center text-[10px] uppercase shadow-inner" id="user-initials">JG</div>
               <span id="user-menu-username" class="hidden md:block truncate text-xs font-bold text-white">jaygz</span>
               <span class="material-symbols text-[14px] text-black-100">keyboard_arrow_down</span>
             </button>
 
-            <!-- User Dropdown (Mockup) -->
-            <div id="user-dropdown" class="absolute right-0 mt-2 w-56 bg-primary border border-black-300 rounded shadow-lg hidden py-1 z-50">
-              <div class="px-4 py-2 border-b border-black-400">
-                <p id="user-display-name" class="text-sm font-semibold text-white">John Doe</p>
-                <p id="user-display-role" class="text-xs text-black-50">Library Admin</p>
+            <!-- User Dropdown -->
+            <div id="user-dropdown" class="absolute right-0 mt-3 w-56 bg-primary border border-black-300 rounded-md shadow-2xl hidden py-1 z-50">
+              <div class="px-4 py-3 border-b border-black-600/50">
+                <p id="user-display-name" class="text-sm font-semibold text-white truncate">John Doe</p>
+                <p id="user-display-role" class="text-[11px] text-black-100 uppercase tracking-wider mt-0.5">Library Admin</p>
               </div>
-              <a href="#" id="user-menu-settings-btn" class="flex items-center space-x-2 px-4 py-2 text-sm text-black-50 hover:bg-black-400 hover:text-white hidden">
+              <a href="#" id="user-menu-settings-btn" class="flex items-center space-x-3 px-4 py-2.5 text-sm text-black-50 hover:bg-black-400 hover:text-white transition-colors hidden">
                 <span class="material-symbols text-lg">settings</span>
                 <span>Settings</span>
               </a>
-              <a href="#" id="user-menu-admin-btn" class="flex items-center space-x-2 px-4 py-2 text-sm text-black-50 hover:bg-black-400 hover:text-white hidden">
+              <a href="#" id="user-menu-admin-btn" class="flex items-center space-x-3 px-4 py-2.5 text-sm text-black-50 hover:bg-black-400 hover:text-white transition-colors hidden">
                 <span class="material-symbols text-lg">admin_panel_settings</span>
                 <span>Administration</span>
               </a>
-              <div class="border-t border-black-400 my-1"></div>
-              <a href="#" id="logout-btn" class="flex items-center space-x-2 px-4 py-2 text-sm text-error hover:bg-black-400">
+              <div class="border-t border-black-600/50 my-1"></div>
+              <a href="#" id="logout-btn" class="flex items-center space-x-3 px-4 py-2.5 text-sm text-error hover:bg-black-400/50 transition-colors">
                 <span class="material-symbols text-lg">logout</span>
                 <span>Logout</span>
               </a>
@@ -618,7 +620,7 @@
             
             <!-- Custom Filter Dropdown -->
             <div class="relative flex items-center space-x-1">
-              <button id="filter-dropdown-btn" class="flex items-center space-x-1 bg-black-600/40 hover:bg-black-500 px-2.5 py-1 rounded border border-black-300/30 text-black-50 hover:text-white transition duration-150 focus:outline-none">
+              <button id="filter-dropdown-btn" class="flex items-center space-x-1 bg-black-600 border border-black-300/50 hover:bg-black-500 rounded px-2.5 h-8 text-xs font-semibold text-white/90 transition duration-150 focus:outline-none focus:border-accent">
                 <span class="material-symbols text-[14px]">filter_list</span>
                 <span id="filter-selected-label">Filter: All</span>
                 <span class="material-symbols text-[12px] text-black-100">keyboard_arrow_down</span>
@@ -626,7 +628,7 @@
               <button id="filter-clear-btn" class="hidden flex items-center justify-center p-1 rounded-full text-black-100 hover:text-red-400 hover:bg-black-500 focus:outline-none" title="Clear Filter">
                 <span class="material-symbols text-[16px]">close</span>
               </button>
-              <div id="filter-dropdown-menu" class="absolute right-0 mt-1.5 w-48 sm:w-44 bg-[#2c2c2c] border border-black-400/50 rounded shadow-2xl py-1 hidden z-50 transform origin-top-right transition-all scale-95 opacity-0 duration-150">
+              <div id="filter-dropdown-menu" class="absolute right-0 mt-1.5 w-48 sm:w-44 bg-black-500 border border-black-400/50 rounded shadow-2xl py-1 hidden z-50 transform origin-top-right transition-all scale-95 opacity-0 duration-150">
                 <!-- Dynamic categories loaded in app.js -->
               </div>
               <!-- Filter Submenu Flyout -->
