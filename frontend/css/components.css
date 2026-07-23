@@ -1046,9 +1046,14 @@ textarea:focus {
 
 /* Selected Library Row Border styling (brand orange/gold highlight) */
 .library-row.border-accent {
-  border-left-color: #e88024 !important;
-  border-color: #e88024 !important;
+  border-left-color: var(--color-accent, #e88024) !important;
+  border-color: var(--color-accent, #e88024) !important;
 }
+
+.library-row:hover {
+  border-color: var(--color-accent, #e88024) !important;
+}
+
 
 /* Settings Page Form Buttons styling */
 #settings-tab-content button {

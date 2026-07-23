@@ -1,14 +1,15 @@
 # Handoff: Audiobookshelf Go Port
 
 ## Targeted Task & Accomplishments
-- **Target Task**: Refine bookshelf card reflection and hover shadow.
+- **Target Task**: Audit Settings > Libraries UI for visual alignment and parity.
 - **Accomplishments**:
-  - Refined bookshelf card box-shadow to be more subtle and premium-looking in `frontend/css/components.css`.
-  - Verified visual changes with full build/rebuild cycle.
+  - Researched Settings > Libraries UI components in `frontend/js/settings.js`.
+  - Implemented updated CSS styles and class structures for `library-row` to mirror original orange border highlights and improved row spacing.
 
 ## Outstanding Work / Next Gaps
-- Align Library Grid toolbar controls (Filter, Sort, Batch Edit buttons).
+- Verify CSS styles persist across page transitions and theme changes.
 
 ## Next Steps
-- Audit `.library-grid-toolbar` and refine button alignment/spacing.
-- Continue next UI priority target.
+- Continue audit of other settings panes for UI parity.
+- Proceed to Library Grid UI if Settings parity is complete.
+

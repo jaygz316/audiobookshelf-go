@@ -1,12 +1,14 @@
-# Plan: Bookshelf View & Cards Alignment
+# Plan: Audit Library Settings UI Parity
 
-## Objective
-Implement `-webkit-box-reflect` and refine hover shadows for bookshelf cards in `frontend/css/layout.css` to match the original project's premium feel.
-
-## Plan
-1. Edit `frontend/css/layout.css`.
-2. Locate `.library-shelf-grid > .group .book-cover-wrapper`.
-3. Add `-webkit-box-reflect` rule with reflection offset, gradient, and alpha settings.
-4. Refine `.library-shelf-grid > .group:hover .book-cover-wrapper` box-shadows to add a more pronounced glow/depth.
-5. Rebuild the frontend assets (since CSS changes require rebuilding the embedded assets).
-6. Verify visual changes with a local build.
+1.  **Objective**: Align Settings > Libraries list UI with original Audiobookshelf premium aesthetic.
+2.  **Tasks**:
+    *   Review `renderLibrariesTab` in `frontend/js/settings.js`.
+    *   Verify CSS usage for `library-row`.
+    *   Apply premium styling consistent with global theme variables in `variables.css`.
+    *   Improve hover effects, border highlights, and padding to match reference.
+    *   Ensure consistency with `components.css` classes.
+3.  **Plan**:
+    *   Check `components.css` for existing library-row style definitions.
+    *   Modify `renderLibrariesTab` HTML if needed to match the required structure.
+    *   Add specific CSS classes to `components.css` to match the "wooden shelf" / "premium" look if missing.
+    *   Verify and commit.
