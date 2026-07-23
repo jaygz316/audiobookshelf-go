@@ -186,7 +186,7 @@ function renderListeningSessionsListRows(sessions) {
 
   sessions.forEach(session => {
     const tr = document.createElement('tr');
-    tr.className = 'hover:bg-black-500/30';
+    tr.className = 'hover:bg-black-500/20 transition-colors border-b border-black-400/20';
 
     const timeListenedFormatted = formatSessionTime(session.timeListened);
     const lastTimeFormatted = formatSessionTime(session.lastTime);
@@ -199,7 +199,7 @@ function renderListeningSessionsListRows(sessions) {
     let actionsHtml = '';
     if (canClose) {
       actionsHtml = `
-        <button class="close-session-btn bg-red-900/40 hover:bg-red-900/60 border border-red-500/30 text-error hover:text-white hover:border-red-500/50 text-xs font-semibold px-2.5 py-1 rounded inline-flex items-center space-x-1 transition-colors cursor-pointer" data-id="${session.id}">
+        <button class="close-session-btn bg-black-500/50 hover:bg-red-900/60 border border-black-300 hover:border-red-500/50 text-black-100 hover:text-white text-xs font-semibold px-3 py-1 rounded inline-flex items-center space-x-1.5 transition-all cursor-pointer" data-id="${session.id}">
           <span class="material-symbols text-sm">close</span>
           <span>Close Session</span>
         </button>
@@ -228,7 +228,7 @@ function renderListeningSessionsListRows(sessions) {
         );
         if (confirmed) {
           try {
-            await request('DELETE', `/api/playback-sessions/${session.id}`);
+            await request('DELETE', `/api/playback-sessions/${session.id}/`);
             // Note: socket listener will automatically remove it and re-render.
             // But we can also remove it locally right away for an instant UI update:
             currentSessions = currentSessions.filter(s => s.id !== session.id);
