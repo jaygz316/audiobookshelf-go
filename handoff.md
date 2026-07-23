@@ -6,7 +6,7 @@
   - Refined settings button styles (Save Schedule, Create Backup, Add User, Add API Key, Delete buttons) to match premium UI.
   - Standardized button components with `rounded`, `shadow-sm`, and explicit `font-bold` for better visual hierarchy across Settings tabs.
   - Verified UI consistency for user and API key settings tabs.
-  - Successfully built and tested changes.
+  - Successfully built, tested, pushed, and deployed updated Docker container.
 
 ## Outstanding Work / Next Gaps
 - Further audit of other settings tabs for component style consistency.
