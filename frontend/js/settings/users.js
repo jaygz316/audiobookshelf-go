@@ -32,7 +32,7 @@ export async function renderUsersTab() {
             <h3 class="text-lg font-semibold">Users</h3>
             <p class="text-xs text-black-100 mt-1">Manage user accounts, authentication types, and access permissions.</p>
           </div>
-          <button id="add-user-btn" class="bg-accent hover:opacity-90 text-primary font-bold px-4 py-2 rounded transition-opacity flex items-center space-x-1.5 text-sm">
+          <button id="add-user-btn" class="bg-accent hover:opacity-90 text-primary font-bold px-4 py-2 rounded shadow-sm transition-opacity flex items-center space-x-1.5 text-sm">
             <span class="material-symbols text-lg">person_add</span>
             <span>Add User</span>
           </button>
@@ -106,11 +106,11 @@ function renderUsersListRows(users, currentUser) {
       <td class="px-4 py-3 text-xs text-black-100">${createdAtFormatted}</td>
       <td class="px-4 py-3 text-right space-x-2">
         ${u.hasOpenIDLink && canEdit ? '<button class="unlink-oidc-btn bg-warning/20 hover:bg-warning/30 border border-warning/30 text-warning hover:text-white hover:border-warning/50 text-xs font-semibold px-2.5 py-1 rounded inline-flex items-center space-x-1 transition-colors cursor-pointer" data-id="' + u.id + '"><span class="material-symbols text-sm">link_off</span><span>Unlink</span></button>' : ''}
-        <button class="edit-user-btn bg-accent/20 hover:bg-accent/30 border border-accent/30 hover:border-accent/50 text-accent hover:text-white text-xs font-semibold px-2.5 py-1 rounded disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center space-x-1 transition-colors cursor-pointer" ${canEdit ? '' : 'disabled'} data-id="${u.id}">
+        <button class="edit-user-btn bg-accent/20 hover:bg-accent/30 border border-accent/30 hover:border-accent/50 text-accent hover:text-white text-xs font-bold px-3 py-1.5 rounded shadow-sm disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center space-x-1 transition-colors cursor-pointer" ${canEdit ? '' : 'disabled'} data-id="${u.id}">
           <span class="material-symbols text-sm">edit</span>
           <span>Edit</span>
         </button>
-        <button class="delete-user-btn bg-red-900/40 hover:bg-red-900/60 border border-red-500/30 text-error hover:text-white hover:border-red-500/50 text-xs font-semibold px-2.5 py-1 rounded disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center space-x-1 transition-colors cursor-pointer" ${canDelete ? '' : 'disabled'} data-id="${u.id}">
+        <button class="delete-user-btn bg-red-900/40 hover:bg-red-900/60 border border-red-500/30 text-error hover:text-white hover:border-red-500/50 text-xs font-bold px-3 py-1.5 rounded shadow-sm disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center space-x-1 transition-colors cursor-pointer" ${canDelete ? '' : 'disabled'} data-id="${u.id}">
           <span class="material-symbols text-sm">delete</span>
           <span>Delete</span>
         </button>
@@ -524,7 +524,7 @@ export async function renderApiKeysTab() {
       <div class="space-y-4">
         <div class="flex justify-between items-center">
           <h3 class="text-lg font-semibold text-white">API Keys</h3>
-          <button id="add-apikey-btn" class="bg-accent hover:opacity-90 text-primary font-bold px-4 py-2 rounded text-xs transition-opacity flex items-center space-x-1">
+          <button id="add-apikey-btn" class="bg-accent hover:opacity-90 text-primary font-bold px-4 py-2 rounded shadow-sm text-xs transition-opacity flex items-center space-x-1">
             <span class="material-symbols text-sm">add</span>
             <span>Add API Key</span>
           </button>
@@ -596,7 +596,7 @@ function renderApiKeysListRows(apiKeys, users) {
       <td class="px-4 py-3 text-black-100">${escapeHtml(expiresAtFormatted)}</td>
       <td class="px-4 py-3 text-black-100">${escapeHtml(createdAtFormatted)}</td>
       <td class="px-4 py-3 text-right">
-        <button class="delete-apikey-btn bg-red-900/40 hover:bg-red-900/60 border border-red-500/30 text-error hover:text-white hover:border-red-500/50 text-xs font-semibold px-2.5 py-1 rounded inline-flex items-center space-x-1 transition-colors cursor-pointer" data-id="${key.id}">
+        <button class="delete-apikey-btn bg-red-900/40 hover:bg-red-900/60 border border-red-500/30 text-error hover:text-white hover:border-red-500/50 text-xs font-bold px-3 py-1.5 rounded shadow-sm inline-flex items-center space-x-1 transition-colors cursor-pointer" data-id="${key.id}">
           <span class="material-symbols text-sm">delete</span>
           <span>Delete</span>
         </button>
