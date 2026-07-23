@@ -245,12 +245,12 @@ async function renderServerSettingsTab() {
     const corsValue = (settings.allowedCorsOrigins || '').split(',').map(s => s.trim()).filter(Boolean).join('\n');
 
     container.innerHTML = `
-      <form id="server-settings-form" class="space-y-6 bg-primary border border-black-300 p-6 rounded-md">
+      <form id="server-settings-form" class="space-y-6 bg-[#2c2c2c] border border-black-400/50 p-6 rounded-md">
         <h3 class="text-lg font-semibold border-b border-black-400 pb-2">Server Settings</h3>
         
         <!-- Category 1: General Settings -->
         <div class="space-y-4">
-          <h4 class="text-md font-semibold text-accent">General Settings</h4>
+          <h4 class="text-md font-semibold text-[#f5bf58]">General Settings</h4>
           
           <div>
             <label class="block text-xs font-semibold text-black-100 uppercase tracking-wider mb-2">Interface Language</label>
@@ -309,7 +309,7 @@ async function renderServerSettingsTab() {
 
         <!-- Category 2: Scanner Settings -->
         <div class="space-y-4">
-          <h4 class="text-md font-semibold text-accent">Scanner Settings</h4>
+          <h4 class="text-md font-semibold text-[#f5bf58]">Scanner Settings</h4>
 
           <div class="flex flex-col space-y-3">
             <label class="flex items-center space-x-3 cursor-pointer text-sm">
@@ -360,7 +360,7 @@ async function renderServerSettingsTab() {
 
         <!-- Category 3: Web Client Settings -->
         <div class="space-y-4">
-          <h4 class="text-md font-semibold text-accent">Web Client Settings</h4>
+          <h4 class="text-md font-semibold text-[#f5bf58]">Web Client Settings</h4>
           
           <div class="flex flex-col space-y-3">
             <label class="flex items-center space-x-3 cursor-pointer text-sm">
@@ -384,7 +384,7 @@ async function renderServerSettingsTab() {
 
         <!-- Category 4: Display Settings -->
         <div class="space-y-4">
-          <h4 class="text-md font-semibold text-accent">Display Settings</h4>
+          <h4 class="text-md font-semibold text-[#f5bf58]">Display Settings</h4>
 
           <div class="flex flex-col space-y-3">
             <label class="flex items-center space-x-3 cursor-pointer text-sm">
@@ -436,7 +436,7 @@ async function renderServerSettingsTab() {
 
         <!-- Category 5: Security Settings -->
         <div class="space-y-4">
-          <h4 class="text-md font-semibold text-accent">Security Settings</h4>
+          <h4 class="text-md font-semibold text-[#f5bf58]">Security Settings</h4>
 
           <div>
             <label class="block text-xs font-semibold text-black-100 uppercase tracking-wider mb-2">Allowed CORS Origins</label>
@@ -449,7 +449,7 @@ async function renderServerSettingsTab() {
 
         <!-- Category 6: Custom Styling & CSS -->
         <div class="space-y-4">
-          <h4 class="text-md font-semibold text-accent">Custom Styling & CSS</h4>
+          <h4 class="text-md font-semibold text-[#f5bf58]">Custom Styling & CSS</h4>
 
           <div>
             <label class="block text-xs font-semibold text-black-100 uppercase tracking-wider mb-2">Custom CSS</label>
