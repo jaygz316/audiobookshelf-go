@@ -29,6 +29,11 @@
 
 *This log is updated by developers/agents whenever an API, design pattern, or library is deprecated or updated.*
 
+### 2026-07-23
+- **GitHub Actions CI Runner Fix**:
+  - Updated `golangci-lint-action` in `.github/workflows/ci.yml` from `v7` to `v9` to support Node 24 and resolve Node 20 runner deprecation warnings.
+  - Set `golangci-lint` binary version parameter to `latest` to ensure valid version resolution.
+
 ### 2026-07-21
 - **Login WebAssembly & WebSocket Authentication Verification Fix**:
   - Fixed WASM panic during login form submission by adding safe DOM type checks (`js.TypeNull` and `js.TypeUndefined`) across [login.go](file:///home/jay/projects/audiobookshelf-go/frontend/go/login.go), [auth.go](file:///home/jay/projects/audiobookshelf-go/frontend/go/auth.go), and [setup.go](file:///home/jay/projects/audiobookshelf-go/frontend/go/setup.go).

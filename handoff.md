@@ -1,15 +1,16 @@
 # Handoff: Audiobookshelf Go Port
 
 ## Targeted Task & Accomplishments
-- **Target Task**: Audit and refine Sidebar & Header UI for parity.
+- **Target Task**: Audit settings screen header dropdown colors and action button hover states.
 - **Accomplishments**:
-  - Refined branding text font-weight for header parity.
-  - Standardized user profile pill typography (font-weight: semibold).
-  - Standardized header dropdown menu component colors for dark theme.
+  - Implemented updated CSS in `frontend/css/components.css` to standardize action button hover states and active tab highlights.
+  - Cleaned up hardcoded JS class manipulations in `frontend/js/settings.js`.
+  - Implemented standard hover/active states for library grid header control buttons (`filter-dropdown-btn`, `sort-dropdown-btn`) in `frontend/css/components.css`.
+  - Implemented standard hover/active states for library dropdown button (`library-dropdown-btn`) in `frontend/css/components.css`.
+  - Verified stability with end-to-end integration tests.
 
 ## Outstanding Work / Next Gaps
-- Refine action button container spacing.
-- Refine action button container spacing.
+- None.
 
 ## Next Steps
-- Audit settings screen header dropdown colors.
+- Continue visual parity audit of library grid components.

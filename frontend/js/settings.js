@@ -142,7 +142,7 @@ export async function loadSettings() {
       const updateTabs = () => {
         tabs.forEach(t => {
           t.setAttribute('aria-selected', 'false');
-          t.classList.remove('bg-accent/20', 'text-accent');
+          t.classList.remove('bg-accent/20', 'text-accent', 'border'); // Cleanup if added directly
         });
         tab.setAttribute('aria-selected', 'true');
         tab.classList.add('bg-accent/20', 'text-accent');
