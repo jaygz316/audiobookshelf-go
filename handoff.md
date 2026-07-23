@@ -1,13 +1,16 @@
 # Handoff: Audiobookshelf Go Port
 
 ## Targeted Task & Accomplishments
+- **Target Task**: Audit and refine Sidebar & Header UI for parity.
 - **Accomplishments**:
-  - Refined table row hover style and Close Session button styling for Playback Sessions tab.
-  - Verified UI changes with test suite.
+  - Verified green baseline (all tests passed).
+  - Audited sidebar navigation and app header styling against reference screenshots.
+  - Created plan.md for Sidebar & Header UI parity.
 
 ## Outstanding Work / Next Gaps
-- Refine playback sessions table row data and action button responsiveness.
-- Continue auditing remaining settings tabs.
+- Implement CSS refinements for Sidebar/Header based on audit.
+- Ensure sidebar mobile drawer transitions match original behavior.
 
 ## Next Steps
-- **Next UI Goal**: Refine Login Sessions tab UI and continue auditing remaining settings tabs.
+- Implement Sidebar & Header visual refinements.
+- Verify responsiveness.
