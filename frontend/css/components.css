@@ -1067,6 +1067,7 @@ textarea:focus {
   border-radius: 4px !important;
   font-weight: 600 !important;
   transition: all 0.15s ease-in-out !important;
+  padding: 0.5rem 1rem !important;
 }
 #settings-tab-content button.bg-accent {
   background-color: var(--color-accent, #e5a93b) !important;
@@ -1091,6 +1092,7 @@ div[class*="fixed"][class*="z-50"] button {
   border-radius: 4px !important;
   font-weight: 600 !important;
   transition: all 0.15s ease-in-out !important;
+  padding: 0.5rem 1rem !important;
 }
 div[class*="fixed"][class*="z-50"] button.bg-accent {
   background-color: var(--color-accent, #e5a93b) !important;
