@@ -111,6 +111,18 @@ div[tabindex="0"].cursor-pointer:focus-within {
   pointer-events: auto;
 }
 
+/* Settings tab button enhancements */
+.settings-tab-btn:hover {
+  background-color: var(--color-black-400, #333333) !important;
+  color: var(--color-white, #ffffff) !important;
+}
+
+.settings-tab-btn[aria-selected="true"] {
+  background-color: rgba(232, 128, 36, 0.2) !important;
+  color: #e88024 !important;
+  border: 1px solid rgba(232, 128, 36, 0.3) !important;
+}
+
 /* Row-scoped specific overrides and group styles */
 .bookshelfRow .bookshelf-card,
 .bookshelfRow .group {
@@ -1617,14 +1629,18 @@ google-cast-launcher:hover {
 #sort-dropdown-btn:hover,
 #save-preset-btn:hover,
 #batch-edit-toggle-btn:hover {
-  border-color: rgba(229, 169, 59, 0.25) !important;
+  border-color: rgba(232, 128, 36, 0.4) !important;
+  background-color: var(--color-black-500, #2d2d2d) !important;
 }
 
-/* Active filter pill styling — when a filter is applied, show accent outline */
-#filter-dropdown-btn.filter-active {
-  color: var(--color-accent, #e5a93b) !important;
-  border-color: rgba(229, 169, 59, 0.4) !important;
-  background-color: rgba(229, 169, 59, 0.08) !important;
+/* Active filter/sort state styling */
+#filter-dropdown-btn[aria-expanded="true"],
+#sort-dropdown-btn[aria-expanded="true"],
+#filter-dropdown-btn.filter-active,
+#sort-dropdown-btn.sort-active {
+  color: #e88024 !important;
+  border-color: rgba(232, 128, 36, 0.6) !important;
+  background-color: rgba(232, 128, 36, 0.1) !important;
 }
 
 /* ─── Category Placard (Wooden Shelf Label) ─────────────────────────────── */
@@ -1639,13 +1655,46 @@ google-cast-launcher:hover {
   font-size: 0.7rem !important;
   padding: 0.2rem 0.8rem !important;
   border-radius: 4px !important;
+}/* Library Dropdown button */
+#library-dropdown-btn:hover {
+  background-color: var(--color-black-500, #2d2d2d) !important;
+  border-color: rgba(232, 128, 36, 0.4) !important;
 }
 
-/* Category placard label h3 style */
-.categoryPlacard .shinyBlack h3 {
-  color: #fce3a6 !important;
-  font-weight: 700 !important;
-  letter-spacing: 0.1em !important;
+#library-dropdown-btn[aria-expanded="true"] {
+  background-color: rgba(232, 128, 36, 0.1) !important;
+  border-color: rgba(232, 128, 36, 0.6) !important;
+}
+/* Scan / Upload buttons enhanced hover states */
+#scan-library-btn:hover,
+#upload-btn:hover {
+  background-color: rgba(232, 128, 36, 0.2) !important;
+  border-color: rgba(232, 128, 36, 0.5) !important;
+}
+
+#scan-library-btn:active,
+#upload-btn:active {
+  background-color: rgba(232, 128, 36, 0.3) !important;
+  border-color: rgba(232, 128, 36, 0.7) !important;
+}
+
+/* Header Icon Buttons enhanced hover states */
+#header-notification-btn:hover,
+#header-activity-btn:hover,
+#header-upload-btn:hover,
+#header-settings-btn:hover,
+#mobile-search-btn:hover {
+  background-color: var(--color-black-500, #2d2d2d) !important;
+  color: white !important;
+}
+
+#header-notification-btn:active,
+#header-activity-btn:active,
+#header-upload-btn:active,
+#header-settings-btn:active,
+#mobile-search-btn:active {
+  background-color: rgba(232, 128, 36, 0.2) !important;
+  color: var(--color-accent, #e88024) !important;
 }
 
 /* ─── Card Progress Bar Enhancements ────────────────────────────────────── */
