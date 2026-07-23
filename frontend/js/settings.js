@@ -2308,7 +2308,7 @@ async function renderLibrariesTab() {
         const spinClass = isScanning ? 'animate-spin' : '';
 
         html += `
-          <div class="library-row border ${borderClass} border-l-4 ${isSelected ? 'border-l-[#e88024]' : 'border-l-transparent'} bg-black-500 rounded p-4 flex flex-col md:flex-row justify-between items-start md:items-center space-y-4 md:space-y-0 transition-colors hover:bg-black-400" draggable="true" data-id="${lib.id}">
+          <div class="library-row border ${borderClass} border-l-4 ${isSelected ? 'border-l-[#e88024]' : 'border-l-transparent'} bg-black-500 rounded-lg p-4 flex flex-col md:flex-row justify-between items-start md:items-center space-y-4 md:space-y-0 transition-colors hover:bg-black-400 group" draggable="true" data-id="${lib.id}">
             <div class="flex items-center space-x-3 w-full md:w-auto">
               <!-- Reorder Handle -->
               <span class="drag-handle material-symbols text-black-200 hover:text-white text-xl select-none mr-1 cursor-grab active:cursor-grabbing" title="Drag to reorder">drag_handle</span>
