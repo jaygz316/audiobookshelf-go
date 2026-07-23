@@ -1045,12 +1045,19 @@ textarea:focus {
 }
 
 /* Selected Library Row Border styling (brand orange/gold highlight) */
-.library-row.border-accent {
-  border-left-color: var(--color-accent, #e88024) !important;
+.library-row {
+  background-color: #2c2c2c;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  transition: background-color 0.2s ease;
+  border: 1px solid transparent;
+}
+.library-row:hover {
+  background-color: #383838;
   border-color: var(--color-accent, #e88024) !important;
 }
-
-.library-row:hover {
+.library-row.border-accent {
+  border-left-color: var(--color-accent, #e88024) !important;
   border-color: var(--color-accent, #e88024) !important;
 }
 

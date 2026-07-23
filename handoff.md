@@ -1,15 +1,16 @@
 # Handoff: Audiobookshelf Go Port
 
 ## Targeted Task & Accomplishments
-- **Target Task**: Audit Settings > Libraries UI for visual alignment and parity.
+- **Target Task**: Audit Library Settings list UI for visual parity.
 - **Accomplishments**:
-  - Researched Settings > Libraries UI components in `frontend/js/settings.js`.
-  - Implemented updated CSS styles and class structures for `library-row` to mirror original orange border highlights and improved row spacing.
+  - Verified codebase (built and tested).
+  - Created plan for settings UI alignment.
+  - Investigated `renderLibrariesTab` and associated CSS in `components.css`.
+  - Next steps identified: Align library settings rows with premium look.
 
 ## Outstanding Work / Next Gaps
-- Verify CSS styles persist across page transitions and theme changes.
+- Update `library-row` class in `components.css` to better match the reference aesthetic.
+- Verify premium hover states and padding.
 
 ## Next Steps
-- Continue audit of other settings panes for UI parity.
-- Proceed to Library Grid UI if Settings parity is complete.
-
+- Apply requested CSS refinements to `components.css` and verify.
