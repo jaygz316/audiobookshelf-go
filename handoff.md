@@ -3,13 +3,13 @@
 ## Targeted Task & Accomplishments
 - **Target Task**: Audit and refine Sidebar & Header UI for parity.
 - **Accomplishments**:
-  - Refined sidebar mobile drawer transition logic for smoother appearance.
-  - Standardized header action button heights for better visual symmetry.
-  - Verified green baseline and tests.
-  - Successfully committed, pushed, and triggered Docker build/push.
+  - Refined branding text font-weight for header parity.
+  - Standardized user profile pill typography (font-weight: semibold).
+  - Standardized header dropdown menu component colors for dark theme.
 
 ## Outstanding Work / Next Gaps
-- Verify responsiveness on smaller screens after transition tweaks.
+- Refine action button container spacing.
+- Refine action button container spacing.
 
 ## Next Steps
-- Audit and refine mobile drawer responsiveness and backdrop behavior.
+- Audit settings screen header dropdown colors.
