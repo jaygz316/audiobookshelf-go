@@ -293,7 +293,7 @@ export async function renderLoginSessionsTab() {
                 <th class="px-4 py-3 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody id="login-sessions-list-rows" class="divide-y divide-black-400">
+            <tbody id="login-sessions-list-rows" class="divide-y divide-black-400/50">
               <!-- Rows will be injected here -->
             </tbody>
           </table>
@@ -343,7 +343,7 @@ async function loadAndRenderLoginSessions(userId) {
 
     sessions.forEach(session => {
       const tr = document.createElement('tr');
-      tr.className = 'hover:bg-black-500/30';
+      tr.className = 'hover:bg-black-500/30 transition-colors border-b border-black-400/30 group';
 
       const createdAtFormatted = session.createdAt ? (window.formatDateTime ? window.formatDateTime(session.createdAt) : new Date(session.createdAt).toLocaleString()) : 'Unknown';
       const updatedAtFormatted = session.updatedAt ? (window.formatDateTime ? window.formatDateTime(session.updatedAt) : new Date(session.updatedAt).toLocaleString()) : 'Unknown';
@@ -353,7 +353,7 @@ async function loadAndRenderLoginSessions(userId) {
       ` : '';
 
       const actionButtonHtml = `
-        <button class="revoke-login-session-btn bg-red-900/40 hover:bg-red-900/60 border border-red-500/30 text-error hover:text-white hover:border-red-500/50 text-xs font-semibold px-2.5 py-1 rounded inline-flex items-center space-x-1 transition-colors cursor-pointer" data-id="${session.id}">
+        <button class="revoke-login-session-btn bg-black-500/30 hover:bg-red-900/40 border border-black-400 hover:border-red-500/50 text-black-50 hover:text-white text-xs font-semibold px-3 py-1 rounded inline-flex items-center space-x-1.5 transition-all cursor-pointer shadow-sm" data-id="${session.id}">
           <span class="material-symbols text-sm">close</span>
           <span>Revoke</span>
         </button>
