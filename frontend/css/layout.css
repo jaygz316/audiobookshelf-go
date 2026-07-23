@@ -476,14 +476,14 @@ header {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0 0.8rem;
+  padding: 0 0.6rem;
 }
 
 #user-menu-btn {
   height: 2.25rem !important; /* Ensure user pill matches */
   display: flex;
   align-items: center;
-  padding: 0 0.75rem !important;
+  padding: 0 0.65rem !important;
 }
 
 #header-actions-container button:hover {
