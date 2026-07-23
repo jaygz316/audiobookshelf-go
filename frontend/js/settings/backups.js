@@ -49,7 +49,7 @@ export async function renderBackupsTab() {
             <label class="block text-xs font-semibold text-black-100 uppercase tracking-wider mb-2">Backups Storage Directory</label>
             <input type="text" id="backup-location-path" value="${escapeHtml(location)}" class="w-full bg-black-500 text-white px-3 py-2 rounded border border-black-300 focus:outline-none focus:border-accent">
           </div>
-          <button type="submit" class="bg-black-400 hover:bg-black-300 border border-black-300 text-white font-medium px-4 py-2 rounded transition-colors flex items-center space-x-1.5 text-sm">
+          <button type="submit" class="bg-accent hover:opacity-90 text-primary font-bold px-4 py-2 rounded shadow-sm transition-opacity flex items-center space-x-1.5 text-sm">
             <span class="material-symbols text-sm">save</span>
             <span>Change Path</span>
           </button>
