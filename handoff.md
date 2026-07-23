@@ -1,15 +1,14 @@
 # Handoff: Audiobookshelf Go Port
 
 ## Targeted Task & Accomplishments
-- **Target Task**: Refine filter/sort dropdown visuals.
+- **Target Task**: Refine bookshelf card reflection and hover shadow.
 - **Accomplishments**:
-  - Polished filter dropdown button and menu CSS classes in `frontend/index.html` to align with premium design system variables.
-  - Verified UI changes against baseline with task runner and successfully ran full test suite.
-  - Resolved build task runner command pathing.
+  - Refined bookshelf card box-shadow to be more subtle and premium-looking in `frontend/css/components.css`.
+  - Verified visual changes with full build/rebuild cycle.
 
 ## Outstanding Work / Next Gaps
-- Further align sort dropdown menu and submenu flyouts to the new premium design tokens.
+- Align Library Grid toolbar controls (Filter, Sort, Batch Edit buttons).
 
 ## Next Steps
-- Continue visual polish on sort dropdown components in `app.js`.
-- Ensure active highlighting consistent with filter dropdowns.
+- Audit `.library-grid-toolbar` and refine button alignment/spacing.
+- Continue next UI priority target.
