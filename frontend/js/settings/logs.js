@@ -124,15 +124,15 @@ export async function renderListeningSessionsTab() {
         <div class="border border-black-300 rounded-md bg-primary overflow-x-auto">
           <table class="w-full text-left text-sm">
             <thead>
-              <tr class="border-b border-black-400/60 text-black-100 text-xs uppercase tracking-wider font-semibold">
+              <tr class="border-b border-black-400/60 text-black-100 text-[10px] uppercase tracking-wider font-bold">
                 <th class="px-4 py-3">User</th>
                 <th class="px-4 py-3">Item</th>
-                <th class="px-4 py-3">Play Method</th>
-                <th class="px-4 py-3">Device Info</th>
-                <th class="px-4 py-3">Time Listened</th>
-                <th class="px-4 py-3">Last Position/Last Time</th>
-                <th class="px-4 py-3">Last Updated</th>
-                <th class="px-4 py-3 text-right font-semibold">Actions</th>
+                <th class="px-4 py-3">Method</th>
+                <th class="px-4 py-3">Device</th>
+                <th class="px-4 py-3">Time</th>
+                <th class="px-4 py-3">Position</th>
+                <th class="px-4 py-3">Updated</th>
+                <th class="px-4 py-3 text-right">Actions</th>
               </tr>
             </thead>
             <tbody id="sessions-list-rows" class="divide-y divide-black-400">
