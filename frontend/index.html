@@ -598,17 +598,17 @@
       <div class="flex-grow flex flex-col h-full min-w-0 bg-bg relative">
         
         <!-- Toolbar Header -->
-        <div class="library-grid-toolbar w-full min-h-[3rem] py-2 flex flex-wrap items-center justify-between px-4 md:px-6 bg-black-500/30 border-b border-black-600/30 gap-2">
+        <div class="library-grid-toolbar w-full min-h-[3rem] py-2 flex flex-wrap items-center justify-between px-6 bg-black-500/30 border-b border-black-600/30 gap-4">
           <div class="flex items-center space-x-2 flex-wrap">
             <h2 id="view-title" class="font-semibold text-lg text-white">Home</h2>
             <span id="view-title-separator" class="text-xs text-black-100 pt-1">|</span>
-            <span id="book-count" class="text-xs text-black-50 pt-1 mr-2 font-semibold" aria-live="polite" role="status">0 Books</span>
+            <span id="book-count" class="text-[11px] text-black-200 uppercase tracking-wider font-medium pt-0.5 mr-2" aria-live="polite" role="status">0 Books</span>
             <!-- Saved Presets Pills -->
             <div id="presets-pills-container" class="flex items-center space-x-1.5 border-l border-black-600/50 pl-4 flex-wrap gap-1"></div>
           </div>
           
           <!-- Filter / View controls -->
-          <div class="flex items-center space-x-2 text-xs flex-wrap gap-y-1">
+          <div class="flex items-center space-x-3 text-xs flex-wrap gap-y-2">
             <button id="batch-edit-toggle-btn" class="hidden flex items-center space-x-1 hover:bg-black-500 px-2.5 py-1.5 rounded text-black-50 hover:text-white border border-transparent hover:border-black-300" title="Batch Edit">
               <span class="material-symbols text-base">checklist</span>
               <span id="batch-edit-toggle-text" class="hidden sm:inline">Batch Edit</span>
@@ -620,7 +620,7 @@
             
             <!-- Custom Filter Dropdown -->
             <div class="relative flex items-center space-x-1">
-              <button id="filter-dropdown-btn" class="flex items-center space-x-1.5 bg-black-600/40 hover:bg-black-500 px-3 py-1.5 rounded border border-black-300/30 text-black-50 hover:text-white transition duration-150 focus:outline-none focus:border-accent">
+              <button id="filter-dropdown-btn" class="flex items-center space-x-2 bg-black-600/40 hover:bg-black-500 px-3.5 py-1.5 rounded border border-black-300/30 text-black-50 hover:text-white transition duration-150 focus:outline-none focus:border-accent">
                 <span class="material-symbols text-[14px]">filter_list</span>
                 <span id="filter-selected-label">Filter: All</span>
                 <span class="material-symbols text-[12px] text-black-100">keyboard_arrow_down</span>
@@ -644,7 +644,7 @@
 
             <!-- Custom Sort Dropdown -->
             <div class="relative">
-              <button id="sort-dropdown-btn" class="flex items-center space-x-1.5 bg-black-600/40 hover:bg-black-500 px-3 py-1.5 rounded border border-black-300/30 text-black-50 hover:text-white transition duration-150 focus:outline-none focus:border-accent">
+              <button id="sort-dropdown-btn" class="flex items-center space-x-2 bg-black-600/40 hover:bg-black-500 px-3.5 py-1.5 rounded border border-black-300/30 text-black-50 hover:text-white transition duration-150 focus:outline-none focus:border-accent">
                 <span class="material-symbols text-[14px]">sort</span>
                 <span id="sort-selected-label">Sort: Title</span>
                 <span class="material-symbols text-[12px] text-black-100">keyboard_arrow_down</span>
