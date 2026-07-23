@@ -286,9 +286,10 @@ header {
 }
 
 #siderail-buttons-container a:hover {
-  background-color: var(--color-black-400, #333333) !important;
+  background-color: var(--color-black-400, #3a3a3a) !important;
   color: var(--color-white, #ffffff) !important;
   font-weight: 500 !important;
+  border-left: 4px solid var(--color-accent, #e5a93b) !important;
 }
 
 #siderail-buttons-container a.active {
@@ -467,14 +468,15 @@ header {
 
 /* Header Action Button Styling */
 #header-actions-container button {
-  background-color: var(--color-black-600, #111111) !important;
-  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  background-color: var(--color-black-600, #2c2c2c) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
   border-radius: 9999px !important;
-  transition: all 0.15s ease !important;
+  transition: all 0.2s ease !important;
   height: 2.25rem; /* Standardize height */
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 0 0.8rem;
 }
 
 #user-menu-btn {
