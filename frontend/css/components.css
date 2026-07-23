@@ -847,7 +847,7 @@ input:checked + .abs-slider:before {
 #library-dropdown-menu,
 #user-dropdown,
 #header-notification-dropdown {
-  background-color: color-mix(in oklab, var(--color-primary) 98%, transparent) !important;
+  background-color: color-mix(in oklab, var(--color-primary) 80%, var(--color-accent) 15%) !important;
   backdrop-filter: blur(20px) !important;
   -webkit-backdrop-filter: blur(20px) !important;
   border: 1px solid color-mix(in oklab, var(--color-black-400) 80%, transparent) !important;
