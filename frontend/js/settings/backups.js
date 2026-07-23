@@ -72,7 +72,7 @@ export async function renderBackupsTab() {
               <input type="text" id="backup-schedule-cron" value="${escapeHtml(backupSchedule)}" placeholder="e.g. 0 0 * * *" class="w-full bg-black-500 text-white px-3 py-2 rounded border border-black-300 focus:outline-none focus:border-accent">
             </div>
             <div>
-              <button type="submit" class="bg-black-400 hover:bg-black-300 border border-black-300 text-white font-medium px-4 py-2 rounded transition-colors w-full md:w-auto flex items-center justify-center space-x-1.5 text-sm">
+              <button type="submit" class="bg-black-400 hover:bg-black-300 border border-black-300 text-white font-bold px-4 py-2 rounded-md transition-colors w-full md:w-auto flex items-center justify-center space-x-1.5 text-sm shadow-sm">
                 <span class="material-symbols text-sm">save</span>
                 <span>Save Schedule</span>
               </button>
@@ -86,7 +86,7 @@ export async function renderBackupsTab() {
             <h4 class="text-sm font-semibold">Manual System Backup</h4>
             <p class="text-xs text-black-100">Saves the SQLite database and all book cover metadata into a zip package.</p>
           </div>
-          <button id="create-backup-btn" class="bg-accent hover:opacity-90 text-primary font-bold px-4 py-2 rounded transition-opacity flex items-center space-x-1.5">
+          <button id="create-backup-btn" class="bg-accent hover:opacity-90 text-primary font-bold px-4 py-2 rounded-md shadow-sm transition-opacity flex items-center space-x-1.5">
             <span class="material-symbols text-lg">backup</span>
             <span>Create Backup Now</span>
           </button>
