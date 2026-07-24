@@ -1,15 +1,15 @@
 # Handoff: Audiobookshelf Go Port
 
 ## Targeted Task & Accomplishments
-- **Target Task**: Audit and align Filter/Sort dropdown UI components.
+- **Target Task**: Baseline verification and context audit of Library view.
 - **Accomplishments**:
-  - Performed comprehensive CSS/JS audit for filter/sort dropdown dropdown implementation in `app.js` and `layout.css`.
-  - Confirmed baseline stability with build and tests.
-- **Visual Status**: Controls are functional but require subtle CSS polish in `components.css` to perfectly match the original Audiobookshelf's premium look (transition speeds, border colors, focus states).
+  - Performed a full repository baseline verification (build and tests), confirming 134+ tests passing in the Go environment.
+  - Audited layout.css, components.css, and library handler logic to understand the structure of the library results toolbar.
+- **Visual Status**: Baseline stable. The toolbar controls (Filter, Sort, Size slider) are identified in index.html and styled in layout.css.
 
 ## Outstanding Work / Next Gaps
-- Refine filter/sort dropdown hover and focus transitions in `components.css`.
 - Finalize settings screen control styles.
+- Audit Library view results count header and toolbar layout symmetry to match premium original UI.
 
 ## Next Steps
-- Implement refined CSS transitions for dropdown menus in `components.css`.
+- Implement precise CSS styling for library view toolbar header and count alignment in layout.css.
