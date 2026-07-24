@@ -939,13 +939,6 @@ textarea:focus {
   margin-right: 0.75rem !important;
   font-size: 1rem !important;
 }
-#book-count {
-  font-size: 0.875rem !important;
-  color: #b3b3b3 !important;
-  font-weight: 500 !important;
-  opacity: 1 !important;
-  margin-left: 0.5rem !important;
-}
 
 /* Style switcher button styling */
 #style-switcher button {
