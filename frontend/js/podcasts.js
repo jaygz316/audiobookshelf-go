@@ -84,7 +84,7 @@ export async function loadPodcastLatestView(libraryId) {
         : `<div class="w-12 h-12 bg-black-500 rounded border border-black-400 flex items-center justify-center flex-shrink-0"><span class="material-symbols text-xl text-black-200">podcasts</span></div>`;
 
       html += `
-        <div class="flex items-center justify-between p-4 hover:bg-black-500/60 rounded border border-black-400/30 bg-primary/40 transition-all text-sm shadow-sm">
+        <div class="flex items-center justify-between p-3.5 hover:bg-black-500/80 rounded-lg border border-black-400/60 bg-primary/30 transition-all text-sm shadow-md">
           <div class="flex items-center space-x-3 truncate flex-grow mr-4">
             ${coverHtml}
             <div class="truncate">
@@ -94,12 +94,12 @@ export async function loadPodcastLatestView(libraryId) {
           </div>
           <div class="flex items-center space-x-2 flex-shrink-0">
             ${isDownloaded ? `
-              <button class="play-episode-btn flex items-center space-x-1 bg-accent text-primary px-3 py-1.5 rounded font-bold hover:opacity-90 transition-opacity cursor-pointer" data-idx="${idx}">
+              <button class="play-episode-btn flex items-center space-x-1.5 bg-accent text-primary px-3.5 py-1.5 rounded-md font-bold hover:opacity-95 transition-opacity cursor-pointer text-xs" data-idx="${idx}">
                 <span class="material-symbols text-sm font-bold">play_arrow</span>
                 <span>Play</span>
               </button>
             ` : `
-              <button class="download-episode-btn flex items-center space-x-1 bg-black-400 hover:bg-black-300 border border-black-300 text-white px-3 py-1.5 rounded font-bold transition-colors cursor-pointer" data-pod-id="${ep.podcastId}" data-ep-id="${ep.id}">
+              <button class="download-episode-btn flex items-center space-x-1.5 bg-black-500 hover:bg-black-300 border border-black-300 text-white px-3.5 py-1.5 rounded-md font-bold transition-colors cursor-pointer text-xs" data-pod-id="${ep.podcastId}" data-ep-id="${ep.id}">
                 <span class="material-symbols text-sm">download</span>
                 <span>Download</span>
               </button>
