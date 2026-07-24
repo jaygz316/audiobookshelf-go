@@ -1443,6 +1443,7 @@ function createListRow(item, libraryId, visibleCols = ['cover', 'title', 'author
   };
   document.addEventListener('playback-state-changed', handlePlaybackStateChanged);
 
+
   const handlePresenceUpdated = (e) => {
     if (!tr.isConnected) {
       document.removeEventListener('presence-updated', handlePresenceUpdated);
@@ -1481,4 +1482,26 @@ function createListRow(item, libraryId, visibleCols = ['cover', 'title', 'author
   });
 
   return tr;
+}
+
+// Initialize shelf sizing slider
+export function initShelfSizingSlider() {
+  const slider = document.getElementById('shelf-size-slider');
+  if (!slider) return;
+
+  const savedSize = localStorage.getItem('shelf-size');
+  if (savedSize) {
+    slider.value = savedSize;
+    updateShelfSize(savedSize);
+  }
+
+  slider.oninput = (e) => {
+    const size = e.target.value;
+    updateShelfSize(size);
+    localStorage.setItem('shelf-size', size);
+  };
+}
+
+function updateShelfSize(size) {
+  document.documentElement.style.setProperty('--bookshelf-card-width', `${size}px`);
 }
