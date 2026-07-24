@@ -1,5 +1,5 @@
 // js/app.js
-import { navigateTo, highlightSidebarLink, updateSidebarVisibility, isDashboardActive } from './router.js';
+import { initShelfSizingSlider } from './dashboard.js';
 import { showToast } from './toast.js';
 export { showToast } from './toast.js';
 
@@ -1462,6 +1462,9 @@ function bootstrapApp(payload) {
   if (userDisplayRole) {
     userDisplayRole.textContent = user.type || 'User';
   }
+
+  // Initialize shelf sizing slider
+  initShelfSizingSlider();
 
   // Wire header activity button
   const activityBtn = document.getElementById('header-activity-btn');
