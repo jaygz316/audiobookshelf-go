@@ -39,10 +39,10 @@
       var(--bookshelf-wall-overlay-top) 0px,
       var(--bookshelf-wall-overlay-bottom) calc(var(--bookshelf-row-height) - var(--bookshelf-plank-height)),
       var(--bookshelf-plank-top) calc(var(--bookshelf-row-height) - var(--bookshelf-plank-height)),
-      var(--bookshelf-plank-top) calc(var(--bookshelf-row-height) - var(--bookshelf-plank-height) + 2px),
-      var(--bookshelf-plank-mid) calc(var(--bookshelf-row-height) - var(--bookshelf-plank-height) + 2px),
-      var(--bookshelf-plank-mid) calc(var(--bookshelf-row-height) - 4px),
-      var(--bookshelf-plank-bottom) calc(var(--bookshelf-row-height) - 4px),
+      var(--bookshelf-plank-top) calc(var(--bookshelf-row-height) - var(--bookshelf-plank-height) + 4px),
+      var(--bookshelf-plank-mid) calc(var(--bookshelf-row-height) - var(--bookshelf-plank-height) + 4px),
+      var(--bookshelf-plank-mid) calc(var(--bookshelf-row-height) - 6px),
+      var(--bookshelf-plank-bottom) calc(var(--bookshelf-row-height) - 6px),
       var(--bookshelf-plank-bottom) var(--bookshelf-row-height)
     ),
     /* 4. The underlying wood grain texture */
