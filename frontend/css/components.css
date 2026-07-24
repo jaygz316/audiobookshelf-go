@@ -303,8 +303,8 @@ input:checked + .abs-slider:before {
 
 .group:hover .series-cover-front,
 .series-cover-stack:hover .series-cover-front {
-  transform: scale(1.05);
-  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.7), 0 6px 12px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(229, 169, 59, 0.12);
+  transform: scale(1.05) rotate(0deg);
+  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.7), 0 6px 12px rgba(0, 0, 0, 0.5), 0 0 8px rgba(229, 169, 59, 0.3);
 }
 
 .series-cover-middle {
