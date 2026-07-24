@@ -225,7 +225,7 @@ div[tabindex="0"].cursor-pointer:focus-within {
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: #4b5563;
+  background-color: var(--color-black-300);
   transition: .2s;
   border-radius: 20px;
 }
