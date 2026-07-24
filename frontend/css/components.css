@@ -879,6 +879,7 @@ input:checked + .abs-slider:before {
   border-radius: 10px !important;
   box-shadow: 0 15px 35px -10px rgba(0, 0, 0, 0.4), 0 5px 10px -5px rgba(0, 0, 0, 0.2) !important;
   padding: 6px !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 
 /* Make dropdown option hover highlights look clean and responsive */
@@ -895,7 +896,8 @@ input:checked + .abs-slider:before {
 .filter-cat-row-btn:hover {
   background-color: var(--color-black-400) !important;
   color: var(--color-white) !important;
-  transform: translateY(-1px);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
 }
 
 .sort-option-btn:active,
