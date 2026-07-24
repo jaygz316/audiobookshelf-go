@@ -424,7 +424,7 @@ function createSeriesCard(series) {
     }
     coversHtml = `
       <div class="series-cover-stack">
-        <div class="absolute top-[3%] right-[3%] bg-accent text-primary text-[10px] font-bold px-2 py-0.5 rounded-full z-30 shadow-md border border-accent/20">
+        <div class="absolute -top-1 -right-1 bg-accent text-primary text-[10px] font-bold px-1.5 py-0.5 rounded-full z-30 shadow-md border border-accent/20">
           ${numBooks}
         </div>
         ${imagesHtml}
