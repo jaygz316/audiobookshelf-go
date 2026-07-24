@@ -84,7 +84,7 @@ export async function loadPodcastLatestView(libraryId) {
         : `<div class="w-12 h-12 bg-black-500 rounded border border-black-400 flex items-center justify-center flex-shrink-0"><span class="material-symbols text-xl text-black-200">podcasts</span></div>`;
 
       html += `
-        <div class="flex items-center justify-between p-4 hover:bg-black-500/40 rounded-md border border-black-400/50 bg-primary/20 transition-colors text-sm">
+        <div class="flex items-center justify-between p-4 hover:bg-black-500/60 rounded border border-black-400/30 bg-primary/40 transition-all text-sm shadow-sm">
           <div class="flex items-center space-x-3 truncate flex-grow mr-4">
             ${coverHtml}
             <div class="truncate">
