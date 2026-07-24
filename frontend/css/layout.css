@@ -423,13 +423,13 @@ header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0.75rem 1.5rem;
+  padding: 0.5rem 1.5rem;
   background-color: var(--color-black-500, #2c2c2c);
   border-bottom: 1px solid rgba(0, 0, 0, 0.4);
-  gap: 1.5rem;
+  gap: 1rem;
   flex-wrap: wrap;
-  min-height: 4rem;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  min-height: 3.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
 .library-grid-toolbar .toolbar-left,
@@ -457,10 +457,13 @@ header {
 
 /* Header Dropdown Button Styling */
 #library-dropdown-btn {
-  background-color: var(--color-black-400, #333333) !important;
-  border-radius: 4px !important;
+  background-color: var(--color-black-600, #2c2c2c) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 6px !important;
   padding: 0.5rem 1rem !important;
-  transition: background-color 0.15s ease !important;
+  transition: all 0.2s ease !important;
+  font-weight: 500;
+  color: var(--color-white, #ffffff);
 }
 
 #library-dropdown-btn:hover {
