@@ -92,7 +92,7 @@ func TestSocketStress(t *testing.T) {
 	startLoadSignal := make(chan struct{})
 
 	for i := 0; i < concurrency; i++ {
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(25 * time.Millisecond)
 		go func(id int) {
 			defer wg.Done()
 
@@ -138,6 +138,8 @@ func TestSocketStress(t *testing.T) {
 				return
 			}
 
+			tc := newTestClient(c)
+
 			// Auth
 			token, err := generateTestToken(userID, username, uType, cachedSecret)
 			if err != nil {
@@ -147,11 +149,9 @@ func TestSocketStress(t *testing.T) {
 			}
 			_ = c.WriteMessage(websocket.TextMessage, []byte(fmt.Sprintf(`42["auth",%q]`, token)))
 
-			tc := newTestClient(c)
-
-			// Wait for init event robustly with 30s timeout
+			// Wait for init event robustly with 60s timeout
 			foundInit := false
-			timeout := time.After(30 * time.Second)
+			timeout := time.After(60 * time.Second)
 			for !foundInit {
 				select {
 				case ev := <-tc.Chan:

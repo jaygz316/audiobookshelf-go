@@ -29,6 +29,11 @@
 
 *This log is updated by developers/agents whenever an API, design pattern, or library is deprecated or updated.*
 
+### 2026-07-24
+- **Socket Stress Test Reliability Fix**:
+  - Initialized `newTestClient` event listener channel before emitting `auth` message in [stress_test.go](file:///home/jay/projects/audiobookshelf-go/internal/socket/stress_test.go).
+  - Increased connection stagger delay to `25ms` and `init` event timeout to `60s` to prevent timeout flakiness during parallel package testing in resource-constrained CI environments.
+
 ### 2026-07-23
 - **GitHub Actions CI Runner Fix**:
   - Updated `golangci-lint-action` in `.github/workflows/ci.yml` from `v7` to `v9` to support Node 24 and resolve Node 20 runner deprecation warnings.
