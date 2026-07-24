@@ -1484,24 +1484,27 @@ function createListRow(item, libraryId, visibleCols = ['cover', 'title', 'author
   return tr;
 }
 
-// Initialize shelf sizing slider
+function updateShelfSize(size) {
+  const newSize = Math.max(80, Math.min(240, parseInt(size)));
+  localStorage.setItem('bookshelf-card-width', newSize);
+  document.documentElement.style.setProperty('--bookshelf-card-width', `${newSize}px`);
+  document.documentElement.style.setProperty('--bookshelf-card-height', `${newSize * 1.5}px`);
+  document.documentElement.style.setProperty('--bookshelf-plank-height', `${newSize * 0.15 + 6}px`);
+  document.documentElement.style.setProperty('--bookshelf-row-height', `${newSize * 1.5 + (newSize * 0.15 + 6) + 30}px`);
+}
+
 export function initShelfSizingSlider() {
   const slider = document.getElementById('shelf-size-slider');
   if (!slider) return;
 
-  const savedSize = localStorage.getItem('shelf-size');
-  if (savedSize) {
-    slider.value = savedSize;
-    updateShelfSize(savedSize);
-  }
+  const savedSize = localStorage.getItem('bookshelf-card-width') || 120;
+  slider.value = savedSize;
+  updateShelfSize(savedSize);
 
   slider.oninput = (e) => {
-    const size = e.target.value;
-    updateShelfSize(size);
-    localStorage.setItem('shelf-size', size);
+    updateShelfSize(e.target.value);
   };
-}
-
-function updateShelfSize(size) {
-  document.documentElement.style.setProperty('--bookshelf-card-width', `${size}px`);
+  slider.onclick = (e) => {
+    e.stopPropagation();
+  };
 }
