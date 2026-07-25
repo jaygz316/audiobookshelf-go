@@ -67,7 +67,12 @@
 .bookshelf-card:focus-visible .book-cover-wrapper,
 .bookshelf-card:focus-within .book-cover-wrapper,
 .bookshelfRow .group:hover .book-cover-wrapper {
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.8), 0 10px 15px rgba(0, 0, 0, 0.6), 0 0 10px rgba(229, 169, 59, 0.4);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.8), 0 10px 15px rgba(0, 0, 0, 0.6), 0 0 10px rgba(229, 169, 59, 0.5);
+}
+
+/* Premium Card hover shadow for library grid items */
+.library-grid .bookshelf-card:hover .book-cover-wrapper {
+  box-shadow: 0 20px 30px rgba(0, 0, 0, 0.7), 0 10px 10px rgba(0, 0, 0, 0.5), 0 0 15px rgba(229, 169, 59, 0.5) !important;
 }
 
 .bookshelf-card:focus-within .group-hover\:opacity-100,
