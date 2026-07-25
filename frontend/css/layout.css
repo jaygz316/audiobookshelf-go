@@ -467,7 +467,10 @@ header {
   background-color: var(--color-black-600, #2c2c2c) !important;
   border: 1px solid rgba(255, 255, 255, 0.1) !important;
   border-radius: 6px !important;
-  padding: 0.5rem 1rem !important;
+  padding: 0.5rem 0.8rem !important;
+  height: 2.25rem !important; /* Match action buttons */
+  display: flex !important;
+  align-items: center !important;
   transition: all 0.2s ease !important;
   font-weight: 500;
   color: var(--color-white, #ffffff);
@@ -480,14 +483,15 @@ header {
 /* Header Action Button Styling */
 #header-actions-container button {
   background-color: var(--color-black-600, #2c2c2c) !important;
-  border: 1px solid rgba(255, 255, 255, 0.15) !important;
-  border-radius: 9999px !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 50% !important;
   transition: all 0.2s ease !important;
-  height: 2.25rem; /* Standardize height */
+  height: 2.25rem;
+  width: 2.25rem;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0 0.6rem;
+  padding: 0;
 }
 
 #user-menu-btn {
