@@ -1,15 +1,14 @@
 # Handoff: Audiobookshelf Go Port
 
 ## Targeted Task & Accomplishments
-- **Target Task**: Audit sidebar and header symmetry.
+- **Target Task**: Audit and refine Library Grid & Toolbar for visual parity.
 - **Accomplishments**:
-  - Inspected the repository state and baseline.
-  - Verified current build and test stability.
-  - Explored frontend CSS and JS codebases to understand existing implementations for UI components.
-  - Prepared the environment for subsequent UI alignment tasks.
+  - Verified build and test stability (baseline stability).
+  - Audited Library Grid CSS and Toolbar layout in frontend code.
+  - Verified CSS structure for .library-grid and .library-grid-toolbar.
 
 ## Outstanding Work / Next Gaps
-- Sidebar & Top Header Symmetry: Left nav and top bar brand alignment.
-
+- Implement visual polish/adjustments to the library grid toolbar if found inconsistent with the original Audiobookshelf.
+- Audit Library view results count header and filter dropdowns.
 ## Next Steps
-- Audit and refine sidebar & top header symmetry against the original Audiobookshelf.
+- Implement and verify Toolbar UI adjustments.
