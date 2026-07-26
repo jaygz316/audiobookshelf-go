@@ -2455,11 +2455,14 @@ async function renderLibrariesTab() {
       btn.onclick = async (e) => {
         e.stopPropagation();
         const id = btn.dataset.id;
+        btn.classList.add('scan-button-scanning');
         try {
           await request('POST', `/api/libraries/${id}/scan`);
           showToast('Library scan requested successfully.', 'success');
         } catch (err) {
           showToast('Failed to scan library: ' + err.message, 'error');
+        } finally {
+          btn.classList.remove('scan-button-scanning');
         }
       };
     });
