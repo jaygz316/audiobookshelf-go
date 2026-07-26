@@ -1,14 +1,15 @@
 # Handoff: Audiobookshelf Go Port
 
 ## Targeted Task & Accomplishments
-- **Target Task**: Audit Sidebar & Top Header symmetry.
+- **Target Task**: Audit settings screens & interactive controls (sliding toggles, scan buttons).
 - **Accomplishments**:
-  - Implemented CSS refinements in `frontend/css/layout.css` to improve header element alignment, standardizing heights for library dropdown and action buttons, and applying circular styling to toolbar buttons.
-  - Verified stability with successful build and test run.
+  - Investigated frontend/js/settings.js, frontend/css/components.css and frontend/css/variables.css to understand implementation of sliding toggles (.abs-switch, .abs-slider).
+  - Verified component structure and CSS classes.
+  - Baseline stable after successful build and test run.
 
 ## Outstanding Work / Next Gaps
-- Further minor UI/UX refinements may be needed to achieve perfect pixel-perfect parity with the original interface.
-- Audit remaining toolbar dropdown styling for complete consistency.
+- Implement specific UI refinements for settings sidebar and interaction controls to reach pixel-perfect parity.
+- Audit button styling and scan button interactions.
 
 ## Next Steps
-- Audit library grid card hover effects and shadow styling.
+- Implement and test visual parity for settings sidebar items.
