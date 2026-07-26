@@ -665,6 +665,23 @@ input:checked + .abs-slider:before {
   }
 }
 
+@keyframes scan-pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(0.95);
+  }
+}
+
+.scan-button-scanning {
+  animation: scan-pulse 1.5s infinite ease-in-out;
+  cursor: wait !important;
+  pointer-events: none;
+}
+
 /* Upload page dropzone hover styles */
 .hover\:border-accent\/50 {
   transition: border-color 0.2s ease-in-out;
