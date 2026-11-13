@@ -44,3 +44,10 @@ tailwind.config.js
 /scratch/
 /abs-go
 
+
+# Build artifacts, logs, scratch
+/abs-gateway*
+/run
+*.test
+*.log
+/scratch/
